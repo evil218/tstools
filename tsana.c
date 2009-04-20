@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
 {
         int i;
         u32_t count;
+        int con_cnt = -1; // low 4-bits in line[0x03]
         int nread; // number readed
         u08_t *line;
 
@@ -73,6 +74,7 @@ int main(int argc, char *argv[])
 
                 if(conPID == pid)
                 {
+                        int cc;
                         printf("0x%08X", (int)count);
                         printf(",0x%02X", (int)line[0x00]);
                         printb(line[0x01], 7,7);
@@ -81,7 +83,22 @@ int main(int argc, char *argv[])
                         printf(",0x%04X", (int)pid);
                         printb(line[0x03], 7,6);
                         printb(line[0x03], 5,4);
-                        printf(",%2d", (int)(line[0x03] & 0x0F));
+                        cc = (int)(line[0x03] & 0x0F);
+                        printf(",%2d", cc);
+                        if(-1 == con_cnt)
+                        {
+                                con_cnt = cc;
+                        }
+                        else
+                        {
+                                con_cnt++;
+                                con_cnt &= 0x0F;
+                                if(con_cnt != cc)
+                                {
+                                        printf(",error");
+                                        con_cnt = cc;
+                                }
+                        }
                         if((line[0x03] & 0x20) && (line[0x05] & 0x10))
                         {
                                 u64_t pcr_base = 0;
