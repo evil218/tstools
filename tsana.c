@@ -1,13 +1,13 @@
 //=============================================================================
 // Name: tsana.c
 // Purpose: analyse certain character with ts file
-// To build: gcc -o tsana tsana.c
+// To build: gcc -std=c99 -o tsana.exe tsana.c
 // Copyright (C) 2009 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "def.h"
+#include <string.h>
+#include <stdint.h>
 
 //=============================================================================
 // enum & struct definition:
@@ -39,7 +39,7 @@ void deal_with_parameter(int argc, char *argv[]);
 FILE *open_file(char *file, char *style, char *memo);
 unsigned char *malloc_mem(int size);
 void show_help();
-void printb(u32_t x, int head, int tail);
+void printb(uint32_t x, int head, int tail);
 
 //=============================================================================
 // The main function:
@@ -47,10 +47,10 @@ void printb(u32_t x, int head, int tail);
 int main(int argc, char *argv[])
 {
         int i;
-        u32_t count;
+        uint32_t count;
         int con_cnt = -1; // low 4-bits in line[0x03]
         int nread; // number readed
-        u08_t *line;
+        uint8_t *line;
 
         deal_with_parameter(argc, argv);
         line = malloc_mem(sizeofTS);
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
         count = 0;
         while(nread = fread(line, 1, sizeofTS, fd_i))
         {
-                u16_t pid;
+                uint16_t pid;
 
                 if(0x47 != line[0x00])
                 {
@@ -101,9 +101,9 @@ int main(int argc, char *argv[])
                         }
                         if((line[0x03] & 0x20) && (line[0x05] & 0x10))
                         {
-                                u64_t pcr_base = 0;
-                                u16_t pcr_ext = 0;
-                                u64_t pcr;
+                                uint64_t pcr_base = 0;
+                                uint16_t pcr_ext = 0;
+                                uint64_t pcr;
 
                                 pcr_base  |= line[0x06];
                                 pcr_base <<= 8;
@@ -243,10 +243,10 @@ void show_help()
         printf("tsana v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
 }
 
-void printb(u32_t x, int head, int tail)
+void printb(uint32_t x, int head, int tail)
 {
         int i;
-        u32_t mask;
+        uint32_t mask;
 
         if(tail > head) tail = head;
         printf(",");

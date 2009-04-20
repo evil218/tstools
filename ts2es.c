@@ -1,13 +1,13 @@
 //=============================================================================
 // Name: ts2es.c
 // Purpose: analyse certain character with ts file
-// To build: gcc -o ts2es ts2es.c
+// To build: gcc -std=c99 -o ts2es ts2es.c
 // Copyright (C) 2009 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "def.h"
+#include <string.h>
+#include <stdint.h>
 
 //=============================================================================
 // enum & struct definition:
@@ -40,6 +40,7 @@ void deal_with_parameter(int argc, char *argv[]);
 FILE *open_file(char *file, char *style, char *memo);
 unsigned char *malloc_mem(int size);
 void show_help();
+int grabES(uint8_t *esBuf, uint8_t *tsBuf);
 
 //=============================================================================
 // The main function:
@@ -47,12 +48,12 @@ void show_help();
 int main(int argc, char *argv[])
 {
         int i;
-        u32_t count_i;
-        u32_t count_o;
-        u08_t nread; // number readed
-        u08_t *tsPkg;
-        u08_t *esBuf;
-        u08_t esLen;
+        uint32_t count_i;
+        uint32_t count_o;
+        uint8_t nread; // number readed
+        uint8_t *tsPkg;
+        uint8_t *esBuf;
+        uint8_t esLen;
         int syncByte;
 
         deal_with_parameter(argc, argv);
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
         count_o = 0;
         while(nread = fread(tsPkg, 1, sizeofTS, fd_i))
         {
-                u16_t pid;
+                uint16_t pid;
 
                 pid = tsPkg[0x01] & 0x1F;
                 pid <<= 8;
@@ -218,13 +219,13 @@ void show_help()
         printf("ts2es v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
 }
 
-int grabES(u08_t *esBuf, u08_t *tsBuf)
+int grabES(uint8_t *esBuf, uint8_t *tsBuf)
 {
         int esSize = sizeofTS - 4;
         int adaptLen, pesHeaderLen;
         int newPES    = (tsBuf[1] & 0x40) ? 1 : 0; // 1: have a PES header; 0: no PES header
         int adaptCtrl = (tsBuf[3] & 0x30) >> 4;    // 'adaption_field_control'
-        u08_t *esPtr  = tsBuf + 4;
+        uint8_t *esPtr  = tsBuf + 4;
 
         switch(adaptCtrl)
         {

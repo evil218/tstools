@@ -1,21 +1,17 @@
+FLAG = -std=c99
+
 all: tsflt.exe ts2es.exe tsana.exe
 
-tsflt.exe: tsflt.c
-	gcc -o tsflt $<
-
-ts2es.exe: ts2es.c
-	gcc -o ts2es $<
-
-tsana.exe: tsana.c
-	gcc -o tsana $<
+%.exe: %.c
+	gcc $(FLAG) -o $@ $<
 
 install:
-	cp *.exe /c/windows/system32
+	cp *.exe C:/windows/system32
 
 uninstall:
-	rm -f /c/windows/system32/tsflt.exe
-	rm -f /c/windows/system32/ts2es.exe
-	rm -f /c/windows/system32/tsana.exe
+	rm -f C:/windows/system32/tsflt.exe
+	rm -f C:/windows/system32/ts2es.exe
+	rm -f C:/windows/system32/tsana.exe
 
 clean:
 	rm -f *.exe
