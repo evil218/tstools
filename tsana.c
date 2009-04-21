@@ -9,6 +9,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#define PID_NUM                         0x2000
+
 //=============================================================================
 // enum & struct definition:
 //=============================================================================
@@ -20,6 +22,13 @@ enum
         PARA_ERROR
 };
 
+enum
+{
+        MODE_PSI,
+        MODE_PCR,
+        MODE_CC
+};
+
 //=============================================================================
 // Variables definition:
 //=============================================================================
@@ -29,8 +38,9 @@ FILE *fd_o;
 char file_i[FILENAME_MAX] = "";
 char file_o[FILENAME_MAX] = "";
 
-int sizeofTS = 188; // Size of TS package
-int conPID = 0x0000; // default concerned PID
+int sizeofTS = 188;  // Size of TS package
+int mode = MODE_CC; // default mode: Continuity Counter
+uint8_t pid_cc[PID_NUM];
 
 //=============================================================================
 // Sub-function declare:
@@ -47,20 +57,28 @@ void printb(uint32_t x, int head, int tail);
 int main(int argc, char *argv[])
 {
         int i;
-        uint32_t count;
-        int con_cnt = -1; // low 4-bits in line[0x03]
+        uint32_t addr;
+        int lost;
+        uint8_t cc;
         int nread; // number readed
         uint8_t *line;
+        int is_ok = 1;
+
+        for(i = 0; i < PID_NUM; i++)
+        {
+                pid_cc[i] = 0xFF;
+        }
 
         deal_with_parameter(argc, argv);
         line = malloc_mem(sizeofTS);
         fd_i = open_file( file_i, "rb", "read data" );
 
-        count = 0;
+        addr = -sizeofTS;
         while(nread = fread(line, 1, sizeofTS, fd_i))
         {
                 uint16_t pid;
 
+                addr += sizeofTS;
                 if(0x47 != line[0x00])
                 {
                         printf("Wrong package head!\n");
@@ -71,38 +89,55 @@ int main(int argc, char *argv[])
                 pid <<= 8;
                 pid |= line[0x02];
                 pid &= 0x1FFF;
+                cc = line[0x03] & 0x0F;
 
-                if(conPID == pid)
+                if(MODE_CC == mode)
                 {
-                        int cc;
-                        printf("0x%08X", (int)count);
-                        printf(",0x%02X", (int)line[0x00]);
-                        printb(line[0x01], 7,7);
-                        printb(line[0x01], 6,6);
-                        printb(line[0x01], 5,5);
-                        printf(",0x%04X", (int)pid);
-                        printb(line[0x03], 7,6);
-                        printb(line[0x03], 5,4);
-                        cc = (int)(line[0x03] & 0x0F);
-                        printf(",%2d", cc);
-                        if(-1 == con_cnt)
+                        if(0xFF == pid_cc[pid])
                         {
-                                con_cnt = cc;
+                                pid_cc[pid] = cc;
+                                continue;
                         }
                         else
                         {
-                                con_cnt++;
-                                con_cnt &= 0x0F;
-                                if(con_cnt != cc)
+                                pid_cc[pid]++;
+                                pid_cc[pid] &= 0x0F;
+                                if(0x1001 == pid)
                                 {
-                                        printf(",error");
-                                        con_cnt = cc;
+                                        // PCR package, always 0
+                                        pid_cc[pid] = 0;
+                                }
+                                if(pid_cc[pid] == cc)
+                                {
+                                        is_ok = 1;
+                                        continue;
                                 }
                         }
+
+                        lost = cc - pid_cc[pid];
+                        if(lost < 0)
+                        {
+                                lost += 16;
+                        }
+
+                        if(is_ok)
+                        {
+                                printf("\n");
+                        }
+                        printf("0x%08X", (int)addr);
+                        printf(",0x%04X", (int)pid);
+                        printf(",wait %X but %X lost %2d", pid_cc[pid], cc, lost);
+                        printf("\n");
+                        pid_cc[pid] = cc;
+                        is_ok = 0;
+                }
+
+                else if(MODE_PCR == mode)
+                {
                         if((line[0x03] & 0x20) && (line[0x05] & 0x10))
                         {
-                                uint64_t pcr_base = 0;
-                                uint16_t pcr_ext = 0;
+                                uint64_t pcr_base = 0; // 33-bit
+                                uint16_t pcr_ext = 0;  //  9-bit
                                 uint64_t pcr;
 
                                 pcr_base  |= line[0x06];
@@ -114,19 +149,27 @@ int main(int argc, char *argv[])
                                 pcr_base  |= line[0x09];
                                 pcr_base <<= 1;
                                 pcr_base  |= ((line[0x0A] & 0x80) ? 0x01 : 0x00);
-                                printf(",%20ld", pcr_base);
 
                                 pcr_ext  |= (line[0x0A] & 0x01);
                                 pcr_ext <<= 8;
                                 pcr_ext  |= line[0x0B];
-                                printf(",%3d", (int)pcr_ext);
 
                                 pcr = pcr_base * 300 + pcr_ext;
-                                printf(",%20ld", pcr);
+
+                                printf("0x%08X", addr);
+                                printf(",%10u", addr);
+                                printf(",0x%04X", (int)pid);
+                                //printf(",%13lu", pcr); // error!
+                                printf(",%10lu", pcr_base);
+                                printf(",%3u", pcr_ext);
+                                printf("\n");
                         }
-                        printf("\n");
                 }
-                count += sizeofTS;
+
+                else if(MODE_PSI == mode)
+                {
+                        continue;
+                }
         }
         fclose(fd_i);
         free(line);
@@ -139,6 +182,7 @@ int main(int argc, char *argv[])
 void deal_with_parameter(int argc, char *argv[])
 {
         int i = 1;
+        char str[256];
 
         if(1 == argc)
         {
@@ -163,10 +207,21 @@ void deal_with_parameter(int argc, char *argv[])
                                         sizeofTS = 188;
                                 }
                         }
-                        else if (0 == strcmp(argv[i], "--pid"))
+                        else if (0 == strcmp(argv[i], "--mode"))
                         {
-                                sscanf(argv[++i], "%i", &conPID);
-                                conPID &= 0x1FFF;
+                                strcpy(str, argv[++i]);
+                                if(0 == strcmp("PSI", str))
+                                {
+                                        mode = MODE_PSI;
+                                }
+                                else if(0 == strcmp("PCR", str))
+                                {
+                                        mode = MODE_PCR;
+                                }
+                                else
+                                {
+                                        mode = MODE_CC;
+                                }
                         }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
@@ -237,7 +292,7 @@ void show_help()
         printf("Usage: tsana [-n *] [--pid *] [-o *] TS_file\n");
         printf("Options:\n");
         printf("  -n <num>       Size of TS package, default: 188\n");
-        printf("  --pid <num>    Concerned PID, default: 0x0000\n");
+        printf("  --mode <mode>  CC, PCR, PSI... default: CC\n");
         printf("  -o <file>      Output file name, default: *2.ts\n");
         printf("  --help         Display this information\n\n");
         printf("tsana v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
