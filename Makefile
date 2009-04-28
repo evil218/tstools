@@ -1,17 +1,26 @@
 FLAG = -std=c99
+INSTALL_DIR = C:/windows/system32
 
-all: tsflt.exe ts2es.exe tsana.exe
+all: exe
+
+exe: bin2txt.exe tsflt.exe ts2es.exe tsana.exe
+
+install: $(INSTALL_DIR)/bin2txt.exe \
+	$(INSTALL_DIR)/tsflt.exe \
+	$(INSTALL_DIR)/ts2es.exe \
+	$(INSTALL_DIR)/tsana.exe
+
+uninstall:
+	rm -f $(INSTALL_DIR)/bin2txt.exe
+	rm -f $(INSTALL_DIR)/tsflt.exe
+	rm -f $(INSTALL_DIR)/ts2es.exe
+	rm -f $(INSTALL_DIR)/tsana.exe
 
 %.exe: %.c
 	gcc $(FLAG) -o $@ $<
 
-install:
-	cp *.exe C:/windows/system32
-
-uninstall:
-	rm -f C:/windows/system32/tsflt.exe
-	rm -f C:/windows/system32/ts2es.exe
-	rm -f C:/windows/system32/tsana.exe
+$(INSTALL_DIR)/%.exe: %.exe
+	cp $< $@
 
 clean:
 	rm -f *.exe

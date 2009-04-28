@@ -1,16 +1,17 @@
 //=============================================================================
-// Name: tsflt.c
-// Purpose: analyse certain character with ts file
-// To build: gcc -std=c99 -o tsflt tsflt.c
-// Copyright (C) 2009 by ZHOU Cheng. All right reserved.
+// Name: bin2txt.c
+// Purpose: generate text data file with bin data file
+// To build: gcc -std=c99 -o bin2txt bin2txt.c
+// Copyright (C) 2008 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
 #include <stdint.h> // for uint?_t, etc
 
+#define MAX_STRING_LENGTH 256
 //=============================================================================
-// enum & struct definition:
+// enum definition:
 //=============================================================================
 enum
 {
@@ -29,8 +30,9 @@ FILE *fd_o;
 char file_i[FILENAME_MAX] = "";
 char file_o[FILENAME_MAX] = "";
 
-int sizeofTS = 188; // Size of TS package
-int with_empty = 0; // default: filter empty package
+int npline = 16; // data number per line
+char fmt[MAX_STRING_LENGTH] = "%3d"; // data format
+char sep[MAX_STRING_LENGTH] = ","; // list separator
 
 //=============================================================================
 // Sub-function declare:
@@ -39,7 +41,6 @@ void deal_with_parameter(int argc, char *argv[]);
 FILE *open_file(char *file, char *style, char *memo);
 unsigned char *malloc_mem(int size);
 void show_help();
-void printb(uint32_t x, int head, int tail);
 
 //=============================================================================
 // The main function:
@@ -47,35 +48,25 @@ void printb(uint32_t x, int head, int tail);
 int main(int argc, char *argv[])
 {
         int i;
-        uint32_t count;
+        int count;
         int nread; // number readed
-        uint8_t *line;
+        unsigned char *line;
 
         deal_with_parameter(argc, argv);
-        line = malloc_mem(sizeofTS);
+        line = malloc_mem(npline);
         fd_i = open_file( file_i, "rb", "read data" );
-        fd_o = open_file( file_o, "wb", "write data" );
-
+        fd_o = open_file( file_o, "w" , "write data" );
         count = 0;
-        while(nread = fread(line, 1, sizeofTS, fd_i))
+        while(nread = fread(line, 1, npline, fd_i))
         {
-                uint16_t pid;
-
-                if(0x47 != line[0x00])
+                if(0 != count) fprintf(fd_o, "%s\n", sep);
+                i = 0;
+                while(i < nread)
                 {
-                        printf("Wrong package head!\n");
-                        break;
-                }
-
-                pid = line[0x01];
-                pid <<= 8;
-                pid |= line[0x02];
-                pid &= 0x1FFF;
-
-                if(with_empty || (!with_empty && 0x1FFF != pid))
-                {
-                        fwrite(line, 1, sizeofTS, fd_o);
-                        count += sizeofTS;
+                        fprintf(fd_o, fmt, (unsigned int)line[i]);
+                        count++;
+                        i++;
+                        if(i != nread) fprintf(fd_o, sep);
                 }
         }
         fclose(fd_o);
@@ -95,7 +86,7 @@ void deal_with_parameter(int argc, char *argv[])
         if(1 == argc)
         {
                 // no parameter
-                printf("No file to process...\n\n");
+                printf("No binary file to process...\n\n");
                 show_help();
                 exit(NO_ERROR);
         }
@@ -107,17 +98,21 @@ void deal_with_parameter(int argc, char *argv[])
                         {
                                 strcpy(file_o, argv[++i]);
                         }
+                        else if (0 == strcmp(argv[i], "-f"))
+                        {
+                                strcpy(fmt, argv[++i]);
+                        }
+                        else if (0 == strcmp(argv[i], "-s"))
+                        {
+                                strcpy(sep, argv[++i]);
+                        }
                         else if (0 == strcmp(argv[i], "-n"))
                         {
-                                sizeofTS = atoi(argv[++i]);
-                                if(188 != sizeofTS && 204 != sizeofTS)
+                                npline = atoi(argv[++i]);
+                                if(npline < 1 || 1024 < npline)
                                 {
-                                        sizeofTS = 188;
+                                        npline = 16;
                                 }
-                        }
-                        else if (0 == strcmp(argv[i], "--with-empty"))
-                        {
-                                with_empty = 1;
                         }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
@@ -154,7 +149,7 @@ void deal_with_parameter(int argc, char *argv[])
                         file_o[i] = file_i[i];
                         i--;
                 }
-                strcat(file_o, "2.ts");
+                strcat(file_o, ".txt");
         }
 }
 
@@ -185,13 +180,14 @@ unsigned char *malloc_mem(int size)
 
 void show_help()
 {
-        printf("Usage: tsflt [-n *] [--with-empty] [-o *] TS_file\n");
+        printf("Usage: bin2txt [options] bin_file\n");
         printf("Options:\n");
-        printf("  -n <num>       Size of TS package, default: 188\n");
-        printf("  --with-empty   With empty package, default: filter empty package\n");
-        printf("  -o <file>      Output file name, default: *2.ts\n");
+        printf("  -o <file>      Output file name, default: *.txt\n");
+        printf("  -f <format>    Data format string in C style, default: \"%c3d\"\n", '%');
+        printf("  -s <sep>       List separator between data, default: \",\"\n");
+        printf("  -n <num>       Data count per line, default: 16\n");
         printf("  --help         Display this information\n\n");
-        printf("tsflt v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
+        printf("bin2txt v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
 }
 
 //=============================================================================

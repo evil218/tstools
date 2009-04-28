@@ -6,8 +6,8 @@
 //=============================================================================
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
+#include <string.h> // for strcmp, etc
+#include <stdint.h> // for uint?_t, etc
 
 //=============================================================================
 // enum & struct definition:
