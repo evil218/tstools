@@ -1,4 +1,7 @@
-FLAG = -std=c99
+FLAG = -g
+# FLAG += -Wall -W
+FLAG += -std=c99
+
 INSTALL_DIR = C:/windows/system32
 
 all: exe
@@ -16,11 +19,14 @@ uninstall:
 	rm -f $(INSTALL_DIR)/ts2es.exe
 	rm -f $(INSTALL_DIR)/tsana.exe
 
-%.exe: %.c
+%.o: %.c
+	gcc $(FLAG) -c $<
+
+%.exe: %.o
 	gcc $(FLAG) -o $@ $<
 
 $(INSTALL_DIR)/%.exe: %.exe
 	cp $< $@
 
 clean:
-	rm -f *.exe
+	rm -f *.o *.exe
