@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
 #include <stdint.h> // for uint?_t, etc
+#include <time.h>
 
 #define MAX_STRING_LENGTH 256
 //=============================================================================
@@ -47,6 +48,8 @@ void show_help();
 //=============================================================================
 int main(int argc, char *argv[])
 {
+        clock_t start, finish;
+        double duration;
         int i;
         int count;
         int nread; // number readed
@@ -57,7 +60,8 @@ int main(int argc, char *argv[])
         fd_i = open_file( file_i, "rb", "read data" );
         fd_o = open_file( file_o, "w" , "write data" );
         count = 0;
-        while(nread = fread(line, 1, npline, fd_i))
+        start = clock();
+        while(0 != (nread = fread(line, 1, npline, fd_i)))
         {
                 if(0 != count) fprintf(fd_o, "%s\n", sep);
                 i = 0;
@@ -69,10 +73,12 @@ int main(int argc, char *argv[])
                         if(i != nread) fprintf(fd_o, sep);
                 }
         }
+        finish = clock();
+        duration = (double)(finish - start) / CLOCKS_PER_SEC;
         fclose(fd_o);
         fclose(fd_i);
         free(line);
-        printf("File %s created, %d-data.\n", file_o, count);
+        printf("File %s created, %d-data, %.3f-second used.\n", file_o, count, duration);
         exit(NO_ERROR);
 }
 

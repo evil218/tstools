@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
         fd_i = open_file( file_i, "rb", "read data" );
 
         addr = -sizeofTS;
-        while(nread = fread(line, 1, sizeofTS, fd_i))
+        while(0 != (nread = fread(line, 1, sizeofTS, fd_i)))
         {
                 uint16_t pid;
 
@@ -102,9 +102,9 @@ int main(int argc, char *argv[])
                         {
                                 pid_cc[pid]++;
                                 pid_cc[pid] &= 0x0F;
-                                if(0x1001 == pid)
+                                if(0x1001 == pid || 0x1FFF == pid)
                                 {
-                                        // PCR package, always 0
+                                        // PCR or NULL package, always 0
                                         pid_cc[pid] = 0;
                                 }
                                 if(pid_cc[pid] == cc)
@@ -159,8 +159,8 @@ int main(int argc, char *argv[])
                                 printf("0x%08X", addr);
                                 printf(",%10u", addr);
                                 printf(",0x%04X", (int)pid);
-                                //printf(",%13lu", pcr); // error!
-                                printf(",%10lu", pcr_base);
+                                printf(",%13llu", pcr);
+                                printf(",%10llu", pcr_base);
                                 printf(",%3u", pcr_ext);
                                 printf("\n");
                         }

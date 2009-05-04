@@ -47,7 +47,6 @@ int grabES(uint8_t *esBuf, uint8_t *tsBuf);
 //=============================================================================
 int main(int argc, char *argv[])
 {
-        int i;
         uint32_t count_i;
         uint32_t count_o;
         uint8_t nread; // number readed
@@ -86,7 +85,7 @@ int main(int argc, char *argv[])
         printf("Find first sync byte at 0x%X in file %s.\n", count_i, file_i);
 
         count_o = 0;
-        while(nread = fread(tsPkg, 1, sizeofTS, fd_i))
+        while(0 != (nread = fread(tsPkg, 1, sizeofTS, fd_i)))
         {
                 uint16_t pid;
 

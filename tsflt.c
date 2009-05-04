@@ -46,7 +46,6 @@ void printb(uint32_t x, int head, int tail);
 //=============================================================================
 int main(int argc, char *argv[])
 {
-        int i;
         uint32_t count;
         int nread; // number readed
         uint8_t *line;
@@ -57,7 +56,7 @@ int main(int argc, char *argv[])
         fd_o = open_file( file_o, "wb", "write data" );
 
         count = 0;
-        while(nread = fread(line, 1, sizeofTS, fd_i))
+        while(0 != (nread = fread(line, 1, sizeofTS, fd_i)))
         {
                 uint16_t pid;
 
