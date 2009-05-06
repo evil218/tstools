@@ -20,6 +20,7 @@
 
 #define PID_NUM                         0x2000
 #define MAX_PROGRAM_CNT                 20 // in PAT
+#define MAX_TS_SIZE                     204
 
 //=============================================================================
 // enum & struct definition:
@@ -30,6 +31,14 @@ enum
         MODE_PSI,
         MODE_PCR,
         MODE_CC
+};
+
+enum
+{
+        STATE_NEXT_PMT,
+        STATE_WAIT_PMT,
+        STATE_NEXT_PAT,
+        STATE_WAIT_PAT
 };
 
 typedef struct
@@ -43,7 +52,7 @@ typedef struct
         uint32_t adaption_field_control:2;
         uint32_t continuity_counter:4;
 }
-transport_packet_t;
+TS_T;
 
 typedef struct
 {
@@ -60,7 +69,7 @@ typedef struct
         uint32_t reserved:6;
         uint32_t program_clock_reference_extension:9;
 }
-adaption_fields_t;
+AF_T;
 
 typedef struct
 {
@@ -84,124 +93,133 @@ typedef struct
         }
         pn2p[MAX_PROGRAM_CNT]; // program_number to pid
 }
-program_association_section_t;
+PAT_T;
+
+typedef struct
+{
+        TS_T *ts;
+        AF_T *af;
+        PAT_T *pat;
+
+        uint32_t ts_size; // 188 or 204
+        uint8_t line[MAX_TS_SIZE]; // one TS package
+        uint8_t *p; // point to current data in line
+
+        FILE *fd_i;
+        FILE *fd_o;
+
+        char file[FILENAME_MAX]; // input file name without postfix
+        char file_i[FILENAME_MAX];
+        char file_o[FILENAME_MAX];
+
+        int mode;
+        uint8_t pid_cc[PID_NUM];
+        uint16_t pid;
+
+        int state;
+}
+OBJ;
 
 //=============================================================================
 // Variables definition:
 //=============================================================================
-FILE *fd_i;
-FILE *fd_o;
-
-char file[FILENAME_MAX] = ""; // input file name without postfix
-char file_i[FILENAME_MAX] = "2009-04-28.ts";
-char file_o[FILENAME_MAX] = "";
-
-uint32_t sizeofTS = 188;  // Size of TS package
-int mode = MODE_PSI; // default mode: Continuity Counter
-uint8_t pid_cc[PID_NUM];
-uint16_t pid;
-
-transport_packet_t TS, *ts;
-program_association_section_t PAT, *pat;
+OBJ *obj = NULL;
 
 //=============================================================================
 // Sub-function declare:
 //=============================================================================
-void deal_with_parameter(int argc, char *argv[]);
+OBJ *create(int argc, char *argv[]);
+int delete(OBJ *obj);
+
+void sync_input(OBJ *obj);
+void get_TS(OBJ *obj);
+void show_TS(OBJ *obj);
+void get_AF(OBJ *obj); // adaption_fields
+void get_PAT(OBJ *obj);
+void show_PAT(OBJ *obj);
+
 FILE *open_file(char *file, char *style, char *memo);
-unsigned char *malloc_mem(int size);
+void *malloc_mem(int size, char *memo);
+char *printb(uint32_t x, int bit_cnt);
 void show_help();
 void show_version();
-void sync_input();
-char *printb(uint32_t x, int bit_cnt);
-void get_TS(transport_packet_t *ts, uint8_t **p);
-void show_TS(transport_packet_t *ts);
-void adaption_fields(adaption_fields_t *af, uint8_t **p);
-void get_PAT(program_association_section_t *pat, uint8_t **p);
-void show_PAT(program_association_section_t *pat);
 
 //=============================================================================
 // The main function:
 //=============================================================================
 int main(int argc, char *argv[])
 {
-        uint32_t i;
         uint32_t addr;
         int lost;
-        uint8_t *line;
-        uint8_t *dat;
         int is_ok = 1;
 
-        for(i = 0; i < PID_NUM; i++)
+        obj = create(argc, argv);
+        sync_input(obj);
+
+        addr = -(obj->ts_size);
+        while(obj->ts_size == fread(obj->line, 1, obj->ts_size, obj->fd_i))
         {
-                pid_cc[i] = 0xFF;
-        }
-        ts = &TS;
-        pat = &PAT;
+                addr += obj->ts_size;
+                obj->p = obj->line;
 
-        deal_with_parameter(argc, argv);
-        line = malloc_mem(sizeofTS);
-        fd_i = open_file( file_i, "rb", "read data" );
-        sync_input();
-
-        addr = -sizeofTS;
-        while(sizeofTS == fread(line, 1, sizeofTS, fd_i))
-        {
-                addr += sizeofTS;
-                dat = line;
-                ts->sync_byte = *dat++; // 0x00
-                if(0x47 != ts->sync_byte)
-                {
-                        printf("Wrong package head!\n");
-                        break;
-                }
-
-                get_TS(ts, &dat);
-                if(BIT1 & ts->adaption_field_control)
+                get_TS(obj);
+                if(BIT1 & obj->ts->adaption_field_control)
                 {
                         //adaption_field();
                 }
-                if(BIT0 & ts->adaption_field_control)
+                if(BIT0 & obj->ts->adaption_field_control)
                 {
-                        dat++; // 0x04
+                        (obj->p)++; // 0x04
                 }
 
-                if(MODE_PSI == mode)
+                switch(obj->state)
                 {
-                        if(0x0000 != ts->PID)
+                        case STATE_WAIT_PAT:
+                                break;
+                        case STATE_NEXT_PAT:
+                                break;
+                        case STATE_WAIT_PMT:
+                                break;
+                        case STATE_NEXT_PMT:
+                                break;
+                }
+
+                if(MODE_PSI == obj->mode)
+                {
+                        if(0x0000 != obj->ts->PID)
                         {
                                 continue;
                         }
-                        show_TS(ts);
+                        show_TS(obj);
 
-                        get_PAT(pat, &dat);
-                        show_PAT(pat);
+                        get_PAT(obj);
+                        show_PAT(obj);
                         break;
                 }
-                else if(MODE_CC == mode)
+                else if(MODE_CC == obj->mode)
                 {
-                        if(0xFF == pid_cc[pid])
+                        if(0xFF == obj->pid_cc[obj->pid])
                         {
-                                pid_cc[pid] = ts->continuity_counter;
+                                obj->pid_cc[obj->pid] = obj->ts->continuity_counter;
                                 continue;
                         }
                         else
                         {
-                                pid_cc[pid]++;
-                                pid_cc[pid] &= 0x0F;
-                                if(0x1001 == pid || 0x1FFF == pid)
+                                obj->pid_cc[obj->pid]++;
+                                obj->pid_cc[obj->pid] &= 0x0F;
+                                if(0x1001 == obj->pid || 0x1FFF == obj->pid)
                                 {
                                         // PCR or NULL package, always 0
-                                        pid_cc[pid] = 0;
+                                        obj->pid_cc[obj->pid] = 0;
                                 }
-                                if(pid_cc[pid] == ts->continuity_counter)
+                                if(obj->pid_cc[obj->pid] == obj->ts->continuity_counter)
                                 {
                                         is_ok = 1;
                                         continue;
                                 }
                         }
 
-                        lost = ts->continuity_counter - pid_cc[pid];
+                        lost = obj->ts->continuity_counter - obj->pid_cc[obj->pid];
                         if(lost < 0)
                         {
                                 lost += 16;
@@ -212,41 +230,41 @@ int main(int argc, char *argv[])
                                 printf("\n");
                         }
                         printf("0x%08X", (int)addr);
-                        printf(",0x%04X", (int)pid);
-                        printf(",wait %X but %X lost %2d", pid_cc[pid], ts->continuity_counter, lost);
+                        printf(",0x%04X", (int)obj->ts->PID);
+                        printf(",wait %X but %X lost %2d", obj->pid_cc[obj->pid], obj->ts->continuity_counter, lost);
                         printf("\n");
-                        pid_cc[pid] = ts->continuity_counter;
+                        obj->pid_cc[obj->pid] = obj->ts->continuity_counter;
                         is_ok = 0;
                 }
 
-                else if(MODE_PCR == mode)
+                else if(MODE_PCR == obj->mode)
                 {
-                        if(BIT1 & ts->adaption_field_control)
+                        if(BIT1 & obj->ts->adaption_field_control)
 //                           && (line[0x05] & 0x10))
                         {
                                 uint64_t pcr_base = 0; // 33-bit
                                 uint16_t pcr_ext = 0;  //  9-bit
                                 uint64_t pcr;
 
-                                pcr_base  |= line[0x06];
+                                pcr_base  |= obj->line[0x06];
                                 pcr_base <<= 8;
-                                pcr_base  |= line[0x07];
+                                pcr_base  |= obj->line[0x07];
                                 pcr_base <<= 8;
-                                pcr_base  |= line[0x08];
+                                pcr_base  |= obj->line[0x08];
                                 pcr_base <<= 8;
-                                pcr_base  |= line[0x09];
+                                pcr_base  |= obj->line[0x09];
                                 pcr_base <<= 1;
-                                pcr_base  |= ((line[0x0A] & 0x80) ? 0x01 : 0x00);
+                                pcr_base  |= ((obj->line[0x0A] & 0x80) ? 0x01 : 0x00);
 
-                                pcr_ext  |= (line[0x0A] & 0x01);
+                                pcr_ext  |= (obj->line[0x0A] & 0x01);
                                 pcr_ext <<= 8;
-                                pcr_ext  |= line[0x0B];
+                                pcr_ext  |= obj->line[0x0B];
 
                                 pcr = pcr_base * 300 + pcr_ext;
 
                                 printf("0x%08X", addr);
                                 printf(",%10u", addr);
-                                printf(",0x%04X", (int)pid);
+                                printf(",0x%04X", obj->ts->PID);
                                 printf(",%13llu", pcr);
                                 printf(",%10llu", pcr_base);
                                 printf(",%3u", pcr_ext);
@@ -254,18 +272,35 @@ int main(int argc, char *argv[])
                         }
                 }
         }
-        fclose(fd_i);
-        free(line);
+
+        delete(obj);
         exit(EXIT_SUCCESS);
 }
 
 //=============================================================================
 // Subfunctions definition:
 //=============================================================================
-void deal_with_parameter(int argc, char *argv[])
+OBJ *create(int argc, char *argv[])
 {
         int i;
         int dat;
+        OBJ *obj;
+
+        obj = (OBJ *)malloc_mem(sizeof(OBJ), "creat object");
+
+        obj->ts = (TS_T *)malloc_mem(sizeof(TS_T), "creat TS struct");
+        obj->af = (AF_T *)malloc_mem(sizeof(AF_T), "creat AF struct");
+        obj->pat = (PAT_T *)malloc_mem(sizeof(PAT_T), "creat PAT struct");
+
+        obj->ts_size = 188;
+        obj->mode = MODE_PSI;
+        strcpy(obj->file_i, "2009-04-28.ts");
+
+        for(i = 0; i < PID_NUM; i++)
+        {
+                obj->pid_cc[i] = 0xFF;
+        }
+        obj->state = STATE_WAIT_PAT;
 
         if(1 == argc)
         {
@@ -280,38 +315,38 @@ void deal_with_parameter(int argc, char *argv[])
                 {
                         if (0 == strcmp(argv[i], "-o"))
                         {
-                                strcpy(file_o, argv[++i]);
+                                strcpy(obj->file_o, argv[++i]);
                         }
                         else if (0 == strcmp(argv[i], "-n"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
-                                sizeofTS = (204 == dat) ? 204 : 108;
+                                obj->ts_size = (204 == dat) ? 204 : 108;
                         }
                         else if (0 == strcmp(argv[i], "-psi"))
                         {
-                                mode = MODE_PSI;
+                                obj->mode = MODE_PSI;
                         }
                         else if (0 == strcmp(argv[i], "-cc"))
                         {
-                                mode = MODE_CC;
+                                obj->mode = MODE_CC;
                         }
                         else if (0 == strcmp(argv[i], "-pcr"))
                         {
-                                mode = MODE_PCR;
+                                obj->mode = MODE_PCR;
                         }
                         else if (0 == strcmp(argv[i], "-debug"))
                         {
-                                mode = MODE_DEBUG;
+                                obj->mode = MODE_DEBUG;
                         }
                         else if (0 == strcmp(argv[i], "-pes"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
-                                pid = (uint16_t)(dat & 0x1FFF);
+                                obj->pid = (uint16_t)(dat & 0x1FFF);
                         }
                         else if (0 == strcmp(argv[i], "-flt"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
-                                pid = (uint16_t)(dat & 0x1FFF);
+                                obj->pid = (uint16_t)(dat & 0x1FFF);
                         }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
@@ -331,31 +366,53 @@ void deal_with_parameter(int argc, char *argv[])
                 }
                 else
                 {
-                        strcpy(file_i, argv[i]);
+                        strcpy(obj->file_i, argv[i]);
                         i = argc;
                 }
                 i++;
         }
+
         // make output file name with input file name
-        if('\0' == file_o[0])
+        if('\0' == obj->file_o[0])
         {
                 // search last '.'
-                i = strlen(file_i) - 1;
+                i = strlen(obj->file_i) - 1;
                 while(i >= 0)
                 {
-                        if('.' == file_i[i]) break;
+                        if('.' == obj->file_i[i]) break;
                         i--;
                 }
                 // fill file_o[] and file[]
-                file[i--] = '\0';
-                file_o[i--] = '\0';
+                obj->file[i--] = '\0';
+                obj->file_o[i--] = '\0';
                 while(i >= 0)
                 {
-                        file[i] = file_i[i];
-                        file_o[i] = file_i[i];
+                        obj->file[i] = obj->file_i[i];
+                        obj->file_o[i] = obj->file_i[i];
                         i--;
                 }
-                strcat(file_o, "2.ts");
+                strcat(obj->file_o, "2.ts");
+        }
+        obj->fd_i = open_file(obj->file_i, "rb", "read data");
+
+        return obj;
+}
+
+int delete(OBJ *obj)
+{
+        if(NULL == obj)
+        {
+                return 0;
+        }
+        else
+        {
+                fclose(obj->fd_i);
+
+                free(obj->ts);
+                free(obj->af);
+                free(obj->pat);
+                free(obj);
+                return 1;
         }
 }
 
@@ -367,18 +424,17 @@ FILE *open_file( char *file, char *style, char *memo )
                 printf( "Can not open file \"%s\" to %s!\n", file, memo );
                 exit(EXIT_FAILURE);
         }
-        fseek( fd, 0, SEEK_SET );
         return fd;
 }
 
-unsigned char *malloc_mem(int size)
+void *malloc_mem(int size, char *memo)
 {
-        unsigned char *ptr = NULL;
+        void *ptr = NULL;
 
-        ptr = (unsigned char *)malloc(size);
+        ptr = (void *)malloc(size);
         if(NULL == ptr)
         {
-                printf("Can not malloc %d-byte memory!\n", size);
+                printf("Can not malloc %d-byte memory for %s!\n", size, memo);
                 exit(EXIT_FAILURE);
         }
         return ptr;
@@ -407,37 +463,6 @@ void show_version()
         printf("This is free software; contact author for additional information.\n");
         printf("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n");
         printf("A PARTICULAR PURPOSE.\n");
-}
-
-void sync_input()
-{
-        int syncByte;
-        uint32_t count_i = 0;
-
-        while((syncByte = fgetc(fd_i)) != EOF)
-        {
-                if(syncByte == 0x47)
-                {
-                        fseek(fd_i, sizeofTS - 1, SEEK_CUR);
-                        if((syncByte = fgetc(fd_i)) != 0x47)
-                        {
-                                // not real sync byte
-                                fseek(fd_i, -(sizeofTS), SEEK_CUR);
-                        }
-                        else
-                        {
-                                // sync, go back
-                                fseek(fd_i, -(sizeofTS + 1), SEEK_CUR);
-                                break;
-                        }
-                }
-                count_i++;
-        }
-        if(0 != count_i)
-        {
-                printf("Find first sync byte at 0x%X in %s.\n",
-                       count_i, file_i);
-        }
 }
 
 char *printb(uint32_t x, int bit_cnt)
@@ -469,37 +494,81 @@ char *printb(uint32_t x, int bit_cnt)
         return str;
 }
 
-void get_TS(transport_packet_t *ts, uint8_t **p)
+void sync_input(OBJ *obj)
+{
+        int syncByte;
+        uint32_t add = 0;
+        FILE *fd = obj->fd_i;
+
+        fseek(fd, 0, SEEK_SET);
+        while((syncByte = fgetc(fd)) != EOF)
+        {
+                if(syncByte == 0x47)
+                {
+                        fseek(fd, obj->ts_size - 1, SEEK_CUR);
+                        if((syncByte = fgetc(fd)) != 0x47)
+                        {
+                                // not real sync byte
+                                fseek(fd, -(obj->ts_size), SEEK_CUR);
+                        }
+                        else
+                        {
+                                // sync, go back
+                                fseek(fd, -(obj->ts_size + 1), SEEK_CUR);
+                                break;
+                        }
+                }
+                add++;
+        }
+        if(0 != add)
+        {
+                printf("Find first sync byte at 0x%X in %s.\n",
+                       add, obj->file_i);
+        }
+}
+
+void get_TS(OBJ *obj)
 {
         uint8_t dat;
+        TS_T *ts = obj->ts;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
+        ts->sync_byte = dat;
+        if(0x47 != ts->sync_byte)
+        {
+                printf("Wrong package head!\n");
+                exit(EXIT_FAILURE);
+        }
+
+        dat = *(obj->p)++;
         ts->transport_error_indicator = (dat & BIT7) >> 7;
         ts->payload_unit_start_indicator = (dat & BIT6) >> 6;
         ts->transport_priority = (dat & BIT5) >> 5;
         ts->PID = dat & 0x1F;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
         ts->PID <<= 8;
         ts->PID |= dat;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
         ts->transport_scrambling_control = (dat & (BIT7 | BIT6)) >> 6;
         ts->adaption_field_control = (dat & (BIT5 | BIT4)) >> 4;;
         ts->continuity_counter = dat & 0x0F;
 }
 
-void show_TS(transport_packet_t *ts)
+void show_TS(OBJ *obj)
 {
+        TS_T *ts = obj->ts;
+
         printf("TS:\n");
-        printf("  sync_byte: 0x%02X\n", ts->sync_byte);
-        printf("  transport_error_indicator: %c\n", (ts->transport_error_indicator) ? '1' : '0');
-        printf("  payload_unit_start_indicator: %c\n", (ts->payload_unit_start_indicator) ? '1' : '0');
-        printf("  transport_priority: %c\n", (ts->transport_priority) ? '1' : '0');
-        printf("  PID: 0x%04X\n", ts->PID);
-        printf("  transport_scrambling_control: 0b%s\n", printb(ts->transport_scrambling_control, 2));
-        printf("  adaption_field_control: 0b%s\n", printb(ts->adaption_field_control, 2));
-        printf("  continuity_counter 0x%X\n", ts->continuity_counter);
+        printf("  0x%02X  : sync_byte\n", ts->sync_byte);
+        printf("  %c     : transport_error_indicator\n", (ts->transport_error_indicator) ? '1' : '0');
+        printf("  %c     : payload_unit_start_indicator\n", (ts->payload_unit_start_indicator) ? '1' : '0');
+        printf("  %c     : transport_priority\n", (ts->transport_priority) ? '1' : '0');
+        printf("  0x%04X: PID\n", ts->PID);
+        printf("  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
+        printf("  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
+        printf("  0x%X   : continuity_counter\n", ts->continuity_counter);
 }
 
 #if 0
@@ -516,85 +585,97 @@ uint64_t program_clock_reference_base:33;
 uint32_t reserved:6;
 uint32_t program_clock_reference_extension:9;
 #endif
-void adaption_fields(adaption_fields_t *af, uint8_t **p)
+void adaption_fields(OBJ *obj)
 {
         uint8_t dat;
+        AF_T *af = obj->af;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
         af->adaption_field_length = dat;
 }
 
-void get_PAT(program_association_section_t *pat, uint8_t **p)
+void get_PAT(OBJ *obj)
 {
         uint8_t dat;
         uint32_t idx;
         uint32_t dat_cnt;
+        PAT_T *pat = obj->pat;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
         pat->table_id = dat;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
         pat->sectin_syntax_indicator = (dat & BIT7) >> 7;
         pat->section_length = dat & 0x0F;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
         pat->section_length <<= 8;
         pat->section_length |= dat;
+        dat_cnt = pat->section_length;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
+        dat_cnt--;
         pat->transport_stream_id = dat;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
+        dat_cnt--;
         pat->transport_stream_id <<= 8;
         pat->transport_stream_id |= dat;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
+        dat_cnt--;
         pat->version_number = (dat & 0x3E) >> 1;
         pat->current_next_indicator = dat & BIT0;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
+        dat_cnt--;
         pat->section_number = dat;
 
-        dat = *(*p)++;
+        dat = *(obj->p)++;
+        dat_cnt--;
         pat->last_section_number = dat;
 
         idx = 0;
-        dat_cnt = pat->section_length - 5;
         while(dat_cnt >= 8)
         {
-                dat = *(*p)++;
+                dat = *(obj->p)++;
+                dat_cnt--;
                 pat->pn2p[idx].program_number = dat;
 
-                dat = *(*p)++;
+                dat = *(obj->p)++;
+                dat_cnt--;
                 pat->pn2p[idx].program_number <<= 8;
                 pat->pn2p[idx].program_number |= dat;
 
-                dat = *(*p)++;
+                dat = *(obj->p)++;
+                dat_cnt--;
                 pat->pn2p[idx].pid = dat & 0x1F;
 
-                dat = *(*p)++;
+                dat = *(obj->p)++;
+                dat_cnt--;
                 pat->pn2p[idx].pid <<= 8;
                 pat->pn2p[idx].pid |= dat;
 
                 idx++;
-                dat_cnt -= 4;
         }
         pat->program_cnt = idx;
 }
 
-void show_PAT(program_association_section_t *pat)
+void show_PAT(OBJ *obj)
 {
         uint32_t idx;
+        PAT_T *pat = obj->pat;
 
         printf("PAT:\n");
-        printf("  section length %u.\n", pat->section_length);
-        printf("  TS ID 0x%04X.\n", pat->transport_stream_id);
+        printf("  0x%04X: section_length\n", pat->section_length);
+        printf("  0x%04X: transport_stream_id\n", pat->transport_stream_id);
 
         idx = 0;
         while(idx < pat->program_cnt)
         {
-                printf("ProgNo 0x%04X -> PMT PID 0x%04X.\n",
-                       pat->pn2p[idx].program_number, pat->pn2p[idx].pid);
+                printf("    0x%04X(ProgNo) -> 0x%04X(PMT PID)\n",
+                       pat->pn2p[idx].program_number,
+                       pat->pn2p[idx].pid);
                 idx++;
         }
 }
