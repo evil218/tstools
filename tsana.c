@@ -26,7 +26,7 @@
 #define MAX_TS_SIZE                     204
 
 //=============================================================================
-// enum & struct definition:
+// enum & struct & const string array definition:
 //=============================================================================
 enum
 {
@@ -38,13 +38,26 @@ enum
 
 enum
 {
-        PID_TYPE_NULL,
+        PID_TYPE_UNO,
+        PID_TYPE_NUL,
         PID_TYPE_AUD,
         PID_TYPE_VID,
         PID_TYPE_PCR,
         PID_TYPE_SIT,
         PID_TYPE_PMT,
         PID_TYPE_PAT
+};
+
+char *PID_TYPE_STR[] =
+{
+        "UNO_PID",
+        "NUL_PID",
+        "AUD_PID",
+        "VID_PID",
+        "PCR_PID",
+        "SIT_PID",
+        "PMT_PID",
+        "PAT_PID"
 };
 
 enum
@@ -205,7 +218,8 @@ int is_unparsed_PMT(struct OBJ *obj, uint16_t pid);
 int is_all_PMT_parsed(struct OBJ *obj);
 void parse_PMT(struct OBJ *obj);
 void show_PMT(struct OBJ *obj);
-char *stream_type(uint8_t st);
+int stream_type(uint8_t st);
+char *stream_type_str(uint8_t st);
 
 void list_add(struct OBJ *obj, struct PID_LIST *item);
 struct PID_LIST *list_match(struct OBJ *obj, uint16_t pid);
@@ -383,6 +397,7 @@ struct OBJ *create(int argc, char *argv[])
         pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
         pid_item->PID = 0x0000;
         pid_item->type = PID_TYPE_PAT;
+        pid_item->cc = 0;
         pid_item->delta_cc = 1;
         pid_item->is_cc_sync = FALSE;
         list_add(obj, pid_item);
@@ -390,7 +405,8 @@ struct OBJ *create(int argc, char *argv[])
         // add NULL PID
         pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
         pid_item->PID = 0x1FFF;
-        pid_item->type = PID_TYPE_NULL;
+        pid_item->type = PID_TYPE_NUL;
+        pid_item->cc = 0;
         pid_item->delta_cc = 0;
         pid_item->is_cc_sync = TRUE;
         list_add(obj, pid_item);
@@ -788,23 +804,35 @@ void parse_PAT(struct OBJ *obj)
                 obj->pmt[idx] = (struct PMT *)malloc_mem(sizeof(struct PMT),
                                                          "creat PMT struct");
                 obj->pmt[idx]->PID = pat->program[idx].PID;
+#if 1
                 if(0x0000 == pat->program[idx].program_number)
                 {
                         obj->pmt[idx]->program_number = 0x0000;
                         obj->pmt[idx]->parsed = TRUE;
+
+                        // add SIT PID
+                        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
+                        pid_item->PID = pat->program[idx].PID;
+                        pid_item->type = PID_TYPE_SIT;
+                        pid_item->cc = 0;
+                        pid_item->delta_cc = 1;
+                        pid_item->is_cc_sync = FALSE;
+                        list_add(obj, pid_item);
                 }
                 else
+#endif
                 {
                         obj->pmt[idx]->parsed = FALSE;
-                }
 
-                // add PMT PID
-                pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-                pid_item->PID = pat->program[idx].PID;
-                pid_item->type = PID_TYPE_PMT;
-                pid_item->delta_cc = 1;
-                pid_item->is_cc_sync = FALSE;
-                list_add(obj, pid_item);
+                        // add PMT PID
+                        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
+                        pid_item->PID = pat->program[idx].PID;
+                        pid_item->type = PID_TYPE_PMT;
+                        pid_item->cc = 0;
+                        pid_item->delta_cc = 1;
+                        pid_item->is_cc_sync = FALSE;
+                        list_add(obj, pid_item);
+                }
 
                 idx++;
         }
@@ -817,7 +845,7 @@ void show_PAT(struct OBJ *obj)
         struct PAT *pat = obj->pat;
 
         printf("0x0000: PAT_PID\n");
-        printf("    0x%04X: section_length\n", pat->section_length);
+        //printf("    0x%04X: section_length\n", pat->section_length);
         printf("    0x%04X: transport_stream_id\n", pat->transport_stream_id);
 
         idx = 0;
@@ -975,7 +1003,8 @@ void parse_PMT(struct OBJ *obj)
                 // add es PID
                 pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
                 pid_item->PID = pmt->pid[idx].PID;
-                pid_item->type = PID_TYPE_VID;
+                pid_item->type = stream_type(pmt->pid[idx].stream_type);
+                pid_item->cc = 0;
                 pid_item->delta_cc = 1;
                 pid_item->is_cc_sync = FALSE;
                 list_add(obj, pid_item);
@@ -1000,39 +1029,40 @@ void show_PMT(struct OBJ *obj)
                         // network information
                         printf("0x%04X: network_PID\n",
                                pmt->PID);
-                        printf("    omit...\n");
+                        //printf("    omit...\n");
                 }
                 else
                 {
                         // normal program
                         printf("0x%04X: PMT_PID\n",
                                pmt->PID);
-                        printf("    0x%04X: section_length\n",
-                               pmt->section_length);
+                        //printf("    0x%04X: section_length\n",
+                        //       pmt->section_length);
                         printf("    0x%04X: program_number\n",
                                pmt->program_number);
                         printf("    0x%04X: PCR_PID\n",
                                pmt->PCR_PID);
-                        printf("    0x%04X: program_info_length\n",
-                               pmt->program_info_length);
+                        //printf("    0x%04X: program_info_length\n",
+                        //       pmt->program_info_length);
                         if(0 != pmt->program_info_length)
                         {
-                                printf("        omit...\n");
+                                //printf("        omit...\n");
                         }
 
                         i = 0;
                         while(i < pmt->pid_cnt)
                         {
-                                printf("    0x%04X: ???_PID\n",
-                                       pmt->pid[i].PID);
-                                printf("        0x%04X: stream_type: %s\n",
+                                printf("    0x%04X: %s\n",
+                                       pmt->pid[i].PID,
+                                       PID_TYPE_STR[stream_type(pmt->pid[i].stream_type)]);
+                                printf("        0x%04X: %s\n",
                                        pmt->pid[i].stream_type,
-                                       stream_type(pmt->pid[i].stream_type));
-                                printf("        0x%04X: ES_info_length\n",
-                                       pmt->pid[i].ES_info_length);
+                                       stream_type_str(pmt->pid[i].stream_type));
+                                //printf("        0x%04X: ES_info_length\n",
+                                //       pmt->pid[i].ES_info_length);
                                 if(0 != pmt->pid[i].ES_info_length)
                                 {
-                                        printf("            omit...\n");
+                                        //printf("            omit...\n");
                                 }
 
                                 i++;
@@ -1041,7 +1071,20 @@ void show_PMT(struct OBJ *obj)
         }
 }
 
-char *stream_type(uint8_t st)
+int stream_type(uint8_t st)
+{
+        switch(st)
+        {
+                case 0x1B:
+                case 0x01:
+                case 0x02: return PID_TYPE_VID;
+                case 0x03:
+                case 0x04: return PID_TYPE_AUD;
+                default:   return PID_TYPE_UNO; // unknown
+        }
+}
+
+char *stream_type_str(uint8_t st)
 {
         switch(st)
         {
@@ -1102,19 +1145,15 @@ void list_show(struct OBJ *obj)
 {
         struct PID_LIST *item = obj->head;
 
+        printf("\nPID LIST:\n");
+        printf("    -PID--, -type--, --CC--, -dCC--\n");
         while(item)
         {
-                printf("PID_ITEM:\n");
-                printf("    0x%04X: PID\n",
-                       item->PID);
-                printf("    0x%04X: type\n",
-                       item->type);
-                printf("    0x%04X: cc\n",
-                       item->cc);
-                printf("    0x%04X: delta_cc\n",
+                printf("    0x%04X, %s, 0x%04X, 0x%04X\n",
+                       item->PID,
+                       PID_TYPE_STR[item->type],
+                       item->cc,
                        item->delta_cc);
-                printf("    0x%04X: is_cc_sync\n",
-                       item->is_cc_sync);
 
                 item = item->next;
         }
