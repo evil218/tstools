@@ -21,7 +21,6 @@
 #define BIT6                            (1 << 6)
 #define BIT7                            (1 << 7)
 
-#define PID_NUM                         0x2000
 #define MAX_PROGRAM_CNT_PER_TS          20 // !
 #define MAX_PID_CNT_PER_PROGRAM         20 // !
 #define MAX_TS_SIZE                     204
@@ -50,6 +49,7 @@ enum
 
 enum
 {
+        STATE_NEXT_PKG,
         STATE_WAIT_PMT,
         STATE_WAIT_PAT,
         STATE_EXIT
@@ -168,7 +168,6 @@ struct OBJ
         struct PAT *pat;
         struct PMT *pmt[MAX_PROGRAM_CNT_PER_TS];
 
-        uint8_t pid_cc[PID_NUM];
         uint16_t pid;
 
         int mode;
@@ -209,6 +208,7 @@ void show_PMT(struct OBJ *obj);
 char *stream_type(uint8_t st);
 
 void list_add(struct OBJ *obj, struct PID_LIST *item);
+struct PID_LIST *list_match(struct OBJ *obj, uint16_t pid);
 void list_free(struct OBJ *obj);
 void list_show(struct OBJ *obj);
 
@@ -220,6 +220,7 @@ int main(int argc, char *argv[])
         struct TS *ts;
         struct AF *af;
         struct PAT *pat;
+        struct PID_LIST *item;
 
         obj = create(argc, argv);
         ts = obj->ts;
@@ -256,9 +257,53 @@ int main(int argc, char *argv[])
                                                 list_show(obj);
                                                 obj->state = STATE_EXIT;
                                         }
+                                        else if(MODE_CC == obj->mode)
+                                        {
+                                                sync_input(obj);
+                                                obj->state = STATE_NEXT_PKG;
+                                        }
                                         else
                                         {
                                                 obj->state = STATE_EXIT;
+                                        }
+                                }
+                                break;
+                        case STATE_NEXT_PKG:
+                                if(MODE_CC == obj->mode)
+                                {
+                                        item = list_match(obj, ts->PID);
+                                        if(NULL == item)
+                                        {
+                                                printf("0x%08X", (int)obj->addr);
+                                                printf(",0x%04X", (int)ts->PID);
+                                                printf(", Unknown PID!\n");
+                                        }
+                                        else if(item->is_cc_sync)
+                                        {
+                                                item->cc += item->delta_cc;
+                                                if(item->cc != ts->continuity_counter)
+                                                {
+                                                        int lost;
+
+                                                        lost = (int)ts->continuity_counter;
+                                                        lost -= (int)item->cc;
+                                                        if(lost < 0)
+                                                        {
+                                                                lost += 16;
+                                                        }
+                                                        printf("0x%08X", (int)obj->addr);
+                                                        printf(",0x%04X", (int)ts->PID);
+                                                        printf(",wait %X but %X lost %2d\n",
+                                                               item->cc,
+                                                               ts->continuity_counter,
+                                                               lost);
+                                                        item->cc = ts->continuity_counter;
+                                                }
+                                        }
+                                        else
+                                        {
+                                                item->cc = ts->continuity_counter;
+                                                item->is_cc_sync = TRUE;
                                         }
                                 }
                                 break;
@@ -271,83 +316,40 @@ int main(int argc, char *argv[])
         }
 
 #if 0
-                else if(MODE_CC == obj->mode)
+        else if(MODE_PCR == obj->mode)
+        {
+                if(BIT1 & ts->adaption_field_control)
+                        //                           && (line[0x05] & 0x10))
                 {
-                        int lost;
+                        uint64_t pcr_base = 0; // 33-bit
+                        uint16_t pcr_ext = 0;  //  9-bit
+                        uint64_t pcr;
 
-                        if(0xFF == obj->pid_cc[obj->pid])
-                        {
-                                obj->pid_cc[obj->pid] = ts->continuity_counter;
-                                continue;
-                        }
-                        else
-                        {
-                                obj->pid_cc[obj->pid]++;
-                                obj->pid_cc[obj->pid] &= 0x0F;
-                                if(0x1001 == obj->pid || 0x1FFF == obj->pid)
-                                {
-                                        // PCR or NULL package, always 0
-                                        obj->pid_cc[obj->pid] = 0;
-                                }
-                                if(obj->pid_cc[obj->pid] == ts->continuity_counter)
-                                {
-                                        is_ok = 1;
-                                        continue;
-                                }
-                        }
+                        pcr_base  |= obj->line[0x06];
+                        pcr_base <<= 8;
+                        pcr_base  |= obj->line[0x07];
+                        pcr_base <<= 8;
+                        pcr_base  |= obj->line[0x08];
+                        pcr_base <<= 8;
+                        pcr_base  |= obj->line[0x09];
+                        pcr_base <<= 1;
+                        pcr_base  |= ((obj->line[0x0A] & 0x80) ? 0x01 : 0x00);
 
-                        lost = ts->continuity_counter - obj->pid_cc[obj->pid];
-                        if(lost < 0)
-                        {
-                                lost += 16;
-                        }
+                        pcr_ext  |= (obj->line[0x0A] & 0x01);
+                        pcr_ext <<= 8;
+                        pcr_ext  |= obj->line[0x0B];
 
-                        if(is_ok)
-                        {
-                                printf("\n");
-                        }
-                        printf("0x%08X", (int)obj->addr);
-                        printf(",0x%04X", (int)ts->PID);
-                        printf(",wait %X but %X lost %2d", obj->pid_cc[obj->pid], ts->continuity_counter, lost);
+                        pcr = pcr_base * 300 + pcr_ext;
+
+                        printf("0x%08X", obj->addr);
+                        printf(",%10u", obj->addr);
+                        printf(",0x%04X", ts->PID);
+                        printf(",%13llu", pcr);
+                        printf(",%10llu", pcr_base);
+                        printf(",%3u", pcr_ext);
                         printf("\n");
-                        obj->pid_cc[obj->pid] = ts->continuity_counter;
-                        is_ok = 0;
                 }
-
-                else if(MODE_PCR == obj->mode)
-                {
-                        if(BIT1 & ts->adaption_field_control)
-//                           && (line[0x05] & 0x10))
-                        {
-                                uint64_t pcr_base = 0; // 33-bit
-                                uint16_t pcr_ext = 0;  //  9-bit
-                                uint64_t pcr;
-
-                                pcr_base  |= obj->line[0x06];
-                                pcr_base <<= 8;
-                                pcr_base  |= obj->line[0x07];
-                                pcr_base <<= 8;
-                                pcr_base  |= obj->line[0x08];
-                                pcr_base <<= 8;
-                                pcr_base  |= obj->line[0x09];
-                                pcr_base <<= 1;
-                                pcr_base  |= ((obj->line[0x0A] & 0x80) ? 0x01 : 0x00);
-
-                                pcr_ext  |= (obj->line[0x0A] & 0x01);
-                                pcr_ext <<= 8;
-                                pcr_ext  |= obj->line[0x0B];
-
-                                pcr = pcr_base * 300 + pcr_ext;
-
-                                printf("0x%08X", obj->addr);
-                                printf(",%10u", obj->addr);
-                                printf(",0x%04X", ts->PID);
-                                printf(",%13llu", pcr);
-                                printf(",%10llu", pcr_base);
-                                printf(",%3u", pcr_ext);
-                                printf("\n");
-                        }
-                }
+        }
 #endif
 
         delete(obj);
@@ -393,10 +395,6 @@ struct OBJ *create(int argc, char *argv[])
         pid_item->is_cc_sync = TRUE;
         list_add(obj, pid_item);
 
-        for(i = 0; i < PID_NUM; i++)
-        {
-                obj->pid_cc[i] = 0xFF;
-        }
         obj->state = STATE_WAIT_PAT;
 
         if(1 == argc)
@@ -788,7 +786,7 @@ void parse_PAT(struct OBJ *obj)
                 pat->program[idx].PID |= dat;
 
                 obj->pmt[idx] = (struct PMT *)malloc_mem(sizeof(struct PMT),
-                                                    "creat PMT struct");
+                                                         "creat PMT struct");
                 obj->pmt[idx]->PID = pat->program[idx].PID;
                 if(0x0000 == pat->program[idx].program_number)
                 {
@@ -1070,6 +1068,22 @@ void list_add(struct OBJ *obj, struct PID_LIST *item)
                 obj->tail->next = item;
         }
         obj->tail = item;
+}
+
+struct PID_LIST *list_match(struct OBJ *obj, uint16_t pid)
+{
+        struct PID_LIST *item = obj->head;
+
+        while(item)
+        {
+                if(pid == item->PID)
+                {
+                        break;
+                }
+                item = item->next;
+        }
+
+        return item;
 }
 
 void list_free(struct OBJ *obj)
