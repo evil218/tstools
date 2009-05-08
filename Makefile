@@ -1,7 +1,6 @@
 FLAG = -Wall -W -Werror
 #FLAG += -O2
 #FLAG += -g
-#FLAG += -std=c99
 
 INSTALL_DIR = C:/windows/system32
 
@@ -9,17 +8,17 @@ all: exe
 
 exe: bin2txt.exe tsana.exe
 
-%.o: %.c Makefile
+bin2txt.exe: bin2txt.c Makefile
+	gcc $(FLAG) -o $@ $<
+
+list.o: list.c list.h Makefile
 	gcc $(FLAG) -std=c99 -c $<
 
-%.exe: %.o Makefile
-	gcc $(FLAG) -std=c99 -o $@ $<
+tsana.o: tsana.c list.h Makefile
+	gcc $(FLAG) -std=c99 -c $<
 
-bin2txt.o: bin2txt.c Makefile
-	gcc $(FLAG) -c $<
-
-bin2txt.exe: bin2txt.o Makefile
-	gcc $(FLAG) -o $@ $<
+tsana.exe: Makefile list.o tsana.o
+	gcc $(FLAG) -o $@ list.o tsana.o
 
 $(INSTALL_DIR)/%.exe: %.exe
 	cp $< $@
