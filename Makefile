@@ -8,16 +8,16 @@ all: exe
 
 exe: bin2txt.exe tsana.exe
 
-bin2txt.exe: bin2txt.c Makefile
-	gcc $(FLAG) -o $@ $<
+bin2txt.exe:
+	gcc $(FLAG) -o $@ bin2txt.c
 
-list.o: list.c list.h Makefile
-	gcc $(FLAG) -std=c99 -c $<
+list.o:
+	gcc $(FLAG) -std=c99 -c list.c
 
-tsana.o: tsana.c list.h Makefile
-	gcc $(FLAG) -std=c99 -c $<
+tsana.o:
+	gcc $(FLAG) -std=c99 -c tsana.c
 
-tsana.exe: Makefile list.o tsana.o
+tsana.exe:
 	gcc $(FLAG) -o $@ list.o tsana.o
 
 $(INSTALL_DIR)/%.exe: %.exe
@@ -30,5 +30,25 @@ uninstall:
 	rm -f $(INSTALL_DIR)/bin2txt.exe
 	rm -f $(INSTALL_DIR)/tsana.exe
 
+ctags:
+	ctags -R .
+
 clean:
 	rm -f *.o *.exe
+
+
+bin2txt.exe: bin2txt.c \
+	Makefile
+
+list.o: list.c \
+	list.h \
+	Makefile
+
+tsana.o: tsana.c \
+	list.h \
+	Makefile
+
+tsana.exe: Makefile \
+	list.o \
+	tsana.o
+

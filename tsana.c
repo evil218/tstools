@@ -53,7 +53,8 @@ enum
 enum
 {
         STATE_NEXT_PKG,
-        STATE_NEXT_PSI,
+        STATE_NEXT_PMT,
+        STATE_NEXT_PAT,
         STATE_EXIT
 };
 
@@ -147,10 +148,10 @@ struct PSI
         }
 #endif
 
-        uint32_t crc_3:8; // most significant byte
-        uint32_t crc_2:8;
-        uint32_t crc_1:8;
-        uint32_t crc_0:8; // last significant byte
+        uint32_t CRC3:8; // most significant byte
+        uint32_t CRC2:8;
+        uint32_t CRC1:8;
+        uint32_t CRC0:8; // last significant byte
 };
 
 struct PIDS
@@ -159,10 +160,12 @@ struct PIDS
         struct NODE *prev;
 
         uint32_t PID:13;
-        uint32_t type; // enum PID_TYPE
-        uint32_t cc:4; // continuity_counter
-        uint32_t delta_cc:4; // 0 or 1
-        int is_cc_sync;
+        const char *type; // PID type
+
+        // for check continuity_counter
+        uint32_t CC:4;
+        uint32_t delta_CC:4; // 0 or 1
+        int is_CC_sync;
 };
 
 struct TRACK
@@ -171,8 +174,8 @@ struct TRACK
         struct NODE *prev;
 
         uint32_t PID:13;
-        int type;
-        char *type_str;
+        int stream_type;
+        const char *type; // PID type
 };
 
 struct PROG
@@ -185,6 +188,7 @@ struct PROG
         uint32_t PCR_PID:13;
 
         struct LIST *track;
+        int parsed;
 };
 
 struct OBJ
@@ -204,7 +208,7 @@ struct OBJ
 
         struct TS *ts;
         struct PSI *psi;
-        //uint16_t pid;
+        uint16_t left_length;
 
         struct LIST *prog;
         struct LIST *pids;
@@ -236,13 +240,14 @@ void show_TS(struct OBJ *obj);
 void parse_AF(struct OBJ *obj); // adaption_fields
 void parse_PSI(struct OBJ *obj);
 void show_PSI(struct OBJ *obj);
-int is_unparsed_PMT(struct OBJ *obj, uint16_t pid);
+void parse_PAT_load(struct OBJ *obj);
+int is_unparsed_PMT(struct OBJ *obj);
 int is_all_PMT_parsed(struct OBJ *obj);
-void parse_PMT(struct OBJ *obj);
+void parse_PMT_load(struct OBJ *obj);
 void show_PMT(struct OBJ *obj);
-int stream_type(uint8_t st);
-char *stream_type_str(uint8_t st);
-void list_show(struct OBJ *obj);
+const char *PID_type(uint8_t st);
+void pids_add(struct LIST *list, struct PIDS *pids);
+void show_pids(struct OBJ *obj);
 struct PID_LIST *list_match(struct OBJ *obj, uint16_t pid);
 
 //=============================================================================
@@ -263,25 +268,28 @@ int main(int argc, char *argv[])
                 parse_TS(obj);
                 switch(obj->state)
                 {
-                        case STATE_NEXT_PSI:
+                        case STATE_NEXT_PAT:
                                 if(0x0000 == ts->PID)
                                 {
                                         //show_TS(obj);
                                         parse_PSI(obj);
-                                        //obj->state = STATE_WAIT_PMT;
+                                        parse_PAT_load(obj);
+                                        show_pids(obj);
+                                        obj->state = STATE_NEXT_PMT;
                                 }
                                 break;
-                        //case STATE_WAIT_PMT:
-                                if(is_unparsed_PMT(obj, ts->PID))
+                        case STATE_NEXT_PMT:
+                                if(is_unparsed_PMT(obj))
                                 {
-                                        parse_PMT(obj);
+                                        parse_PSI(obj);
+                                        parse_PMT_load(obj);
                                 }
                                 if(is_all_PMT_parsed(obj))
                                 {
                                         if(MODE_PSI == obj->mode)
                                         {
-                                                show_PSI(obj);
-                                                list_show(obj);
+                                                //show_PSI(obj);
+                                                show_pids(obj);
                                                 obj->state = STATE_EXIT;
                                         }
                                         else if(MODE_CC == obj->mode)
@@ -295,6 +303,7 @@ int main(int argc, char *argv[])
                                         }
                                 }
                                 break;
+#if 0
                         case STATE_NEXT_PKG:
                                 if(MODE_CC == obj->mode)
                                 {
@@ -334,6 +343,7 @@ int main(int argc, char *argv[])
                                         }
                                 }
                                 break;
+#endif
                         default:
                                 printf("Wrong state!\n");
                                 obj->state = STATE_EXIT;
@@ -391,7 +401,7 @@ struct OBJ *create(int argc, char *argv[])
         int i;
         int dat;
         struct OBJ *obj;
-        struct PID_LIST *pid_item;
+        struct PIDS *pids;
 
         obj = (struct OBJ *)malloc_mem(sizeof(struct OBJ), "creat object");
 
@@ -406,24 +416,32 @@ struct OBJ *create(int argc, char *argv[])
         obj->pids = list_init();
 
         // add PAT PID
-        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-        pid_item->PID = 0x0000;
-        pid_item->type = PID_TYPE_PAT;
-        pid_item->cc = 0;
-        pid_item->delta_cc = 1;
-        pid_item->is_cc_sync = FALSE;
-        list_add(obj, pid_item);
+        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+        if(NULL == pids)
+        {
+                printf("Malloc memory failure!\n");
+                exit(EXIT_FAILURE);
+        }
+        pids->PID = 0x0000;
+        pids->type = PAT_PID;
+        pids->CC = 0;
+        pids->delta_CC = 1;
+        pids->is_CC_sync = FALSE;
+        pids_add(obj->pids, pids);
 
-        // add NULL PID
-        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-        pid_item->PID = 0x1FFF;
-        pid_item->type = PID_TYPE_NUL;
-        pid_item->cc = 0;
-        pid_item->delta_cc = 0;
-        pid_item->is_cc_sync = TRUE;
-        list_add(obj, pid_item);
-
-        obj->state = STATE_WAIT_PAT;
+        // add NUL PID
+        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+        if(NULL == pids)
+        {
+                printf("Malloc memory failure!\n");
+                exit(EXIT_FAILURE);
+        }
+        pids->PID = 0x1FFF;
+        pids->type = NUL_PID;
+        pids->CC = 0;
+        pids->delta_CC = 0;
+        pids->is_CC_sync = TRUE;
+        pids_add(obj->pids, pids);
 
         if(1 == argc)
         {
@@ -471,12 +489,12 @@ struct OBJ *create(int argc, char *argv[])
                                 sscanf(argv[++i], "%i" , &dat);
                                 //obj->pid = (uint16_t)(dat & 0x1FFF);
                         }
-                        else if (0 == strcmp(argv[i], "-h"))
+                        else if (0 == strcmp(argv[i], "--help"))
                         {
                                 show_help();
                                 exit(EXIT_SUCCESS);
                         }
-                        else if (0 == strcmp(argv[i], "-v"))
+                        else if (0 == strcmp(argv[i], "--version"))
                         {
                                 show_version();
                                 exit(EXIT_SUCCESS);
@@ -523,15 +541,13 @@ struct OBJ *create(int argc, char *argv[])
                 exit(EXIT_FAILURE);
         }
 
-        obj->state = STATE_NEXT_PSI;
+        obj->state = STATE_NEXT_PAT;
 
         return obj;
 }
 
 int delete(struct OBJ *obj)
 {
-        uint32_t idx;
-
         if(NULL == obj)
         {
                 return 0;
@@ -564,7 +580,7 @@ void *malloc_mem(int size, char *memo)
 
 void show_help()
 {
-        printf("Usage: tsana [options] file...\n");
+        printf("Usage: tsana [options] file\n");
         printf("Options:\n");
         printf("  -n <num>       Size of TS package, default: 188\n");
         printf("  -o <file>      Output file name, default: *2.ts\n");
@@ -574,8 +590,8 @@ void show_help()
         printf("  -debug         Show all errors found\n");
         printf("  -flt <pid>     Filter package with <pid>\n");
         printf("  -pes <pid>     Output PES file with <pid>\n");
-        printf("  -h             Display this information\n");
-        printf("  -v             Display my version\n");
+        printf("  --help         Display this information\n");
+        printf("  --version      Display my version\n");
 }
 
 void show_version()
@@ -705,7 +721,8 @@ void parse_TS(struct OBJ *obj)
         }
         if(BIT0 & ts->adaption_field_control)
         {
-                (obj->p)++; // 0x04
+                // data_byte
+                (obj->p)++;
         }
 }
 
@@ -737,7 +754,7 @@ uint32_t adaption_field_extension_flag:1;
 uint64_t program_clock_reference_base:33;
 uint32_t reserved:6;
 uint32_t program_clock_reference_extension:9;
-#endif
+
 void adaption_fields(struct OBJ *obj)
 {
         uint8_t dat;
@@ -746,282 +763,381 @@ void adaption_fields(struct OBJ *obj)
         dat = *(obj->p)++;
         af->adaption_field_length = dat;
 }
+#endif
 
 void parse_PSI(struct OBJ *obj)
 {
         uint8_t dat;
-        uint32_t idx;
-        uint32_t dat_cnt;
-        struct PAT *pat = obj->pat;
-        struct PID_LIST *pid_item;
+        struct PSI *psi = obj->psi;
 
         dat = *(obj->p)++;
-        pat->table_id = dat;
+        psi->table_id = dat;
 
         dat = *(obj->p)++;
-        pat->sectin_syntax_indicator = (dat & BIT7) >> 7;
-        pat->section_length = dat & 0x0F;
+        psi->sectin_syntax_indicator = (dat & BIT7) >> 7;
+        psi->section_length = dat & 0x0F;
 
         dat = *(obj->p)++;
-        pat->section_length <<= 8;
-        pat->section_length |= dat;
-        dat_cnt = pat->section_length;
+        psi->section_length <<= 8;
+        psi->section_length |= dat;
+        obj->left_length = psi->section_length;
 
-        dat = *(obj->p)++; dat_cnt--;
-        pat->transport_stream_id = dat;
+        dat = *(obj->p)++; obj->left_length--;
+        psi->idx.idx = dat;
 
-        dat = *(obj->p)++; dat_cnt--;
-        pat->transport_stream_id <<= 8;
-        pat->transport_stream_id |= dat;
+        dat = *(obj->p)++; obj->left_length--;
+        psi->idx.idx <<= 8;
+        psi->idx.idx |= dat;
 
-        dat = *(obj->p)++; dat_cnt--;
-        pat->version_number = (dat & 0x3E) >> 1;
-        pat->current_next_indicator = dat & BIT0;
+        dat = *(obj->p)++; obj->left_length--;
+        psi->version_number = (dat & 0x3E) >> 1;
+        psi->current_next_indicator = dat & BIT0;
 
-        dat = *(obj->p)++; dat_cnt--;
-        pat->section_number = dat;
+        dat = *(obj->p)++; obj->left_length--;
+        psi->section_number = dat;
 
-        dat = *(obj->p)++; dat_cnt--;
-        pat->last_section_number = dat;
-
-        idx = 0;
-        while(dat_cnt > 4)
-        {
-                dat = *(obj->p)++; dat_cnt--;
-                pat->program[idx].program_number = dat;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pat->program[idx].program_number <<= 8;
-                pat->program[idx].program_number |= dat;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pat->program[idx].PID = dat & 0x1F;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pat->program[idx].PID <<= 8;
-                pat->program[idx].PID |= dat;
-
-                obj->pmt[idx] = (struct PMT *)malloc_mem(sizeof(struct PMT),
-                                                         "creat PMT struct");
-                obj->pmt[idx]->PID = pat->program[idx].PID;
-#if 1
-                if(0x0000 == pat->program[idx].program_number)
-                {
-                        obj->pmt[idx]->program_number = 0x0000;
-                        obj->pmt[idx]->parsed = TRUE;
-
-                        // add SIT PID
-                        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-                        pid_item->PID = pat->program[idx].PID;
-                        pid_item->type = PID_TYPE_SIT;
-                        pid_item->cc = 0;
-                        pid_item->delta_cc = 1;
-                        pid_item->is_cc_sync = FALSE;
-                        list_add(obj, pid_item);
-                }
-                else
-#endif
-                {
-                        obj->pmt[idx]->parsed = FALSE;
-
-                        // add PMT PID
-                        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-                        pid_item->PID = pat->program[idx].PID;
-                        pid_item->type = PID_TYPE_PMT;
-                        pid_item->cc = 0;
-                        pid_item->delta_cc = 1;
-                        pid_item->is_cc_sync = FALSE;
-                        list_add(obj, pid_item);
-                }
-
-                idx++;
-        }
-        pat->program_cnt = idx;
+        dat = *(obj->p)++; obj->left_length--;
+        psi->last_section_number = dat;
 }
 
 void show_PSI(struct OBJ *obj)
 {
         uint32_t idx;
-        struct PAT *pat = obj->pat;
+        struct PSI *psi = obj->psi;
 
         printf("0x0000: PAT_PID\n");
-        //printf("    0x%04X: section_length\n", pat->section_length);
-        printf("    0x%04X: transport_stream_id\n", pat->transport_stream_id);
+        //printf("    0x%04X: section_length\n", psi->section_length);
+        printf("    0x%04X: transport_stream_id\n", psi->idx.idx);
 
         idx = 0;
-        while(idx < pat->program_cnt)
+#if 0
+        while(idx < psi->program_cnt)
         {
-                if(0x0000 == pat->program[idx].program_number)
+                if(0x0000 == psi->program[idx].program_number)
                 {
                         printf("    0x%04X: network_program_number\n",
-                               pat->program[idx].program_number);
+                               psi->program[idx].program_number);
                         printf("        0x%04X: network_PID\n",
-                               pat->program[idx].PID);
+                               psi->program[idx].PID);
                 }
                 else
                 {
                         printf("    0x%04X: program_number\n",
-                               pat->program[idx].program_number);
+                               psi->program[idx].program_number);
                         printf("        0x%04X: PMT_PID\n",
-                               pat->program[idx].PID);
+                               psi->program[idx].PID);
                 }
                 idx++;
         }
+#endif
 }
 
-int is_unparsed_PMT(struct OBJ *obj, uint16_t pid)
+void parse_PAT_load(struct OBJ *obj)
 {
-        uint32_t idx;
-        struct PAT *pat = obj->pat;
+        uint8_t dat;
+        struct PSI *psi = obj->psi;
+        struct PROG *prog;
+        struct PIDS *pids;
 
-        idx = pat->program_cnt;
-        while(idx-- > 0)
+        while(obj->left_length > 4)
         {
-                if(     pid == obj->pmt[idx]->PID &&
-                        FALSE == obj->pmt[idx]->parsed
-                )
+                // add program
+                prog = (struct PROG *)malloc(sizeof(struct PROG));
+                if(NULL == prog)
                 {
-                        return TRUE;
+                        printf("Malloc memory failure!\n");
+                        exit(EXIT_FAILURE);
                 }
+                prog->track = list_init();
+                prog->parsed = FALSE;
+
+                dat = *(obj->p)++; obj->left_length--;
+                prog->program_number = dat;
+
+                dat = *(obj->p)++; obj->left_length--;
+                prog->program_number <<= 8;
+                prog->program_number |= dat;
+
+                dat = *(obj->p)++; obj->left_length--;
+                prog->PMT_PID = dat & 0x1F;
+
+                dat = *(obj->p)++; obj->left_length--;
+                prog->PMT_PID <<= 8;
+                prog->PMT_PID |= dat;
+
+                list_add(obj->prog, (struct NODE *)prog);
+
+                // add PMT PID
+                pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+                if(NULL == pids)
+                {
+                        printf("Malloc memory failure!\n");
+                        exit(EXIT_FAILURE);
+                }
+                pids->PID = prog->PMT_PID;
+                pids->type = PMT_PID;
+                pids->CC = 0;
+                pids->delta_CC = 1;
+                pids->is_CC_sync = FALSE;
+                pids_add(obj->pids, pids);
+        }
+
+        dat = *(obj->p)++; obj->left_length--;
+        psi->CRC3 = dat;
+
+        dat = *(obj->p)++; obj->left_length--;
+        psi->CRC2 = dat;
+
+        dat = *(obj->p)++; obj->left_length--;
+        psi->CRC1 = dat;
+
+        dat = *(obj->p)++; obj->left_length--;
+        psi->CRC0 = dat;
+
+        if(0 != obj->left_length)
+        {
+                printf("PSI load length error!\n");
+        }
+
+        printf("PROG Count: %u\n", list_count(obj->prog));
+        printf("PIDS Count: %u\n", list_count(obj->pids));
+}
+
+void show_pids(struct OBJ *obj)
+{
+        struct PIDS *pids;
+        struct NODE *node;
+
+        printf("\nPID LIST:\n");
+        printf("    -PID--, -type--, --CC--, -dCC--\n");
+        node = obj->pids->head;
+        while(node)
+        {
+                pids = (struct PIDS *)node;
+                printf("    0x%04X, %s, 0x%04X, 0x%04X\n",
+                       pids->PID,
+                       pids->type,
+                       pids->CC,
+                       pids->delta_CC);
+                node = node->next;
+        }
+}
+
+void pids_add(struct LIST *list, struct PIDS *pids)
+{
+        struct NODE *node;
+
+        node = list->head;
+        while(node)
+        {
+                if(pids->PID == ((struct PIDS *)node)->PID)
+                {
+                        // same PID, omit...
+                        return;
+                }
+                node = node->next;
+        }
+
+        list_add(list, (struct NODE *)pids);
+}
+
+int is_unparsed_PMT(struct OBJ *obj)
+{
+        struct TS *ts;
+        struct NODE *node;
+        struct PROG *prog;
+
+        ts = obj->ts;
+        node = obj->prog->head;
+        while(node)
+        {
+                prog = (struct PROG *)node;
+                if(ts->PID == prog->PMT_PID)
+                {
+                        if(FALSE == prog->parsed)
+                        {
+                                return TRUE;
+                        }
+                        else
+                        {
+                                return FALSE;
+                        }
+                }
+                node = node->next;
         }
         return FALSE;
 }
 
 int is_all_PMT_parsed(struct OBJ *obj)
 {
-        uint32_t idx;
-        struct PAT *pat = obj->pat;
+        struct TS *ts;
+        struct NODE *node;
+        struct PROG *prog;
 
-        idx = pat->program_cnt;
-        while(idx-- > 0)
+        ts = obj->ts;
+        node = obj->prog->head;
+        while(node)
         {
-                if(FALSE == obj->pmt[idx]->parsed)
+                prog = (struct PROG *)node;
+                if(FALSE == prog->parsed)
                 {
                         return FALSE;
                 }
+                node = node->next;
         }
         return TRUE;
 }
 
-void parse_PMT(struct OBJ *obj)
+const char *PID_type(uint8_t st)
 {
-        uint8_t dat;
-        uint32_t i;
-        uint32_t idx;
-        uint32_t dat_cnt;
-        struct PMT *pmt = obj->pmt[0];
-        struct PID_LIST *pid_item;
-
-        pmt->parsed = TRUE;
-
-        dat = *(obj->p)++;
-        pmt->table_id = dat;
-
-        dat = *(obj->p)++;
-        pmt->sectin_syntax_indicator = (dat & BIT7) >> 7;
-        pmt->section_length = dat & 0x0F;
-
-        dat = *(obj->p)++;
-        pmt->section_length <<= 8;
-        pmt->section_length |= dat;
-        dat_cnt = pmt->section_length;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->program_number = dat;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->program_number <<= 8;
-        pmt->program_number |= dat;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->version_number = (dat & 0x3E) >> 1;
-        pmt->current_next_indicator = dat & BIT0;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->section_number = dat;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->last_section_number = dat;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->PCR_PID = dat & 0x1F;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->PCR_PID <<= 8;
-        pmt->PCR_PID |= dat;
-
-        // add PCR PID
-        pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-        pid_item->PID = pmt->PCR_PID;
-        pid_item->type = PID_TYPE_PCR;
-        pid_item->cc = 0; // always zero
-        pid_item->delta_cc = 0;
-        pid_item->is_cc_sync = TRUE;
-        list_add(obj, pid_item);
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->program_info_length = dat & 0x0F;
-
-        dat = *(obj->p)++; dat_cnt--;
-        pmt->program_info_length <<= 8;
-        pmt->program_info_length |= dat;
-
-        i = pmt->program_info_length;
-        while(i-- > 0)
+        switch(st)
         {
-                // omit descriptor here
-                dat = *(obj->p)++; dat_cnt--;
+                case 0x1B: // "H.264|ISO/IEC 14496-10 Video"
+                case 0x01: // "ISO/IEC 11172 Video"
+                case 0x02: // "H.262|ISO/IEC 13818-2 Video"
+                        return VID_PID;
+                case 0x03: // "ISO/IEC 11172 Audio"
+                case 0x04: // "ISO/IEC 13818-3 Audio"
+                        return AUD_PID;
+                default:
+                        return UNO_PID; // unknown
         }
-
-        idx = 0;
-        while(dat_cnt > 4)
-        {
-                dat = *(obj->p)++; dat_cnt--;
-                pmt->pid[idx].stream_type = dat;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pmt->pid[idx].PID = dat & 0x1F;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pmt->pid[idx].PID <<= 8;
-                pmt->pid[idx].PID |= dat;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pmt->pid[idx].ES_info_length = dat & 0x0F;
-
-                dat = *(obj->p)++; dat_cnt--;
-                pmt->pid[idx].ES_info_length <<= 8;
-                pmt->pid[idx].ES_info_length |= dat;
-
-                i = pmt->pid[idx].ES_info_length;
-                while(i-- > 0)
-                {
-                        // omit descriptor here
-                        dat = *(obj->p)++; dat_cnt--;
-                }
-
-                // add es PID
-                pid_item = (struct PID_LIST *)malloc_mem(sizeof(struct PID_LIST), "creat PID list item");
-                pid_item->PID = pmt->pid[idx].PID;
-                pid_item->type = stream_type(pmt->pid[idx].stream_type);
-                pid_item->cc = 0;
-                pid_item->delta_cc = 1;
-                pid_item->is_cc_sync = FALSE;
-                list_add(obj, pid_item);
-
-                idx++;
-        }
-        pmt->pid_cnt = idx;
 }
 
+void parse_PMT_load(struct OBJ *obj)
+{
+        uint8_t dat;
+        uint16_t info_length;
+        struct PSI *psi;
+        struct NODE *node;
+        struct PROG *prog;
+        struct PIDS *pids;
+        struct TRACK *track;
+        struct TS *ts;
+
+        ts = obj->ts;
+        psi = obj->psi;
+
+        node = obj->prog->head;
+        while(node)
+        {
+                prog = (struct PROG *)node;
+                if(ts->PID == prog->PMT_PID)
+                {
+                        break;
+                }
+                node = node->next;
+        }
+        if(!node)
+        {
+                printf("Wrong PID: 0x%04X\n", ts->PID);
+                exit(EXIT_FAILURE);
+        }
+
+        prog->parsed = TRUE;
+        if(TABLE_ID_PMT != psi->table_id)
+        {
+                // SIT or other PSI
+                return;
+        }
+
+        dat = *(obj->p)++; obj->left_length--;
+        prog->PCR_PID = dat & 0x1F;
+
+        dat = *(obj->p)++; obj->left_length--;
+        prog->PCR_PID <<= 8;
+        prog->PCR_PID |= dat;
+
+        // add PCR PID
+        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+        if(NULL == pids)
+        {
+                printf("Malloc memory failure!\n");
+                exit(EXIT_FAILURE);
+        }
+        pids->PID = prog->PCR_PID;
+        pids->type = PCR_PID;
+        pids->CC = 0;
+        pids->delta_CC = 0;
+        pids->is_CC_sync = TRUE;
+        pids_add(obj->pids, pids);
+
+        // program_info_length
+        dat = *(obj->p)++; obj->left_length--;
+        info_length = dat & 0x0F;
+
+        dat = *(obj->p)++; obj->left_length--;
+        info_length <<= 8;
+        info_length |= dat;
+
+        while(info_length-- > 0)
+        {
+                // omit descriptor here
+                dat = *(obj->p)++; obj->left_length--;
+        }
+
+        while(obj->left_length > 4)
+        {
+                // add track
+                track = (struct TRACK *)malloc(sizeof(struct TRACK));
+                if(NULL == track)
+                {
+                        printf("Malloc memory failure!\n");
+                        exit(EXIT_FAILURE);
+                }
+
+                dat = *(obj->p)++; obj->left_length--;
+                track->stream_type = dat;
+
+                dat = *(obj->p)++; obj->left_length--;
+                track->PID = dat & 0x1F;
+
+                dat = *(obj->p)++; obj->left_length--;
+                track->PID <<= 8;
+                track->PID |= dat;
+
+                // ES_info_length
+                dat = *(obj->p)++; obj->left_length--;
+                info_length = dat & 0x0F;
+
+                dat = *(obj->p)++; obj->left_length--;
+                info_length <<= 8;
+                info_length |= dat;
+
+                while(info_length-- > 0)
+                {
+                        // omit descriptor here
+                        dat = *(obj->p)++; obj->left_length--;
+                }
+
+                track->type = PID_type(track->stream_type);
+                list_add(prog->track, (struct NODE *)track);
+
+                // add track PID
+                pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+                if(NULL == pids)
+                {
+                        printf("Malloc memory failure!\n");
+                        exit(EXIT_FAILURE);
+                }
+                pids->PID = track->PID;
+                pids->type = track->type;
+                pids->CC = 0;
+                pids->delta_CC = 1;
+                pids->is_CC_sync = FALSE;
+                pids_add(obj->pids, pids);
+        }
+}
+
+#if 0
 void show_PMT(struct OBJ *obj)
 {
         uint32_t i;
         uint32_t idx;
-        struct PAT *pat = obj->pat;
+        struct PSI *psi = obj->psi;
         struct PMT *pmt;
 
-        for(idx = 0; idx < pat->program_cnt; idx++)
+        for(idx = 0; idx < psi->program_cnt; idx++)
         {
                 pmt = obj->pmt[idx];
                 if(0x0000 == pmt->program_number)
@@ -1071,50 +1187,6 @@ void show_PMT(struct OBJ *obj)
         }
 }
 
-int stream_type(uint8_t st)
-{
-        switch(st)
-        {
-                case 0x1B:
-                case 0x01:
-                case 0x02: return PID_TYPE_VID;
-                case 0x03:
-                case 0x04: return PID_TYPE_AUD;
-                default:   return PID_TYPE_UNO; // unknown
-        }
-}
-
-char *stream_type_str(uint8_t st)
-{
-        switch(st)
-        {
-                case 0x01: return "ISO/IEC 11172 Video";
-                case 0x02: return "H.262|ISO/IEC 13818-2 Video";
-                case 0x03: return "ISO/IEC 11172 Audio";
-                case 0x04: return "ISO/IEC 13818-3 Audio";
-                case 0x1B: return "H.264|ISO/IEC 14496-10 Video";
-                default:   return "Unknown";
-        }
-}
-
-void list_show(struct OBJ *obj)
-{
-        struct PID_LIST *item = obj->head;
-
-        printf("\nPID LIST:\n");
-        printf("    -PID--, -type--, --CC--, -dCC--\n");
-        while(item)
-        {
-                printf("    0x%04X, %s, 0x%04X, 0x%04X\n",
-                       item->PID,
-                       PID_TYPE_STR[item->type],
-                       item->cc,
-                       item->delta_cc);
-
-                item = item->next;
-        }
-}
-
 struct PID_LIST *list_match(struct OBJ *obj, uint16_t pid)
 {
         struct PID_LIST *item = obj->head;
@@ -1130,7 +1202,7 @@ struct PID_LIST *list_match(struct OBJ *obj, uint16_t pid)
 
         return item;
 }
-
+#endif
 //=============================================================================
 // THE END.
 //=============================================================================
