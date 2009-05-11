@@ -27,6 +27,9 @@
 #define TABLE_ID_CAT                    0x01
 #define TABLE_ID_PMT                    0x02
 
+#define MIN_USER_PID                    0x0020
+#define MAX_USER_PID                    0x1FFE
+
 //=============================================================================
 // const definition:
 //=============================================================================
@@ -300,7 +303,13 @@ int main(int argc, char *argv[])
                 obj->addr += obj->ts_size;
         }
 
-        //show_pids(obj);
+        if(     STATE_NEXT_PAT == obj->state ||
+                STATE_NEXT_PMT == obj->state
+        )
+        {
+                printf("PSI parsing unfinished!\n");
+                show_pids(obj);
+        }
         delete(obj);
         exit(EXIT_SUCCESS);
 }
@@ -364,7 +373,7 @@ void state_next_pkg_cc(struct OBJ *obj)
         pids = pids_match(obj->pids, ts->PID);
         if(NULL == pids)
         {
-                if(0x0020 <= ts->PID && ts->PID <= 0x1FFE)
+                if(MIN_USER_PID <= ts->PID && ts->PID <= MAX_USER_PID)
                 {
                         printf("0x%08X", obj->addr);
                         printf(",%10u", obj->addr);
@@ -541,7 +550,6 @@ struct OBJ *create(int argc, char *argv[])
                 else
                 {
                         strcpy(obj->file_i, argv[i]);
-                        i = argc;
                 }
                 i++;
         }
@@ -613,7 +621,7 @@ void *malloc_mem(int size, char *memo)
 
 void show_help()
 {
-        printf("Usage: tsana [options] file\n");
+        printf("Usage: tsana [options] file [options]\n");
         printf("Options:\n");
         printf("  -n <num>       Size of TS package, default: 188\n");
         printf("  -o <file>      Output file name, default: *2.ts\n");
@@ -1111,7 +1119,10 @@ int is_all_PROG_parsed(struct OBJ *obj)
         while(node)
         {
                 prog = (struct PROG *)node;
-                if(FALSE == prog->parsed)
+                if(     MIN_USER_PID <= prog->PMT_PID &&
+                        MAX_USER_PID >= prog->PMT_PID &&
+                        FALSE == prog->parsed
+                )
                 {
                         return FALSE;
                 }
