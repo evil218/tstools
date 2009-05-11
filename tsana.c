@@ -225,10 +225,19 @@ struct OBJ
 // Variables definition:
 //=============================================================================
 struct OBJ *obj = NULL;
+struct TS *ts;
+struct AF *af;
+struct PSI *psi;
+struct PIDS *pids;
 
 //=============================================================================
 // Sub-function declare:
 //=============================================================================
+void state_next_pat(struct OBJ *obj);
+void state_next_pmt(struct OBJ *obj);
+void state_next_pkg_cc(struct OBJ *obj);
+void state_next_pkg_pcr(struct OBJ *obj);
+
 struct OBJ *create(int argc, char *argv[]);
 int delete(struct OBJ *obj);
 
@@ -260,11 +269,6 @@ void show_pids(struct OBJ *obj);
 //=============================================================================
 int main(int argc, char *argv[])
 {
-        struct TS *ts;
-        struct AF *af;
-        struct PSI *psi;
-        struct PIDS *pids;
-
         obj = create(argc, argv);
         ts = obj->ts;
         af = obj->af;
@@ -277,114 +281,16 @@ int main(int argc, char *argv[])
                 switch(obj->state)
                 {
                         case STATE_NEXT_PAT:
-                                if(0x0000 == ts->PID)
-                                {
-                                        parse_PSI(obj);
-                                        parse_PAT_load(obj);
-                                        obj->state = STATE_NEXT_PMT;
-                                }
+                                state_next_pat(obj);
                                 break;
                         case STATE_NEXT_PMT:
-                                if(!is_PMT_PID(obj))
-                                {
-                                        break;
-                                }
-                                parse_PSI(obj);
-                                if(TABLE_ID_PMT != psi->table_id)
-                                {
-                                        // network_PID
-                                        psi->idx.program_number = 0x0000;
-                                }
-                                if(is_unparsed_PROG(obj))
-                                {
-                                        parse_PMT_load(obj);
-                                }
-                                if(is_all_PROG_parsed(obj))
-                                {
-                                        switch(obj->mode)
-                                        {
-                                                case MODE_PSI:
-                                                        show_pids(obj);
-                                                        obj->state = STATE_EXIT;
-                                                        break;
-                                                case MODE_CC:
-                                                        sync_input(obj);
-                                                        obj->state = STATE_NEXT_PKG_CC;
-                                                        break;
-                                                case MODE_PCR:
-                                                        sync_input(obj);
-                                                        obj->state = STATE_NEXT_PKG_PCR;
-                                                        break;
-                                                default:
-                                                        obj->state = STATE_EXIT;
-                                                        break;
-                                        }
-                                }
+                                state_next_pmt(obj);
                                 break;
                         case STATE_NEXT_PKG_CC:
-                                pids = pids_match(obj->pids, ts->PID);
-                                if(NULL == pids)
-                                {
-                                        if(0x0020 <= ts->PID && ts->PID <= 0x1FFE)
-                                        {
-                                                printf("0x%08X", (int)obj->addr);
-                                                printf(",0x%04X", (int)ts->PID);
-                                                printf(", Unknown PID!\n");
-                                        }
-                                        else
-                                        {
-                                                // reserved PID
-                                        }
-                                }
-                                else if(pids->is_CC_sync)
-                                {
-                                        pids->CC += pids->delta_CC;
-                                        if(pids->CC != ts->continuity_counter)
-                                        {
-                                                int lost;
-
-                                                lost = (int)ts->continuity_counter;
-                                                lost -= (int)pids->CC;
-                                                if(lost < 0)
-                                                {
-                                                        lost += 16;
-                                                }
-                                                printf("0x%08X", obj->addr);
-                                                printf(",%10u", obj->addr);
-                                                printf(",0x%04X", ts->PID);
-                                                printf(",wait %X but %X lost %2d\n",
-                                                       pids->CC,
-                                                       ts->continuity_counter,
-                                                       lost);
-                                                pids->CC = ts->continuity_counter;
-                                        }
-                                }
-                                else
-                                {
-                                        pids->CC = ts->continuity_counter;
-                                        pids->is_CC_sync = TRUE;
-                                }
+                                state_next_pkg_cc(obj);
                                 break;
                         case STATE_NEXT_PKG_PCR:
-                                if(BIT1 & ts->adaption_field_control)
-                                {
-                                        parse_AF(obj);
-                                        if(af->PCR_flag)
-                                        {
-                                                uint64_t pcr;
-                                                pcr = af->program_clock_reference_base;
-                                                pcr *= 300;
-                                                pcr += af->program_clock_reference_extension;
-
-                                                printf("0x%08X", obj->addr);
-                                                printf(",%10u", obj->addr);
-                                                printf(",0x%04X", ts->PID);
-                                                printf(",%13llu,%10llu,%3u\n",
-                                                       pcr,
-                                                       af->program_clock_reference_base,
-                                                       af->program_clock_reference_extension);
-                                        }
-                                }
+                                state_next_pkg_pcr(obj);
                                 break;
                         default:
                                 printf("Wrong state!\n");
@@ -402,6 +308,126 @@ int main(int argc, char *argv[])
 //=============================================================================
 // Subfunctions definition:
 //=============================================================================
+void state_next_pat(struct OBJ *obj)
+{
+        if(0x0000 == ts->PID)
+        {
+                parse_PSI(obj);
+                parse_PAT_load(obj);
+                obj->state = STATE_NEXT_PMT;
+        }
+}
+
+void state_next_pmt(struct OBJ *obj)
+{
+        if(!is_PMT_PID(obj))
+        {
+                return;
+        }
+        parse_PSI(obj);
+        if(TABLE_ID_PMT != psi->table_id)
+        {
+                // network_PID
+                psi->idx.program_number = 0x0000;
+        }
+        if(is_unparsed_PROG(obj))
+        {
+                parse_PMT_load(obj);
+        }
+        if(is_all_PROG_parsed(obj))
+        {
+                switch(obj->mode)
+                {
+                        case MODE_PSI:
+                                show_pids(obj);
+                                obj->state = STATE_EXIT;
+                                break;
+                        case MODE_CC:
+                                sync_input(obj);
+                                printf("address(X),address(d),   PID,wait,find,lost\n");
+                                obj->state = STATE_NEXT_PKG_CC;
+                                break;
+                        case MODE_PCR:
+                                sync_input(obj);
+                                printf("address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
+                                obj->state = STATE_NEXT_PKG_PCR;
+                                break;
+                        default:
+                                obj->state = STATE_EXIT;
+                                break;
+                }
+        }
+}
+
+void state_next_pkg_cc(struct OBJ *obj)
+{
+        pids = pids_match(obj->pids, ts->PID);
+        if(NULL == pids)
+        {
+                if(0x0020 <= ts->PID && ts->PID <= 0x1FFE)
+                {
+                        printf("0x%08X", obj->addr);
+                        printf(",%10u", obj->addr);
+                        printf(",0x%04X", ts->PID);
+                        printf(", Unknown PID!\n");
+                }
+                else
+                {
+                        // reserved PID
+                }
+        }
+        else if(pids->is_CC_sync)
+        {
+                pids->CC += pids->delta_CC;
+                if(pids->CC != ts->continuity_counter)
+                {
+                        int lost;
+
+                        lost = (int)ts->continuity_counter;
+                        lost -= (int)pids->CC;
+                        if(lost < 0)
+                        {
+                                lost += 16;
+                        }
+                        printf("0x%08X", obj->addr);
+                        printf(",%10u", obj->addr);
+                        printf(",0x%04X", ts->PID);
+                        printf(",  %2u,  %2u,  %2d\n",
+                               pids->CC,
+                               ts->continuity_counter,
+                               lost);
+                        pids->CC = ts->continuity_counter;
+                }
+        }
+        else
+        {
+                pids->CC = ts->continuity_counter;
+                pids->is_CC_sync = TRUE;
+        }
+}
+
+void state_next_pkg_pcr(struct OBJ *obj)
+{
+        if(     (BIT1 & ts->adaption_field_control) &&
+                (0x00 != af->adaption_field_length) &&
+                af->PCR_flag
+        )
+        {
+                uint64_t pcr;
+                pcr = af->program_clock_reference_base;
+                pcr *= 300;
+                pcr += af->program_clock_reference_extension;
+
+                printf("0x%08X", obj->addr);
+                printf(",%10u", obj->addr);
+                printf(",0x%04X", ts->PID);
+                printf(",%13llu,%10llu,    %3u\n",
+                       pcr,
+                       af->program_clock_reference_base,
+                       af->program_clock_reference_extension);
+        }
+}
+
 struct OBJ *create(int argc, char *argv[])
 {
         int i;
@@ -417,7 +443,7 @@ struct OBJ *create(int argc, char *argv[])
 
         obj->ts_size = 188;
         obj->mode = MODE_PSI;
-        strcpy(obj->file_i, "2009-03-03.ts");
+        strcpy(obj->file_i, "unknown.ts");
 
         obj->prog = list_init();
         obj->pids = list_init();
@@ -453,8 +479,8 @@ struct OBJ *create(int argc, char *argv[])
         if(1 == argc)
         {
                 // no parameter
-                printf("tsana: no input files, try -h\n");
-                //exit(EXIT_SUCCESS);
+                printf("tsana: no input files, try --help\n");
+                exit(EXIT_SUCCESS);
         }
         i = 1;
         while (i < argc)
@@ -722,6 +748,11 @@ void parse_TS(struct OBJ *obj)
         ts->adaption_field_control = (dat & (BIT5 | BIT4)) >> 4;;
         ts->continuity_counter = dat & 0x0F;
 
+        if(BIT1 & ts->adaption_field_control)
+        {
+                parse_AF(obj);
+        }
+
         if(BIT0 & ts->adaption_field_control)
         {
                 // data_byte
@@ -751,6 +782,10 @@ void parse_AF(struct OBJ *obj)
 
         dat = *(obj->p)++;
         af->adaption_field_length = dat;
+        if(0x00 == af->adaption_field_length)
+        {
+                return;
+        }
 
         dat = *(obj->p)++;
         af->discontinuity_indicator = (dat & BIT7) >> 7;
@@ -933,18 +968,18 @@ void show_pids(struct OBJ *obj)
         struct PIDS *pids;
         struct NODE *node;
 
-        printf("PID LIST(%d-item):\n", list_count(obj->pids));
-        printf("    -PID--, -type--, --CC--, -dCC--\n");
+        printf("PID LIST(%d-item):\n\n", list_count(obj->pids));
+        printf("-PID--, CC, dCC, -type--\n");
 
         node = obj->pids->head;
         while(node)
         {
                 pids = (struct PIDS *)node;
-                printf("    0x%04X, %s, 0x%04X, 0x%04X\n",
+                printf("0x%04X, %2u,  %u , %s\n",
                        pids->PID,
-                       pids->type,
                        pids->CC,
-                       pids->delta_CC);
+                       pids->delta_CC,
+                       pids->type);
                 node = node->next;
         }
 }
