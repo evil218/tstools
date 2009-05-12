@@ -1,7 +1,7 @@
 EXECUTABLE = bin2txt.exe
 
 CC = gcc
-CPPFLAGS =
+CPPFLAGS = -I. -I../include
 CFLAGS = -Wall -W -Werror
 #CFLAGS += -O2
 #CFLAGS += -g

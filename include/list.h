@@ -37,6 +37,7 @@ void list_free(struct LIST *list);
 void list_add(struct LIST *list, struct NODE *node); // to the end of list
 void list_del(struct LIST *list, struct NODE *node);
 int list_count(struct LIST *list);
+
 struct NODE *list_head(struct LIST *list);
 struct NODE *list_tail(struct LIST *list);
 struct NODE *list_next(struct NODE *node);

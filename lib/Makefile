@@ -1,4 +1,4 @@
-EXECUTABLE = tsana.exe
+EXECUTABLE = 
 
 CC = gcc
 CPPFLAGS = -I. -I../include
@@ -12,7 +12,7 @@ SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c, %.o, $(SRCS))
 DEPS := $(patsubst %.c, %.d, $(SRCS))
 
-all: $(EXECUTABLE)
+all: $(OBJS)
 
 $(EXECUTABLE): $(DEPS) $(OBJS)
 	$(CC) -o $(EXECUTABLE) $(OBJS) ../lib/list.o
@@ -36,18 +36,3 @@ depend: $(DEPS)
 	@echo "Dependency files are now up-to-date."
 
 -include $(DEPS)
-
-# other things
-
-INSTALL_DIR = C:/windows/system32
-
-$(INSTALL_DIR)/%.exe: %.exe
-	cp $< $@
-
-install: $(INSTALL_DIR)/$(EXECUTABLE)
-
-uninstall:
-	-rm -f $(INSTALL_DIR)/$(EXECUTABLE)
-
-ctags:
-	ctags -R .
