@@ -1,4 +1,4 @@
-EXECUTABLE = tsana.exe
+EXECUTABLE = test.exe
 
 CC = gcc
 CPPFLAGS = -I. -I../include
@@ -15,10 +15,9 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(DEPS) $(OBJS)
-	$(CC) -o $(EXECUTABLE) $(OBJS) ../lib/list.o
+	$(CC) -o $(EXECUTABLE) $(OBJS) ../lib/crc.o
 
 %.d: %.c
-	@echo make dependency file for $<
 	@$(CC) -MM $(CPPFLAGS) $< > $@
 	@$(CC) -MM $(CPPFLAGS) $< | sed s/.o/.d/ >> $@
 

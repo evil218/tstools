@@ -9,133 +9,237 @@
 
 #include "crc.h"
 
-static unsigned short crc16_table[256] =
+//=============================================================================
+// Variables definition:
+//=============================================================================
+static uint8_t crc8_table[256];
+
+static uint16_t crc16_table[256] =
 {
-        0X0000U, 0X1021U, 0X2042U, 0X3063U, 0X4084U, 0X50A5U, 0X60C6U, 0X70E7U,
-        0X8108U, 0X9129U, 0XA14AU, 0XB16BU, 0XC18CU, 0XD1ADU, 0XE1CEU, 0XF1EFU,
-        0X1231U, 0X0210U, 0X3273U, 0X2252U, 0X52B5U, 0X4294U, 0X72F7U, 0X62D6U,
-        0X9339U, 0X8318U, 0XB37BU, 0XA35AU, 0XD3BDU, 0XC39CU, 0XF3FFU, 0XE3DEU,
-        0X2462U, 0X3443U, 0X0420U, 0X1401U, 0X64E6U, 0X74C7U, 0X44A4U, 0X5485U,
-        0XA56AU, 0XB54BU, 0X8528U, 0X9509U, 0XE5EEU, 0XF5CFU, 0XC5ACU, 0XD58DU,
-        0X3653U, 0X2672U, 0X1611U, 0X0630U, 0X76D7U, 0X66F6U, 0X5695U, 0X46B4U,
-        0XB75BU, 0XA77AU, 0X9719U, 0X8738U, 0XF7DFU, 0XE7FEU, 0XD79DU, 0XC7BCU,
-        0X48C4U, 0X58E5U, 0X6886U, 0X78A7U, 0X0840U, 0X1861U, 0X2802U, 0X3823U,
-        0XC9CCU, 0XD9EDU, 0XE98EU, 0XF9AFU, 0X8948U, 0X9969U, 0XA90AU, 0XB92BU,
-        0X5AF5U, 0X4AD4U, 0X7AB7U, 0X6A96U, 0X1A71U, 0X0A50U, 0X3A33U, 0X2A12U,
-        0XDBFDU, 0XCBDCU, 0XFBBFU, 0XEB9EU, 0X9B79U, 0X8B58U, 0XBB3BU, 0XAB1AU,
-        0X6CA6U, 0X7C87U, 0X4CE4U, 0X5CC5U, 0X2C22U, 0X3C03U, 0X0C60U, 0X1C41U,
-        0XEDAEU, 0XFD8FU, 0XCDECU, 0XDDCDU, 0XAD2AU, 0XBD0BU, 0X8D68U, 0X9D49U,
-        0X7E97U, 0X6EB6U, 0X5ED5U, 0X4EF4U, 0X3E13U, 0X2E32U, 0X1E51U, 0X0E70U,
-        0XFF9FU, 0XEFBEU, 0XDFDDU, 0XCFFCU, 0XBF1BU, 0XAF3AU, 0X9F59U, 0X8F78U,
-        0X9188U, 0X81A9U, 0XB1CAU, 0XA1EBU, 0XD10CU, 0XC12DU, 0XF14EU, 0XE16FU,
-        0X1080U, 0X00A1U, 0X30C2U, 0X20E3U, 0X5004U, 0X4025U, 0X7046U, 0X6067U,
-        0X83B9U, 0X9398U, 0XA3FBU, 0XB3DAU, 0XC33DU, 0XD31CU, 0XE37FU, 0XF35EU,
-        0X02B1U, 0X1290U, 0X22F3U, 0X32D2U, 0X4235U, 0X5214U, 0X6277U, 0X7256U,
-        0XB5EAU, 0XA5CBU, 0X95A8U, 0X8589U, 0XF56EU, 0XE54FU, 0XD52CU, 0XC50DU,
-        0X34E2U, 0X24C3U, 0X14A0U, 0X0481U, 0X7466U, 0X6447U, 0X5424U, 0X4405U,
-        0XA7DBU, 0XB7FAU, 0X8799U, 0X97B8U, 0XE75FU, 0XF77EU, 0XC71DU, 0XD73CU,
-        0X26D3U, 0X36F2U, 0X0691U, 0X16B0U, 0X6657U, 0X7676U, 0X4615U, 0X5634U,
-        0XD94CU, 0XC96DU, 0XF90EU, 0XE92FU, 0X99C8U, 0X89E9U, 0XB98AU, 0XA9ABU,
-        0X5844U, 0X4865U, 0X7806U, 0X6827U, 0X18C0U, 0X08E1U, 0X3882U, 0X28A3U,
-        0XCB7DU, 0XDB5CU, 0XEB3FU, 0XFB1EU, 0X8BF9U, 0X9BD8U, 0XABBBU, 0XBB9AU,
-        0X4A75U, 0X5A54U, 0X6A37U, 0X7A16U, 0X0AF1U, 0X1AD0U, 0X2AB3U, 0X3A92U,
-        0XFD2EU, 0XED0FU, 0XDD6CU, 0XCD4DU, 0XBDAAU, 0XAD8BU, 0X9DE8U, 0X8DC9U,
-        0X7C26U, 0X6C07U, 0X5C64U, 0X4C45U, 0X3CA2U, 0X2C83U, 0X1CE0U, 0X0CC1U,
-        0XEF1FU, 0XFF3EU, 0XCF5DU, 0XDF7CU, 0XAF9BU, 0XBFBAU, 0X8FD9U, 0X9FF8U,
-        0X6E17U, 0X7E36U, 0X4E55U, 0X5E74U, 0X2E93U, 0X3EB2U, 0X0ED1U, 0X1EF0U
+        0x0000U, 0x1021U, 0x2042U, 0x3063U, 0x4084U, 0x50A5U, 0x60C6U, 0x70E7U,
+        0x8108U, 0x9129U, 0xA14AU, 0xB16BU, 0xC18CU, 0xD1ADU, 0xE1CEU, 0xF1EFU,
+        0x1231U, 0x0210U, 0x3273U, 0x2252U, 0x52B5U, 0x4294U, 0x72F7U, 0x62D6U,
+        0x9339U, 0x8318U, 0xB37BU, 0xA35AU, 0xD3BDU, 0xC39CU, 0xF3FFU, 0xE3DEU,
+        0x2462U, 0x3443U, 0x0420U, 0x1401U, 0x64E6U, 0x74C7U, 0x44A4U, 0x5485U,
+        0xA56AU, 0xB54BU, 0x8528U, 0x9509U, 0xE5EEU, 0xF5CFU, 0xC5ACU, 0xD58DU,
+        0x3653U, 0x2672U, 0x1611U, 0x0630U, 0x76D7U, 0x66F6U, 0x5695U, 0x46B4U,
+        0xB75BU, 0xA77AU, 0x9719U, 0x8738U, 0xF7DFU, 0xE7FEU, 0xD79DU, 0xC7BCU,
+        0x48C4U, 0x58E5U, 0x6886U, 0x78A7U, 0x0840U, 0x1861U, 0x2802U, 0x3823U,
+        0xC9CCU, 0xD9EDU, 0xE98EU, 0xF9AFU, 0x8948U, 0x9969U, 0xA90AU, 0xB92BU,
+        0x5AF5U, 0x4AD4U, 0x7AB7U, 0x6A96U, 0x1A71U, 0x0A50U, 0x3A33U, 0x2A12U,
+        0xDBFDU, 0xCBDCU, 0xFBBFU, 0xEB9EU, 0x9B79U, 0x8B58U, 0xBB3BU, 0xAB1AU,
+        0x6CA6U, 0x7C87U, 0x4CE4U, 0x5CC5U, 0x2C22U, 0x3C03U, 0x0C60U, 0x1C41U,
+        0xEDAEU, 0xFD8FU, 0xCDECU, 0xDDCDU, 0xAD2AU, 0xBD0BU, 0x8D68U, 0x9D49U,
+        0x7E97U, 0x6EB6U, 0x5ED5U, 0x4EF4U, 0x3E13U, 0x2E32U, 0x1E51U, 0x0E70U,
+        0xFF9FU, 0xEFBEU, 0xDFDDU, 0xCFFCU, 0xBF1BU, 0xAF3AU, 0x9F59U, 0x8F78U,
+        0x9188U, 0x81A9U, 0xB1CAU, 0xA1EBU, 0xD10CU, 0xC12DU, 0xF14EU, 0xE16FU,
+        0x1080U, 0x00A1U, 0x30C2U, 0x20E3U, 0x5004U, 0x4025U, 0x7046U, 0x6067U,
+        0x83B9U, 0x9398U, 0xA3FBU, 0xB3DAU, 0xC33DU, 0xD31CU, 0xE37FU, 0xF35EU,
+        0x02B1U, 0x1290U, 0x22F3U, 0x32D2U, 0x4235U, 0x5214U, 0x6277U, 0x7256U,
+        0xB5EAU, 0xA5CBU, 0x95A8U, 0x8589U, 0xF56EU, 0xE54FU, 0xD52CU, 0xC50DU,
+        0x34E2U, 0x24C3U, 0x14A0U, 0x0481U, 0x7466U, 0x6447U, 0x5424U, 0x4405U,
+        0xA7DBU, 0xB7FAU, 0x8799U, 0x97B8U, 0xE75FU, 0xF77EU, 0xC71DU, 0xD73CU,
+        0x26D3U, 0x36F2U, 0x0691U, 0x16B0U, 0x6657U, 0x7676U, 0x4615U, 0x5634U,
+        0xD94CU, 0xC96DU, 0xF90EU, 0xE92FU, 0x99C8U, 0x89E9U, 0xB98AU, 0xA9ABU,
+        0x5844U, 0x4865U, 0x7806U, 0x6827U, 0x18C0U, 0x08E1U, 0x3882U, 0x28A3U,
+        0xCB7DU, 0xDB5CU, 0xEB3FU, 0xFB1EU, 0x8BF9U, 0x9BD8U, 0xABBBU, 0xBB9AU,
+        0x4A75U, 0x5A54U, 0x6A37U, 0x7A16U, 0x0AF1U, 0x1AD0U, 0x2AB3U, 0x3A92U,
+        0xFD2EU, 0xED0FU, 0xDD6CU, 0xCD4DU, 0xBDAAU, 0xAD8BU, 0x9DE8U, 0x8DC9U,
+        0x7C26U, 0x6C07U, 0x5C64U, 0x4C45U, 0x3CA2U, 0x2C83U, 0x1CE0U, 0x0CC1U,
+        0xEF1FU, 0xFF3EU, 0xCF5DU, 0xDF7CU, 0xAF9BU, 0xBFBAU, 0x8FD9U, 0x9FF8U,
+        0x6E17U, 0x7E36U, 0x4E55U, 0x5E74U, 0x2E93U, 0x3EB2U, 0x0ED1U, 0x1EF0U
 };
 
-static uint32_t crc32_table[256] =
+static uint32_t crc32_table[256];
+
+//=============================================================================
+// Sub-function declare:
+//=============================================================================
+static void init_crc32_table(uint32_t *table);
+
+//=============================================================================
+// Public functions definition:
+//=============================================================================
+void crc_init()
 {
-        0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA,
-        0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
-        0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988,
-        0x09B64C2B, 0x7EB17CBD, 0xE7B82D07, 0x90BF1D91,
-        0x1DB71064, 0x6AB020F2, 0xF3B97148, 0x84BE41DE,
-        0x1ADAD47D, 0x6DDDE4EB, 0xF4D4B551, 0x83D385C7,
-        0x136C9856, 0x646BA8C0, 0xFD62F97A, 0x8A65C9EC,
-        0x14015C4F, 0x63066CD9, 0xFA0F3D63, 0x8D080DF5,
-        0x3B6E20C8, 0x4C69105E, 0xD56041E4, 0xA2677172,
-        0x3C03E4D1, 0x4B04D447, 0xD20D85FD, 0xA50AB56B,
-        0x35B5A8FA, 0x42B2986C, 0xDBBBC9D6, 0xACBCF940,
-        0x32D86CE3, 0x45DF5C75, 0xDCD60DCF, 0xABD13D59,
-        0x26D930AC, 0x51DE003A, 0xC8D75180, 0xBFD06116,
-        0x21B4F4B5, 0x56B3C423, 0xCFBA9599, 0xB8BDA50F,
-        0x2802B89E, 0x5F058808, 0xC60CD9B2, 0xB10BE924,
-        0x2F6F7C87, 0x58684C11, 0xC1611DAB, 0xB6662D3D,
+        //init_crc8_table(crc8_table);
+        //init_crc16_table(crc16_table);
+        init_crc32_table(crc32_table);
+}
 
-        0x76DC4190, 0x01DB7106, 0x98D220BC, 0xEFD5102A,
-        0x71B18589, 0x06B6B51F, 0x9FBFE4A5, 0xE8B8D433,
-        0x7807C9A2, 0x0F00F934, 0x9609A88E, 0xE10E9818,
-        0x7F6A0DBB, 0x086D3D2D, 0x91646C97, 0xE6635C01,
-        0x6B6B51F4, 0x1C6C6162, 0x856530D8, 0xF262004E,
-        0x6C0695ED, 0x1B01A57B, 0x8208F4C1, 0xF50FC457,
-        0x65B0D9C6, 0x12B7E950, 0x8BBEB8EA, 0xFCB9887C,
-        0x62DD1DDF, 0x15DA2D49, 0x8CD37CF3, 0xFBD44C65,
-        0x4DB26158, 0x3AB551CE, 0xA3BC0074, 0xD4BB30E2,
-        0x4ADFA541, 0x3DD895D7, 0xA4D1C46D, 0xD3D6F4FB,
-        0x4369E96A, 0x346ED9FC, 0xAD678846, 0xDA60B8D0,
-        0x44042D73, 0x33031DE5, 0xAA0A4C5F, 0xDD0D7CC9,
-        0x5005713C, 0x270241AA, 0xBE0B1010, 0xC90C2086,
-        0x5768B525, 0x206F85B3, 0xB966D409, 0xCE61E49F,
-        0x5EDEF90E, 0x29D9C998, 0xB0D09822, 0xC7D7A8B4,
-        0x59B33D17, 0x2EB40D81, 0xB7BD5C3B, 0xC0BA6CAD,
+// polynomial: 0x07(MSB first) ?
+// polynomial: 0xE0(LSB first) ?
+uint8_t crc8(void *buf, size_t size)
+{
+        uint8_t crc;
+        uint8_t *data = (uint8_t *)buf;
 
-        0xEDB88320, 0x9ABFB3B6, 0x03B6E20C, 0x74B1D29A,
-        0xEAD54739, 0x9DD277AF, 0x04DB2615, 0x73DC1683,
-        0xE3630B12, 0x94643B84, 0x0D6D6A3E, 0x7A6A5AA8,
-        0xE40ECF0B, 0x9309FF9D, 0x0A00AE27, 0x7D079EB1,
-        0xF00F9344, 0x8708A3D2, 0x1E01F268, 0x6906C2FE,
-        0xF762575D, 0x806567CB, 0x196C3671, 0x6E6B06E7,
-        0xFED41B76, 0x89D32BE0, 0x10DA7A5A, 0x67DD4ACC,
-        0xF9B9DF6F, 0x8EBEEFF9, 0x17B7BE43, 0x60B08ED5,
-        0xD6D6A3E8, 0xA1D1937E, 0x38D8C2C4, 0x4FDFF252,
-        0xD1BB67F1, 0xA6BC5767, 0x3FB506DD, 0x48B2364B,
-        0xD80D2BDA, 0xAF0A1B4C, 0x36034AF6, 0x41047A60,
-        0xDF60EFC3, 0xA867DF55, 0x316E8EEF, 0x4669BE79,
-        0xCB61B38C, 0xBC66831A, 0x256FD2A0, 0x5268E236,
-        0xCC0C7795, 0xBB0B4703, 0x220216B9, 0x5505262F,
-        0xC5BA3BBE, 0xB2BD0B28, 0x2BB45A92, 0x5CB36A04,
-        0xC2D7FFA7, 0xB5D0CF31, 0x2CD99E8B, 0x5BDEAE1D,
+        crc = 0;
+        while(size--)
+        {
+                crc = crc8_table[(crc >> 8 ^ *(data++)) & 0xFF] ^ (crc << 8); // ?
+        }
 
-        0x9B64C2B0, 0xEC63F226, 0x756AA39C, 0x026D930A,
-        0x9C0906A9, 0xEB0E363F, 0x72076785, 0x05005713,
-        0x95BF4A82, 0xE2B87A14, 0x7BB12BAE, 0x0CB61B38,
-        0x92D28E9B, 0xE5D5BE0D, 0x7CDCEFB7, 0x0BDBDF21,
-        0x86D3D2D4, 0xF1D4E242, 0x68DDB3F8, 0x1FDA836E,
-        0x81BE16CD, 0xF6B9265B, 0x6FB077E1, 0x18B74777,
-        0x88085AE6, 0xFF0F6A70, 0x66063BCA, 0x11010B5C,
-        0x8F659EFF, 0xF862AE69, 0x616BFFD3, 0x166CCF45,
-        0xA00AE278, 0xD70DD2EE, 0x4E048354, 0x3903B3C2,
-        0xA7672661, 0xD06016F7, 0x4969474D, 0x3E6E77DB,
-        0xAED16A4A, 0xD9D65ADC, 0x40DF0B66, 0x37D83BF0,
-        0xA9BCAE53, 0xDEBB9EC5, 0x47B2CF7F, 0x30B5FFE9,
-        0xBDBDF21C, 0xCABAC28A, 0x53B39330, 0x24B4A3A6,
-        0xBAD03605, 0xCDD70693, 0x54DE5729, 0x23D967BF,
-        0xB3667A2E, 0xC4614AB8, 0x5D681B02, 0x2A6F2B94,
-        0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D,
-};
+        return crc;
+}
 
-//ITU-T V.41
-//x^16 + x^12 + x^15 + 1
+// polynomial: 0x1021(MSB first)
+// polynomial: 0x8408(LSB first)
 uint16_t crc16(void *buf, size_t size)
 {
         uint16_t crc;
         uint8_t *data = (uint8_t *)buf;
 
         crc = 0;
-        while (size )
+        while(size--)
         {
-                crc = crc16_table[(crc >> 8 ^ *(data++)) & 0xFFU] ^ (crc << 8);
+                crc = crc16_table[(crc >> 8 ^ *(data++)) & 0xFF] ^ (crc << 8);
         }
 
         return crc;
 }
 
+// polynomial: 0x04C11DB7(MSB first)
+// polynomial: 0xEDB88320(LSB first)
+uint32_t crc32(void *buf, size_t size)
+{
+        uint32_t crc;
+        uint8_t *data = (uint8_t *)buf;
 
-//32bit
-//³õÊ¼»¯crc32±í
-void init_crc32_table(uint32_t crc32_table[256])
+        crc = 0;
+        while(size--)
+        {
+                crc = crc32_table[(crc ^ *(data++)) & 0xFF] ^ (( crc >> 8) & 0x00FFFFFF);
+        }
+
+        return crc;
+}
+
+uint32_t CRC(void *buf, size_t size, int mode)
+{
+        int i;
+        uint32_t x;
+        uint32_t accum;
+        uint32_t genpoly;
+        uint32_t msb;
+        uint8_t *data = (uint8_t *)buf;
+
+        switch(mode)
+        {
+                case MODE_CRC8:
+                        msb = 0x80;
+                        genpoly = 0x07;
+                        break;
+                case MODE_CRC16:
+                        msb = 0x8000;
+                        genpoly = 0x1021;
+                        break;
+                default:
+                        msb = 0x80000000;
+                        genpoly = 0x04C11DB7;
+                        break;
+        }
+
+        accum = 0;
+        while(size--)
+        {
+                x = *data++;
+                x <<= 8;
+                for(i = 8; i > 0; i--)
+                {
+                        if((x ^ accum) & msb)
+                        {
+                                accum = (accum << 1) ^ genpoly;
+                        }
+                        else
+                        {
+                                accum <<= 1;
+                        }
+                        x <<= 1;
+                }
+        }
+        return accum;
+}
+
+#if 0
+uint32_t CRC(void *buf, size_t size, int mode)
+{
+        int bitcount = 0;
+        int bitinbyte = 0;
+        unsigned short databit;
+        unsigned short shiftreg[32];
+        //                      0 1 2 3 4 5 6 7 8
+        unsigned short g08[] = {1,1,1,0,0,0,0,0,1};
+        //                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6
+        unsigned short g16[] = {1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1};
+        //                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2
+        unsigned short g32[] = {1,1,1,0,1,1,0,1,1,0,1,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,1};
+
+        unsigned short *g;
+        int i,nrbits;
+        char *data;
+        int cnt;
+        uint32_t crc;
+
+        switch(mode)
+        {
+                case  8: g = g08; cnt =  8; break;
+                case 16: g = g16; cnt = 16; break;
+                default: g = g32; cnt = 32; break;
+        }
+        /* Initialize shift register's to '1' */
+        for(i = 0; i < cnt; i++)
+        {
+                shiftreg[i] = 1;
+        }
+
+        /* Calculate nr of data bits */
+        nrbits = ((int) size) * 8;
+        data = buf;
+
+        while(bitcount < nrbits)
+        {
+                /* Fetch bit from bitstream */
+                databit = (short int) (*data  & (0x80 >> bitinbyte));
+                databit = databit >> (7 - bitinbyte);
+                bitinbyte++;
+                bitcount++;
+                if(bitinbyte == 8)
+                {
+                        bitinbyte = 0;
+                        data++;
+                }
+                /* Perform the shift and modula 2 addition */
+                databit ^= shiftreg[cnt - 1];
+                i = cnt - 1;
+                while (i != 0)
+                {
+                        if (g[i])
+                        {
+                                shiftreg[i] = shiftreg[i-1] ^ databit;
+                        }
+                        else
+                        {
+                                shiftreg[i] = shiftreg[i-1];
+                        }
+                        i--;
+                }
+                shiftreg[0] = databit;
+        }
+        /* make CRC an UIMSBF */
+        crc = 0;
+        for(i = 0; i < cnt; i++)
+        {
+                crc = (crc << 1) | ((unsigned int) shiftreg[cnt - 1 -i]);
+        }
+
+        return crc;
+}
+#endif
+//=============================================================================
+// Subfunctions definition:
+//=============================================================================
+static void init_crc32_table(uint32_t *table)
 {
         uint32_t i,j;
         uint32_t crc;
@@ -154,23 +258,8 @@ void init_crc32_table(uint32_t crc32_table[256])
                                 crc >>= 1;
                         }
                 }
-                crc32_table[i] = crc;
+                table[i] = crc;
         }
-}
-
-// 0x04C11DB7 ?
-uint32_t crc32(void *buf, size_t size)
-{
-        uint32_t crc;
-        uint8_t *data = (uint8_t *)buf;
-
-        crc = 0;
-        while (size )
-        {
-                crc = crc32_table[(crc ^ *(data++)) & 0xFFU] ^ (( crc >> 8) & 0x00FFFFFF);
-        }
-
-        return crc;
 }
 
 /*****************************************************************************

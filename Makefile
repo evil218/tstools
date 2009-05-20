@@ -1,14 +1,22 @@
+DIRS = lib bin2txt tsana update crc
+
+all:
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+
 install:
-	-@$(MAKE) -C bin2txt $@
-	-@$(MAKE) -C tsana $@
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 uninstall:
-	-@$(MAKE) -C bin2txt $@
-	-@$(MAKE) -C tsana $@
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 clean:
-	-@$(MAKE) -C bin2txt $@
-	-@$(MAKE) -C tsana $@
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+
+explain:
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+
+depend:
+	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 ctags:
 	ctags -R .

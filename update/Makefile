@@ -20,8 +20,9 @@ $(EXECUTABLE): $(DEPS) $(OBJS)
 	$(CC) -o $(EXECUTABLE) $(OBJS) -lwsock32
 
 %.d: %.c
-	$(CC) -MM $(CPPFLAGS) $< > $@
-	$(CC) -MM $(CPPFLAGS) $< | sed s/.o/.d/ >> $@
+	@echo make dependency file for $<
+	@$(CC) -MM $(CPPFLAGS) $< > $@
+	@$(CC) -MM $(CPPFLAGS) $< | sed s/.o/.d/ >> $@
 
 %.o: %.c
 	$(COMPILE) -o $@ $<

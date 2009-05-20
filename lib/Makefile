@@ -14,12 +14,10 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 
 all: $(OBJS)
 
-$(EXECUTABLE): $(DEPS) $(OBJS)
-	$(CC) -o $(EXECUTABLE) $(OBJS) ../lib/list.o
-
 %.d: %.c
-	$(CC) -MM $(CPPFLAGS) $< > $@
-	$(CC) -MM $(CPPFLAGS) $< | sed s/.o/.d/ >> $@
+	@echo make dependency file for $<
+	@$(CC) -MM $(CPPFLAGS) $< > $@
+	@$(CC) -MM $(CPPFLAGS) $< | sed s/.o/.d/ >> $@
 
 %.o: %.c
 	$(COMPILE) -o $@ $<
