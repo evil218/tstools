@@ -353,11 +353,13 @@ void state_next_pmt(struct OBJ *obj)
                                 break;
                         case MODE_CC:
                                 sync_input(obj);
+                                obj->addr -= obj->ts_size;
                                 printf("address(X),address(d),   PID,wait,find,lost\n");
                                 obj->state = STATE_NEXT_PKG_CC;
                                 break;
                         case MODE_PCR:
                                 sync_input(obj);
+                                obj->addr -= obj->ts_size;
                                 printf("address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
                                 obj->state = STATE_NEXT_PKG_PCR;
                                 break;
