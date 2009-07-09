@@ -10,6 +10,7 @@
 #include <stdint.h> // for uint?_t, etc
 
 #include "list.h"
+#include "url.h"
 
 #define FALSE                           0
 #define TRUE                            1
@@ -202,7 +203,7 @@ struct OBJ
         char file[FILENAME_MAX]; // input file name without postfix
 
         char file_i[FILENAME_MAX];
-        FILE *fd_i;
+        URL *url;
         uint32_t addr; // addr in input file
 
         char file_o[FILENAME_MAX];
@@ -491,6 +492,7 @@ struct OBJ *create(int argc, char *argv[])
         {
                 // no parameter
                 printf("tsana: no input files, try --help\n");
+                //show_help();
                 exit(EXIT_SUCCESS);
         }
         i = 1;
@@ -578,9 +580,8 @@ struct OBJ *create(int argc, char *argv[])
                 strcat(obj->file_o, "2.ts");
         }
 
-        if(NULL == (obj->fd_i = fopen(obj->file_i, "rb")))
+        if(NULL == (obj->url = url_open(obj->file_i, "rb")))
         {
-                printf("Can not open file \"%s\"!\n", obj->file_i);
                 exit(EXIT_FAILURE);
         }
 
@@ -597,7 +598,7 @@ int delete(struct OBJ *obj)
         }
         else
         {
-                fclose(obj->fd_i);
+                url_close(obj->url);
 
                 list_free(obj->prog);
                 list_free(obj->pids);
@@ -623,7 +624,11 @@ void *malloc_mem(int size, char *memo)
 
 void show_help()
 {
-        printf("Usage: tsana [options] file [options]\n");
+        printf("Usage: tsana [options] URL [options]\n");
+        printf("URL:\n");
+        printf("  0.             [E:\\|\\]path\\filename\n");
+        printf("  1.             [file://][E:][/]path/filename\n");
+        printf("  2.             udp://@[IP]:port\n");
         printf("Options:\n");
         printf("  -n <num>       Size of TS package, default: 188\n");
         printf("  -o <file>      Output file name, default: *2.ts\n");
@@ -678,33 +683,33 @@ char *printb(uint32_t x, int bit_cnt)
 void sync_input(struct OBJ *obj)
 {
         int sync_byte;
-        FILE *fd = obj->fd_i;
+        URL *url = obj->url;
 
         obj->addr = 0;
-        fseek(fd, 0, SEEK_SET);
+        url_seek(url, 0, SEEK_SET);
         do
         {
-                if(EOF == (sync_byte = fgetc(fd)))
+                if(EOF == (sync_byte = url_getc(obj->url)))
                 {
                         break;
                 }
                 else if(0x47 == sync_byte)
                 {
-                        fseek(fd, obj->ts_size - 1, SEEK_CUR);
-                        if(EOF == (sync_byte = fgetc(fd)))
+                        url_seek(url, obj->ts_size - 1, SEEK_CUR);
+                        if(EOF == (sync_byte = url_getc(obj->url)))
                         {
                                 break;
                         }
                         else if(0x47 == sync_byte)
                         {
                                 // sync, go back
-                                fseek(fd, -(obj->ts_size + 1), SEEK_CUR);
+                                url_seek(url, -(obj->ts_size + 1), SEEK_CUR);
                                 break;
                         }
                         else
                         {
                                 // not real sync byte
-                                fseek(fd, -(obj->ts_size), SEEK_CUR);
+                                url_seek(url, -(obj->ts_size), SEEK_CUR);
                         }
                 }
                 else
@@ -724,7 +729,7 @@ int get_one_pkg(struct OBJ *obj)
 {
         uint32_t size;
 
-        size = fread(obj->line, 1, obj->ts_size, obj->fd_i);
+        size = url_read(obj->line, 1, obj->ts_size, obj->url);
         obj->p = obj->line;
 
         return (size == obj->ts_size);
