@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#define MAX_STRING_LENGTH 256
+
 /*============================================================================
  * Struct Declaration
  ===========================================================================*/
@@ -23,10 +25,10 @@ enum
 typedef struct
 {
         int  protocol; // PRTCL_XXX
-        char *path;
-        char *filename;
-        char *ip;
-        char *port;
+        char path[MAX_STRING_LENGTH];
+        char filename[MAX_STRING_LENGTH];
+        char ip[MAX_STRING_LENGTH];
+        int  port;
         FILE *fd;
 }
 URL;
@@ -34,7 +36,7 @@ URL;
 /*============================================================================
  * Public Function Declaration
  ===========================================================================*/
-URL *url_open(char *str, char *mode);
+URL *url_open(const char *str, char *mode);
 int url_close(URL *url);
 int url_seek(URL *url, long offset, int origin);
 int url_getc(URL *url);

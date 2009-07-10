@@ -4,5 +4,5 @@ all: $(EXECUTABLE)
 
 include ../common.mak
 
-$(EXECUTABLE): $(DEPS) $(OBJS)
+$(EXECUTABLE): $(DEPS) $(OBJS) ../lib/list.o ../lib/url.o
 	$(CC) -o $(EXECUTABLE) $(OBJS) ../lib/list.o ../lib/url.o
