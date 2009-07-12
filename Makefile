@@ -1,13 +1,14 @@
 DIRS = lib bin2txt tsana update crc
+DIR2 =     bin2txt tsana update crc
 
 all:
 	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 install:
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+	@for dir in $(DIR2); do $(MAKE) -C $$dir $@; done
 
 uninstall:
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+	@for dir in $(DIR2); do $(MAKE) -C $$dir $@; done
 
 clean:
 	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done

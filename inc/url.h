@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#include "winsock.h"
+
 #define MAX_STRING_LENGTH 256
 
 /*============================================================================
@@ -24,12 +26,17 @@ enum
 
 typedef struct
 {
+        char url[MAX_STRING_LENGTH];
         int  protocol; // PRTCL_XXX
-        char path[MAX_STRING_LENGTH];
-        char filename[MAX_STRING_LENGTH];
-        char ip[MAX_STRING_LENGTH];
-        int  port;
+
+        char *path;
+        char *filename;
         FILE *fd;
+
+        char *ip;
+        unsigned short port;
+        int  sock;
+        struct sockaddr_in remote;
 }
 URL;
 
