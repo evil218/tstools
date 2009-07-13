@@ -37,6 +37,7 @@ typedef struct
         unsigned short port;
         int  sock;
         struct sockaddr_in remote;
+        int  sockaddr_in_len;
 }
 URL;
 

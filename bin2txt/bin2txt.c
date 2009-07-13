@@ -120,6 +120,12 @@ void deal_with_parameter(int argc, char *argv[])
                                         npline = 16;
                                 }
                         }
+                        else if (0 == strcmp(argv[i], "-ts"))
+                        {
+                                strcpy(fmt, "%02X");
+                                strcpy(sep, " ");
+                                npline = 188;
+                        }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
                                 show_help();
@@ -192,6 +198,7 @@ void show_help()
         printf("  -f <format>    Data format string in C style, default: \"%c3d\"\n", '%');
         printf("  -s <sep>       List separator between data, default: \",\"\n");
         printf("  -n <num>       Data count per line, default: 16\n");
+        printf("  -ts            Auto set: -f \"%c02X\" -s \" \" -n 188 for TS file\n", '%');
         printf("  --help         Display this information\n\n");
         printf("bin2txt v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
 }

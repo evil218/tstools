@@ -25,7 +25,7 @@ URL *url_open(const char *str, char *mode)
         // for sock
         WORD wVersionRequested;
         WSADATA wsaData;
-        int length;
+        //int length;
         unsigned long opt;
         struct sockaddr_in local;
         int err;
@@ -68,14 +68,16 @@ URL *url_open(const char *str, char *mode)
                         local.sin_family = AF_INET;
                         local.sin_addr.s_addr = htonl(INADDR_ANY);
                         local.sin_port = htons(url->port);
-                        printf("bind: port %d %d\n", url->port, ntohs(local.sin_port));
                         rdata = bind(url->sock, (struct sockaddr *)&local, sizeof(struct sockaddr));
+                        printf("addr: %s\n", inet_ntoa(local.sin_addr));
+                        printf("port: %d\n", ntohs(local.sin_port));
                         err = GetLastError();
                         if(rdata < 0)
                         {
                                 perror("initiate a connection to the socket error!");
                                 exit(0);
                         }
+#if 0
                         // find the port and print it
                         length = sizeof(local);
                         rdata = getsockname(url->sock, (struct sockaddr *)&local, &length);
@@ -85,11 +87,13 @@ URL *url_open(const char *str, char *mode)
                                 perror("getting socket name error!");
                                 exit(0);
                         }
+#endif
 #if 0
                         url->remote.sin_family = AF_INET;
                         url->remote.sin_addr.s_addr = inet_addr(url->ip);
                         url->remote.sin_port = 0;
 #endif
+                        url->sockaddr_in_len = sizeof(url->remote);
                         break;
                 default: // PRTCL_FILE
                         url->fd = fopen(url->filename, mode);
@@ -177,7 +181,6 @@ int url_getc(URL *url)
 size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
 {
         size_t rslt;
-        int length;
 
         if(NULL == url)
         {
@@ -188,11 +191,9 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        printf("need %d-byte\n", nobj);
-                        length = sizeof(url->remote);
                         rslt = recvfrom(url->sock, buf, nobj, 0,
-                                        (struct sockaddr *)&(url->remote), &length);
-                        //printf("wait: ip %s\n", inet_ntoa(url->remote.sin_addr.s_addr));
+                                        (struct sockaddr *)&(url->remote), &(url->sockaddr_in_len));
+                        printf("addr: %s\n", inet_ntoa(url->remote.sin_addr));
                         printf("port: %d\n", ntohs(url->remote.sin_port));
                         printf("got %d-byte\n", rslt);
                         break;
