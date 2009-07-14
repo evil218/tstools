@@ -9,9 +9,13 @@
 
 #include "url.h"
 
+#define UDP_LENGTH_MAX                  1536
 //============================================================================
 // Sub-function declare:
 //============================================================================
+static int udp_open(char *addr, unsigned short port);
+static void udp_close(int sock, char *addr);
+static size_t udp_read(URL *url);
 static void regcpy(char *des, const char *src);
 static void parse_url(URL *url, const char *str);
 
@@ -21,15 +25,6 @@ static void parse_url(URL *url, const char *str);
 URL *url_open(const char *str, char *mode)
 {
         URL *url;
-
-        // for sock
-        WORD wVersionRequested;
-        WSADATA wsaData;
-        //int length;
-        unsigned long opt;
-        struct sockaddr_in local;
-        int err;
-        int rdata;
 
         url = (URL *)malloc(sizeof(URL));
         if(NULL == url)
@@ -47,53 +42,18 @@ URL *url_open(const char *str, char *mode)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        // build socket
-                        wVersionRequested = MAKEWORD(1,1);
-                        err = WSAStartup(wVersionRequested, &wsaData);
-                        if(err != 0)
-                        {
-                                exit(0);
-                        }
-                        url->sock = socket(AF_INET, SOCK_DGRAM, 0);
-                        err = GetLastError();
-                        if(url->sock < 0)
-                        {
-                                perror("open a datagram socket error!");
-                                exit(0);
-                        }
-                        // nonblock mode
-                        opt = 1;
-                        //ioctlsocket(url->sock, FIONBIO, &opt);
-                        // name the socket
-                        local.sin_family = AF_INET;
-                        local.sin_addr.s_addr = htonl(INADDR_ANY);
-                        local.sin_port = htons(url->port);
-                        rdata = bind(url->sock, (struct sockaddr *)&local, sizeof(struct sockaddr));
-                        printf("addr: %s\n", inet_ntoa(local.sin_addr));
-                        printf("port: %d\n", ntohs(local.sin_port));
-                        err = GetLastError();
-                        if(rdata < 0)
-                        {
-                                perror("initiate a connection to the socket error!");
-                                exit(0);
-                        }
-#if 0
-                        // find the port and print it
-                        length = sizeof(local);
-                        rdata = getsockname(url->sock, (struct sockaddr *)&local, &length);
-                        err = GetLastError();
-                        if(rdata < 0)
-                        {
-                                perror("getting socket name error!");
-                                exit(0);
-                        }
-#endif
-#if 0
-                        url->remote.sin_family = AF_INET;
-                        url->remote.sin_addr.s_addr = inet_addr(url->ip);
-                        url->remote.sin_port = 0;
-#endif
+                        url->pbuf = url->buf;
+                        url->ts_cnt = 0;
+                        // init sockaddr_in length
                         url->sockaddr_in_len = sizeof(url->remote);
+
+                        url->sock = udp_open(url->ip, url->port);
+                        if(SOCKET_ERROR == url->sock)
+                        {
+                                printf("Socket error!\n");
+                                free(url);
+                                url = NULL;
+                        }
                         break;
                 default: // PRTCL_FILE
                         url->fd = fopen(url->filename, mode);
@@ -120,8 +80,7 @@ int url_close(URL *url)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        closesocket(url->sock);
-                        WSACleanup();
+                        udp_close(url->sock, url->ip);
                         break;
                 default: // PRTCL_FILE
                         fclose(url->fd);
@@ -191,11 +150,29 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        rslt = recvfrom(url->sock, buf, nobj, 0,
-                                        (struct sockaddr *)&(url->remote), &(url->sockaddr_in_len));
-                        printf("addr: %s\n", inet_ntoa(url->remote.sin_addr));
-                        printf("port: %d\n", ntohs(url->remote.sin_port));
-                        printf("got %d-byte\n", rslt);
+                        if(url->ts_cnt == 0)
+                        {
+                                rslt = udp_read(url);
+                                if(rslt > 0)
+                                {
+                                        url->ts_cnt += rslt;
+                                        url->pbuf = url->buf;
+                                }
+                        }
+                        if(url->ts_cnt >= nobj)
+                        {
+                                memcpy(buf, url->pbuf, nobj);
+                                url->pbuf += nobj;
+                                url->ts_cnt -= nobj;
+                                rslt = nobj;
+                        }
+                        else
+                        {
+                                memcpy(buf, url->pbuf, url->ts_cnt);
+                                url->pbuf += url->ts_cnt;
+                                url->ts_cnt -= url->ts_cnt;
+                                rslt = url->ts_cnt;
+                        }
                         break;
                 default: // PRTCL_FILE
                         rslt = fread(buf, size, nobj, url->fd);
@@ -208,6 +185,112 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
 //============================================================================
 // Subfunctions definition:
 //============================================================================
+static int udp_open(char *addr, unsigned short port)
+{
+        int sock;
+
+        WORD wVersionRequested;
+        WSADATA wsaData;
+        struct ip_mreq multicast;
+        struct sockaddr_in local;
+        unsigned long opt;
+        int err;
+        int rdata;
+
+        // build socket
+        wVersionRequested = MAKEWORD(1,1); // socket 1.1
+        err = WSAStartup(wVersionRequested, &wsaData);
+        if(err != 0)
+        {
+                perror("WSAStartup error!");
+                return -1;
+        }
+        sock = socket(AF_INET, SOCK_DGRAM, 0);
+        err = GetLastError();
+        if(sock < 0)
+        {
+                perror("open a datagram socket error!");
+                return sock;
+        }
+        // nonblock mode
+        opt = 1;
+        ioctlsocket(sock, FIONBIO, &opt);
+        // name the socket
+        local.sin_family = AF_INET;
+        local.sin_addr.s_addr = htonl(INADDR_ANY);
+        local.sin_port = htons(port);
+        rdata = bind(sock,
+                     (struct sockaddr *)&local, sizeof(struct sockaddr));
+        //printf("addr: %s\n", inet_ntoa(local.sin_addr));
+        //printf("port: %d\n", ntohs(local.sin_port));
+        err = GetLastError();
+        if(rdata < 0)
+        {
+                perror("initiate a connection to the socket error!");
+                return sock;
+        }
+
+        multicast.imr_multiaddr.s_addr = inet_addr(addr);
+        if(0xE0 == (multicast.imr_multiaddr.s_net & 0xF0))
+        {
+                multicast.imr_interface.s_addr = htonl(INADDR_ANY);
+                rdata = setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                                   (char *)&multicast, sizeof(multicast));
+                err = GetLastError();
+                if(rdata < 0)
+                {
+                        perror("join multicast membership error!");
+                }
+        }
+
+        return sock;
+}
+
+static void udp_close(int sock, char *addr)
+{
+        struct ip_mreq multicast;
+        int err;
+        int rdata;
+
+        multicast.imr_multiaddr.s_addr = inet_addr(addr);
+        if(0xE0 == (multicast.imr_multiaddr.s_net & 0xF0))
+        {
+                multicast.imr_interface.s_addr = htonl(INADDR_ANY);
+                rdata = setsockopt(sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+                                   (char *)&multicast, sizeof(multicast));
+                err = GetLastError();
+                if(rdata < 0)
+                {
+                        perror("quit multicast membership error!");
+                }
+        }
+
+        closesocket(sock);
+        WSACleanup();
+}
+
+static size_t udp_read(URL *url)
+{
+        size_t rslt;
+        fd_set fds;
+
+        FD_ZERO(&fds);
+        FD_SET(url->sock, &fds);
+        select(0, &fds, NULL, NULL, NULL);
+        if(FD_ISSET(url->sock, &fds))
+        {
+                rslt = recvfrom(url->sock, url->buf, UDP_LENGTH_MAX, 0,
+                                (struct sockaddr *)&(url->remote),
+                                &(url->sockaddr_in_len));
+        }
+        else
+        {
+                rslt = 0;
+        }
+
+        return rslt;
+}
+
 static void regcpy(char *des, const char *src)
 {
         char ch;

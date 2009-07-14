@@ -38,6 +38,10 @@ typedef struct
         int  sock;
         struct sockaddr_in remote;
         int  sockaddr_in_len;
+
+        char buf[8*188]; // for UDP data
+        char *pbuf;
+        size_t ts_cnt;
 }
 URL;
 
