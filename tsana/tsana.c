@@ -744,7 +744,16 @@ void parse_TS(struct OBJ *obj)
         ts->sync_byte = dat;
         if(0x47 != ts->sync_byte)
         {
+                int i;
+
                 printf("Wrong package head at 0x%X!\n", obj->addr);
+                printf("%02X ", dat);
+                for(i = obj->ts_size; i > 1; i--)
+                {
+                        dat = *(obj->p)++;
+                        printf("%02X ", dat);
+                }
+                printf("\n");
                 exit(EXIT_FAILURE);
         }
 

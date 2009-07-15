@@ -153,6 +153,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
                         if(url->ts_cnt == 0)
                         {
                                 rslt = udp_read(url);
+                                //printf("rslt of udp_read() is %d\n", rslt);
                                 if(rslt > 0)
                                 {
                                         url->ts_cnt += rslt;
@@ -202,14 +203,14 @@ static int udp_open(char *addr, unsigned short port)
         err = WSAStartup(wVersionRequested, &wsaData);
         if(err != 0)
         {
-                perror("WSAStartup error!");
+                printf("WSAStartup error!\n");
                 return -1;
         }
         sock = socket(AF_INET, SOCK_DGRAM, 0);
         err = GetLastError();
         if(sock < 0)
         {
-                perror("open a datagram socket error!");
+                printf("open a datagram socket error!\n");
                 return sock;
         }
         // nonblock mode
@@ -226,7 +227,7 @@ static int udp_open(char *addr, unsigned short port)
         err = GetLastError();
         if(rdata < 0)
         {
-                perror("initiate a connection to the socket error!");
+                printf("initiate a connection to the socket error!\n");
                 return sock;
         }
 
@@ -239,7 +240,7 @@ static int udp_open(char *addr, unsigned short port)
                 err = GetLastError();
                 if(rdata < 0)
                 {
-                        perror("join multicast membership error!");
+                        printf("join multicast membership error!\n");
                 }
         }
 
@@ -261,7 +262,7 @@ static void udp_close(int sock, char *addr)
                 err = GetLastError();
                 if(rdata < 0)
                 {
-                        perror("quit multicast membership error!");
+                        printf("quit multicast membership error!\n");
                 }
         }
 
@@ -275,8 +276,9 @@ static size_t udp_read(URL *url)
         fd_set fds;
 
         FD_ZERO(&fds);
+        //FD_SET(0, &fds);
         FD_SET(url->sock, &fds);
-        select(0, &fds, NULL, NULL, NULL);
+        select(url->sock + 1, &fds, NULL, NULL, NULL);
         if(FD_ISSET(url->sock, &fds))
         {
                 rslt = recvfrom(url->sock, url->buf, UDP_LENGTH_MAX, 0,
