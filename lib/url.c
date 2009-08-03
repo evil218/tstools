@@ -284,7 +284,7 @@ static size_t udp_read(URL *url)
                 rslt = recvfrom(url->sock, url->buf, UDP_LENGTH_MAX, 0,
                                 (struct sockaddr *)&(url->remote),
                                 &(url->sockaddr_in_len));
-                printf("Recvfrom() got %d-byte.\n", rslt);
+                //printf("Recvfrom() got %d-byte.\n", rslt);
         }
         else if(FD_ISSET(0, &fds))
         {

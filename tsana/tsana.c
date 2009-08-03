@@ -307,6 +307,8 @@ int main(int argc, char *argv[])
                         case STATE_NEXT_PKG_PCR:
                                 state_next_pkg_pcr(obj);
                                 break;
+                        case STATE_EXIT:
+                                break;
                         default:
                                 printf("Wrong state!\n");
                                 obj->state = STATE_EXIT;
@@ -335,7 +337,7 @@ static void sigfunc(int signo)
 {
         if(SIGINT == signo)
         {
-                printf("SIGINT(Ctrl-C) catched.\n");
+                //printf("SIGINT(Ctrl-C) catched.\n");
                 //WSACancelBlockingCall();
                 obj->state = STATE_EXIT;
         }
