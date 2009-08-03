@@ -1,5 +1,5 @@
 CC = gcc
-CPPFLAGS = -I. -I../inc
+CPPFLAGS = -I. -I../lib
 CFLAGS = -Wall -W -Werror -DMINGW32
 ifneq ($(EXECUTABLE),bin2txt.exe)
 CFLAGS += -std=c99
