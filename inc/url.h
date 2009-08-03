@@ -1,3 +1,4 @@
+/* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
 // Name: url.h
 // Purpose: URL access
@@ -11,17 +12,7 @@
 extern "C" {
 #endif
 
-#ifdef MINGW32
-#include <winsock.h>
-#else
-#include <arpa/inet.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#endif
+#include "udp.h"
 
 #define MAX_STRING_LENGTH 256
 
@@ -39,15 +30,15 @@ typedef struct
         char url[MAX_STRING_LENGTH];
         int  protocol; // PRTCL_XXX
 
+        // for PRTCL_FILE
         char *path;
         char *filename;
         FILE *fd;
 
+        // for PRTCL_UDP
         char *ip;
         unsigned short port;
-        int  sock;
-        struct sockaddr_in remote;
-        int  sockaddr_in_len;
+        UDP *udp;
 
         char buf[8*188]; // for UDP data
         char *pbuf;

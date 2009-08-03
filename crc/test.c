@@ -1,3 +1,4 @@
+/* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
 // Name: tsflt.c
 // Purpose: analyse certain character with ts file

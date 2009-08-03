@@ -1,3 +1,4 @@
+/* vim: set tabstop=8 shiftwidth=8: */
 
 #include "winsock.h"
 #include "stdio.h"

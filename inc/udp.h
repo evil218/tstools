@@ -1,54 +1,52 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
-// Name: list.h
-// Purpose: Common Bidirection List
-// To build: gcc -std-c99 -c list.c
+// Name: udp.h
+// Purpose: UDP access
+// To build: gcc -std-c99 -c udp.c
 //=============================================================================
 
-#ifndef _LIST_H
-#define _LIST_H
+#ifndef _UDP_H
+#define _UDP_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifdef MINGW32
+#include <winsock.h>
+#else
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 /*============================================================================
  * Struct Declaration
  ===========================================================================*/
-struct NODE
+typedef struct
 {
-        struct NODE *next;
-        struct NODE *prev;
-};
-
-struct LIST
-{
-        struct NODE *head;
-        struct NODE *tail;
-
-        int count;
-};
+        int sock;
+        int sockaddr_in_len;
+        struct sockaddr_in remote;
+}
+UDP;
 
 /*============================================================================
  * Public Function Declaration
  ===========================================================================*/
-struct LIST *list_init();
-void list_free(struct LIST *list);
-
-void list_add(struct LIST *list, struct NODE *node); // to the end of list
-void list_del(struct LIST *list, struct NODE *node);
-int list_count(struct LIST *list);
-
-struct NODE *list_head(struct LIST *list);
-struct NODE *list_tail(struct LIST *list);
-struct NODE *list_next(struct NODE *node);
-struct NODE *list_prev(struct NODE *node);
+UDP *udp_open(char *addr, unsigned short port);
+void udp_close(UDP *udp, char *addr);
+size_t udp_read(UDP *udp, char *buf);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _LIST_H
+#endif // _UDP_H
 
 /*****************************************************************************
  * End
