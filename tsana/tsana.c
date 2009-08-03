@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
 #include <stdint.h> // for uint?_t, etc
+#include <signal.h> // for signal()
 
 #include "list.h"
 #include "url.h"
@@ -228,45 +229,49 @@ struct OBJ
 //=============================================================================
 // Variables definition:
 //=============================================================================
-struct OBJ *obj = NULL;
-struct TS *ts;
-struct AF *af;
-struct PSI *psi;
-struct PIDS *pids;
+static struct OBJ *obj = NULL;
+static struct TS *ts;
+static struct AF *af;
+static struct PSI *psi;
+static struct PIDS *pids;
 
 //=============================================================================
 // Sub-function declare:
 //=============================================================================
-void state_next_pat(struct OBJ *obj);
-void state_next_pmt(struct OBJ *obj);
-void state_next_pkg_cc(struct OBJ *obj);
-void state_next_pkg_pcr(struct OBJ *obj);
+static void sigfunc(int);
 
-struct OBJ *create(int argc, char *argv[]);
-int delete(struct OBJ *obj);
+static void state_next_pat(struct OBJ *obj);
+static void state_next_pmt(struct OBJ *obj);
+static void state_next_pkg_cc(struct OBJ *obj);
+static void state_next_pkg_pcr(struct OBJ *obj);
 
-void *malloc_mem(int size, char *memo);
-char *printb(uint32_t x, int bit_cnt);
-void show_help();
-void show_version();
+static struct OBJ *create(int argc, char *argv[]);
+static int delete(struct OBJ *obj);
 
-void sync_input(struct OBJ *obj);
-int get_one_pkg(struct OBJ *obj);
-void parse_TS(struct OBJ *obj);
-void show_TS(struct OBJ *obj);
-void parse_AF(struct OBJ *obj); // adaption_fields
-void parse_PSI(struct OBJ *obj);
-void show_PSI(struct OBJ *obj);
-void parse_PAT_load(struct OBJ *obj);
-int is_PMT_PID(struct OBJ *obj);
-int is_unparsed_PROG(struct OBJ *obj);
-int is_all_PROG_parsed(struct OBJ *obj);
-void parse_PMT_load(struct OBJ *obj);
-void show_PMT(struct OBJ *obj);
-const char *PID_type(uint8_t st);
-void pids_add(struct LIST *list, struct PIDS *pids);
-struct PIDS *pids_match(struct LIST *list, uint16_t pid);
-void show_pids(struct OBJ *obj);
+static void *malloc_mem(int size, char *memo);
+static void show_help();
+static void show_version();
+
+static void sync_input(struct OBJ *obj);
+static int get_one_pkg(struct OBJ *obj);
+static void parse_TS(struct OBJ *obj);
+static void parse_AF(struct OBJ *obj); // adaption_fields
+static void parse_PSI(struct OBJ *obj);
+static void parse_PAT_load(struct OBJ *obj);
+static int is_PMT_PID(struct OBJ *obj);
+static int is_unparsed_PROG(struct OBJ *obj);
+static int is_all_PROG_parsed(struct OBJ *obj);
+static void parse_PMT_load(struct OBJ *obj);
+static const char *PID_type(uint8_t st);
+static void pids_add(struct LIST *list, struct PIDS *pids);
+static struct PIDS *pids_match(struct LIST *list, uint16_t pid);
+static void show_pids(struct OBJ *obj);
+#if 0
+static void show_TS(struct OBJ *obj);
+static void show_PSI(struct OBJ *obj);
+static void show_PMT(struct OBJ *obj);
+static char *printb(uint32_t x, int bit_cnt);
+#endif
 
 //=============================================================================
 // The main function:
@@ -277,6 +282,12 @@ int main(int argc, char *argv[])
         ts = obj->ts;
         af = obj->af;
         psi = obj->psi;
+
+        if(signal(SIGINT, sigfunc) == SIG_ERR)
+        {
+                printf("Could not setup signal handler for SIGINT!\n");
+                return -1;
+        }
 
         sync_input(obj);
         while(STATE_EXIT != obj->state && get_one_pkg(obj))
@@ -311,6 +322,8 @@ int main(int argc, char *argv[])
                 printf("PSI parsing unfinished!\n");
                 show_pids(obj);
         }
+        
+        printf("\nClose all and EXIT...\n");
         delete(obj);
         exit(EXIT_SUCCESS);
 }
@@ -318,7 +331,17 @@ int main(int argc, char *argv[])
 //=============================================================================
 // Subfunctions definition:
 //=============================================================================
-void state_next_pat(struct OBJ *obj)
+static void sigfunc(int signo)
+{
+        if(SIGINT == signo)
+        {
+                printf("SIGINT(Ctrl-C) catched.\n");
+                //WSACancelBlockingCall();
+                obj->state = STATE_EXIT;
+        }
+}
+
+static void state_next_pat(struct OBJ *obj)
 {
         if(0x0000 == ts->PID)
         {
@@ -328,7 +351,7 @@ void state_next_pat(struct OBJ *obj)
         }
 }
 
-void state_next_pmt(struct OBJ *obj)
+static void state_next_pmt(struct OBJ *obj)
 {
         if(!is_PMT_PID(obj))
         {
@@ -371,7 +394,7 @@ void state_next_pmt(struct OBJ *obj)
         }
 }
 
-void state_next_pkg_cc(struct OBJ *obj)
+static void state_next_pkg_cc(struct OBJ *obj)
 {
         pids = pids_match(obj->pids, ts->PID);
         if(NULL == pids)
@@ -418,7 +441,7 @@ void state_next_pkg_cc(struct OBJ *obj)
         }
 }
 
-void state_next_pkg_pcr(struct OBJ *obj)
+static void state_next_pkg_pcr(struct OBJ *obj)
 {
         if(     (BIT1 & ts->adaption_field_control) &&
                 (0x00 != af->adaption_field_length) &&
@@ -440,7 +463,7 @@ void state_next_pkg_pcr(struct OBJ *obj)
         }
 }
 
-struct OBJ *create(int argc, char *argv[])
+static struct OBJ *create(int argc, char *argv[])
 {
         int i;
         int dat;
@@ -590,7 +613,7 @@ struct OBJ *create(int argc, char *argv[])
         return obj;
 }
 
-int delete(struct OBJ *obj)
+static int delete(struct OBJ *obj)
 {
         if(NULL == obj)
         {
@@ -609,7 +632,7 @@ int delete(struct OBJ *obj)
         }
 }
 
-void *malloc_mem(int size, char *memo)
+static void *malloc_mem(int size, char *memo)
 {
         void *ptr = NULL;
 
@@ -622,7 +645,7 @@ void *malloc_mem(int size, char *memo)
         return ptr;
 }
 
-void show_help()
+static void show_help()
 {
         printf("Usage: tsana [options] URL [options]\n");
         printf("URL:\n");
@@ -642,7 +665,7 @@ void show_help()
         printf("  --version      Display my version\n");
 }
 
-void show_version()
+static void show_version()
 {
         printf("tsana 0.1.0 (by MingW), %s %s\n", __TIME__, __DATE__);
         printf("Copyright (C) 2009 ZHOU Cheng.\n");
@@ -651,36 +674,7 @@ void show_version()
         printf("A PARTICULAR PURPOSE.\n");
 }
 
-char *printb(uint32_t x, int bit_cnt)
-{
-        static char str[64];
-
-        char *p = str;
-        uint32_t mask;
-
-        if(bit_cnt < 1 || bit_cnt > 32)
-        {
-                *p++ = 'e';
-                *p++ = 'r';
-                *p++ = 'r';
-                *p++ = 'o';
-                *p++ = 'r';
-        }
-        else
-        {
-                mask = (1 << (bit_cnt - 1));
-                while(mask)
-                {
-                        *p++ = (x & mask) ? '1' : '0';
-                        mask >>= 1;
-                }
-        }
-        *p = '\0';
-
-        return str;
-}
-
-void sync_input(struct OBJ *obj)
+static void sync_input(struct OBJ *obj)
 {
         int sync_byte;
         URL *url = obj->url;
@@ -725,7 +719,7 @@ void sync_input(struct OBJ *obj)
         }
 }
 
-int get_one_pkg(struct OBJ *obj)
+static int get_one_pkg(struct OBJ *obj)
 {
         uint32_t size;
 
@@ -735,7 +729,7 @@ int get_one_pkg(struct OBJ *obj)
         return (size == obj->ts_size);
 }
 
-void parse_TS(struct OBJ *obj)
+static void parse_TS(struct OBJ *obj)
 {
         uint8_t dat;
         struct TS *ts = obj->ts;
@@ -784,22 +778,7 @@ void parse_TS(struct OBJ *obj)
         }
 }
 
-void show_TS(struct OBJ *obj)
-{
-        struct TS *ts = obj->ts;
-
-        printf("TS:\n");
-        printf("  0x%02X  : sync_byte\n", ts->sync_byte);
-        printf("  %c     : transport_error_indicator\n", (ts->transport_error_indicator) ? '1' : '0');
-        printf("  %c     : payload_unit_start_indicator\n", (ts->payload_unit_start_indicator) ? '1' : '0');
-        printf("  %c     : transport_priority\n", (ts->transport_priority) ? '1' : '0');
-        printf("  0x%04X: PID\n", ts->PID);
-        printf("  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
-        printf("  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
-        printf("  0x%X   : continuity_counter\n", ts->continuity_counter);
-}
-
-void parse_AF(struct OBJ *obj)
+static void parse_AF(struct OBJ *obj)
 {
         uint8_t dat;
         struct AF *af = obj->af;
@@ -849,7 +828,7 @@ void parse_AF(struct OBJ *obj)
         }
 }
 
-void parse_PSI(struct OBJ *obj)
+static void parse_PSI(struct OBJ *obj)
 {
         uint8_t dat;
         struct PSI *psi = obj->psi;
@@ -884,39 +863,7 @@ void parse_PSI(struct OBJ *obj)
         psi->last_section_number = dat;
 }
 
-void show_PSI(struct OBJ *obj)
-{
-        uint32_t idx;
-        struct PSI *psi = obj->psi;
-
-        printf("0x0000: PAT_PID\n");
-        //printf("    0x%04X: section_length\n", psi->section_length);
-        printf("    0x%04X: transport_stream_id\n", psi->idx.idx);
-
-        idx = 0;
-#if 0
-        while(idx < psi->program_cnt)
-        {
-                if(0x0000 == psi->program[idx].program_number)
-                {
-                        printf("    0x%04X: network_program_number\n",
-                               psi->program[idx].program_number);
-                        printf("        0x%04X: network_PID\n",
-                               psi->program[idx].PID);
-                }
-                else
-                {
-                        printf("    0x%04X: program_number\n",
-                               psi->program[idx].program_number);
-                        printf("        0x%04X: PMT_PID\n",
-                               psi->program[idx].PID);
-                }
-                idx++;
-        }
-#endif
-}
-
-void parse_PAT_load(struct OBJ *obj)
+static void parse_PAT_load(struct OBJ *obj)
 {
         uint8_t dat;
         struct PSI *psi = obj->psi;
@@ -987,7 +934,7 @@ void parse_PAT_load(struct OBJ *obj)
         //printf("PIDS Count: %u\n", list_count(obj->pids));
 }
 
-void show_pids(struct OBJ *obj)
+static void show_pids(struct OBJ *obj)
 {
         struct PIDS *pids;
         struct NODE *node;
@@ -1008,7 +955,7 @@ void show_pids(struct OBJ *obj)
         }
 }
 
-struct PIDS *pids_match(struct LIST *list, uint16_t pid)
+static struct PIDS *pids_match(struct LIST *list, uint16_t pid)
 {
         struct NODE *node;
         struct PIDS *item;
@@ -1027,7 +974,7 @@ struct PIDS *pids_match(struct LIST *list, uint16_t pid)
         return NULL;
 }
 
-void pids_add(struct LIST *list, struct PIDS *pids)
+static void pids_add(struct LIST *list, struct PIDS *pids)
 {
         struct NODE *node;
         struct PIDS *item;
@@ -1067,7 +1014,7 @@ void pids_add(struct LIST *list, struct PIDS *pids)
         list_add(list, (struct NODE *)pids);
 }
 
-int is_PMT_PID(struct OBJ *obj)
+static int is_PMT_PID(struct OBJ *obj)
 {
         struct TS *ts;
         struct NODE *node;
@@ -1094,7 +1041,7 @@ int is_PMT_PID(struct OBJ *obj)
         return FALSE;
 }
 
-int is_unparsed_PROG(struct OBJ *obj)
+static int is_unparsed_PROG(struct OBJ *obj)
 {
         struct TS *ts;
         struct PSI *psi;
@@ -1124,7 +1071,7 @@ int is_unparsed_PROG(struct OBJ *obj)
         return FALSE;
 }
 
-int is_all_PROG_parsed(struct OBJ *obj)
+static int is_all_PROG_parsed(struct OBJ *obj)
 {
         struct TS *ts;
         struct NODE *node;
@@ -1147,7 +1094,7 @@ int is_all_PROG_parsed(struct OBJ *obj)
         return TRUE;
 }
 
-const char *PID_type(uint8_t st)
+static const char *PID_type(uint8_t st)
 {
         switch(st)
         {
@@ -1163,7 +1110,7 @@ const char *PID_type(uint8_t st)
         }
 }
 
-void parse_PMT_load(struct OBJ *obj)
+static void parse_PMT_load(struct OBJ *obj)
 {
         uint8_t dat;
         uint16_t info_length;
@@ -1289,7 +1236,54 @@ void parse_PMT_load(struct OBJ *obj)
 }
 
 #if 0
-void show_PMT(struct OBJ *obj)
+static void show_TS(struct OBJ *obj)
+{
+        struct TS *ts = obj->ts;
+
+        printf("TS:\n");
+        printf("  0x%02X  : sync_byte\n", ts->sync_byte);
+        printf("  %c     : transport_error_indicator\n", (ts->transport_error_indicator) ? '1' : '0');
+        printf("  %c     : payload_unit_start_indicator\n", (ts->payload_unit_start_indicator) ? '1' : '0');
+        printf("  %c     : transport_priority\n", (ts->transport_priority) ? '1' : '0');
+        printf("  0x%04X: PID\n", ts->PID);
+        printf("  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
+        printf("  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
+        printf("  0x%X   : continuity_counter\n", ts->continuity_counter);
+}
+
+static void show_PSI(struct OBJ *obj)
+{
+        uint32_t idx;
+        struct PSI *psi = obj->psi;
+
+        printf("0x0000: PAT_PID\n");
+        //printf("    0x%04X: section_length\n", psi->section_length);
+        printf("    0x%04X: transport_stream_id\n", psi->idx.idx);
+
+        idx = 0;
+#if 0
+        while(idx < psi->program_cnt)
+        {
+                if(0x0000 == psi->program[idx].program_number)
+                {
+                        printf("    0x%04X: network_program_number\n",
+                               psi->program[idx].program_number);
+                        printf("        0x%04X: network_PID\n",
+                               psi->program[idx].PID);
+                }
+                else
+                {
+                        printf("    0x%04X: program_number\n",
+                               psi->program[idx].program_number);
+                        printf("        0x%04X: PMT_PID\n",
+                               psi->program[idx].PID);
+                }
+                idx++;
+        }
+#endif
+}
+
+static void show_PMT(struct OBJ *obj)
 {
         uint32_t i;
         uint32_t idx;
@@ -1344,6 +1338,35 @@ void show_PMT(struct OBJ *obj)
                         }
                 }
         }
+}
+
+static char *printb(uint32_t x, int bit_cnt)
+{
+        static char str[64];
+
+        char *p = str;
+        uint32_t mask;
+
+        if(bit_cnt < 1 || bit_cnt > 32)
+        {
+                *p++ = 'e';
+                *p++ = 'r';
+                *p++ = 'r';
+                *p++ = 'o';
+                *p++ = 'r';
+        }
+        else
+        {
+                mask = (1 << (bit_cnt - 1));
+                while(mask)
+                {
+                        *p++ = (x & mask) ? '1' : '0';
+                        mask >>= 1;
+                }
+        }
+        *p = '\0';
+
+        return str;
 }
 #endif
 //=============================================================================

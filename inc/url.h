@@ -11,7 +11,17 @@
 extern "C" {
 #endif
 
-#include "winsock.h"
+#ifdef MINGW32
+#include <winsock.h>
+#else
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 #define MAX_STRING_LENGTH 256
 
