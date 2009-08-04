@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
+#include <time.h>   // for time(), etc
 #include <stdint.h> // for uint?_t, etc
 #include <signal.h> // for signal()
 
@@ -381,7 +382,7 @@ static void state_next_pmt(struct OBJ *obj)
                         case MODE_CC:
                                 sync_input(obj);
                                 obj->addr -= obj->ts_size;
-                                printf("address(X),address(d),   PID,wait,find,lost\n");
+                                printf("year-mm-dd HH:MM:SS,address(X),address(d),   PID,wait,find,lost\n");
                                 obj->state = STATE_NEXT_PKG_CC;
                                 break;
                         case MODE_PCR:
@@ -399,11 +400,20 @@ static void state_next_pmt(struct OBJ *obj)
 
 static void state_next_pkg_cc(struct OBJ *obj)
 {
+        time_t tp;
+        struct tm *lt; // local time
+        char strtime[255];
+
+        time(&tp);
+        lt = localtime(&tp);
+        strftime(strtime, 255, "%Y-%m-%d %H:%M:%S", lt);
+
         pids = pids_match(obj->pids, ts->PID);
         if(NULL == pids)
         {
                 if(MIN_USER_PID <= ts->PID && ts->PID <= MAX_USER_PID)
                 {
+                        printf("%s,", strtime);
                         printf("0x%08X", obj->addr);
                         printf(",%10u", obj->addr);
                         printf(",0x%04X", ts->PID);
@@ -427,6 +437,7 @@ static void state_next_pkg_cc(struct OBJ *obj)
                         {
                                 lost += 16;
                         }
+                        printf("%s,", strtime);
                         printf("0x%08X", obj->addr);
                         printf(",%10u", obj->addr);
                         printf(",0x%04X", ts->PID);
