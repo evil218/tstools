@@ -25,9 +25,9 @@ clean:
 	-rm -f $(OBJS) $(EXECUTABLE) $(DEPS) *~
 
 explain:
-	@echo "Source files: $(SRCS)"
-	@echo "Object files: $(OBJS)"
-	@echo "Dependency files: $(DEPS)"
+	@echo "    Source     files: $(SRCS)"
+	@echo "    Object     files: $(OBJS)"
+	@echo "    Dependency files: $(DEPS)"
 
 depend: $(DEPS)
 	@echo "Dependency files are now up-to-date."
