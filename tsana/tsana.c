@@ -382,7 +382,15 @@ static void state_next_pmt(struct OBJ *obj)
                         case MODE_CC:
                                 sync_input(obj);
                                 obj->addr -= obj->ts_size;
-                                printf("year-mm-dd HH:MM:SS,address(X),address(d),   PID,wait,find,lost\n");
+                                if(PRTCL_UDP == obj->url->protocol)
+                                {
+                                        printf("year-mm-dd HH:MM:SS,");
+                                }
+                                else
+                                {
+                                        printf("address(X),address(d),");
+                                }
+                                printf("   PID,wait,find,lost\n");
                                 obj->state = STATE_NEXT_PKG_CC;
                                 break;
                         case MODE_PCR:
@@ -413,10 +421,16 @@ static void state_next_pkg_cc(struct OBJ *obj)
         {
                 if(MIN_USER_PID <= ts->PID && ts->PID <= MAX_USER_PID)
                 {
-                        printf("%s,", strtime);
-                        printf("0x%08X", obj->addr);
-                        printf(",%10u", obj->addr);
-                        printf(",0x%04X", ts->PID);
+                        if(PRTCL_UDP == obj->url->protocol)
+                        {
+                                printf("%s,", strtime);
+                        }
+                        else
+                        {
+                                printf("0x%08X", obj->addr);
+                                printf(",%10u,", obj->addr);
+                        }
+                        printf("0x%04X", ts->PID);
                         printf(", Unknown PID!\n");
                 }
                 else
@@ -437,10 +451,16 @@ static void state_next_pkg_cc(struct OBJ *obj)
                         {
                                 lost += 16;
                         }
-                        printf("%s,", strtime);
-                        printf("0x%08X", obj->addr);
-                        printf(",%10u", obj->addr);
-                        printf(",0x%04X", ts->PID);
+                        if(PRTCL_UDP == obj->url->protocol)
+                        {
+                                printf("%s,", strtime);
+                        }
+                        else
+                        {
+                                printf("0x%08X", obj->addr);
+                                printf(",%10u,", obj->addr);
+                        }
+                        printf("0x%04X", ts->PID);
                         printf(",  %2u,  %2u,  %2d\n",
                                pids->CC,
                                ts->continuity_counter,
