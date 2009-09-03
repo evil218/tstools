@@ -1,23 +1,42 @@
-DIRS = lib bin2txt tsana update crc
-DIR2 =     bin2txt tsana update crc
-
 all:
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+	-@$(MAKE) -C lib $@
+	-@$(MAKE) -C bin2txt $@
+	-@$(MAKE) -C tsana $@
+	-@$(MAKE) -C update $@
+	-@$(MAKE) -C crc $@
 
 install:
-	@for dir in $(DIR2); do $(MAKE) -C $$dir $@; done
+	-@$(MAKE) -C bin2txt $@
+	-@$(MAKE) -C tsana $@
+	-@$(MAKE) -C update $@
+	-@$(MAKE) -C crc $@
 
 uninstall:
-	@for dir in $(DIR2); do $(MAKE) -C $$dir $@; done
+	-@$(MAKE) -C bin2txt $@
+	-@$(MAKE) -C tsana $@
+	-@$(MAKE) -C update $@
+	-@$(MAKE) -C crc $@
 
 clean:
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+	-@$(MAKE) -C lib $@
+	-@$(MAKE) -C bin2txt $@
+	-@$(MAKE) -C tsana $@
+	-@$(MAKE) -C update $@
+	-@$(MAKE) -C crc $@
 
 explain:
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+	-@$(MAKE) -C lib $@
+	-@$(MAKE) -C bin2txt $@
+	-@$(MAKE) -C tsana $@
+	-@$(MAKE) -C update $@
+	-@$(MAKE) -C crc $@
 
 depend:
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+	-@$(MAKE) -C lib $@
+	-@$(MAKE) -C bin2txt $@
+	-@$(MAKE) -C tsana $@
+	-@$(MAKE) -C update $@
+	-@$(MAKE) -C crc $@
 
 ctags:
 	ctags -R .
