@@ -339,8 +339,7 @@ static void sigfunc(int signo)
 {
         if(SIGINT == signo)
         {
-                //printf("SIGINT(Ctrl-C) catched.\n");
-                //WSACancelBlockingCall();
+                printf("SIGINT(Ctrl-C) catched.\n");
                 obj->state = STATE_EXIT;
         }
 }
@@ -427,8 +426,8 @@ static void state_next_pkg_cc(struct OBJ *obj)
                         }
                         else
                         {
-                                printf("0x%08X", obj->addr);
-                                printf(",%10u,", obj->addr);
+                                printf("0x%08lX", obj->addr);
+                                printf(",%10lu", obj->addr);
                         }
                         printf("0x%04X", ts->PID);
                         printf(", Unknown PID!\n");
@@ -457,8 +456,8 @@ static void state_next_pkg_cc(struct OBJ *obj)
                         }
                         else
                         {
-                                printf("0x%08X", obj->addr);
-                                printf(",%10u,", obj->addr);
+                                printf("0x%08lX", obj->addr);
+                                printf(",%10lu", obj->addr);
                         }
                         printf("0x%04X", ts->PID);
                         printf(",  %2u,  %2u,  %2d\n",
@@ -477,6 +476,8 @@ static void state_next_pkg_cc(struct OBJ *obj)
 
 static void state_next_pkg_pcr(struct OBJ *obj)
 {
+        ts = obj->ts;
+
         if(     (BIT1 & ts->adaption_field_control) &&
                 (0x00 != af->adaption_field_length) &&
                 af->PCR_flag
@@ -487,8 +488,8 @@ static void state_next_pkg_pcr(struct OBJ *obj)
                 pcr *= 300;
                 pcr += af->program_clock_reference_extension;
 
-                printf("0x%08X", obj->addr);
-                printf(",%10u", obj->addr);
+                printf("0x%08lX", obj->addr);
+                printf(",%10lu", obj->addr);
                 printf(",0x%04X", ts->PID);
                 printf(",%13llu,%10llu,    %3u\n",
                        pcr,
@@ -701,7 +702,7 @@ static void show_help()
 
 static void show_version()
 {
-        printf("tsana 0.1.0 (by MingW), %s %s\n", __TIME__, __DATE__);
+        printf("tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
         printf("Copyright (C) 2009 ZHOU Cheng.\n");
         printf("This is free software; contact author for additional information.\n");
         printf("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n");
@@ -748,7 +749,7 @@ static void sync_input(struct OBJ *obj)
 
         if(0 != obj->addr)
         {
-                printf("Find first sync byte at 0x%X in %s.\n",
+                printf("Find first sync byte at 0x%lX in %s.\n",
                        obj->addr, obj->file_i);
         }
 }
@@ -774,7 +775,7 @@ static void parse_TS(struct OBJ *obj)
         {
                 int i;
 
-                printf("Wrong package head at 0x%X!\n", obj->addr);
+                printf("Wrong package head at 0x%lX!\n", obj->addr);
                 printf("%02X ", dat);
                 for(i = obj->ts_size; i > 1; i--)
                 {
@@ -1138,6 +1139,7 @@ static const char *PID_type(uint8_t st)
                         return VID_PID;
                 case 0x03: // "ISO/IEC 11172 Audio"
                 case 0x04: // "ISO/IEC 13818-3 Audio"
+                case 0x81: // "AC3 Audio"
                         return AUD_PID;
                 default:
                         return UNO_PID; // unknown

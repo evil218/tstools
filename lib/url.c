@@ -87,7 +87,7 @@ int url_close(URL *url)
 
 int url_seek(URL *url, long offset, int origin)
 {
-        int rslt;
+        int rslt = 0;
 
         if(NULL == url)
         {

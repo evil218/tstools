@@ -1,10 +1,8 @@
 CC = gcc
 CPPFLAGS = -I. -I../lib
-CFLAGS = -Wall -W -Werror -DMINGW32
-ifneq ($(EXECUTABLE),bin2txt.exe)
+CFLAGS = -Wall -W -Werror
 CFLAGS += -std=c99
-endif
-#CFLAGS += -O2
+CFLAGS += -O2
 #CFLAGS += -g
 CXXFLAGS = $(CFLAGS)
 COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
@@ -36,7 +34,7 @@ depend: $(DEPS)
 
 # other things
 
-INSTALL_DIR = C:/windows/system32
+INSTALL_DIR = /cygdrive/c/windows/system32
 
 $(INSTALL_DIR)/%.exe: %.exe
 	cp $< $@

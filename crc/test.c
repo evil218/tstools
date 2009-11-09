@@ -46,9 +46,9 @@ static uint8_t buf32[] =
 int main()
 {
         crc_init();
-        printf("CRC8  is 0x%02X\n", CRC(buf08, 0x04,  8));
-        printf("CRC32 is 0x%08X\n", CRC(buf32, 0x10, 32));
-        printf("crc32 is 0x%08X\n", crc32(buf32, 0x10));
+        printf("CRC8  is 0x%02lX\n", CRC(buf08, 0x04,  8));
+        printf("CRC32 is 0x%08lX\n", CRC(buf32, 0x10, 32));
+        printf("crc32 is 0x%08lX\n", crc32(buf32, 0x10));
         exit(0);
 }
 
