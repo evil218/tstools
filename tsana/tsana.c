@@ -292,8 +292,12 @@ int main(int argc, char *argv[])
         }
 
         sync_input(obj);
-        while(STATE_EXIT != obj->state && get_one_pkg(obj))
+        while(STATE_EXIT != obj->state)
         {
+                if(!get_one_pkg(obj))
+                {
+                        continue;
+                }
                 parse_TS(obj);
                 switch(obj->state)
                 {
@@ -327,7 +331,6 @@ int main(int argc, char *argv[])
                 show_pids(obj);
         }
         
-        printf("\nClose all and EXIT...\n");
         delete(obj);
         exit(EXIT_SUCCESS);
 }
@@ -337,10 +340,16 @@ int main(int argc, char *argv[])
 //=============================================================================
 static void sigfunc(int signo)
 {
+        char str[100];
+
         if(SIGINT == signo)
         {
                 printf("SIGINT(Ctrl-C) catched.\n");
                 obj->state = STATE_EXIT;
+        }
+        else
+        {
+                fread(str, 1, 100, stdin); // empty stdin buffer
         }
 }
 

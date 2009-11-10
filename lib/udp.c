@@ -25,7 +25,7 @@ UDP *udp_open(char *addr, unsigned short port)
         udp = (UDP *)malloc(sizeof(UDP));
         if(NULL == udp)
         {
-                printf("Alloc %d-byte failed!\n", sizeof(UDP));
+                perror("malloc");
                 return NULL;
         }
 
@@ -35,13 +35,12 @@ UDP *udp_open(char *addr, unsigned short port)
         // build socket
         if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         {
-                printf("open a datagram socket error!\n");
+                perror("socket");
                 return NULL;
         }
 
         // nonblock mode
-        //unsigned long opt = 1;
-        //ioctlsocket(udp->sock, FIONBIO, &opt);
+        fcntl(udp->sock, F_SETFL, O_NONBLOCK);
 
         // reuse address
         int reuseaddr = 1; // nonzero means enable
@@ -56,23 +55,22 @@ UDP *udp_open(char *addr, unsigned short port)
 
         if(bind(udp->sock, (struct sockaddr *)&local, sizeof(struct sockaddr)) < 0)
         {
-                printf("initiate a connection to the socket error!\n");
-                //printf("addr: %s\n", inet_ntoa(local.sin_addr));
-                //printf("port: %d\n", ntohs(local.sin_port));
+                perror("bind");
+                fprintf(stderr, "    addr: %s\n", inet_ntoa(local.sin_addr));
+                fprintf(stderr, "    port: %d\n", ntohs(local.sin_port));
                 return NULL;
         }
 
         // manage multicast
         struct ip_mreq multicast;
         multicast.imr_multiaddr.s_addr = inet_addr(addr);
-        //printf("s_addr is 0x%08X\n", (int)(multicast.imr_multiaddr.s_addr));
         if(0x000000E0 == (multicast.imr_multiaddr.s_addr & 0x000000F0))
         {
                 multicast.imr_interface.s_addr = htonl(INADDR_ANY);
                 if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                               (char *)&multicast, sizeof(multicast)) < 0)
                 {
-                        printf("join multicast membership error!\n");
+                        perror("join multicast membership");
                 }
         }
 
@@ -91,7 +89,7 @@ void udp_close(UDP *udp, char *addr)
                 if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
                               (char *)&multicast, sizeof(multicast)) < 0)
                 {
-                        printf("quit multicast membership error!\n");
+                        perror("quit multicast membership");
                 }
         }
 
@@ -104,26 +102,25 @@ size_t udp_read(UDP *udp, char *buf)
         fd_set fds;
 
         FD_ZERO(&fds);
-        FD_SET(0, &fds); // must be socket handle
+        FD_SET(0, &fds);
         FD_SET(udp->sock, &fds);
         if(select(udp->sock + 1, &fds, NULL, NULL, NULL) < 0)
         {
-                printf("select() returns error.\n");
+                perror("select");
         }
         else if(FD_ISSET(udp->sock, &fds))
         {
                 rslt = recvfrom(udp->sock, buf, UDP_LENGTH_MAX, 0,
                                 (struct sockaddr *)&udp->remote,
                                 &udp->sockaddr_in_len);
-                //printf("Recvfrom() got %d-byte.\n", rslt);
         }
         else if(FD_ISSET(0, &fds))
         {
-                printf("Key pressed.\n");
+                //printf("Key pressed.\n");
         }
         else
         {
-                // never reached code
+                fprintf(stderr, "%s:%d: bad branches\n", __FILE__, __LINE__);
         }
 
         return rslt;

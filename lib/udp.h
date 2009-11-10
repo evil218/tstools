@@ -12,9 +12,6 @@
 extern "C" {
 #endif
 
-#ifdef MINGW32
-#include <winsock.h>
-#else
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -22,7 +19,6 @@ extern "C" {
 #include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#endif
 
 /*============================================================================
  * Struct Declaration
