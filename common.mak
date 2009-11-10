@@ -19,6 +19,9 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 %.o: %.c
 	$(COMPILE) -o $@ $<
 
+$(EXECUTABLE): $(DEPS) $(OBJS) $(LIBS)
+	$(CC) -o $(EXECUTABLE) $(OBJS) $(LIBS)
+
 clean:
 	-rm -f $(OBJS) $(EXECUTABLE) $(DEPS) *~
 

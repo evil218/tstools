@@ -1,8 +1,6 @@
-EXECUTABLE = bin2txt.exe
+EXECUTABLE=b2t.exe
+LIBS=
 
 all: $(EXECUTABLE)
 
 include ../common.mak
-
-$(EXECUTABLE): $(DEPS) $(OBJS)
-	$(CC) -o $(EXECUTABLE) $(OBJS)

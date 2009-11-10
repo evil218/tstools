@@ -1,7 +1,6 @@
-EXECUTABLE = 
+EXECUTABLE=
+LIBS=
 
-all: object
+all: $(OBJS)
 
 include ../common.mak
-
-object: $(OBJS)

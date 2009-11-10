@@ -1,8 +1,8 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
-// Name: bin2txt.c
+// Name: b2t.c
 // Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o bin2txt bin2txt.c
+// To build: gcc -std=c99 -o b2t b2t.c
 // Copyright (C) 2008 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
@@ -193,7 +193,7 @@ unsigned char *malloc_mem(int size)
 
 void show_help()
 {
-        printf("Usage: bin2txt [options] bin_file\n");
+        printf("Usage: b2t [options] bin_file\n");
         printf("Options:\n");
         printf("  -o <file>      Output file name, default: *.txt\n");
         printf("  -f <format>    Data format string in C style, default: \"%c3d\"\n", '%');
@@ -201,7 +201,7 @@ void show_help()
         printf("  -n <num>       Data count per line, default: 16\n");
         printf("  -ts            Auto set: -f \"%c02X\" -s \" \" -n 188 for TS file\n", '%');
         printf("  --help         Display this information\n\n");
-        printf("bin2txt v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
+        printf("b2t v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
 }
 
 //=============================================================================

@@ -1,8 +1,6 @@
-EXECUTABLE = test.exe
+EXECUTABLE=test.exe
+LIBS=../lib/crc.o
 
 all: $(EXECUTABLE)
 
 include ../common.mak
-
-$(EXECUTABLE): $(DEPS) $(OBJS)
-	$(CC) -o $(EXECUTABLE) $(OBJS) ../lib/crc.o
