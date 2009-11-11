@@ -292,12 +292,8 @@ int main(int argc, char *argv[])
         }
 
         sync_input(obj);
-        while(STATE_EXIT != obj->state)
+        while(STATE_EXIT != obj->state && get_one_pkg(obj))
         {
-                if(!get_one_pkg(obj))
-                {
-                        continue;
-                }
                 parse_TS(obj);
                 switch(obj->state)
                 {
@@ -344,7 +340,7 @@ static void sigfunc(int signo)
 
         if(SIGINT == signo)
         {
-                printf("SIGINT(Ctrl-C) catched.\n");
+                //printf("SIGINT(Ctrl-C) catched.\n");
                 obj->state = STATE_EXIT;
         }
         else
