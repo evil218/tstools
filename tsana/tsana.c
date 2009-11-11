@@ -481,6 +481,14 @@ static void state_next_pkg_cc(struct OBJ *obj)
 
 static void state_next_pkg_pcr(struct OBJ *obj)
 {
+        time_t tp;
+        struct tm *lt; // local time
+        char strtime[255];
+
+        time(&tp);
+        lt = localtime(&tp);
+        strftime(strtime, 255, "%Y-%m-%d %H:%M:%S", lt);
+
         ts = obj->ts;
 
         if(     (BIT1 & ts->adaption_field_control) &&
@@ -493,8 +501,15 @@ static void state_next_pkg_pcr(struct OBJ *obj)
                 pcr *= 300;
                 pcr += af->program_clock_reference_extension;
 
-                printf("0x%08lX", obj->addr);
-                printf(",%10lu", obj->addr);
+                if(PRTCL_UDP == obj->url->protocol)
+                {
+                        printf("%s,", strtime);
+                }
+                else
+                {
+                        printf("0x%08lX", obj->addr);
+                        printf(",%10lu", obj->addr);
+                }
                 printf(",0x%04X", ts->PID);
                 printf(",%13llu,%10llu,    %3u\n",
                        pcr,
