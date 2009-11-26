@@ -37,16 +37,93 @@
 //=============================================================================
 // const definition:
 //=============================================================================
-const char *PAT_PID = "PAT_PID";
-const char *PMT_PID = "PMT_PID";
-const char *SIT_PID = "SIT_PID";
-const char *PCR_PID = "PCR_PID";
-const char *VID_PID = "VID_PID";
-const char *VID_PCR = "VID_PCR"; // video with PCR
-const char *AUD_PID = "AUD_PID";
-const char *AUD_PCR = "AUD_PCR"; // audio with PCR
-const char *NUL_PID = "NUL_PID";
-const char *UNO_PID = "UNO_PID";
+typedef struct
+{
+        uint16_t min;   // PID range
+        uint16_t max;   // PID range
+        int dCC;        // delta of CC field: 0 or 1
+        char *sdes;     // short description
+}
+ts_pid_t;
+
+const ts_pid_t TS_PID_TABLE[] =
+{
+        {0x0000, 0x0000, 1, "PAT"},
+        {0x0001, 0x0001, 1, "CAT"},
+        {0x0002, 0x0002, 1, "TSDT"},
+        {0x0003, 0x000f, 0, "reserved"},
+        {0x0010, 0x0010, 1, "NIT/ST"},
+        {0x0011, 0x0011, 1, "SDT/BAT/ST"},
+        {0x0012, 0x0012, 1, "EIT/ST"},
+        {0x0013, 0x0013, 1, "RST/ST"},
+        {0x0014, 0x0014, 1, "TDT/TOT/ST"},
+        {0x0015, 0x0015, 1, "Network Synchroniztion"},
+        {0x0016, 0x001b, 1, "Reserved for future use"},
+        {0x001c, 0x001c, 1, "Inband signaling"},
+        {0x001d, 0x001d, 1, "Measurement"},
+        {0x001e, 0x001e, 1, "DIT"},
+        {0x001f, 0x001f, 1, "SIT"},
+        {0x0020, 0x1ffe, 1, "T.B.D."},
+        {0x1fff, 0x1fff, 0, "NULL package"}
+};
+
+typedef struct
+{
+        uint8_t min; // table ID range
+        uint8_t max; // table ID range
+        char *sdes;  // short description
+        char *ldes;  // long description
+}
+table_id_t;
+
+const table_id_t TABLE_ID_TABLE[] =
+{
+        {0x00, 0x00, "PAT", "Program_association_section"},
+        {0x01, 0x01, "CAT", "Conditional_access_section"},
+        {0x02, 0x02, "PMT", "Program_map_section"},
+        {0x03, 0x03, "???", "Transport_stream_description_section"},
+        {0x04, 0x3f, "???", "Reserved"},
+        {0x40, 0x40, "NIT", "Network_information_section-actual_network"},
+        {0x41, 0x41, "NIT", "Network_information_section-other_network"},
+        {0x42, 0x42, "SDT", "Service_description_section-actual_transport_stream"},
+        {0x43, 0x45, "???", "Reserved for future use"},
+        {0x46, 0x46, "SDT", "Service_description_section-other_transport_stream"},
+        {0x47, 0x49, "???", "Reserved for future use"},
+        {0x4a, 0x4a, "BAT", "Bouquet_association_section"},
+        {0x4b, 0x4d, "???", "Reserved for future use"},
+        {0x4e, 0x4e, "EIT", "Event_information_section-actual_transport_stream,P/F"},
+        {0x4f, 0x4f, "EIT", "Event_information_section-other_transport_stream,P/F"},
+        {0x50, 0x5f, "EIT", "Event_information_section-actual_transport_stream,schedule"},
+        {0x60, 0x6f, "EIT", "Event_information_section-other_transport_stream,schedule"},
+        {0x70, 0x70, "TDT", "Time_data_section"},
+        {0x71, 0x71, "RST", "Running_status_section"},
+        {0x72, 0x72, " ST", "Stuffing_section"},
+        {0x73, 0x73, "TOT", "Time_offset_section"},
+        {0x74, 0x7d, "???", "Reserved for future use"},
+        {0x7e, 0x7e, "DIT", "Discontinuity_information_section"},
+        {0x7f, 0x7f, "SIT", "Selection_information_section"},
+        {0x80, 0xfe, "???", "User defined"},
+        {0xff, 0xff, "???", "Reserved"}
+};
+
+const char * PAT_PID =  "PAT_PID"; // 0x0000
+const char * CAT_PID =  "CAT_PID"; // 0x0001
+const char *TSDT_PID = "TSDT_PID"; // 0x0002
+const char * NIT_PID =  "NIT_PID"; // 0x0010
+const char * SDT_PID =  "SDT_PID"; // 0x0011
+const char * EIT_PID =  "EIT_PID"; // 0x0012
+const char * RST_PID =  "RST_PID"; // 0x0013
+const char * TDT_PID =  "TDT_PID"; // 0x0014
+const char * DIT_PID =  "DIT_PID"; // 0x001e
+const char * SIT_PID =  "SIT_PID"; // 0x001f
+const char * PMT_PID =  "PMT_PID";
+const char * PCR_PID =  "PCR_PID";
+const char * VID_PID =  "VID_PID";
+const char * VID_PCR =  "VID_PCR"; // video with PCR
+const char * AUD_PID =  "AUD_PID";
+const char * AUD_PCR =  "AUD_PCR"; // audio with PCR
+const char * NUL_PID =  "NUL_PID"; // 0x1fff
+const char * UNO_PID =  "UNO_PID";
 
 //=============================================================================
 // enum definition:
@@ -951,21 +1028,49 @@ static void parse_PAT_load(struct OBJ *obj)
                 prog->PMT_PID <<= 8;
                 prog->PMT_PID |= dat;
 
-                list_add(obj->prog, (struct NODE *)prog);
-
-                // add PMT PID
-                pids = (struct PIDS *)malloc(sizeof(struct PIDS));
-                if(NULL == pids)
+                if(0 == prog->program_number)
                 {
-                        printf("Malloc memory failure!\n");
-                        exit(EXIT_FAILURE);
+                        // add network PID
+                        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+                        if(NULL == pids)
+                        {
+                                printf("Malloc memory failure!\n");
+                                exit(EXIT_FAILURE);
+                        }
+                        pids->PID = prog->PMT_PID;
+                        switch(pids->PID)
+                        {
+                                case 0x0010: pids->type = NIT_PID; break;
+                                case 0x0011: pids->type = SDT_PID; break;
+                                case 0x001e: pids->type = DIT_PID; break;
+                                case 0x001f: pids->type = SIT_PID; break;
+                                default:     pids->type = UNO_PID; break;
+                        }
+                        pids->CC = 0;
+                        pids->delta_CC = 1;
+                        pids->is_CC_sync = FALSE;
+                        pids_add(obj->pids, pids);
+
+                        free(prog);
                 }
-                pids->PID = prog->PMT_PID;
-                pids->type = PMT_PID;
-                pids->CC = 0;
-                pids->delta_CC = 1;
-                pids->is_CC_sync = FALSE;
-                pids_add(obj->pids, pids);
+                else
+                {
+                        // add PMT PID
+                        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+                        if(NULL == pids)
+                        {
+                                printf("Malloc memory failure!\n");
+                                exit(EXIT_FAILURE);
+                        }
+                        pids->PID = prog->PMT_PID;
+                        pids->type = PMT_PID;
+                        pids->CC = 0;
+                        pids->delta_CC = 1;
+                        pids->is_CC_sync = FALSE;
+                        pids_add(obj->pids, pids);
+
+                        list_add(obj->prog, (struct NODE *)prog);
+                }
         }
 
         dat = *(obj->p)++; obj->left_length--;
