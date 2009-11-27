@@ -15,115 +15,10 @@
 #include "list.h"
 #include "url.h"
 
-#define FALSE                           0
-#define TRUE                            1
-
-#define BIT0                            (1 << 0)
-#define BIT1                            (1 << 1)
-#define BIT2                            (1 << 2)
-#define BIT3                            (1 << 3)
-#define BIT4                            (1 << 4)
-#define BIT5                            (1 << 5)
-#define BIT6                            (1 << 6)
-#define BIT7                            (1 << 7)
-
-#define TABLE_ID_PAT                    0x00
-#define TABLE_ID_CAT                    0x01
-#define TABLE_ID_PMT                    0x02
+#define BIT(n)                          (1<<(n))
 
 #define MIN_USER_PID                    0x0020
 #define MAX_USER_PID                    0x1FFE
-
-//=============================================================================
-// const definition:
-//=============================================================================
-typedef struct
-{
-        uint16_t min;   // PID range
-        uint16_t max;   // PID range
-        int dCC;        // delta of CC field: 0 or 1
-        char *sdes;     // short description
-}
-ts_pid_t;
-
-const ts_pid_t TS_PID_TABLE[] =
-{
-        {0x0000, 0x0000, 1, "PAT"},
-        {0x0001, 0x0001, 1, "CAT"},
-        {0x0002, 0x0002, 1, "TSDT"},
-        {0x0003, 0x000f, 0, "reserved"},
-        {0x0010, 0x0010, 1, "NIT/ST"},
-        {0x0011, 0x0011, 1, "SDT/BAT/ST"},
-        {0x0012, 0x0012, 1, "EIT/ST"},
-        {0x0013, 0x0013, 1, "RST/ST"},
-        {0x0014, 0x0014, 1, "TDT/TOT/ST"},
-        {0x0015, 0x0015, 1, "Network Synchroniztion"},
-        {0x0016, 0x001b, 1, "Reserved for future use"},
-        {0x001c, 0x001c, 1, "Inband signaling"},
-        {0x001d, 0x001d, 1, "Measurement"},
-        {0x001e, 0x001e, 1, "DIT"},
-        {0x001f, 0x001f, 1, "SIT"},
-        {0x0020, 0x1ffe, 1, "T.B.D."},
-        {0x1fff, 0x1fff, 0, "NULL package"}
-};
-
-typedef struct
-{
-        uint8_t min; // table ID range
-        uint8_t max; // table ID range
-        char *sdes;  // short description
-        char *ldes;  // long description
-}
-table_id_t;
-
-const table_id_t TABLE_ID_TABLE[] =
-{
-        {0x00, 0x00, "PAT", "Program_association_section"},
-        {0x01, 0x01, "CAT", "Conditional_access_section"},
-        {0x02, 0x02, "PMT", "Program_map_section"},
-        {0x03, 0x03, "???", "Transport_stream_description_section"},
-        {0x04, 0x3f, "???", "Reserved"},
-        {0x40, 0x40, "NIT", "Network_information_section-actual_network"},
-        {0x41, 0x41, "NIT", "Network_information_section-other_network"},
-        {0x42, 0x42, "SDT", "Service_description_section-actual_transport_stream"},
-        {0x43, 0x45, "???", "Reserved for future use"},
-        {0x46, 0x46, "SDT", "Service_description_section-other_transport_stream"},
-        {0x47, 0x49, "???", "Reserved for future use"},
-        {0x4a, 0x4a, "BAT", "Bouquet_association_section"},
-        {0x4b, 0x4d, "???", "Reserved for future use"},
-        {0x4e, 0x4e, "EIT", "Event_information_section-actual_transport_stream,P/F"},
-        {0x4f, 0x4f, "EIT", "Event_information_section-other_transport_stream,P/F"},
-        {0x50, 0x5f, "EIT", "Event_information_section-actual_transport_stream,schedule"},
-        {0x60, 0x6f, "EIT", "Event_information_section-other_transport_stream,schedule"},
-        {0x70, 0x70, "TDT", "Time_data_section"},
-        {0x71, 0x71, "RST", "Running_status_section"},
-        {0x72, 0x72, " ST", "Stuffing_section"},
-        {0x73, 0x73, "TOT", "Time_offset_section"},
-        {0x74, 0x7d, "???", "Reserved for future use"},
-        {0x7e, 0x7e, "DIT", "Discontinuity_information_section"},
-        {0x7f, 0x7f, "SIT", "Selection_information_section"},
-        {0x80, 0xfe, "???", "User defined"},
-        {0xff, 0xff, "???", "Reserved"}
-};
-
-const char * PAT_PID =  "PAT_PID"; // 0x0000
-const char * CAT_PID =  "CAT_PID"; // 0x0001
-const char *TSDT_PID = "TSDT_PID"; // 0x0002
-const char * NIT_PID =  "NIT_PID"; // 0x0010
-const char * SDT_PID =  "SDT_PID"; // 0x0011
-const char * EIT_PID =  "EIT_PID"; // 0x0012
-const char * RST_PID =  "RST_PID"; // 0x0013
-const char * TDT_PID =  "TDT_PID"; // 0x0014
-const char * DIT_PID =  "DIT_PID"; // 0x001e
-const char * SIT_PID =  "SIT_PID"; // 0x001f
-const char * PMT_PID =  "PMT_PID";
-const char * PCR_PID =  "PCR_PID";
-const char * VID_PID =  "VID_PID";
-const char * VID_PCR =  "VID_PCR"; // video with PCR
-const char * AUD_PID =  "AUD_PID";
-const char * AUD_PCR =  "AUD_PCR"; // audio with PCR
-const char * NUL_PID =  "NUL_PID"; // 0x1fff
-const char * UNO_PID =  "UNO_PID";
 
 //=============================================================================
 // enum definition:
@@ -148,7 +43,7 @@ enum
 //=============================================================================
 // struct definition:
 //=============================================================================
-struct TS
+typedef struct
 {
         uint32_t sync_byte:8;
         uint32_t transport_error_indicator:1;
@@ -158,9 +53,10 @@ struct TS
         uint32_t transport_scrambling_control:2;
         uint32_t adaption_field_control:2;
         uint32_t continuity_counter:4;
-};
+}
+ts_t;
 
-struct AF
+typedef struct
 {
         uint32_t adaption_field_length:8;
         uint32_t discontinuity_indicator:1;
@@ -174,9 +70,10 @@ struct AF
         uint64_t program_clock_reference_base:33;
         uint32_t reserved:6;
         uint32_t program_clock_reference_extension:9;
-};
+}
+af_t;
 
-struct PSI
+typedef struct
 {
         uint32_t table_id:8; // TABLE_ID_XXX
         uint32_t sectin_syntax_indicator:1;
@@ -195,77 +92,42 @@ struct PSI
         uint32_t section_number:8;
         uint32_t last_section_number:8;
 
-#if 0
-        if(ts->PID == PAT_PID)
-        {
-                loop
-                {
-                        // program_number:16;
-                        // reserved:3;
-                        if(program_number == 0x0000)
-                        {
-                                // network_PID:13;
-                        }
-                        else
-                        {
-                                // PMT_PID:13;
-                        }
-                }
-        }
-        else if(ts->PID belongs to PMT_PIDs)
-        {
-                // reserved:3;
-                // PCR_PID:13;
-                // reserved:4;
-                // program_info_length:12;
-                {
-                        descriptor();
-                }
-                loop
-                {
-                        // stream_type:8;
-                        // reserved:3;
-                        // PMT_PID:13;
-                        // reserved:4;
-                        // ES_info_length:12
-                        {
-                                descriptor();
-                        }
-                }
-        }
-#endif
-
         uint32_t CRC3:8; // most significant byte
         uint32_t CRC2:8;
         uint32_t CRC1:8;
         uint32_t CRC0:8; // last significant byte
-};
+}
+psi_t;
 
-struct PIDS
+typedef struct
 {
         struct NODE *next;
         struct NODE *prev;
 
-        uint32_t PID:13;
-        const char *type; // PID type
+        uint16_t PID:13;
+        int type; // enum pid_type
+        const char *sdes; // short description
+        const char *ldes; // long description
 
         // for check continuity_counter
         uint32_t CC:4;
-        uint32_t delta_CC:4; // 0 or 1
+        uint32_t dCC:4; // 0 or 1
         int is_CC_sync;
-};
+}
+pids_t;
 
-struct TRACK
+typedef struct
 {
         struct NODE *next;
         struct NODE *prev;
 
         uint32_t PID:13;
         int stream_type;
-        const char *type; // PID type
-};
+        int type; // enum pid_type
+}
+track_t;
 
-struct PROG
+typedef struct
 {
         struct NODE *next;
         struct NODE *prev;
@@ -276,9 +138,29 @@ struct PROG
 
         struct LIST *track;
         int parsed;
-};
+}
+prog_t;
 
-struct OBJ
+typedef struct
+{
+        uint16_t min;   // PID range
+        uint16_t max;   // PID range
+        int dCC;        // delta of CC field: 0 or 1
+        char *sdes;     // short description
+        char *ldes;     // long description
+}
+ts_pid_t;
+
+typedef struct
+{
+        uint8_t min;    // table ID range
+        uint8_t max;    // table ID range
+        char *sdes;     // short description
+        char *ldes;     // long description
+}
+table_id_t;
+
+typedef struct
 {
         char file[FILENAME_MAX]; // input file name without postfix
 
@@ -293,9 +175,9 @@ struct OBJ
         uint8_t line[204]; // one TS package
         uint8_t *p; // point to current data in line
 
-        struct TS *ts;
-        struct AF *af;
-        struct PSI *psi;
+        ts_t *ts;
+        af_t *af;
+        psi_t *psi;
         uint16_t left_length;
 
         struct LIST *prog;
@@ -303,52 +185,157 @@ struct OBJ
 
         int mode;
         int state;
+}
+obj_t;
+
+//=============================================================================
+// const definition:
+//=============================================================================
+const ts_pid_t TS_PID[] =
+{
+        {0x0000, 0x0000, 1, " PAT", "program association section"},
+        {0x0001, 0x0001, 1, " CAT", "conditional access section"},
+        {0x0002, 0x0002, 1, "TSDT", "transport stream description section"},
+        {0x0003, 0x000f, 0, "____", "reserved"},
+        {0x0010, 0x0010, 1, " NIT", "NIT/ST, network information section"},
+        {0x0011, 0x0011, 1, " SDT", "SDT/BAT/ST, service description section"},
+        {0x0012, 0x0012, 1, " EIT", "EIT/ST, event information section"},
+        {0x0013, 0x0013, 1, " RST", "RST/ST, running status section"},
+        {0x0014, 0x0014, 1, " TDT", "TDT/TOT/ST, time data section"},
+        {0x0015, 0x0015, 1, "____", "Network Synchroniztion"},
+        {0x0016, 0x001b, 1, "____", "Reserved for future use"},
+        {0x001c, 0x001c, 1, "____", "Inband signaling"},
+        {0x001d, 0x001d, 1, "____", "Measurement"},
+        {0x001e, 0x001e, 1, " DIT", "discontinuity information section"},
+        {0x001f, 0x001f, 1, " SIT", "selection information section"},
+        {0x0020, 0x1ffe, 1, "____", "T.B.D."},
+        {0x1fff, 0x1fff, 0, "NULL", "empty package"}
+};
+
+const table_id_t TABLE_ID[] =
+{
+        /* 0*/{0x00, 0x00, " PAT", "program association section"},
+        /* 1*/{0x01, 0x01, " CAT", "conditional access section"},
+        /* 2*/{0x02, 0x02, " PMT", "program map section"},
+        /* 3*/{0x03, 0x03, "TSDT", "transport stream description section"},
+        /* 4*/{0x04, 0x3f, "????", "reserved"},
+        /* 5*/{0x40, 0x40, " NIT", "network information section-actual network"},
+        /* 6*/{0x41, 0x41, " NIT", "network information section-other network"},
+        /* 7*/{0x42, 0x42, " SDT", "service description section-actual transport stream"},
+        /* 8*/{0x43, 0x45, "????", "reserved for future use"},
+        /* 9*/{0x46, 0x46, " SDT", "service description section-other transport stream"},
+        /*10*/{0x47, 0x49, "????", "reserved for future use"},
+        /*11*/{0x4a, 0x4a, " BAT", "bouquet association section"},
+        /*12*/{0x4b, 0x4d, "????", "reserved for future use"},
+        /*13*/{0x4e, 0x4e, " EIT", "event information section-actual transport stream,P/F"},
+        /*14*/{0x4f, 0x4f, " EIT", "event information section-other transport stream,P/F"},
+        /*15*/{0x50, 0x5f, " EIT", "event information section-actual transport stream,schedule"},
+        /*16*/{0x60, 0x6f, " EIT", "event information section-other transport stream,schedule"},
+        /*17*/{0x70, 0x70, " TDT", "time data section"},
+        /*18*/{0x71, 0x71, " RST", "running status section"},
+        /*19*/{0x72, 0x72, "  ST", "stuffing section"},
+        /*20*/{0x73, 0x73, " TOT", "time offset section"},
+        /*21*/{0x74, 0x7d, "????", "reserved for future use"},
+        /*22*/{0x7e, 0x7e, " DIT", "discontinuity information section"},
+        /*23*/{0x7f, 0x7f, " SIT", "selection information section"},
+        /*24*/{0x80, 0xfe, "????", "user defined"},
+        /*25*/{0xff, 0xff, "????", "reserved"}
+};
+
+enum pid_type
+{
+        PAT_PID,
+        CAT_PID,
+        PMT_PID,
+        TSDT_PID,
+        NIT_PID,
+        SDT_PID,
+        BAT_PID,
+        EIT_PID,
+        TDT_PID,
+        RST_PID,
+        ST_PID,
+        TOT_PID,
+        DIT_PID,
+        SIT_PID,
+        PCR_PID,
+        VID_PID,
+        VID_PCR,
+        AUD_PID,
+        AUD_PCR,
+        NULL_PID,
+        UNO_PID
+};
+
+const char *pid_type_str[] =
+{
+        " PAT_PID",
+        " CAT_PID",
+        " PMT_PID",
+        "TSDT_PID",
+        " NIT_PID",
+        " SDT_PID",
+        " BAT_PID",
+        " EIT_PID",
+        " TDT_PID",
+        " RST_PID",
+        " ST_PID",
+        " TOT_PID",
+        " DIT_PID",
+        " SIT_PID",
+        " PCR_PID",
+        " VID_PID",
+        " VID_PCR",
+        " AUD_PID",
+        " AUD_PCR",
+        "NULL_PID",
+        " UNO_PID"
 };
 
 //=============================================================================
 // Variables definition:
 //=============================================================================
-static struct OBJ *obj = NULL;
-static struct TS *ts;
-static struct AF *af;
-static struct PSI *psi;
-static struct PIDS *pids;
+static obj_t *obj = NULL;
+//static ts_t *ts;
+//static af_t *af;
+//static psi_t *psi;
 
 //=============================================================================
 // Sub-function declare:
 //=============================================================================
 static void sigfunc(int);
 
-static void state_next_pat(struct OBJ *obj);
-static void state_next_pmt(struct OBJ *obj);
-static void state_next_pkg_cc(struct OBJ *obj);
-static void state_next_pkg_pcr(struct OBJ *obj);
+static void state_next_pat(obj_t *obj);
+static void state_next_pmt(obj_t *obj);
+static void state_next_pkg_cc(obj_t *obj);
+static void state_next_pkg_pcr(obj_t *obj);
 
-static struct OBJ *create(int argc, char *argv[]);
-static int delete(struct OBJ *obj);
+static obj_t *create(int argc, char *argv[]);
+static int delete(obj_t *obj);
 
 static void *malloc_mem(int size, char *memo);
 static void show_help();
 static void show_version();
 
-static void sync_input(struct OBJ *obj);
-static int get_one_pkg(struct OBJ *obj);
-static void parse_TS(struct OBJ *obj);
-static void parse_AF(struct OBJ *obj); // adaption_fields
-static void parse_PSI(struct OBJ *obj);
-static void parse_PAT_load(struct OBJ *obj);
-static int is_PMT_PID(struct OBJ *obj);
-static int is_unparsed_PROG(struct OBJ *obj);
-static int is_all_PROG_parsed(struct OBJ *obj);
-static void parse_PMT_load(struct OBJ *obj);
-static const char *PID_type(uint8_t st);
-static void pids_add(struct LIST *list, struct PIDS *pids);
-static struct PIDS *pids_match(struct LIST *list, uint16_t pid);
-static void show_pids(struct OBJ *obj);
+static void sync_input(obj_t *obj);
+static int get_one_pkg(obj_t *obj);
+static void parse_TS(obj_t *obj);
+static void parse_AF(obj_t *obj); // adaption_fields
+static void parse_PSI(obj_t *obj);
+static void parse_PAT_load(obj_t *obj);
+static int is_PMT_PID(obj_t *obj);
+static int is_unparsed_PROG(obj_t *obj);
+static int is_all_PROG_parsed(obj_t *obj);
+static void parse_PMT_load(obj_t *obj);
+static int PID_type(uint8_t st);
+static void pids_add(struct LIST *list, pids_t *pids);
+static pids_t *pids_match(struct LIST *list, uint16_t pid);
+static void show_pids(obj_t *obj);
+static int search_in_TS_PID(uint16_t pid);
 #if 0
-static void show_TS(struct OBJ *obj);
-static void show_PSI(struct OBJ *obj);
-static void show_PMT(struct OBJ *obj);
+static void show_TS(obj_t *obj);
+static void show_PSI(obj_t *obj);
+static void show_PMT(obj_t *obj);
 static char *printb(uint32_t x, int bit_cnt);
 #endif
 
@@ -358,9 +345,6 @@ static char *printb(uint32_t x, int bit_cnt);
 int main(int argc, char *argv[])
 {
         obj = create(argc, argv);
-        ts = obj->ts;
-        af = obj->af;
-        psi = obj->psi;
 
         if(signal(SIGINT, sigfunc) == SIG_ERR)
         {
@@ -426,8 +410,10 @@ static void sigfunc(int signo)
         }
 }
 
-static void state_next_pat(struct OBJ *obj)
+static void state_next_pat(obj_t *obj)
 {
+        ts_t *ts = obj->ts;
+
         if(0x0000 == ts->PID)
         {
                 parse_PSI(obj);
@@ -436,18 +422,13 @@ static void state_next_pat(struct OBJ *obj)
         }
 }
 
-static void state_next_pmt(struct OBJ *obj)
+static void state_next_pmt(obj_t *obj)
 {
         if(!is_PMT_PID(obj))
         {
                 return;
         }
         parse_PSI(obj);
-        if(TABLE_ID_PMT != psi->table_id)
-        {
-                // network_PID
-                psi->idx.program_number = 0x0000;
-        }
         if(is_unparsed_PROG(obj))
         {
                 parse_PMT_load(obj);
@@ -487,8 +468,10 @@ static void state_next_pmt(struct OBJ *obj)
         }
 }
 
-static void state_next_pkg_cc(struct OBJ *obj)
+static void state_next_pkg_cc(obj_t *obj)
 {
+        ts_t *ts = obj->ts;
+        pids_t *pids;
         time_t tp;
         struct tm *lt; // local time
         char strtime[255];
@@ -521,7 +504,7 @@ static void state_next_pkg_cc(struct OBJ *obj)
         }
         else if(pids->is_CC_sync)
         {
-                pids->CC += pids->delta_CC;
+                pids->CC += pids->dCC;
                 if(pids->CC != ts->continuity_counter)
                 {
                         int lost;
@@ -552,12 +535,14 @@ static void state_next_pkg_cc(struct OBJ *obj)
         else
         {
                 pids->CC = ts->continuity_counter;
-                pids->is_CC_sync = TRUE;
+                pids->is_CC_sync = 1;
         }
 }
 
-static void state_next_pkg_pcr(struct OBJ *obj)
+static void state_next_pkg_pcr(obj_t *obj)
 {
+        ts_t *ts = obj->ts;
+        af_t *af = obj->af;
         time_t tp;
         struct tm *lt; // local time
         char strtime[255];
@@ -566,9 +551,7 @@ static void state_next_pkg_pcr(struct OBJ *obj)
         lt = localtime(&tp);
         strftime(strtime, 255, "%Y-%m-%d %H:%M:%S", lt);
 
-        ts = obj->ts;
-
-        if(     (BIT1 & ts->adaption_field_control) &&
+        if(     (BIT(1) & ts->adaption_field_control) &&
                 (0x00 != af->adaption_field_length) &&
                 af->PCR_flag
         )
@@ -595,18 +578,18 @@ static void state_next_pkg_pcr(struct OBJ *obj)
         }
 }
 
-static struct OBJ *create(int argc, char *argv[])
+static obj_t *create(int argc, char *argv[])
 {
         int i;
         int dat;
-        struct OBJ *obj;
-        struct PIDS *pids;
+        obj_t *obj;
+        pids_t *pids;
 
-        obj = (struct OBJ *)malloc_mem(sizeof(struct OBJ), "creat object");
+        obj = (obj_t *)malloc_mem(sizeof(obj_t), "creat object");
 
-        obj->ts = (struct TS *)malloc_mem(sizeof(struct TS), "creat TS struct");
-        obj->af = (struct AF *)malloc_mem(sizeof(struct AF), "creat AF struct");
-        obj->psi = (struct PSI *)malloc_mem(sizeof(struct PSI), "creat PSI struct");
+        obj->ts = (ts_t *)malloc_mem(sizeof(ts_t), "creat TS struct");
+        obj->af = (af_t *)malloc_mem(sizeof(af_t), "creat AF struct");
+        obj->psi = (psi_t *)malloc_mem(sizeof(psi_t), "creat PSI struct");
 
         obj->ts_size = 188;
         obj->mode = MODE_PSI;
@@ -616,7 +599,7 @@ static struct OBJ *create(int argc, char *argv[])
         obj->pids = list_init();
 
         // add PAT PID
-        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+        pids = (pids_t *)malloc(sizeof(pids_t));
         if(NULL == pids)
         {
                 printf("Malloc memory failure!\n");
@@ -624,23 +607,27 @@ static struct OBJ *create(int argc, char *argv[])
         }
         pids->PID = 0x0000;
         pids->type = PAT_PID;
+        pids->sdes = TABLE_ID[0].sdes;
+        pids->ldes = TABLE_ID[0].ldes;
         pids->CC = 0;
-        pids->delta_CC = 1;
-        pids->is_CC_sync = FALSE;
+        pids->dCC = 1;
+        pids->is_CC_sync = 0;
         pids_add(obj->pids, pids);
 
-        // add NUL PID
-        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+        // add NULL PID
+        pids = (pids_t *)malloc(sizeof(pids_t));
         if(NULL == pids)
         {
                 printf("Malloc memory failure!\n");
                 exit(EXIT_FAILURE);
         }
         pids->PID = 0x1FFF;
-        pids->type = NUL_PID;
+        pids->type = NULL_PID;
+        pids->sdes = "NULL";
+        pids->ldes = "empty package";
         pids->CC = 0;
-        pids->delta_CC = 0;
-        pids->is_CC_sync = TRUE;
+        pids->dCC = 0;
+        pids->is_CC_sync = 1;
         pids_add(obj->pids, pids);
 
         if(1 == argc)
@@ -745,7 +732,7 @@ static struct OBJ *create(int argc, char *argv[])
         return obj;
 }
 
-static int delete(struct OBJ *obj)
+static int delete(obj_t *obj)
 {
         if(NULL == obj)
         {
@@ -806,7 +793,7 @@ static void show_version()
         printf("A PARTICULAR PURPOSE.\n");
 }
 
-static void sync_input(struct OBJ *obj)
+static void sync_input(obj_t *obj)
 {
         int sync_byte;
         URL *url = obj->url;
@@ -851,7 +838,7 @@ static void sync_input(struct OBJ *obj)
         }
 }
 
-static int get_one_pkg(struct OBJ *obj)
+static int get_one_pkg(obj_t *obj)
 {
         uint32_t size;
 
@@ -861,10 +848,10 @@ static int get_one_pkg(struct OBJ *obj)
         return (size == obj->ts_size);
 }
 
-static void parse_TS(struct OBJ *obj)
+static void parse_TS(obj_t *obj)
 {
         uint8_t dat;
-        struct TS *ts = obj->ts;
+        ts_t *ts = obj->ts;
 
         dat = *(obj->p)++;
         ts->sync_byte = dat;
@@ -884,9 +871,9 @@ static void parse_TS(struct OBJ *obj)
         }
 
         dat = *(obj->p)++;
-        ts->transport_error_indicator = (dat & BIT7) >> 7;
-        ts->payload_unit_start_indicator = (dat & BIT6) >> 6;
-        ts->transport_priority = (dat & BIT5) >> 5;
+        ts->transport_error_indicator = (dat & BIT(7)) >> 7;
+        ts->payload_unit_start_indicator = (dat & BIT(6)) >> 6;
+        ts->transport_priority = (dat & BIT(5)) >> 5;
         ts->PID = dat & 0x1F;
 
         dat = *(obj->p)++;
@@ -894,26 +881,26 @@ static void parse_TS(struct OBJ *obj)
         ts->PID |= dat;
 
         dat = *(obj->p)++;
-        ts->transport_scrambling_control = (dat & (BIT7 | BIT6)) >> 6;
-        ts->adaption_field_control = (dat & (BIT5 | BIT4)) >> 4;;
+        ts->transport_scrambling_control = (dat & (BIT(7) | BIT(6))) >> 6;
+        ts->adaption_field_control = (dat & (BIT(5) | BIT(4))) >> 4;;
         ts->continuity_counter = dat & 0x0F;
 
-        if(BIT1 & ts->adaption_field_control)
+        if(BIT(1) & ts->adaption_field_control)
         {
                 parse_AF(obj);
         }
 
-        if(BIT0 & ts->adaption_field_control)
+        if(BIT(0) & ts->adaption_field_control)
         {
                 // data_byte
                 (obj->p)++;
         }
 }
 
-static void parse_AF(struct OBJ *obj)
+static void parse_AF(obj_t *obj)
 {
         uint8_t dat;
-        struct AF *af = obj->af;
+        af_t *af = obj->af;
 
         dat = *(obj->p)++;
         af->adaption_field_length = dat;
@@ -923,14 +910,14 @@ static void parse_AF(struct OBJ *obj)
         }
 
         dat = *(obj->p)++;
-        af->discontinuity_indicator = (dat & BIT7) >> 7;
-        af->random_access_indicator = (dat & BIT6) >> 6;
-        af->elementary_stream_priority_indicator = (dat & BIT5) >> 5;
-        af->PCR_flag = (dat & BIT4) >> 4;
-        af->OPCR_flag = (dat & BIT3) >> 3;
-        af->splicing_pointer_flag = (dat & BIT2) >> 2;
-        af->transport_private_data_flag = (dat & BIT1) >> 1;
-        af->adaption_field_extension_flag = (dat & BIT0) >> 0;
+        af->discontinuity_indicator = (dat & BIT(7)) >> 7;
+        af->random_access_indicator = (dat & BIT(6)) >> 6;
+        af->elementary_stream_priority_indicator = (dat & BIT(5)) >> 5;
+        af->PCR_flag = (dat & BIT(4)) >> 4;
+        af->OPCR_flag = (dat & BIT(3)) >> 3;
+        af->splicing_pointer_flag = (dat & BIT(2)) >> 2;
+        af->transport_private_data_flag = (dat & BIT(1)) >> 1;
+        af->adaption_field_extension_flag = (dat & BIT(0)) >> 0;
 
         if(af->PCR_flag)
         {
@@ -951,8 +938,8 @@ static void parse_AF(struct OBJ *obj)
 
                 dat = *(obj->p)++;
                 af->program_clock_reference_base <<= 1;
-                af->program_clock_reference_base |= ((dat & BIT7) >> 7);
-                af->program_clock_reference_extension = ((dat & BIT0) >> 0);
+                af->program_clock_reference_base |= ((dat & BIT(7)) >> 7);
+                af->program_clock_reference_extension = ((dat & BIT(0)) >> 0);
 
                 dat = *(obj->p)++;
                 af->program_clock_reference_extension <<= 8;
@@ -960,16 +947,16 @@ static void parse_AF(struct OBJ *obj)
         }
 }
 
-static void parse_PSI(struct OBJ *obj)
+static void parse_PSI(obj_t *obj)
 {
         uint8_t dat;
-        struct PSI *psi = obj->psi;
+        psi_t *psi = obj->psi;
 
         dat = *(obj->p)++;
         psi->table_id = dat;
 
         dat = *(obj->p)++;
-        psi->sectin_syntax_indicator = (dat & BIT7) >> 7;
+        psi->sectin_syntax_indicator = (dat & BIT(7)) >> 7;
         psi->section_length = dat & 0x0F;
 
         dat = *(obj->p)++;
@@ -986,7 +973,7 @@ static void parse_PSI(struct OBJ *obj)
 
         dat = *(obj->p)++; obj->left_length--;
         psi->version_number = (dat & 0x3E) >> 1;
-        psi->current_next_indicator = dat & BIT0;
+        psi->current_next_indicator = dat & BIT(0);
 
         dat = *(obj->p)++; obj->left_length--;
         psi->section_number = dat;
@@ -995,24 +982,25 @@ static void parse_PSI(struct OBJ *obj)
         psi->last_section_number = dat;
 }
 
-static void parse_PAT_load(struct OBJ *obj)
+static void parse_PAT_load(obj_t *obj)
 {
+        int i;
         uint8_t dat;
-        struct PSI *psi = obj->psi;
-        struct PROG *prog;
-        struct PIDS *pids;
+        psi_t *psi = obj->psi;
+        prog_t *prog;
+        pids_t *pids;
 
         while(obj->left_length > 4)
         {
                 // add program
-                prog = (struct PROG *)malloc(sizeof(struct PROG));
+                prog = (prog_t *)malloc(sizeof(prog_t));
                 if(NULL == prog)
                 {
                         printf("Malloc memory failure!\n");
                         exit(EXIT_FAILURE);
                 }
                 prog->track = list_init();
-                prog->parsed = FALSE;
+                prog->parsed = 0;
 
                 dat = *(obj->p)++; obj->left_length--;
                 prog->program_number = dat;
@@ -1028,47 +1016,34 @@ static void parse_PAT_load(struct OBJ *obj)
                 prog->PMT_PID <<= 8;
                 prog->PMT_PID |= dat;
 
+                // add PID
+                pids = (pids_t *)malloc(sizeof(pids_t));
+                if(NULL == pids)
+                {
+                        printf("Malloc memory failure!\n");
+                        exit(EXIT_FAILURE);
+                }
+                pids->PID = prog->PMT_PID;
+                i = search_in_TS_PID(pids->PID);
+                pids->CC = 0;
+                pids->dCC = TS_PID[i].dCC;
+                pids->is_CC_sync = 0;
+                pids->sdes = TS_PID[i].sdes;
+                pids->ldes = TS_PID[i].ldes;
+                pids_add(obj->pids, pids);
+
                 if(0 == prog->program_number)
                 {
-                        // add network PID
-                        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
-                        if(NULL == pids)
-                        {
-                                printf("Malloc memory failure!\n");
-                                exit(EXIT_FAILURE);
-                        }
-                        pids->PID = prog->PMT_PID;
-                        switch(pids->PID)
-                        {
-                                case 0x0010: pids->type = NIT_PID; break;
-                                case 0x0011: pids->type = SDT_PID; break;
-                                case 0x001e: pids->type = DIT_PID; break;
-                                case 0x001f: pids->type = SIT_PID; break;
-                                default:     pids->type = UNO_PID; break;
-                        }
-                        pids->CC = 0;
-                        pids->delta_CC = 1;
-                        pids->is_CC_sync = FALSE;
-                        pids_add(obj->pids, pids);
-
+                        // network PID, not a program
+                        pids->type = SIT_PID;
                         free(prog);
                 }
                 else
                 {
-                        // add PMT PID
-                        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
-                        if(NULL == pids)
-                        {
-                                printf("Malloc memory failure!\n");
-                                exit(EXIT_FAILURE);
-                        }
-                        pids->PID = prog->PMT_PID;
+                        // PMT PID
                         pids->type = PMT_PID;
-                        pids->CC = 0;
-                        pids->delta_CC = 1;
-                        pids->is_CC_sync = FALSE;
-                        pids_add(obj->pids, pids);
-
+                        pids->sdes = TABLE_ID[2].sdes;
+                        pids->ldes = TABLE_ID[2].ldes;
                         list_add(obj->prog, (struct NODE *)prog);
                 }
         }
@@ -1094,39 +1069,41 @@ static void parse_PAT_load(struct OBJ *obj)
         //printf("PIDS Count: %u\n", list_count(obj->pids));
 }
 
-static void show_pids(struct OBJ *obj)
+static void show_pids(obj_t *obj)
 {
-        struct PIDS *pids;
+        pids_t *pids;
         struct NODE *node;
 
         printf("PID LIST(%d-item):\n\n", list_count(obj->pids));
-        printf("-PID--, CC, dCC, -type--\n");
+        printf("-PID--, CC, dCC, --type--, abbr, detail\n");
 
         node = obj->pids->head;
         while(node)
         {
-                pids = (struct PIDS *)node;
-                printf("0x%04X, %2u,  %u , %s\n",
+                pids = (pids_t *)node;
+                printf("0x%04X, %2u,  %u , %s, %s, %s\n",
                        pids->PID,
                        pids->CC,
-                       pids->delta_CC,
-                       pids->type);
+                       pids->dCC,
+                       pid_type_str[pids->type],
+                       pids->sdes,
+                       pids->ldes);
                 node = node->next;
         }
 }
 
-static struct PIDS *pids_match(struct LIST *list, uint16_t pid)
+static pids_t *pids_match(struct LIST *list, uint16_t pid)
 {
         struct NODE *node;
-        struct PIDS *item;
+        pids_t *pids;
 
         node = list->head;
         while(node)
         {
-                item = (struct PIDS *)node;
-                if(pid == item->PID)
+                pids = (pids_t *)node;
+                if(pid == pids->PID)
                 {
-                        return item;
+                        return pids;
                 }
                 node = node->next;
         }
@@ -1134,33 +1111,37 @@ static struct PIDS *pids_match(struct LIST *list, uint16_t pid)
         return NULL;
 }
 
-static void pids_add(struct LIST *list, struct PIDS *pids)
+static void pids_add(struct LIST *list, pids_t *the_pids)
 {
         struct NODE *node;
-        struct PIDS *item;
+        pids_t *pids;
 
         node = list->head;
         while(node)
         {
-                item = (struct PIDS *)node;
-                if(pids->PID == item->PID)
+                pids = (pids_t *)node;
+                if(the_pids->PID == pids->PID)
                 {
-                        if(PCR_PID == item->type)
+                        if(PCR_PID == pids->type)
                         {
-                                if(VID_PID == pids->type)
+                                if(VID_PID == the_pids->type)
                                 {
-                                        item->type = VID_PCR;
+                                        pids->type = VID_PCR;
+                                        pids->sdes = "VPCR";
+                                        pids->ldes = "video package with pcr information";
                                 }
-                                else if(AUD_PID == pids->type)
+                                else if(AUD_PID == the_pids->type)
                                 {
-                                        item->type = AUD_PCR;
+                                        pids->type = AUD_PCR;
+                                        pids->sdes = "APCR";
+                                        pids->ldes = "audio package with pcr information";
                                 }
                                 else
                                 {
                                         // error
                                 }
-                                item->delta_CC = 1;
-                                item->is_CC_sync = FALSE;
+                                pids->dCC = 1;
+                                pids->is_CC_sync = 0;
                         }
                         else
                         {
@@ -1171,42 +1152,42 @@ static void pids_add(struct LIST *list, struct PIDS *pids)
                 node = node->next;
         }
 
-        list_add(list, (struct NODE *)pids);
+        list_add(list, (struct NODE *)the_pids);
 }
 
-static int is_PMT_PID(struct OBJ *obj)
+static int is_PMT_PID(obj_t *obj)
 {
-        struct TS *ts;
+        ts_t *ts;
         struct NODE *node;
-        struct PIDS *pids;
+        pids_t *pids;
 
         ts = obj->ts;
         node = obj->pids->head;
         while(node)
         {
-                pids = (struct PIDS *)node;
+                pids = (pids_t *)node;
                 if(ts->PID == pids->PID)
                 {
                         if(PMT_PID == pids->type)
                         {
-                                return TRUE;
+                                return 1;
                         }
                         else
                         {
-                                return FALSE;
+                                return 0;
                         }
                 }
                 node = node->next;
         }
-        return FALSE;
+        return 0;
 }
 
-static int is_unparsed_PROG(struct OBJ *obj)
+static int is_unparsed_PROG(obj_t *obj)
 {
-        struct TS *ts;
-        struct PSI *psi;
+        ts_t *ts;
+        psi_t *psi;
         struct NODE *node;
-        struct PROG *prog;
+        prog_t *prog;
 
         ts = obj->ts;
         psi = obj->psi;
@@ -1214,47 +1195,47 @@ static int is_unparsed_PROG(struct OBJ *obj)
         node = obj->prog->head;
         while(node)
         {
-                prog = (struct PROG *)node;
+                prog = (prog_t *)node;
                 if(psi->idx.program_number == prog->program_number)
                 {
-                        if(FALSE == prog->parsed)
+                        if(0 == prog->parsed)
                         {
-                                return TRUE;
+                                return 1;
                         }
                         else
                         {
-                                return FALSE;
+                                return 0;
                         }
                 }
                 node = node->next;
         }
-        return FALSE;
+        return 0;
 }
 
-static int is_all_PROG_parsed(struct OBJ *obj)
+static int is_all_PROG_parsed(obj_t *obj)
 {
-        struct TS *ts;
+        ts_t *ts;
         struct NODE *node;
-        struct PROG *prog;
+        prog_t *prog;
 
         ts = obj->ts;
         node = obj->prog->head;
         while(node)
         {
-                prog = (struct PROG *)node;
+                prog = (prog_t *)node;
                 if(     MIN_USER_PID <= prog->PMT_PID &&
                         MAX_USER_PID >= prog->PMT_PID &&
-                        FALSE == prog->parsed
+                        0 == prog->parsed
                 )
                 {
-                        return FALSE;
+                        return 0;
                 }
                 node = node->next;
         }
-        return TRUE;
+        return 1;
 }
 
-static const char *PID_type(uint8_t st)
+static int PID_type(uint8_t st)
 {
         switch(st)
         {
@@ -1271,16 +1252,16 @@ static const char *PID_type(uint8_t st)
         }
 }
 
-static void parse_PMT_load(struct OBJ *obj)
+static void parse_PMT_load(obj_t *obj)
 {
         uint8_t dat;
         uint16_t info_length;
-        struct PSI *psi;
+        psi_t *psi;
         struct NODE *node;
-        struct PROG *prog;
-        struct PIDS *pids;
-        struct TRACK *track;
-        struct TS *ts;
+        prog_t *prog;
+        pids_t *pids;
+        track_t *track;
+        ts_t *ts;
 
         ts = obj->ts;
         psi = obj->psi;
@@ -1288,7 +1269,7 @@ static void parse_PMT_load(struct OBJ *obj)
         node = obj->prog->head;
         while(node)
         {
-                prog = (struct PROG *)node;
+                prog = (prog_t *)node;
                 if(psi->idx.program_number == prog->program_number)
                 {
                         break;
@@ -1301,8 +1282,8 @@ static void parse_PMT_load(struct OBJ *obj)
                 exit(EXIT_FAILURE);
         }
 
-        prog->parsed = TRUE;
-        if(TABLE_ID_PMT != psi->table_id)
+        prog->parsed = 1;
+        if(0x02 != psi->table_id)
         {
                 // SIT or other PSI
                 return;
@@ -1316,7 +1297,7 @@ static void parse_PMT_load(struct OBJ *obj)
         prog->PCR_PID |= dat;
 
         // add PCR PID
-        pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+        pids = (pids_t *)malloc(sizeof(pids_t));
         if(NULL == pids)
         {
                 printf("Malloc memory failure!\n");
@@ -1324,9 +1305,11 @@ static void parse_PMT_load(struct OBJ *obj)
         }
         pids->PID = prog->PCR_PID;
         pids->type = PCR_PID;
+        pids->sdes = " PCR";
+        pids->ldes = "program clock reference";
         pids->CC = 0;
-        pids->delta_CC = 0;
-        pids->is_CC_sync = TRUE;
+        pids->dCC = 0;
+        pids->is_CC_sync = 1;
         pids_add(obj->pids, pids);
 
         // program_info_length
@@ -1346,7 +1329,7 @@ static void parse_PMT_load(struct OBJ *obj)
         while(obj->left_length > 4)
         {
                 // add track
-                track = (struct TRACK *)malloc(sizeof(struct TRACK));
+                track = (track_t *)malloc(sizeof(track_t));
                 if(NULL == track)
                 {
                         printf("Malloc memory failure!\n");
@@ -1381,7 +1364,7 @@ static void parse_PMT_load(struct OBJ *obj)
                 list_add(prog->track, (struct NODE *)track);
 
                 // add track PID
-                pids = (struct PIDS *)malloc(sizeof(struct PIDS));
+                pids = (pids_t *)malloc(sizeof(pids_t));
                 if(NULL == pids)
                 {
                         printf("Malloc memory failure!\n");
@@ -1389,17 +1372,46 @@ static void parse_PMT_load(struct OBJ *obj)
                 }
                 pids->PID = track->PID;
                 pids->type = track->type;
+                if(VID_PID == pids->type)
+                {
+                        pids->sdes = " VID";
+                        pids->ldes = "video package";
+                }
+                else if(AUD_PID == pids->type)
+                {
+                        pids->sdes = " AUD";
+                        pids->ldes = "audio package";
+                }
                 pids->CC = 0;
-                pids->delta_CC = 1;
-                pids->is_CC_sync = FALSE;
+                pids->dCC = 1;
+                pids->is_CC_sync = 0;
                 pids_add(obj->pids, pids);
         }
 }
 
-#if 0
-static void show_TS(struct OBJ *obj)
+static int search_in_TS_PID(uint16_t pid)
 {
-        struct TS *ts = obj->ts;
+        int i;
+        int count = sizeof(TS_PID) / sizeof(ts_pid_t);
+        //ts_pid_t *table;
+
+        //printf("count of TS_PID: %d\n", count);
+        for(i = 0; i < count; i++)
+        {
+                //table = &(TS_PID[i]);
+                if(TS_PID[i].min <= pid && pid <= TS_PID[i].max)
+                {
+                        return i;
+                }
+        }
+
+        return 0; // PAT for wrong search state
+}
+
+#if 0
+static void show_TS(obj_t *obj)
+{
+        ts_t *ts = obj->ts;
 
         printf("TS:\n");
         printf("  0x%02X  : sync_byte\n", ts->sync_byte);
@@ -1412,10 +1424,10 @@ static void show_TS(struct OBJ *obj)
         printf("  0x%X   : continuity_counter\n", ts->continuity_counter);
 }
 
-static void show_PSI(struct OBJ *obj)
+static void show_PSI(obj_t *obj)
 {
         uint32_t idx;
-        struct PSI *psi = obj->psi;
+        psi_t *psi = obj->psi;
 
         printf("0x0000: PAT_PID\n");
         //printf("    0x%04X: section_length\n", psi->section_length);
@@ -1444,11 +1456,11 @@ static void show_PSI(struct OBJ *obj)
 #endif
 }
 
-static void show_PMT(struct OBJ *obj)
+static void show_PMT(obj_t *obj)
 {
         uint32_t i;
         uint32_t idx;
-        struct PSI *psi = obj->psi;
+        psi_t *psi = obj->psi;
         struct PMT *pmt;
 
         for(idx = 0; idx < psi->program_cnt; idx++)
