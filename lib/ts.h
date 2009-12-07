@@ -23,7 +23,7 @@ typedef struct
         struct NODE *prev;
 
         uint16_t PID:13;
-        int type; // enum pid_type
+        const char *type; // pid_type string
         const char *sdes; // short description
         const char *ldes; // long description
 
@@ -41,7 +41,7 @@ typedef struct
 
         uint32_t PID:13;
         int stream_type;
-        int type; // enum pid_type
+        const char *type; // pid_type string
 }
 ts_track_t; // unit of track list
 

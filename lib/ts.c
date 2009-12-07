@@ -166,61 +166,33 @@ static const table_id_table_t TABLE_ID_TABLE[] =
         /*25*/{0xff, 0xff, "????", "reserved"}
 };
 
+static const char * PAT_PID = " PAT_PID";
+static const char * PMT_PID = " PMT_PID";
+static const char * VID_PID = " VID_PID";
+static const char * VID_PCR = " VID_PCR";
+static const char * AUD_PID = " AUD_PID";
+static const char * AUD_PCR = " AUD_PCR";
+static const char * PCR_PID = " PCR_PID";
+static const char * SIT_PID = " SIT_PID";
+static const char * UNO_PID = " UNO_PID";
 #if 0
-static const char *pid_type_str[] =
-{
-        " PAT_PID",
-        " CAT_PID",
-        " PMT_PID",
-        "TSDT_PID",
-        " NIT_PID",
-        " SDT_PID",
-        " BAT_PID",
-        " EIT_PID",
-        " TDT_PID",
-        " RST_PID",
-        " ST_PID",
-        " TOT_PID",
-        " DIT_PID",
-        " SIT_PID",
-        " PCR_PID",
-        " VID_PID",
-        " VID_PCR",
-        " AUD_PID",
-        " AUD_PCR",
-        "NULL_PID",
-        " UNO_PID"
-};
+static const char * CAT_PID = " CAT_PID";
+static const char *TSDT_PID = "TSDT_PID";
+static const char * NIT_PID = " NIT_PID";
+static const char * SDT_PID = " SDT_PID";
+static const char * BAT_PID = " BAT_PID";
+static const char * EIT_PID = " EIT_PID";
+static const char * TDT_PID = " TDT_PID";
+static const char * RST_PID = " RST_PID";
+static const char *  ST_PID = "  ST_PID";
+static const char * TOT_PID = " TOT_PID";
+static const char * DIT_PID = " DIT_PID";
+static const char *NULL_PID = "NULL_PID";
 #endif
 
 //=============================================================================
 // enum definition
 //=============================================================================
-enum pid_type
-{
-        PAT_PID,
-        CAT_PID,
-        PMT_PID,
-        TSDT_PID,
-        NIT_PID,
-        SDT_PID,
-        BAT_PID,
-        EIT_PID,
-        TDT_PID,
-        RST_PID,
-        ST_PID,
-        TOT_PID,
-        DIT_PID,
-        SIT_PID,
-        PCR_PID,
-        VID_PID,
-        VID_PCR,
-        AUD_PID,
-        AUD_PCR,
-        NULL_PID,
-        UNO_PID
-};
-
 enum
 {
         STATE_NEXT_PAT,
@@ -247,7 +219,7 @@ static int pids_add(struct LIST *list, ts_pid_t *pids);
 static int is_pmt_pid(obj_t *obj);
 static int is_unparsed_prog(obj_t *obj);
 static int is_all_prog_parsed(obj_t *obj);
-static int PID_type(uint8_t stream_type);
+static const char *PID_type(uint8_t stream_type);
 static ts_pid_t *pids_match(struct LIST *list, uint16_t pid);
 
 //=============================================================================
@@ -604,7 +576,20 @@ static int parse_PAT_load(obj_t *obj)
         psi_t *psi = &(obj->psi);
         ts_rslt_t *rslt = &(obj->rslt);
         ts_prog_t *prog;
-        ts_pid_t *pids;
+        ts_pid_t ts_pid, *pids;
+
+        pids = &ts_pid;
+
+        // add PAT PID
+        pids->PID = 0x0000;
+        pids->type = PAT_PID;
+        i = search_in_TS_PID_TABLE(pids->PID);
+        pids->CC = 0;
+        pids->dCC = TS_PID_TABLE[i].dCC;
+        pids->is_CC_sync = 0;
+        pids->sdes = TS_PID_TABLE[i].sdes;
+        pids->ldes = TS_PID_TABLE[i].ldes;
+        pids_add(obj->rslt.pid_list, pids);
 
         while(obj->left_length > 4)
         {
@@ -632,13 +617,6 @@ static int parse_PAT_load(obj_t *obj)
                 prog->PMT_PID <<= 8;
                 prog->PMT_PID |= dat;
 
-                // add PID
-                pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                if(NULL == pids)
-                {
-                        printf("Malloc memory failure!\n");
-                        exit(EXIT_FAILURE);
-                }
                 pids->PID = prog->PMT_PID;
                 i = search_in_TS_PID_TABLE(pids->PID);
                 pids->CC = 0;
@@ -646,7 +624,6 @@ static int parse_PAT_load(obj_t *obj)
                 pids->is_CC_sync = 0;
                 pids->sdes = TS_PID_TABLE[i].sdes;
                 pids->ldes = TS_PID_TABLE[i].ldes;
-                pids_add(rslt->pid_list, pids);
 
                 if(0 == prog->program_number)
                 {
@@ -662,6 +639,8 @@ static int parse_PAT_load(obj_t *obj)
                         pids->ldes = TABLE_ID_TABLE[2].ldes;
                         list_add(rslt->prog_list, (struct NODE *)prog);
                 }
+
+                pids_add(rslt->pid_list, pids);
         }
 
         dat = *(obj->p)++; obj->left_length--;
@@ -694,22 +673,21 @@ static int parse_PMT_load(obj_t *obj)
         psi_t *psi;
         struct NODE *node;
         ts_prog_t *prog;
-        ts_pid_t *pids;
+        ts_pid_t ts_pid, *pids;
         ts_track_t *track;
         ts_t *ts;
 
         ts = &(obj->ts);
         psi = &(obj->psi);
+        pids = &ts_pid;
 
-        node = obj->rslt.prog_list->head;
-        while(node)
+        for(node = obj->rslt.prog_list->head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
                 if(psi->idx.program_number == prog->program_number)
                 {
                         break;
                 }
-                node = node->next;
         }
         if(!node)
         {
@@ -732,12 +710,6 @@ static int parse_PMT_load(obj_t *obj)
         prog->PCR_PID |= dat;
 
         // add PCR PID
-        pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-        if(NULL == pids)
-        {
-                printf("Malloc memory failure!\n");
-                exit(EXIT_FAILURE);
-        }
         pids->PID = prog->PCR_PID;
         pids->type = PCR_PID;
         pids->sdes = " PCR";
@@ -799,12 +771,6 @@ static int parse_PMT_load(obj_t *obj)
                 list_add(prog->track, (struct NODE *)track);
 
                 // add track PID
-                pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                if(NULL == pids)
-                {
-                        printf("Malloc memory failure!\n");
-                        exit(EXIT_FAILURE);
-                }
                 pids->PID = track->PID;
                 pids->type = track->type;
                 if(VID_PID == pids->type)
@@ -816,6 +782,11 @@ static int parse_PMT_load(obj_t *obj)
                 {
                         pids->sdes = " AUD";
                         pids->ldes = "audio package";
+                }
+                else
+                {
+                        pids->sdes = "UKNO";
+                        pids->ldes = "unknown package";
                 }
                 pids->CC = 0;
                 pids->dCC = 1;
@@ -850,8 +821,7 @@ static int pids_add(struct LIST *list, ts_pid_t *the_pids)
         struct NODE *node;
         ts_pid_t *pids;
 
-        node = list->head;
-        while(node)
+        for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
                 if(the_pids->PID == pids->PID)
@@ -883,10 +853,24 @@ static int pids_add(struct LIST *list, ts_pid_t *the_pids)
                         }
                         return 0;
                 }
-                node = node->next;
         }
 
-        list_add(list, (struct NODE *)the_pids);
+        pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
+        if(NULL == pids)
+        {
+                DBG(ERR_MALLOC_FAILED);
+                return -ERR_MALLOC_FAILED;
+        }
+
+        pids->PID = the_pids->PID;
+        pids->type = the_pids->type;
+        pids->sdes = the_pids->sdes;
+        pids->ldes = the_pids->ldes;
+        pids->CC = the_pids->CC;
+        pids->dCC = the_pids->dCC;
+        pids->is_CC_sync = the_pids->is_CC_sync;
+
+        list_add(list, (struct NODE *)pids);
 
         return 0;
 }
@@ -962,7 +946,7 @@ static int is_all_prog_parsed(obj_t *obj)
         return 1;
 }
 
-static int PID_type(uint8_t stream_type)
+static const char *PID_type(uint8_t stream_type)
 {
         switch(stream_type)
         {
@@ -985,15 +969,14 @@ static ts_pid_t *pids_match(struct LIST *list, uint16_t pid)
         struct NODE *node;
         ts_pid_t *pids;
 
-        node = list->head;
-        while(node)
+        
+        for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
                 if(pid == pids->PID)
                 {
                         return pids;
                 }
-                node = node->next;
         }
 
         return NULL;

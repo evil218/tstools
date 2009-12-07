@@ -186,17 +186,18 @@ static void state_parse_psi(obj_t *obj)
                                         printf("address(X),address(d),");
                                 }
                                 printf("   PID,wait,find,lost\n");
+                                obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PCR:
                                 sync_input(obj);
                                 obj->addr -= obj->ts_size;
                                 printf("address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
+                                obj->state = STATE_PARSE_EACH;
                                 break;
                         default:
                                 obj->state = STATE_EXIT;
                                 break;
                 }
-                obj->state = STATE_PARSE_EACH;
         }
 }
 
@@ -471,18 +472,16 @@ static void show_pids(obj_t *obj)
         printf("PID LIST(%d-item):\n\n", list_count(obj->rslt->pid_list));
         printf("-PID--, CC, dCC, --type--, abbr, detail\n");
 
-        node = obj->rslt->pid_list->head;
-        while(node)
+        for(node = obj->rslt->pid_list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                printf("0x%04X, %2u,  %u , %s, %s\n",
+                printf("0x%04X, %2u,  %u , %s, %s, %s\n",
                        pids->PID,
                        pids->CC,
                        pids->dCC,
-                       //pid_type_str[pids->type],
+                       pids->type,
                        pids->sdes,
                        pids->ldes);
-                node = node->next;
         }
 }
 
