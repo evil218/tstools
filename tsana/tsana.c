@@ -1320,11 +1320,14 @@ static void parse_PMT_load(obj_t *obj)
         info_length <<= 8;
         info_length |= dat;
 
+        printf("program_info: ");
         while(info_length-- > 0)
         {
                 // omit descriptor here
                 dat = *(obj->p)++; obj->left_length--;
+                printf("%02x ", (int)dat);
         }
+        printf("\n");
 
         while(obj->left_length > 4)
         {
@@ -1354,11 +1357,14 @@ static void parse_PMT_load(obj_t *obj)
                 info_length <<= 8;
                 info_length |= dat;
 
+                printf("     es_info: ");
                 while(info_length-- > 0)
                 {
                         // omit descriptor here
                         dat = *(obj->p)++; obj->left_length--;
+                        printf("%02x ", (int)dat);
                 }
+                printf("\n");
 
                 track->type = PID_type(track->stream_type);
                 list_add(prog->track, (struct NODE *)track);
