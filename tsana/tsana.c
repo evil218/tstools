@@ -272,10 +272,9 @@ static obj_t *create(int argc, char *argv[])
 
         obj->mode = MODE_PSI;
         strcpy(obj->file_i, "unknown.ts");
-        obj->ts_id = tsCreate(188, &(obj->rslt));
+        obj->ts_size = 188;
 
-        i = 1;
-        while (i < argc)
+        for(i = 1; i < argc; i++)
         {
                 if ('-' == argv[i][0])
                 {
@@ -334,7 +333,6 @@ static obj_t *create(int argc, char *argv[])
                 {
                         strcpy(obj->file_i, argv[i]);
                 }
-                i++;
         }
 
         // make output file name with input file name
@@ -364,6 +362,7 @@ static obj_t *create(int argc, char *argv[])
                 exit(EXIT_FAILURE);
         }
 
+        obj->ts_id = tsCreate(obj->ts_size, &(obj->rslt));
         obj->state = STATE_PARSE_PSI;
 
         return obj;

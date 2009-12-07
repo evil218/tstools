@@ -966,13 +966,14 @@ static int PID_type(uint8_t stream_type)
 {
         switch(stream_type)
         {
-                case 0x1B: // "H.264|ISO/IEC 14496-10 Video"
-                case 0x01: // "ISO/IEC 11172 Video"
-                case 0x02: // "H.262|ISO/IEC 13818-2 Video"
+                case 0x01: // "ISO/IEC 11172-2 (MPEG-1)"
+                case 0x02: // "ISO/IEC 13818-2 (MPEG-2)" or
+                        //    "ISO/IEC 11172-2 (MPEG-1 parameter limited)"
+                case 0x1B: // "ISO/IEC 14496-10(H.264)"
                         return VID_PID;
-                case 0x03: // "ISO/IEC 11172 Audio"
-                case 0x04: // "ISO/IEC 13818-3 Audio"
-                case 0x81: // "AC3 Audio"
+                case 0x03: // "ISO/IEC 11172-3 (MPEG-1 layer2)"
+                case 0x04: // "ISO/IEC 13818-3 (MPEG-2)"
+                case 0x81: // "AC3"
                         return AUD_PID;
                 default:
                         return UNO_PID; // unknown
