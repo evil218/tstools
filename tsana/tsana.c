@@ -51,10 +51,11 @@ obj_t;
 //=============================================================================
 enum
 {
-        MODE_DEBUG,
+        MODE_PID,
         MODE_PSI,
         MODE_PCR,
-        MODE_CC
+        MODE_CC,
+        MODE_DEBUG
 };
 
 enum
@@ -86,7 +87,9 @@ static void show_version();
 static void sync_input(obj_t *obj);
 static int get_one_pkg(obj_t *obj);
 
-static void show_pids(obj_t *obj);
+static void show_pids(struct LIST *list);
+static void show_prog(struct LIST *list);
+static void show_track(struct LIST *list);
 #if 0
 static void show_TS(obj_t *obj);
 static void show_PSI(obj_t *obj);
@@ -132,7 +135,8 @@ int main(int argc, char *argv[])
         if(STATE_PARSE_PSI == obj->state)
         {
                 printf("PSI parsing unfinished!\n");
-                show_pids(obj);
+                show_pids(obj->rslt->pid_list);
+                show_prog(obj->rslt->prog_list);
         }
         
         delete(obj);
@@ -170,8 +174,12 @@ static void state_parse_psi(obj_t *obj)
         {
                 switch(obj->mode)
                 {
+                        case MODE_PID:
+                                show_pids(obj->rslt->pid_list);
+                                obj->state = STATE_EXIT;
+                                break;
                         case MODE_PSI:
-                                show_pids(obj);
+                                show_prog(obj->rslt->prog_list);
                                 obj->state = STATE_EXIT;
                                 break;
                         case MODE_CC:
@@ -271,22 +279,17 @@ static obj_t *create(int argc, char *argv[])
                 return NULL;
         }
 
-        obj->mode = MODE_PSI;
+        obj->mode = MODE_PID;
         strcpy(obj->file_i, "unknown.ts");
-        obj->ts_size = 188;
+        obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
         {
                 if ('-' == argv[i][0])
                 {
-                        if (0 == strcmp(argv[i], "-o"))
+                        if (0 == strcmp(argv[i], "-pid"))
                         {
-                                strcpy(obj->file_o, argv[++i]);
-                        }
-                        else if (0 == strcmp(argv[i], "-n"))
-                        {
-                                sscanf(argv[++i], "%i" , &dat);
-                                obj->ts_size = (204 == dat) ? 204 : 108;
+                                obj->mode = MODE_PID;
                         }
                         else if (0 == strcmp(argv[i], "-psi"))
                         {
@@ -313,6 +316,10 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 sscanf(argv[++i], "%i" , &dat);
                                 //obj->pid = (uint16_t)(dat & 0x1FFF);
+                        }
+                        else if (0 == strcmp(argv[i], "-o"))
+                        {
+                                strcpy(obj->file_o, argv[++i]);
                         }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
@@ -393,14 +400,14 @@ static void show_help()
         printf("  1.             [file://][E:][/]path/filename\n");
         printf("  2.             udp://@[IP]:port\n");
         printf("Options:\n");
-        printf("  -n <num>       Size of TS package, default: 188\n");
-        printf("  -o <file>      Output file name, default: *2.ts\n");
-        printf("  -psi           Show PSI information\n");
+        printf("  -pid           Show PID list information, default option\n");
+        printf("  -psi           Show PSI tree information\n");
         printf("  -cc            Check Continuity Counter\n");
         printf("  -pcr           Show all PCR value\n");
         printf("  -debug         Show all errors found\n");
         printf("  -flt <pid>     Filter package with <pid>\n");
         printf("  -pes <pid>     Output PES file with <pid>\n");
+        printf("  -o <file>      Output file name, default: *2.ts\n");
         printf("  --help         Display this information\n");
         printf("  --version      Display my version\n");
 }
@@ -464,15 +471,15 @@ static int get_one_pkg(obj_t *obj)
         return(obj->ts_size == url_read(obj->line, 1, obj->ts_size, obj->url));
 }
 
-static void show_pids(obj_t *obj)
+static void show_pids(struct LIST *list)
 {
-        ts_pid_t *pids;
         struct NODE *node;
+        ts_pid_t *pids;
 
-        printf("PID LIST(%d-item):\n\n", list_count(obj->rslt->pid_list));
+        //printf("pid_list(%d-item):\n\n", list_count(list));
         printf("-PID--, CC, dCC, --type--, abbr, detail\n");
 
-        for(node = obj->rslt->pid_list->head; node; node = node->next)
+        for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
                 printf("0x%04X, %2u,  %u , %s, %s, %s\n",
@@ -482,6 +489,58 @@ static void show_pids(obj_t *obj)
                        pids->type,
                        pids->sdes,
                        pids->ldes);
+        }
+}
+
+static void show_prog(struct LIST *list)
+{
+        uint16_t i;
+        struct NODE *node;
+        ts_prog_t *prog;
+
+        //printf("program_list(%d-item):\n\n", list_count(list));
+
+        for(node = list->head; node; node = node->next)
+        {
+                prog = (ts_prog_t *)node;
+                printf("+ program %d(0x%04X), PMT_PID = 0x%04X\n",
+                       prog->program_number,
+                       prog->program_number,
+                       prog->PMT_PID);
+                printf("    PCR_PID = 0x%04X\n",
+                       prog->PCR_PID);
+                printf("    program_info:");
+                for(i = 0; i < prog->program_info_length; i++)
+                {
+                        printf(" %02X", prog->program_info[i]);
+                }
+                printf("\n");
+                show_track(prog->track);
+        }
+}
+
+static void show_track(struct LIST *list)
+{
+        uint16_t i;
+        struct NODE *node;
+        ts_track_t *track;
+
+        //printf("track_list(%d-item):\n\n", list_count(list));
+
+        for(node = list->head; node; node = node->next)
+        {
+                track = (ts_track_t *)node;
+                printf("    track\n");
+                printf("        stream_type = 0x%02X(%s)\n",
+                       track->stream_type, track->type);
+                printf("        elementary_PID = 0x%04X\n",
+                       track->PID);
+                printf("        ES_info:");
+                for(i = 0; i < track->es_info_length; i++)
+                {
+                        printf(" %02X", track->es_info[i]);
+                }
+                printf("\n");
         }
 }
 

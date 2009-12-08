@@ -39,9 +39,11 @@ typedef struct
         struct NODE *next;
         struct NODE *prev;
 
-        uint32_t PID:13;
         int stream_type;
+        uint32_t PID:13;
         const char *type; // pid_type string
+        uint16_t es_info_length;
+        uint8_t  es_info[204];
 }
 ts_track_t; // unit of track list
 
@@ -50,9 +52,11 @@ typedef struct
         struct NODE *next;
         struct NODE *prev;
 
-        uint32_t program_number:16;
         uint32_t PMT_PID:13;
         uint32_t PCR_PID:13;
+        uint32_t program_number:16;
+        uint16_t program_info_length;
+        uint8_t  program_info[204];
 
         struct LIST *track; // track list
         int is_parsed;

@@ -668,6 +668,7 @@ static int parse_PAT_load(obj_t *obj)
 
 static int parse_PMT_load(obj_t *obj)
 {
+        uint16_t i;
         uint8_t dat;
         uint16_t info_length;
         psi_t *psi;
@@ -727,10 +728,12 @@ static int parse_PMT_load(obj_t *obj)
         info_length <<= 8;
         info_length |= dat;
 
-        while(info_length-- > 0)
+        // record program_info
+        prog->program_info_length = info_length;
+        for(i = 0; i < info_length; i++)
         {
-                // omit descriptor here
                 dat = *(obj->p)++; obj->left_length--;
+                prog->program_info[i] = dat;
         }
 
         while(obj->left_length > 4)
@@ -761,10 +764,12 @@ static int parse_PMT_load(obj_t *obj)
                 info_length <<= 8;
                 info_length |= dat;
 
-                while(info_length-- > 0)
+                // record es_info
+                track->es_info_length = info_length;
+                for(i = 0; i < info_length; i++)
                 {
-                        // omit descriptor here
                         dat = *(obj->p)++; obj->left_length--;
+                        track->es_info[i] = dat;
                 }
 
                 track->type = PID_type(track->stream_type);
