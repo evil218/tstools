@@ -14,6 +14,7 @@
 static const char *errmsg[] =
 {
         "no error",
+        "sth. must be wrong",
         "time out",
         "IIC raise SCK failed",
         "no acknowledgement",
@@ -21,6 +22,7 @@ static const char *errmsg[] =
         "bad command",
         "bad argument",
         "malloc failed",
+        "fopen failed",
         "end of file",
         "verify failed",
         "subfunction failed",

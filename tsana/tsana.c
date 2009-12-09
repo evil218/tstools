@@ -10,36 +10,22 @@
 #include <string.h> // for strcmp, etc
 #include <time.h>   // for time(), etc
 #include <stdint.h> // for uint?_t, etc
-#include <signal.h> // for signal()
 
 #include "error.h"
-#include "url.h"
 #include "ts.h"
-
-#define BIT(n)                          (1<<(n))
-
-#define MIN_USER_PID                    0x0020
-#define MAX_USER_PID                    0x1FFE
 
 //=============================================================================
 // struct definition
 //=============================================================================
 typedef struct
 {
-        char file[FILENAME_MAX]; // input file name without postfix
-
-        char file_i[FILENAME_MAX];
-        URL *url;
-        uint32_t addr; // addr in input file
-
-        char file_o[FILENAME_MAX];
-        FILE *fd_o;
-
         int mode;
         int state;
+        int is_need_time;
 
-        char line[204];
         uint32_t ts_size;
+        char line[204];
+        uint32_t addr; // addr in input
 
         int ts_id;
         ts_rslt_t *rslt;
@@ -73,8 +59,6 @@ static obj_t *obj = NULL;
 //=============================================================================
 // sub-function declaration
 //=============================================================================
-static void sigfunc(int);
-
 static void state_parse_psi(obj_t *obj);
 static void state_parse_each(obj_t *obj);
 
@@ -84,12 +68,12 @@ static int delete(obj_t *obj);
 static void show_help();
 static void show_version();
 
-static void sync_input(obj_t *obj);
-static int get_one_pkg(obj_t *obj);
+static char *get_one_pkg(obj_t *obj);
 
 static void show_pids(struct LIST *list);
 static void show_prog(struct LIST *list);
 static void show_track(struct LIST *list);
+
 #if 0
 static void show_TS(obj_t *obj);
 static void show_PSI(obj_t *obj);
@@ -104,14 +88,7 @@ int main(int argc, char *argv[])
 {
         obj = create(argc, argv);
 
-        if(signal(SIGINT, sigfunc) == SIG_ERR)
-        {
-                printf("Could not setup signal handler for SIGINT!\n");
-                return -1;
-        }
-
-        sync_input(obj);
-        while(STATE_EXIT != obj->state && get_one_pkg(obj))
+        while(STATE_EXIT != obj->state && NULL != get_one_pkg(obj))
         {
                 tsParseTS(obj->ts_id, obj->line);
                 switch(obj->state)
@@ -125,7 +102,7 @@ int main(int argc, char *argv[])
                         case STATE_EXIT:
                                 break;
                         default:
-                                printf("Wrong state!\n");
+                                fprintf(stderr, "Wrong state!\n");
                                 obj->state = STATE_EXIT;
                                 break;
                 }
@@ -134,11 +111,11 @@ int main(int argc, char *argv[])
 
         if(STATE_PARSE_PSI == obj->state)
         {
-                printf("PSI parsing unfinished!\n");
+                fprintf(stderr, "PSI parsing unfinished!\n");
                 show_pids(obj->rslt->pid_list);
                 show_prog(obj->rslt->prog_list);
         }
-        
+
         delete(obj);
         exit(EXIT_SUCCESS);
 }
@@ -146,21 +123,6 @@ int main(int argc, char *argv[])
 //=============================================================================
 // sub-function definition
 //=============================================================================
-static void sigfunc(int signo)
-{
-        char str[100];
-
-        if(SIGINT == signo)
-        {
-                //printf("SIGINT(Ctrl-C) catched.\n");
-                obj->state = STATE_EXIT;
-        }
-        else
-        {
-                fread(str, 1, 100, stdin); // empty stdin buffer
-        }
-}
-
 static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
@@ -183,23 +145,21 @@ static void state_parse_psi(obj_t *obj)
                                 obj->state = STATE_EXIT;
                                 break;
                         case MODE_CC:
-                                sync_input(obj);
                                 obj->addr -= obj->ts_size;
-                                if(PRTCL_UDP == obj->url->protocol)
+                                if(obj->is_need_time)
                                 {
-                                        printf("year-mm-dd HH:MM:SS,");
+                                        fprintf(stdout, "year-mm-dd HH:MM:SS,");
                                 }
                                 else
                                 {
-                                        printf("address(X),address(d),");
+                                        fprintf(stdout, "address(X),address(d),");
                                 }
-                                printf("   PID,wait,find,lost\n");
+                                fprintf(stdout, "   PID,wait,find,lost\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PCR:
-                                sync_input(obj);
                                 obj->addr -= obj->ts_size;
-                                printf("address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
+                                fprintf(stdout, "address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         default:
@@ -224,38 +184,38 @@ static void state_parse_each(obj_t *obj)
 
         if(MODE_CC == obj->mode && 0 != rslt->CC.lost)
         {
-                if(PRTCL_UDP == obj->url->protocol)
+                if(obj->is_need_time)
                 {
-                        printf("%s,", strtime);
+                        fprintf(stdout, "%s,", strtime);
                 }
                 else
                 {
-                        printf("0x%08lX", obj->addr);
-                        printf(",%10lu", obj->addr);
+                        fprintf(stdout, "0x%08lX", obj->addr);
+                        fprintf(stdout, ",%10lu", obj->addr);
                 }
-                printf("0x%04X", rslt->pid);
-                printf(",  %2u,  %2u,  %2d\n",
-                       rslt->CC.wait,
-                       rslt->CC.find,
-                       rslt->CC.lost);
+                fprintf(stdout, "0x%04X", rslt->pid);
+                fprintf(stdout, ",  %2u,  %2u,  %2d\n",
+                        rslt->CC.wait,
+                        rslt->CC.find,
+                        rslt->CC.lost);
         }
 
         if(MODE_PCR == obj->mode && rslt->PCR.is_pcr_pid)
         {
-                if(PRTCL_UDP == obj->url->protocol)
+                if(obj->is_need_time)
                 {
-                        printf("%s,", strtime);
+                        fprintf(stdout, "%s,", strtime);
                 }
                 else
                 {
-                        printf("0x%08lX", obj->addr);
-                        printf(",%10lu", obj->addr);
+                        fprintf(stdout, "0x%08lX", obj->addr);
+                        fprintf(stdout, ",%10lu", obj->addr);
                 }
-                printf(",0x%04X", rslt->pid);
-                printf(",%13llu,%10llu,    %3u\n",
-                       rslt->PCR.pcr,
-                       rslt->PCR.pcr_base,
-                       rslt->PCR.pcr_ext);
+                fprintf(stdout, ",0x%04X", rslt->pid);
+                fprintf(stdout, ",%13llu,%10llu,    %3u\n",
+                        rslt->PCR.pcr,
+                        rslt->PCR.pcr_base,
+                        rslt->PCR.pcr_ext);
         }
 }
 
@@ -265,13 +225,6 @@ static obj_t *create(int argc, char *argv[])
         int dat;
         obj_t *obj;
 
-        if(1 == argc)
-        {
-                // no parameter
-                printf("tsana: no input files, try --help\n");
-                exit(EXIT_SUCCESS);
-        }
-
         obj = (obj_t *)malloc(sizeof(obj_t));
         if(NULL == obj)
         {
@@ -280,7 +233,7 @@ static obj_t *create(int argc, char *argv[])
         }
 
         obj->mode = MODE_PID;
-        strcpy(obj->file_i, "unknown.ts");
+        obj->is_need_time = 0;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -317,10 +270,6 @@ static obj_t *create(int argc, char *argv[])
                                 sscanf(argv[++i], "%i" , &dat);
                                 //obj->pid = (uint16_t)(dat & 0x1FFF);
                         }
-                        else if (0 == strcmp(argv[i], "-o"))
-                        {
-                                strcpy(obj->file_o, argv[++i]);
-                        }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
                                 show_help();
@@ -333,41 +282,15 @@ static obj_t *create(int argc, char *argv[])
                         }
                         else
                         {
-                                printf("Wrong parameter: %s\n", argv[i]);
+                                fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
                                 exit(EXIT_FAILURE);
                         }
                 }
                 else
                 {
-                        strcpy(obj->file_i, argv[i]);
+                        fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
+                        exit(EXIT_FAILURE);
                 }
-        }
-
-        // make output file name with input file name
-        if('\0' == obj->file_o[0])
-        {
-                // search last '.'
-                i = strlen(obj->file_i) - 1;
-                while(i >= 0)
-                {
-                        if('.' == obj->file_i[i]) break;
-                        i--;
-                }
-                // fill file_o[] and file[]
-                obj->file[i--] = '\0';
-                obj->file_o[i--] = '\0';
-                while(i >= 0)
-                {
-                        obj->file[i] = obj->file_i[i];
-                        obj->file_o[i] = obj->file_i[i];
-                        i--;
-                }
-                strcat(obj->file_o, "2.ts");
-        }
-
-        if(NULL == (obj->url = url_open(obj->file_i, "rb")))
-        {
-                exit(EXIT_FAILURE);
         }
 
         obj->ts_id = tsCreate(obj->ts_size, &(obj->rslt));
@@ -384,7 +307,6 @@ static int delete(obj_t *obj)
         }
         else
         {
-                url_close(obj->url);
                 tsDelete(obj->ts_id);
                 free(obj);
 
@@ -394,33 +316,29 @@ static int delete(obj_t *obj)
 
 static void show_help()
 {
-        printf("Usage: tsana [options] URL [options]\n");
-        printf("URL:\n");
-        printf("  0.             [E:\\|\\]path\\filename\n");
-        printf("  1.             [file://][E:][/]path/filename\n");
-        printf("  2.             udp://@[IP]:port\n");
-        printf("Options:\n");
-        printf("  -pid           Show PID list information, default option\n");
-        printf("  -psi           Show PSI tree information\n");
-        printf("  -cc            Check Continuity Counter\n");
-        printf("  -pcr           Show all PCR value\n");
-        printf("  -debug         Show all errors found\n");
-        printf("  -flt <pid>     Filter package with <pid>\n");
-        printf("  -pes <pid>     Output PES file with <pid>\n");
-        printf("  -o <file>      Output file name, default: *2.ts\n");
-        printf("  --help         Display this information\n");
-        printf("  --version      Display my version\n");
+        puts("Usage: tsana [options]");
+        puts("Options:");
+        puts("  -pid           Show PID list information, default option");
+        puts("  -psi           Show PSI tree information");
+        puts("  -cc            Check Continuity Counter");
+        puts("  -pcr           Show all PCR value");
+        puts("  -debug         Show all errors found");
+        puts("  -flt <pid>     Filter package with <pid>");
+        puts("  -pes <pid>     Output PES file with <pid>");
+        puts("  --help         Display this information");
+        puts("  --version      Display my version");
 }
 
 static void show_version()
 {
-        printf("tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
-        printf("Copyright (C) 2009 ZHOU Cheng.\n");
-        printf("This is free software; contact author for additional information.\n");
-        printf("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n");
-        printf("A PARTICULAR PURPOSE.\n");
+        fprintf(stdout, "tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
+        puts("Copyright (C) 2009 ZHOU Cheng.");
+        puts("This is free software; contact author for additional information.");
+        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
+        puts("A PARTICULAR PURPOSE.");
 }
 
+#if 0
 static void sync_input(obj_t *obj)
 {
         int sync_byte;
@@ -461,14 +379,38 @@ static void sync_input(obj_t *obj)
 
         if(0 != obj->addr)
         {
-                printf("Find first sync byte at 0x%lX in %s.\n",
-                       obj->addr, obj->file_i);
+                fprintf(stdout, "Find first sync byte at 0x%lX in %s.\n",
+                        obj->addr, obj->file_i);
         }
 }
+#endif
 
-static int get_one_pkg(obj_t *obj)
+static char *get_one_pkg(obj_t *obj)
 {
-        return(obj->ts_size == url_read(obj->line, 1, obj->ts_size, obj->url));
+        int i, j;
+        char *rslt;
+        uint8_t x, y;
+        char buf[1024];
+
+        rslt = fgets(buf, 1000, stdin);
+        for(i = 0, j = 0; ; i++, j++)
+        {
+                x = buf[j++];
+                //fprintf(stdout, "%c", (char)y);
+                if('\0' == x || 0x0a == x || 0x0d == x) break;
+                y = (x >= 'a') ? x - 'a' + 10 : (x >= 'A') ? x - 'A' + 10 : x - '0';
+                y <<= 4;
+
+                x = buf[j++];
+                //fprintf(stdout, "%c ", (char)y);
+                if('\0' == x || 0x0a == x || 0x0d == x) break;
+                y += (x >= 'a') ? x - 'a' + 10 : (x >= 'A') ? x - 'A' + 10 : x - '0';
+
+                obj->line[i] = y;
+        }
+        //fprintf(stdout, "\n");
+
+        return rslt;
 }
 
 static void show_pids(struct LIST *list)
@@ -476,19 +418,19 @@ static void show_pids(struct LIST *list)
         struct NODE *node;
         ts_pid_t *pids;
 
-        //printf("pid_list(%d-item):\n\n", list_count(list));
-        printf("-PID--, CC, dCC, --type--, abbr, detail\n");
+        //fprintf(stdout, "pid_list(%d-item):\n\n", list_count(list));
+        fprintf(stdout, "-PID--, CC, dCC, --type--, abbr, detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                printf("0x%04X, %2u,  %u , %s, %s, %s\n",
-                       pids->PID,
-                       pids->CC,
-                       pids->dCC,
-                       pids->type,
-                       pids->sdes,
-                       pids->ldes);
+                fprintf(stdout, "0x%04X, %2u,  %u , %s, %s, %s\n",
+                        pids->PID,
+                        pids->CC,
+                        pids->dCC,
+                        pids->type,
+                        pids->sdes,
+                        pids->ldes);
         }
 }
 
@@ -498,23 +440,23 @@ static void show_prog(struct LIST *list)
         struct NODE *node;
         ts_prog_t *prog;
 
-        //printf("program_list(%d-item):\n\n", list_count(list));
+        //fprintf(stdout, "program_list(%d-item):\n\n", list_count(list));
 
         for(node = list->head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
-                printf("+ program %d(0x%04X), PMT_PID = 0x%04X\n",
-                       prog->program_number,
-                       prog->program_number,
-                       prog->PMT_PID);
-                printf("    PCR_PID = 0x%04X\n",
-                       prog->PCR_PID);
-                printf("    program_info:");
+                fprintf(stdout, "+ program %d(0x%04X), PMT_PID = 0x%04X\n",
+                        prog->program_number,
+                        prog->program_number,
+                        prog->PMT_PID);
+                fprintf(stdout, "    PCR_PID = 0x%04X\n",
+                        prog->PCR_PID);
+                fprintf(stdout, "    program_info:");
                 for(i = 0; i < prog->program_info_length; i++)
                 {
-                        printf(" %02X", prog->program_info[i]);
+                        fprintf(stdout, " %02X", prog->program_info[i]);
                 }
-                printf("\n");
+                fprintf(stdout, "\n");
                 show_track(prog->track);
         }
 }
@@ -525,22 +467,22 @@ static void show_track(struct LIST *list)
         struct NODE *node;
         ts_track_t *track;
 
-        //printf("track_list(%d-item):\n\n", list_count(list));
+        //fprintf(stdout, "track_list(%d-item):\n\n", list_count(list));
 
         for(node = list->head; node; node = node->next)
         {
                 track = (ts_track_t *)node;
-                printf("    track\n");
-                printf("        stream_type = 0x%02X(%s)\n",
-                       track->stream_type, track->type);
-                printf("        elementary_PID = 0x%04X\n",
-                       track->PID);
-                printf("        ES_info:");
+                fprintf(stdout, "    track\n");
+                fprintf(stdout, "        stream_type = 0x%02X(%s)\n",
+                        track->stream_type, track->type);
+                fprintf(stdout, "        elementary_PID = 0x%04X\n",
+                        track->PID);
+                fprintf(stdout, "        ES_info:");
                 for(i = 0; i < track->es_info_length; i++)
                 {
-                        printf(" %02X", track->es_info[i]);
+                        fprintf(stdout, " %02X", track->es_info[i]);
                 }
-                printf("\n");
+                fprintf(stdout, "\n");
         }
 }
 
@@ -549,15 +491,15 @@ static void show_TS(obj_t *obj)
 {
         ts_t *ts = obj->ts;
 
-        printf("TS:\n");
-        printf("  0x%02X  : sync_byte\n", ts->sync_byte);
-        printf("  %c     : transport_error_indicator\n", (ts->transport_error_indicator) ? '1' : '0');
-        printf("  %c     : payload_unit_start_indicator\n", (ts->payload_unit_start_indicator) ? '1' : '0');
-        printf("  %c     : transport_priority\n", (ts->transport_priority) ? '1' : '0');
-        printf("  0x%04X: PID\n", ts->PID);
-        printf("  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
-        printf("  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
-        printf("  0x%X   : continuity_counter\n", ts->continuity_counter);
+        fprintf(stdout, "TS:\n");
+        fprintf(stdout, "  0x%02X  : sync_byte\n", ts->sync_byte);
+        fprintf(stdout, "  %c     : transport_error_indicator\n", (ts->transport_error_indicator) ? '1' : '0');
+        fprintf(stdout, "  %c     : payload_unit_start_indicator\n", (ts->payload_unit_start_indicator) ? '1' : '0');
+        fprintf(stdout, "  %c     : transport_priority\n", (ts->transport_priority) ? '1' : '0');
+        fprintf(stdout, "  0x%04X: PID\n", ts->PID);
+        fprintf(stdout, "  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
+        fprintf(stdout, "  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
+        fprintf(stdout, "  0x%X   : continuity_counter\n", ts->continuity_counter);
 }
 
 static void show_PSI(obj_t *obj)
@@ -565,9 +507,9 @@ static void show_PSI(obj_t *obj)
         uint32_t idx;
         psi_t *psi = obj->psi;
 
-        printf("0x0000: PAT_PID\n");
-        //printf("    0x%04X: section_length\n", psi->section_length);
-        printf("    0x%04X: transport_stream_id\n", psi->idx.idx);
+        fprintf(stdout, "0x0000: PAT_PID\n");
+        //fprintf(stdout, "    0x%04X: section_length\n", psi->section_length);
+        fprintf(stdout, "    0x%04X: transport_stream_id\n", psi->idx.idx);
 
         idx = 0;
 #if 0
@@ -575,17 +517,17 @@ static void show_PSI(obj_t *obj)
         {
                 if(0x0000 == psi->program[idx].program_number)
                 {
-                        printf("    0x%04X: network_program_number\n",
-                               psi->program[idx].program_number);
-                        printf("        0x%04X: network_PID\n",
-                               psi->program[idx].PID);
+                        fprintf(stdout, "    0x%04X: network_program_number\n",
+                                psi->program[idx].program_number);
+                        fprintf(stdout, "        0x%04X: network_PID\n",
+                                psi->program[idx].PID);
                 }
                 else
                 {
-                        printf("    0x%04X: program_number\n",
-                               psi->program[idx].program_number);
-                        printf("        0x%04X: PMT_PID\n",
-                               psi->program[idx].PID);
+                        fprintf(stdout, "    0x%04X: program_number\n",
+                                psi->program[idx].program_number);
+                        fprintf(stdout, "        0x%04X: PMT_PID\n",
+                                psi->program[idx].PID);
                 }
                 idx++;
         }
@@ -605,42 +547,42 @@ static void show_PMT(obj_t *obj)
                 if(0x0000 == pmt->program_number)
                 {
                         // network information
-                        printf("0x%04X: network_PID\n",
-                               pmt->PID);
-                        //printf("    omit...\n");
+                        fprintf(stdout, "0x%04X: network_PID\n",
+                                pmt->PID);
+                        //fprintf(stdout, "    omit...\n");
                 }
                 else
                 {
                         // normal program
-                        printf("0x%04X: PMT_PID\n",
-                               pmt->PID);
-                        //printf("    0x%04X: section_length\n",
+                        fprintf(stdout, "0x%04X: PMT_PID\n",
+                                pmt->PID);
+                        //fprintf(stdout, "    0x%04X: section_length\n",
                         //       pmt->section_length);
-                        printf("    0x%04X: program_number\n",
-                               pmt->program_number);
-                        printf("    0x%04X: PCR_PID\n",
-                               pmt->PCR_PID);
-                        //printf("    0x%04X: program_info_length\n",
+                        fprintf(stdout, "    0x%04X: program_number\n",
+                                pmt->program_number);
+                        fprintf(stdout, "    0x%04X: PCR_PID\n",
+                                pmt->PCR_PID);
+                        //fprintf(stdout, "    0x%04X: program_info_length\n",
                         //       pmt->program_info_length);
                         if(0 != pmt->program_info_length)
                         {
-                                //printf("        omit...\n");
+                                //fprintf(stdout, "        omit...\n");
                         }
 
                         i = 0;
                         while(i < pmt->pid_cnt)
                         {
-                                printf("    0x%04X: %s\n",
-                                       pmt->pid[i].PID,
-                                       PID_TYPE_STR[stream_type(pmt->pid[i].stream_type)]);
-                                printf("        0x%04X: %s\n",
-                                       pmt->pid[i].stream_type,
-                                       stream_type_str(pmt->pid[i].stream_type));
-                                //printf("        0x%04X: ES_info_length\n",
+                                fprintf(stdout, "    0x%04X: %s\n",
+                                        pmt->pid[i].PID,
+                                        PID_TYPE_STR[stream_type(pmt->pid[i].stream_type)]);
+                                fprintf(stdout, "        0x%04X: %s\n",
+                                        pmt->pid[i].stream_type,
+                                        stream_type_str(pmt->pid[i].stream_type));
+                                //fprintf(stdout, "        0x%04X: ES_info_length\n",
                                 //       pmt->pid[i].ES_info_length);
                                 if(0 != pmt->pid[i].ES_info_length)
                                 {
-                                        //printf("            omit...\n");
+                                        //fprintf(stdout, "            omit...\n");
                                 }
 
                                 i++;

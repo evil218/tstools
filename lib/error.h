@@ -13,6 +13,7 @@
 enum
 {
         ERR_NO_ERROR = 0,
+        ERR_OTHER = 1,
         ERR_TIME_OUT,
         ERR_IIC_RAISE_SCK_FAILED,
         ERR_NACK,
@@ -20,6 +21,7 @@ enum
         ERR_BAD_CMD,
         ERR_BAD_ARG,
         ERR_MALLOC_FAILED,
+        ERR_FOPEN_FAILED,
         ERR_EOF,
         ERR_VERIFY_FAILED,
         ERR_SUBFUXN_FAILED,

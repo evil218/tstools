@@ -8,20 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
-#include <stdint.h> // for uint?_t, etc
 #include <time.h>
 
+#include "error.h"
+
 #define MAX_STRING_LENGTH 256
-//=============================================================================
-// enum definition:
-//=============================================================================
-enum
-{
-        NO_ERROR = 0,
-        FOPEN_ERROR,
-        MALLOC_ERROR,
-        PARA_ERROR
-};
 
 //=============================================================================
 // Variables definition:
@@ -39,10 +30,8 @@ char sep[MAX_STRING_LENGTH] = ","; // list separator
 //=============================================================================
 // Sub-function declare:
 //=============================================================================
-void deal_with_parameter(int argc, char *argv[]);
-FILE *open_file(char *file, char *style, char *memo);
-unsigned char *malloc_mem(int size);
-void show_help();
+static int deal_with_parameter(int argc, char *argv[]);
+static void show_help();
 
 //=============================================================================
 // The main function:
@@ -56,22 +45,35 @@ int main(int argc, char *argv[])
         int nread; // number readed
         unsigned char *line;
 
-        deal_with_parameter(argc, argv);
-        line = malloc_mem(npline);
-        fd_i = open_file( file_i, "rb", "read data" );
-        fd_o = open_file( file_o, "w" , "write data" );
+        if(0 != deal_with_parameter(argc, argv))
+        {
+                return -1;
+        }
+
+        line = (unsigned char *)malloc(npline);
+        if(NULL == line)
+        {
+                DBG(ERR_MALLOC_FAILED);
+                return -ERR_MALLOC_FAILED;
+        }
+
+        fd_i = fopen(file_i, "rb");
+        fd_o = fopen(file_o, "w");
+        if(NULL == fd_i || NULL == fd_o)
+        {
+                DBG(ERR_FOPEN_FAILED);
+                return -ERR_FOPEN_FAILED;
+        }
+
         count = 0;
         start = clock();
         while(0 != (nread = fread(line, 1, npline, fd_i)))
         {
                 if(0 != count) fprintf(fd_o, "%s\n", sep);
-                i = 0;
-                while(i < nread)
+                for(i = 0; i < nread; i++, count++)
                 {
                         fprintf(fd_o, fmt, (unsigned int)line[i]);
-                        count++;
-                        i++;
-                        if(i != nread) fprintf(fd_o, sep);
+                        if(i != nread - 1) fprintf(fd_o, sep);
                 }
         }
         finish = clock();
@@ -79,25 +81,28 @@ int main(int argc, char *argv[])
         fclose(fd_o);
         fclose(fd_i);
         free(line);
-        printf("File %s created, %d-data, %.3f-second used.\n", file_o, count, duration);
-        exit(NO_ERROR);
+        fprintf(stdout, "File %s created, %d-data, %.3f-second used.\n",
+                file_o, count, duration);
+
+        return 0;
 }
 
 //=============================================================================
 // Subfunctions definition:
 //=============================================================================
-void deal_with_parameter(int argc, char *argv[])
+static int deal_with_parameter(int argc, char *argv[])
 {
-        int i = 1;
+        int i;
 
         if(1 == argc)
         {
                 // no parameter
-                printf("No binary file to process...\n\n");
+                fprintf(stderr, "No binary file to process...\n\n");
                 show_help();
-                exit(NO_ERROR);
+                return -1;
         }
-        while (i < argc)
+
+        for(i = 1; i < argc; i++)
         {
                 if ('-' == argv[i][0])
                 {
@@ -130,20 +135,19 @@ void deal_with_parameter(int argc, char *argv[])
                         else if (0 == strcmp(argv[i], "--help"))
                         {
                                 show_help();
-                                exit(NO_ERROR);
+                                return -1;
                         }
                         else
                         {
-                                printf("Wrong parameter: %s\n", argv[i]);
-                                exit(PARA_ERROR);
+                                fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
+                                DBG(ERR_BAD_ARG);
+                                return -ERR_BAD_ARG;
                         }
                 }
                 else
                 {
                         strcpy(file_i, argv[i]);
-                        i = argc;
                 }
-                i++;
         }
         // make output file name with input file name
         if('\0' == file_o[0])
@@ -164,44 +168,23 @@ void deal_with_parameter(int argc, char *argv[])
                 }
                 strcat(file_o, ".txt");
         }
+
+        return 0;
 }
 
-FILE *open_file( char *file, char *style, char *memo )
+static void show_help()
 {
-        FILE *fd;
-        if ( NULL == ( fd = fopen( file, style ) ) )
-        {
-                printf( "Can not open file \"%s\" to %s!\n", file, memo );
-                exit(FOPEN_ERROR);
-        }
-        fseek( fd, 0, SEEK_SET );
-        return fd;
-}
-
-unsigned char *malloc_mem(int size)
-{
-        unsigned char *ptr = NULL;
-
-        ptr = (unsigned char *)malloc(size);
-        if(NULL == ptr)
-        {
-                printf("Can not malloc %d-byte memory!\n", size);
-                exit(MALLOC_ERROR);
-        }
-        return ptr;
-}
-
-void show_help()
-{
-        printf("Usage: b2t [options] bin_file\n");
-        printf("Options:\n");
-        printf("  -o <file>      Output file name, default: *.txt\n");
-        printf("  -f <format>    Data format string in C style, default: \"%c3d\"\n", '%');
-        printf("  -s <sep>       List separator between data, default: \",\"\n");
-        printf("  -n <num>       Data count per line, default: 16\n");
-        printf("  -ts            Auto set: -f \"%c02X\" -s \" \" -n 188 for TS file\n", '%');
-        printf("  --help         Display this information\n\n");
-        printf("b2t v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
+        puts("Usage: b2t [options] bin_file [options]");
+        puts("Options:");
+        puts("  -o <file>      Output file name, default: *.txt");
+        fprintf(stdout, "  -f <format>    Data format string in C style, default: \"%c3d\"\n", '%');
+        puts("  -s <sep>       List separator between data, default: \",\"");
+        puts("  -n <num>       Data count per line, default: 16");
+        fprintf(stdout, "  -ts            Auto set: -f \"%c02X\" -s \" \" -n 188 for TS file\n", '%');
+        puts("  --help         Display this information");
+        puts("");
+        fprintf(stdout, "b2t v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
+        return;
 }
 
 //=============================================================================

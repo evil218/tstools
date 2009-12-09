@@ -1,4 +1,4 @@
-EXECUTABLE=b2t.exe
+EXECUTABLE=tscat.exe
 LIBS=../lib/error.o
 
 all: $(EXECUTABLE)
