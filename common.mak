@@ -39,10 +39,11 @@ depend: $(DEPS)
 
 INSTALL_DIR = /cygdrive/c/windows/system32
 
-$(INSTALL_DIR)/%.exe: %.exe
+../release/%.exe: %.exe
 	cp $< $@
+	cp $< $(INSTALL_DIR)
 
-install: $(INSTALL_DIR)/$(EXECUTABLE)
+install: ../release/$(EXECUTABLE)
 
 uninstall:
 	-rm -f $(INSTALL_DIR)/$(EXECUTABLE)

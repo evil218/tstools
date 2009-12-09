@@ -1,42 +1,42 @@
+INSTALL_DIR = /cygdrive/c/windows/system32
+
 all:
 	-@$(MAKE) -C lib $@
 	-@$(MAKE) -C b2t $@
 	-@$(MAKE) -C tsana $@
 	-@$(MAKE) -C tscat $@
-	-@$(MAKE) -C crc $@
 
-install:
+install: $(INSTALL_DIR)/cygwin1.dll
 	-@$(MAKE) -C b2t $@
 	-@$(MAKE) -C tsana $@
 	-@$(MAKE) -C tscat $@
-	-@$(MAKE) -C crc $@
 
 uninstall:
+	-rm $(INSTALL_DIR)/cygwin1.dll
 	-@$(MAKE) -C b2t $@
 	-@$(MAKE) -C tsana $@
 	-@$(MAKE) -C tscat $@
-	-@$(MAKE) -C crc $@
 
 clean:
 	-@$(MAKE) -C lib $@
 	-@$(MAKE) -C b2t $@
 	-@$(MAKE) -C tsana $@
 	-@$(MAKE) -C tscat $@
-	-@$(MAKE) -C crc $@
 
 explain:
 	-@$(MAKE) -C lib $@
 	-@$(MAKE) -C b2t $@
 	-@$(MAKE) -C tsana $@
 	-@$(MAKE) -C tscat $@
-	-@$(MAKE) -C crc $@
 
 depend:
 	-@$(MAKE) -C lib $@
 	-@$(MAKE) -C b2t $@
 	-@$(MAKE) -C tsana $@
 	-@$(MAKE) -C tscat $@
-	-@$(MAKE) -C crc $@
 
 ctags:
 	ctags -R .
+
+$(INSTALL_DIR)/cygwin1.dll: release/cygwin1.dll
+	cp $< $@
