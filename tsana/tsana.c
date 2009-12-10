@@ -21,10 +21,14 @@ typedef struct
 {
         int mode;
         int state;
+
         int is_need_time;
+        int is_outpsi; // output txt psi package to stdout
+        int is_prepsi; // get psi information from file first
 
         uint32_t ts_size;
         uint8_t bbuf[204];
+        uint8_t tbuf[1024];
         uint32_t addr; // addr in input
 
         int ts_id;
@@ -41,7 +45,8 @@ enum
         MODE_PSI,
         MODE_PCR,
         MODE_CC,
-        MODE_DEBUG
+        MODE_DEBUG,
+        MODE_EXIT
 };
 
 enum
@@ -49,6 +54,13 @@ enum
         STATE_PARSE_EACH,
         STATE_PARSE_PSI,
         STATE_EXIT
+};
+
+enum
+{
+        GOT_WRONG_PKG,
+        GOT_RIGHT_PKG,
+        GOT_EOF
 };
 
 //=============================================================================
@@ -109,7 +121,7 @@ static int delete(obj_t *obj);
 static void show_help();
 static void show_version();
 
-static char *get_one_pkg(obj_t *obj);
+static int get_one_pkg(obj_t *obj);
 
 static void show_pids(struct LIST *list);
 static void show_prog(struct LIST *list);
@@ -127,10 +139,15 @@ static char *printb(uint32_t x, int bit_cnt);
 //=============================================================================
 int main(int argc, char *argv[])
 {
+        int get_rslt;
         obj = create(argc, argv);
 
-        while(STATE_EXIT != obj->state && NULL != get_one_pkg(obj))
+        while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkg(obj)))
         {
+                if(GOT_WRONG_PKG == get_rslt)
+                {
+                        continue;
+                }
                 tsParseTS(obj->ts_id, obj->bbuf);
                 switch(obj->state)
                 {
@@ -171,6 +188,10 @@ static void state_parse_psi(obj_t *obj)
         if(rslt->pid == rslt->concerned_pid)
         {
                 tsParseOther(obj->ts_id);
+                if(obj->is_outpsi)
+                {
+                        puts(obj->tbuf);
+                }
         }
 
         if(rslt->is_psi_parsed)
@@ -203,6 +224,7 @@ static void state_parse_psi(obj_t *obj)
                                 fprintf(stdout, "address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
+                        case MODE_EXIT:
                         default:
                                 obj->state = STATE_EXIT;
                                 break;
@@ -275,6 +297,8 @@ static obj_t *create(int argc, char *argv[])
 
         obj->mode = MODE_PID;
         obj->is_need_time = 0;
+        obj->is_outpsi = 0;
+        obj->is_prepsi = 0;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -288,6 +312,15 @@ static obj_t *create(int argc, char *argv[])
                         else if (0 == strcmp(argv[i], "-psi"))
                         {
                                 obj->mode = MODE_PSI;
+                        }
+                        else if (0 == strcmp(argv[i], "-outpsi"))
+                        {
+                                obj->is_outpsi = 1;
+                                obj->mode = MODE_EXIT;
+                        }
+                        else if (0 == strcmp(argv[i], "-prepsi"))
+                        {
+                                obj->is_prepsi = 1;
                         }
                         else if (0 == strcmp(argv[i], "-cc"))
                         {
@@ -357,10 +390,12 @@ static int delete(obj_t *obj)
 
 static void show_help()
 {
-        puts("Usage: tsana [options]");
+        puts("Usage: tsana [option]");
         puts("Options:");
         puts("  -pid           Show PID list information, default option");
         puts("  -psi           Show PSI tree information");
+        puts("  -outpsi        Output PSI package");
+        puts("  -prepsi <file> Get PSI information from <file> first");
         puts("  -cc            Check Continuity Counter");
         puts("  -pcr           Show all PCR value");
         puts("  -debug         Show all errors found");
@@ -379,33 +414,41 @@ static void show_version()
         puts("A PARTICULAR PURPOSE.");
 }
 
-static char *get_one_pkg(obj_t *obj)
+static int get_one_pkg(obj_t *obj)
 {
         int b, t;
         char *rslt;
-        uint8_t tbuf[1024];
 
-        rslt = fgets(tbuf, 1000, stdin);
+        rslt = fgets(obj->tbuf, 1000, stdin);
         if(NULL == rslt)
         {
-                return NULL;
+                return GOT_EOF;
         }
 
-        //puts(tbuf);
+        //puts(obj->tbuf);
         for(b = 0, t = 0; ; b++, t++)
         {
                 uint8_t h, l;
 
-                h = tbuf[t++];
+                h = obj->tbuf[t++];
                 if('\0' == h || 0x0a == h || 0x0d == h) break;
 
-                l = tbuf[t++];
+                l = obj->tbuf[t++];
                 if('\0' == l || 0x0a == l || 0x0d == l) break;
 
                 obj->bbuf[b] = t2b_table_h[h] | t2b_table_l[l];
                 //printf("%02X ", (int)obj->bbuf[b]);
         }
-        return rslt;
+        obj->tbuf[t-1] = '\0';
+
+        if(b < 188)
+        {
+                return GOT_WRONG_PKG;
+        }
+        else
+        {
+                return GOT_RIGHT_PKG;
+        }
 }
 
 static void show_pids(struct LIST *list)
