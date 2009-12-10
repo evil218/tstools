@@ -386,6 +386,11 @@ static char *get_one_pkg(obj_t *obj)
         uint8_t tbuf[1024];
 
         rslt = fgets(tbuf, 1000, stdin);
+        if(NULL == rslt)
+        {
+                return NULL;
+        }
+
         //puts(tbuf);
         for(b = 0, t = 0; ; b++, t++)
         {
