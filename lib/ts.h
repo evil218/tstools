@@ -96,7 +96,7 @@ ts_rslt_t; // parse result
 //============================================================================
 int tsCreate(int pkg_size, ts_rslt_t **rslt);
 int tsDelete(int id);
-int tsParseTS(int id, const char *pkg);
+int tsParseTS(int id, void *pkg);
 int tsParseOther(int id);
 
 #ifdef __cplusplus

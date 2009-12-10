@@ -272,7 +272,7 @@ int tsDelete(int id)
         }
 }
 
-int tsParseTS(int id, const char *pkg)
+int tsParseTS(int id, void *pkg)
 {
         obj_t *obj;
 
