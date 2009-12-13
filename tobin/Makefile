@@ -1,5 +1,5 @@
 NAME=tobin
-LIBS=../lib/error.o
+LIBS=../lib/error.o ../lib/if.o
 
 all: $(NAME).exe
 
