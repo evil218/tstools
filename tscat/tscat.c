@@ -46,6 +46,7 @@ static const char *b2t_table[256] =
 //=============================================================================
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
+static void show_version();
 
 //=============================================================================
 // The main function:
@@ -112,6 +113,11 @@ static int deal_with_parameter(int argc, char *argv[])
                                 show_help();
                                 return -1;
                         }
+                        else if (0 == strcmp(argv[i], "--version"))
+                        {
+                                show_version();
+                                return -1;
+                        }
                         else
                         {
                                 fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
@@ -130,11 +136,33 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("Usage: tscat [options] bin_file [options]");
-        puts("Options:");
-        puts("  --help         Display this information");
+        puts("'tscat' read TS file, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
-        fprintf(stdout, "tscat v1.00 by ZHOU Cheng, %s %s\n", __TIME__, __DATE__);
+        puts("Usage: tscat [OPTION] file [OPTION]");
+        puts("");
+        puts("Options:");
+        puts("");
+        puts("  --help          display this information");
+        puts("  --version       display my version");
+        puts("");
+        puts("Examples:");
+        puts("  tscat xxx.ts");
+        puts("");
+        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        return;
+}
+
+static void show_version()
+{
+        //fprintf(stdout, "tscat 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
+        puts("tscat 1.0.0");
+        puts("");
+        puts("Copyright (C) 2009 ZHOU Cheng.");
+        puts("This is free software; contact author for additional information.");
+        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
+        puts("A PARTICULAR PURPOSE.");
+        puts("");
+        puts("Written by ZHOU Cheng.");
         return;
 }
 

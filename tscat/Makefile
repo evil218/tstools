@@ -1,6 +1,6 @@
-EXECUTABLE=tscat.exe
+NAME=tscat
 LIBS=../lib/error.o
 
-all: $(EXECUTABLE)
+all: $(NAME).exe
 
 include ../common.mak

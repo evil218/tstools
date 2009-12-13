@@ -390,28 +390,44 @@ static int delete(obj_t *obj)
 
 static void show_help()
 {
-        puts("Usage: tsana [option]");
+        puts("'tsana' get TS package from stdin, analyse, then send the result to stdout.");
+        puts("");
+        puts("Usage: tsana [OPTION]...");
+        puts("");
         puts("Options:");
-        puts("  -pid           Show PID list information, default option");
-        puts("  -psi           Show PSI tree information");
-        puts("  -outpsi        Output PSI package");
-        puts("  -prepsi <file> Get PSI information from <file> first");
-        puts("  -cc            Check Continuity Counter");
-        puts("  -pcr           Show all PCR value");
-        puts("  -debug         Show all errors found");
-        puts("  -flt <pid>     Filter package with <pid>");
-        puts("  -pes <pid>     Output PES file with <pid>");
-        puts("  --help         Display this information");
-        puts("  --version      Display my version");
+        puts("  -o <file>      output file name, default: stdout");
+        puts("  -pid           show PID list information, default option");
+        puts("  -psi           show PSI tree information");
+        puts("  -outpsi        output PSI package");
+        puts("  -cc            check Continuity Counter");
+        puts("  -pcr           show all PCR value");
+#if 0
+        puts("  -prepsi <file> get PSI information from <file> first");
+        puts("  -debug         show all errors found");
+        puts("  -flt <pid>     filter package with <pid>");
+        puts("  -pes <pid>     output PES file with <pid>");
+#endif
+        puts("");
+        puts("  --help         display this information");
+        puts("  --version      display my version");
+        puts("");
+        puts("Examples:");
+        puts("  \"tscat xxx.ts | tsana -cc\" -- report CC error information");
+        puts("");
+        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
 }
 
 static void show_version()
 {
-        fprintf(stdout, "tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
+        //fprintf(stdout, "tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
+        puts("tsana 1.0.0");
+        puts("");
         puts("Copyright (C) 2009 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
         puts("A PARTICULAR PURPOSE.");
+        puts("");
+        puts("Written by ZHOU Cheng.");
 }
 
 static int get_one_pkg(obj_t *obj)

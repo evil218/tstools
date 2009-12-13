@@ -1,6 +1,6 @@
-EXECUTABLE=tobin.exe
+NAME=tobin
 LIBS=../lib/error.o
 
-all: $(EXECUTABLE)
+all: $(NAME).exe
 
 include ../common.mak

@@ -19,11 +19,19 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 %.o: %.c
 	$(COMPILE) -o $@ $<
 
-$(EXECUTABLE): $(DEPS) $(OBJS) $(LIBS)
-	$(CC) -o $(EXECUTABLE) $(OBJS) $(LIBS)
+%.1: %.exe
+	-help2man -o $@ $<
+
+%.html: %.1
+	-man2html $< > $@
+
+$(NAME).exe: $(DEPS) $(OBJS) $(LIBS)
+	$(CC) -o $(NAME).exe $(OBJS) $(LIBS)
+
+doc: $(NAME).html
 
 clean:
-	-rm -f $(OBJS) $(EXECUTABLE) $(DEPS) *~
+	-rm -f $(OBJS) $(NAME).exe $(NAME).1 $(NAME).html $(DEPS) *~
 
 explain:
 	@echo "    Source     files: $(SRCS)"
@@ -43,7 +51,14 @@ INSTALL_DIR = /cygdrive/c/windows/system32
 	cp $< $@
 	cp $< $(INSTALL_DIR)
 
-install: ../release/$(EXECUTABLE)
+../release/%.html: %.html
+	cp $< $@
+
+install: \
+	../release/$(NAME).exe \
+	../release/$(NAME).html
 
 uninstall:
-	-rm -f $(INSTALL_DIR)/$(EXECUTABLE)
+	-rm -f $(INSTALL_DIR)/$(NAME).exe
+	-rm -f ../release/$(NAME).exe
+	-rm -f ../release/$(NAME).html
