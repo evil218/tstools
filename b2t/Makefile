@@ -1,6 +1,0 @@
-EXECUTABLE=b2t.exe
-LIBS=../lib/error.o
-
-all: $(EXECUTABLE)
-
-include ../common.mak

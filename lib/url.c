@@ -133,7 +133,8 @@ int url_getc(URL *url)
 
 size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
 {
-        size_t rslt;
+        size_t cobj; // the number of objects succeeded in reading
+        size_t byte_needed = size * nobj;
 
         if(NULL == url)
         {
@@ -146,6 +147,8 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
                 case PRTCL_UDP:
                         if(url->ts_cnt == 0)
                         {
+                                size_t rslt;
+
                                 rslt = udp_read(url->udp, url->buf);
                                 //printf("rslt of udp_read() is %d\n", rslt);
                                 if(rslt > 0)
@@ -154,27 +157,27 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
                                         url->pbuf = url->buf;
                                 }
                         }
-                        if(url->ts_cnt >= nobj)
+                        if(url->ts_cnt >= byte_needed)
                         {
-                                memcpy(buf, url->pbuf, nobj);
-                                url->pbuf += nobj;
-                                url->ts_cnt -= nobj;
-                                rslt = nobj;
+                                memcpy(buf, url->pbuf, byte_needed);
+                                url->pbuf += byte_needed;
+                                url->ts_cnt -= byte_needed;
+                                cobj = nobj;
                         }
                         else
                         {
                                 memcpy(buf, url->pbuf, url->ts_cnt);
                                 url->pbuf += url->ts_cnt;
                                 url->ts_cnt -= url->ts_cnt;
-                                rslt = url->ts_cnt;
+                                cobj = url->ts_cnt;
                         }
                         break;
                 default: // PRTCL_FILE
-                        rslt = fread(buf, size, nobj, url->fd);
+                        cobj = fread(buf, size, nobj, url->fd);
                         break;
         }
 
-        return rslt;
+        return cobj;
 }
 
 //============================================================================
