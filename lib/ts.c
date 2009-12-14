@@ -962,7 +962,8 @@ static const char *PID_type(uint8_t stream_type)
                         return VID_PID;
                 case 0x03: // "ISO/IEC 11172-3 (MPEG-1 layer2)"
                 case 0x04: // "ISO/IEC 13818-3 (MPEG-2)"
-                case 0x81: // "AC3"
+                case 0x06: // "Dolby A52"
+                case 0x81: // "Dolby AC3"
                         return AUD_PID;
                 default:
                         return UNO_PID; // unknown
