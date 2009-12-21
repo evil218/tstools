@@ -1,2 +1,2 @@
-tscat %1 | tsana -psi
+tscat %1 | tsana -psi-tree
 pause

@@ -79,46 +79,56 @@ static const char *b2t_table[256] =
 //=============================================================================
 int b2t(void *tbuf, void *bbuf, int size)
 {
-        int b, t;
+        int i;
+        const char *ch;
         unsigned char *pt = (unsigned char *)tbuf;
         unsigned char *pb = (unsigned char *)bbuf;
 
-        for(b = 0, t = 0; b < size; b++, t++)
+        for(i = 0; i < size; i++)
         {
-                const char *ch = b2t_table[pb[b]];
+                ch = b2t_table[*pb++];
 
-                pt[t++] = *ch++;
-                pt[t++] = *ch;
-                pt[t] = ' ';
+                *pt++ = *ch++;
+                *pt++ = *ch;
+                *pt++ = ' ';
         }
-        pt[t] = '\0';
+        *pt = '\0';
 
         return 0;
 }
 
 int t2b(void *bbuf, void *tbuf)
 {
-        int b, t;
+        int i;
+        unsigned char h, l, x;
         unsigned char *pb = (unsigned char *)bbuf;
         unsigned char *pt = (unsigned char *)tbuf;
 
         //puts(pt);
-        for(b = 0, t = 0; ; b++, t++)
-        {
-                unsigned char h, l;
 
-                h = pt[t++];
+        for(i = 0; (1); i++)
+        {
+                h = *pt++;
                 if('\0' == h || 0x0a == h || 0x0d == h) break;
 
-                l = pt[t++];
+                l = *pt++;
                 if('\0' == l || 0x0a == l || 0x0d == l) break;
 
-                pb[b] = t2b_table_h[h] | t2b_table_l[l];
+                *pb++ = t2b_table_h[h] | t2b_table_l[l];
                 //printf("%02X ", (int)pb[b]);
-        }
-        pt[t-1] = '\0';
 
-        return b;
+                x = *pt++;
+                if('\0' == x || 0x0a == x || 0x0d == x) break;
+                if(' ' != x)
+                {
+                        fprintf(stderr, "Bad white space: 0x%02X\n", (int)x);
+                        fprintf(stderr, "%s\n", (char *)tbuf);
+                        return -1;
+                }
+        }
+        *pt = '\0';
+
+        return i;
 }
 
 /*****************************************************************************

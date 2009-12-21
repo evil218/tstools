@@ -101,9 +101,6 @@ static void show_ptsdts(obj_t *obj);
 
 #if 0
 static void show_TS(obj_t *obj);
-static void show_PSI(obj_t *obj);
-static void show_PMT(obj_t *obj);
-static char *printb(uint32_t x, int bit_cnt);
 #endif
 
 //=============================================================================
@@ -118,9 +115,12 @@ int main(int argc, char *argv[])
         {
                 if(GOT_WRONG_PKG == get_rslt)
                 {
-                        continue;
+                        break;
                 }
-                tsParseTS(obj->ts_id, obj->bbuf);
+                if(0 != tsParseTS(obj->ts_id, obj->bbuf))
+                {
+                        break;
+                }
                 switch(obj->state)
                 {
                         case STATE_PARSE_PSI:
@@ -286,11 +286,11 @@ static obj_t *create(int argc, char *argv[])
         {
                 if ('-' == argv[i][0])
                 {
-                        if (0 == strcmp(argv[i], "-pid"))
+                        if (0 == strcmp(argv[i], "-pid-list"))
                         {
                                 obj->mode = MODE_PID;
                         }
-                        else if (0 == strcmp(argv[i], "-psi"))
+                        else if (0 == strcmp(argv[i], "-psi-tree"))
                         {
                                 obj->mode = MODE_PSI;
                         }
@@ -315,22 +315,21 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->mode = MODE_DEBUG;
                         }
-                        else if (0 == strcmp(argv[i], "-pes"))
+                        else if (0 == strcmp(argv[i], "-pid"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
                                 obj->aim_pid = (uint16_t)(dat & 0x1FFF);
+                        }
+                        else if (0 == strcmp(argv[i], "-pes"))
+                        {
                                 obj->mode = MODE_PES;
                         }
                         else if (0 == strcmp(argv[i], "-es"))
                         {
-                                sscanf(argv[++i], "%i" , &dat);
-                                obj->aim_pid = (uint16_t)(dat & 0x1FFF);
                                 obj->mode = MODE_ES;
                         }
                         else if (0 == strcmp(argv[i], "-ptsdts"))
                         {
-                                sscanf(argv[++i], "%i" , &dat);
-                                obj->aim_pid = (uint16_t)(dat & 0x1FFF);
                                 obj->mode = MODE_PTSDTS;
                         }
                         else if (0 == strcmp(argv[i], "--help"))
@@ -384,19 +383,20 @@ static void show_help()
         puts("Usage: tsana [OPTION]...");
         puts("");
         puts("Options:");
-        puts("  -o <file>      output file name, default: stdout");
-        puts("  -pid           show PID list information, default option");
-        puts("  -psi           show PSI tree information");
+        puts("  -pid-list      show PID list information, default option");
+        puts("  -psi-tree      show PSI tree information");
         puts("  -outpsi        output PSI package");
         puts("  -cc            check Continuity Counter");
         puts("  -pcr           show all PCR value");
-        puts("  -pes <pid>     output PES data of <pid>");
-        puts("  -es <pid>      output ES data of <pid>");
-        puts("  -ptsdts <pid>  output PTS and DTS of <pid>");
+        puts("  -pid <pid>     set cared <pid>");
+        puts("  -pes           output PES data of <pid>");
+        puts("  -es            output ES data of <pid>");
+        puts("  -ptsdts        output PTS and DTS of <pid>");
 #if 0
+        puts("  -o <file>      output file name, default: stdout");
         puts("  -prepsi <file> get PSI information from <file> first");
         puts("  -debug         show all errors found");
-        puts("  -flt <pid>     filter package with <pid>");
+        puts("  -flt           filter package with <pid>");
 #endif
         puts("");
         puts("  --help         display this information");
@@ -431,17 +431,16 @@ static int get_one_pkg(obj_t *obj)
         {
                 return GOT_EOF;
         }
+        //puts(obj->tbuf);
 
         size = t2b(obj->bbuf, obj->tbuf);
-
-        if(size < 188)
+        if(size != 188)
         {
+                //fprintf(stderr, "Bad pkg_size:%d\n%s\n", size, obj->tbuf);
                 return GOT_WRONG_PKG;
         }
-        else
-        {
-                return GOT_RIGHT_PKG;
-        }
+
+        return GOT_RIGHT_PKG;
 }
 
 static void show_pids(struct LIST *list)
@@ -635,124 +634,6 @@ static void show_TS(obj_t *obj)
         fprintf(stdout, "  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
         fprintf(stdout, "  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
         fprintf(stdout, "  0x%X   : continuity_counter\n", ts->continuity_counter);
-}
-
-static void show_PSI(obj_t *obj)
-{
-        uint32_t idx;
-        psi_t *psi = obj->psi;
-
-        fprintf(stdout, "0x0000: PAT_PID\n");
-        //fprintf(stdout, "    0x%04X: section_length\n", psi->section_length);
-        fprintf(stdout, "    0x%04X: transport_stream_id\n", psi->idx.idx);
-
-        idx = 0;
-#if 0
-        while(idx < psi->program_cnt)
-        {
-                if(0x0000 == psi->program[idx].program_number)
-                {
-                        fprintf(stdout, "    0x%04X: network_program_number\n",
-                                psi->program[idx].program_number);
-                        fprintf(stdout, "        0x%04X: network_PID\n",
-                                psi->program[idx].PID);
-                }
-                else
-                {
-                        fprintf(stdout, "    0x%04X: program_number\n",
-                                psi->program[idx].program_number);
-                        fprintf(stdout, "        0x%04X: PMT_PID\n",
-                                psi->program[idx].PID);
-                }
-                idx++;
-        }
-#endif
-}
-
-static void show_PMT(obj_t *obj)
-{
-        uint32_t i;
-        uint32_t idx;
-        psi_t *psi = obj->psi;
-        struct PMT *pmt;
-
-        for(idx = 0; idx < psi->program_cnt; idx++)
-        {
-                pmt = obj->pmt[idx];
-                if(0x0000 == pmt->program_number)
-                {
-                        // network information
-                        fprintf(stdout, "0x%04X: network_PID\n",
-                                pmt->PID);
-                        //fprintf(stdout, "    omit...\n");
-                }
-                else
-                {
-                        // normal program
-                        fprintf(stdout, "0x%04X: PMT_PID\n",
-                                pmt->PID);
-                        //fprintf(stdout, "    0x%04X: section_length\n",
-                        //       pmt->section_length);
-                        fprintf(stdout, "    0x%04X: program_number\n",
-                                pmt->program_number);
-                        fprintf(stdout, "    0x%04X: PCR_PID\n",
-                                pmt->PCR_PID);
-                        //fprintf(stdout, "    0x%04X: program_info_length\n",
-                        //       pmt->program_info_length);
-                        if(0 != pmt->program_info_length)
-                        {
-                                //fprintf(stdout, "        omit...\n");
-                        }
-
-                        i = 0;
-                        while(i < pmt->pid_cnt)
-                        {
-                                fprintf(stdout, "    0x%04X: %s\n",
-                                        pmt->pid[i].PID,
-                                        PID_TYPE_STR[stream_type(pmt->pid[i].stream_type)]);
-                                fprintf(stdout, "        0x%04X: %s\n",
-                                        pmt->pid[i].stream_type,
-                                        stream_type_str(pmt->pid[i].stream_type));
-                                //fprintf(stdout, "        0x%04X: ES_info_length\n",
-                                //       pmt->pid[i].ES_info_length);
-                                if(0 != pmt->pid[i].ES_info_length)
-                                {
-                                        //fprintf(stdout, "            omit...\n");
-                                }
-
-                                i++;
-                        }
-                }
-        }
-}
-
-static char *printb(uint32_t x, int bit_cnt)
-{
-        static char str[64];
-
-        char *p = str;
-        uint32_t mask;
-
-        if(bit_cnt < 1 || bit_cnt > 32)
-        {
-                *p++ = 'e';
-                *p++ = 'r';
-                *p++ = 'r';
-                *p++ = 'o';
-                *p++ = 'r';
-        }
-        else
-        {
-                mask = (1 << (bit_cnt - 1));
-                while(mask)
-                {
-                        *p++ = (x & mask) ? '1' : '0';
-                        mask >>= 1;
-                }
-        }
-        *p = '\0';
-
-        return str;
 }
 #endif
 //=============================================================================

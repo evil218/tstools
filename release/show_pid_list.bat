@@ -1,2 +1,2 @@
-tscat %1 | tsana -pid
+tscat %1 | tsana -pid-list
 pause
