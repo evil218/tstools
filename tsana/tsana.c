@@ -23,14 +23,17 @@ typedef struct
         int mode;
         int state;
 
-        int is_need_time;
         int is_outpsi; // output txt psi package to stdout
         int is_prepsi; // get psi information from file first
+        uint16_t aim_pid;
+
+        int is_need_time; // time or address
+        char time[255];
+        long unsigned int addr; // addr in input
 
         uint32_t ts_size;
         uint8_t bbuf[204];
-        uint8_t tbuf[1024];
-        uint32_t addr; // addr in input
+        char tbuf[1024];
 
         int ts_id;
         ts_rslt_t *rslt;
@@ -44,6 +47,9 @@ enum
 {
         MODE_PID,
         MODE_PSI,
+        MODE_PES,
+        MODE_ES,
+        MODE_PTSDTS,
         MODE_PCR,
         MODE_CC,
         MODE_DEBUG,
@@ -86,6 +92,12 @@ static int get_one_pkg(obj_t *obj);
 static void show_pids(struct LIST *list);
 static void show_prog(struct LIST *list);
 static void show_track(struct LIST *list);
+
+static void show_cc(obj_t *obj);
+static void show_pcr(obj_t *obj);
+static void show_pes(obj_t *obj);
+static void show_es(obj_t *obj);
+static void show_ptsdts(obj_t *obj);
 
 #if 0
 static void show_TS(obj_t *obj);
@@ -181,7 +193,31 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_PCR:
                                 obj->addr -= obj->ts_size;
-                                fprintf(stdout, "address(X),address(d),   PID,          PCR,  PCR_BASE,PCR_EXT\n");
+                                if(obj->is_need_time)
+                                {
+                                        fprintf(stdout, "year-mm-dd HH:MM:SS,");
+                                }
+                                else
+                                {
+                                        fprintf(stdout, "address(X),address(d),");
+                                }
+                                fprintf(stdout, "   PID,          PCR,  PCR_BASE,PCR_EXT\n");
+                                obj->state = STATE_PARSE_EACH;
+                                break;
+                        case MODE_PES:
+                        case MODE_ES:
+                                obj->state = STATE_PARSE_EACH;
+                                break;
+                        case MODE_PTSDTS:
+                                if(obj->is_need_time)
+                                {
+                                        fprintf(stdout, "year-mm-dd HH:MM:SS,");
+                                }
+                                else
+                                {
+                                        fprintf(stdout, "address(X),address(d),");
+                                }
+                                fprintf(stdout, "   PID,       PTS,       DTS\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_EXIT:
@@ -194,52 +230,37 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
         time_t tp;
         struct tm *lt; // local time
-        char strtime[255];
 
         time(&tp);
         lt = localtime(&tp);
-        strftime(strtime, 255, "%Y-%m-%d %H:%M:%S", lt);
+        strftime(obj->time, 255, "%Y-%m-%d %H:%M:%S", lt);
 
         tsParseOther(obj->ts_id);
 
-        if(MODE_CC == obj->mode && 0 != rslt->CC.lost)
+        switch(obj->mode)
         {
-                if(obj->is_need_time)
-                {
-                        fprintf(stdout, "%s,", strtime);
-                }
-                else
-                {
-                        fprintf(stdout, "0x%08lX", obj->addr);
-                        fprintf(stdout, ",%10lu", obj->addr);
-                }
-                fprintf(stdout, "0x%04X", rslt->pid);
-                fprintf(stdout, ",  %2u,  %2u,  %2d\n",
-                        rslt->CC.wait,
-                        rslt->CC.find,
-                        rslt->CC.lost);
+                case MODE_CC:
+                        show_cc(obj);
+                        break;
+                case MODE_PCR:
+                        show_pcr(obj);
+                        break;
+                case MODE_PES:
+                        show_pes(obj);
+                        break;
+                case MODE_ES:
+                        show_es(obj);
+                        break;
+                case MODE_PTSDTS:
+                        show_ptsdts(obj);
+                        break;
+                default:
+                        fprintf(stderr, "wrong mode\n");
+                        break;
         }
-
-        if(MODE_PCR == obj->mode && rslt->PCR.is_pcr_pid)
-        {
-                if(obj->is_need_time)
-                {
-                        fprintf(stdout, "%s,", strtime);
-                }
-                else
-                {
-                        fprintf(stdout, "0x%08lX", obj->addr);
-                        fprintf(stdout, ",%10lu", obj->addr);
-                }
-                fprintf(stdout, ",0x%04X", rslt->pid);
-                fprintf(stdout, ",%13llu,%10llu,    %3u\n",
-                        rslt->PCR.pcr,
-                        rslt->PCR.pcr_base,
-                        rslt->PCR.pcr_ext);
-        }
+        return;
 }
 
 static obj_t *create(int argc, char *argv[])
@@ -297,12 +318,20 @@ static obj_t *create(int argc, char *argv[])
                         else if (0 == strcmp(argv[i], "-pes"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
-                                //obj->pid = (uint16_t)(dat & 0x1FFF);
+                                obj->aim_pid = (uint16_t)(dat & 0x1FFF);
+                                obj->mode = MODE_PES;
                         }
-                        else if (0 == strcmp(argv[i], "-flt"))
+                        else if (0 == strcmp(argv[i], "-es"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
-                                //obj->pid = (uint16_t)(dat & 0x1FFF);
+                                obj->aim_pid = (uint16_t)(dat & 0x1FFF);
+                                obj->mode = MODE_ES;
+                        }
+                        else if (0 == strcmp(argv[i], "-ptsdts"))
+                        {
+                                sscanf(argv[++i], "%i" , &dat);
+                                obj->aim_pid = (uint16_t)(dat & 0x1FFF);
+                                obj->mode = MODE_PTSDTS;
                         }
                         else if (0 == strcmp(argv[i], "--help"))
                         {
@@ -361,11 +390,13 @@ static void show_help()
         puts("  -outpsi        output PSI package");
         puts("  -cc            check Continuity Counter");
         puts("  -pcr           show all PCR value");
+        puts("  -pes <pid>     output PES data of <pid>");
+        puts("  -es <pid>      output ES data of <pid>");
+        puts("  -ptsdts <pid>  output PTS and DTS of <pid>");
 #if 0
         puts("  -prepsi <file> get PSI information from <file> first");
         puts("  -debug         show all errors found");
         puts("  -flt <pid>     filter package with <pid>");
-        puts("  -pes <pid>     output PES file with <pid>");
 #endif
         puts("");
         puts("  --help         display this information");
@@ -419,15 +450,15 @@ static void show_pids(struct LIST *list)
         ts_pid_t *pids;
 
         //fprintf(stdout, "pid_list(%d-item):\n\n", list_count(list));
-        fprintf(stdout, "-PID--, CC, dCC, --type--, abbr, detail\n");
+        fprintf(stdout, " PID  , dCC, track,   type  , abbr, detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, "0x%04X, %2u,  %u , %s, %s, %s\n",
+                fprintf(stdout, "0x%04X,  %u ,     %c, %s, %s, %s\n",
                         pids->PID,
-                        pids->CC,
                         pids->dCC,
+                        pids->is_track ? '*' : ' ',
                         pids->type,
                         pids->sdes,
                         pids->ldes);
@@ -452,9 +483,10 @@ static void show_prog(struct LIST *list)
                 fprintf(stdout, "    PCR_PID = 0x%04X\n",
                         prog->PCR_PID);
                 fprintf(stdout, "    program_info:");
-                for(i = 0; i < prog->program_info_length; i++)
+                for(i = 0; i < prog->program_info_len; i++)
                 {
-                        fprintf(stdout, " %02X", prog->program_info[i]);
+                        if(0x00 == (i & 0x0F)) fprintf(stdout, "\n");
+                        fprintf(stdout, " %02X", *(prog->program_info_buf + i));
                 }
                 fprintf(stdout, "\n");
                 show_track(prog->track);
@@ -478,9 +510,112 @@ static void show_track(struct LIST *list)
                 fprintf(stdout, "        elementary_PID = 0x%04X\n",
                         track->PID);
                 fprintf(stdout, "        ES_info:");
-                for(i = 0; i < track->es_info_length; i++)
+                for(i = 0; i < track->es_info_len; i++)
                 {
-                        fprintf(stdout, " %02X", track->es_info[i]);
+                        if(0x00 == (i & 0x0F)) fprintf(stdout, "\n");
+                        fprintf(stdout, " %02X", *(track->es_info_buf +i));
+                }
+                fprintf(stdout, "\n");
+        }
+}
+
+static void show_cc(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(0 == rslt->CC.lost)
+        {
+                return;
+        }
+
+        if(obj->is_need_time)
+        {
+                fprintf(stdout, "%s,", obj->time);
+        }
+        else
+        {
+                fprintf(stdout, "0x%08lX", obj->addr);
+                fprintf(stdout, ",%10lu", obj->addr);
+        }
+        fprintf(stdout, "0x%04X", rslt->pid);
+        fprintf(stdout, ",  %2u,  %2u,  %2d\n",
+                rslt->CC.wait,
+                rslt->CC.find,
+                rslt->CC.lost);
+        return;
+}
+
+static void show_pcr(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(!(rslt->has_PCR))
+        {
+                return;
+        }
+        if(obj->is_need_time)
+        {
+                fprintf(stdout, "%s,", obj->time);
+        }
+        else
+        {
+                fprintf(stdout, "0x%08lX", obj->addr);
+                fprintf(stdout, ",%10lu", obj->addr);
+        }
+        fprintf(stdout, ",0x%04X", rslt->pid);
+        fprintf(stdout, ",%13llu,%10llu,    %3u\n",
+                rslt->PCR,
+                rslt->PCR_base,
+                rslt->PCR_ext);
+}
+
+static void show_pes(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(rslt->pid == obj->aim_pid && 0 != rslt->PES.len)
+        {
+                b2t(obj->tbuf, rslt->PES.buf, rslt->PES.len);
+                puts(obj->tbuf);
+        }
+}
+
+static void show_es(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(rslt->pid == obj->aim_pid && 0 != rslt->ES.len)
+        {
+                b2t(obj->tbuf, rslt->ES.buf, rslt->ES.len);
+                puts(obj->tbuf);
+        }
+}
+
+static void show_ptsdts(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(rslt->pid == obj->aim_pid && rslt->has_PTS)
+        {
+                if(obj->is_need_time)
+                {
+                        fprintf(stdout, "%s,", obj->time);
+                }
+                else
+                {
+                        fprintf(stdout, "0x%08lX", obj->addr);
+                        fprintf(stdout, ",%10lu", obj->addr);
+                }
+                fprintf(stdout, ",0x%04X", rslt->pid);
+                fprintf(stdout, ",%10llu", rslt->PTS);
+
+                if(rslt->has_DTS)
+                {
+                        fprintf(stdout, ",%10llu", rslt->DTS);
+                }
+                else
+                {
+                        fprintf(stdout, ",          ");
                 }
                 fprintf(stdout, "\n");
         }

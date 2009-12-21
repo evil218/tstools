@@ -1,6 +1,5 @@
-EXECUTABLE=
-LIBS=
+NAME=libts
 
-all: $(OBJS)
+all: $(NAME).a
 
 include ../common.mak

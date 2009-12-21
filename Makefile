@@ -6,6 +6,7 @@ all:
 	for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 doc:
+	-@$(MAKE) -C lib all
 	for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 clean:
@@ -27,6 +28,7 @@ $(INSTALL_DIR)/cygwin1.dll: release/cygwin1.dll
 	cp $< $@
 
 install: $(INSTALL_DIR)/cygwin1.dll
+	-@$(MAKE) -C lib all
 	for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
 
 uninstall:

@@ -1,3 +1,10 @@
+# windows or linux
+ifeq ($(TERM),cygwin)
+EXE_POSTFIX = .exe
+else
+EXE_POSTFIX =
+endif
+
 CC = gcc
 CPPFLAGS = -I. -I../lib
 CFLAGS = -Wall -W -Werror
@@ -19,19 +26,21 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 %.o: %.c
 	$(COMPILE) -o $@ $<
 
-%.1: %.exe
+%.1: %$(EXE_POSTFIX)
 	-help2man -o $@ $<
 
 %.html: %.1
 	-man2html $< > $@
 
-$(NAME).exe: $(DEPS) $(OBJS) $(LIBS)
-	$(CC) -o $(NAME).exe $(OBJS) $(LIBS)
+$(NAME).a: $(OBJS)
+	ar r $@ $(OBJS)
 
-doc: $(NAME).html
+$(NAME)$(EXE_POSTFIX): $(DEPS) $(OBJS) ../lib/libts.a
+	$(CC) -o $(NAME)$(EXE_POSTFIX) $(OBJS) -L../lib -lts
 
 clean:
-	-rm -f $(OBJS) $(NAME).exe $(NAME).1 $(NAME).html $(DEPS) *~
+	-rm -f $(OBJS) $(DEPS) *~
+	-rm -f $(NAME) $(NAME).exe $(NAME).a $(NAME).1 $(NAME).html
 
 explain:
 	@echo "    Source     files: $(SRCS)"
@@ -47,18 +56,18 @@ depend: $(DEPS)
 
 INSTALL_DIR = /cygdrive/c/windows/system32
 
-../release/%.exe: %.exe
+../release/%$(EXE_POSTFIX): %$(EXE_POSTFIX)
 	cp $< $@
 	cp $< $(INSTALL_DIR)
 
 ../release/%.html: %.html
 	cp $< $@
 
-install: \
-	../release/$(NAME).exe \
-	../release/$(NAME).html
+doc: ../release/$(NAME).html
+
+install: ../release/$(NAME)$(EXE_POSTFIX)
 
 uninstall:
-	-rm -f $(INSTALL_DIR)/$(NAME).exe
-	-rm -f ../release/$(NAME).exe
+	-rm -f $(INSTALL_DIR)/$(NAME)$(EXE_POSTFIX)
+	-rm -f ../release/$(NAME)$(EXE_POSTFIX)
 	-rm -f ../release/$(NAME).html
