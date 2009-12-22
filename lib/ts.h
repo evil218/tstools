@@ -76,13 +76,9 @@ typedef struct
         uint16_t concerned_pid; // used for PSI parsing
         uint16_t pid;
 
-        struct
-        {
-                int wait;
-                int find;
-                int lost; // lost != 0 means CC wrong
-        }
-        CC;
+        int CC_wait;
+        int CC_find;
+        int CC_lost; // lost != 0 means CC wrong
 
         int has_PCR;
         uint64_t PCR_base;
@@ -95,19 +91,13 @@ typedef struct
         int has_DTS;
         uint64_t DTS;
 
-        struct
-        {
-                uint16_t len;
-                uint8_t *buf;
-        }
-        PES;
+        // PES data info in this TS
+        uint16_t PES_len;
+        uint8_t *PES_buf;
 
-        struct
-        {
-                uint16_t len;
-                uint8_t *buf;
-        }
-        ES;
+        // ES data info in this TS
+        uint16_t ES_len;
+        uint8_t *ES_buf;
 }
 ts_rslt_t; // parse result
 

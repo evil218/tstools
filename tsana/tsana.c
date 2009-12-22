@@ -522,7 +522,7 @@ static void show_cc(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(0 == rslt->CC.lost)
+        if(0 == rslt->CC_lost)
         {
                 return;
         }
@@ -538,9 +538,9 @@ static void show_cc(obj_t *obj)
         }
         fprintf(stdout, "0x%04X", rslt->pid);
         fprintf(stdout, ",  %2u,  %2u,  %2d\n",
-                rslt->CC.wait,
-                rslt->CC.find,
-                rslt->CC.lost);
+                rslt->CC_wait,
+                rslt->CC_find,
+                rslt->CC_lost);
         return;
 }
 
@@ -572,9 +572,9 @@ static void show_pes(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->pid == obj->aim_pid && 0 != rslt->PES.len)
+        if(rslt->pid == obj->aim_pid && 0 != rslt->PES_len)
         {
-                b2t(obj->tbuf, rslt->PES.buf, rslt->PES.len);
+                b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len);
                 puts(obj->tbuf);
         }
 }
@@ -583,9 +583,9 @@ static void show_es(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->pid == obj->aim_pid && 0 != rslt->ES.len)
+        if(rslt->pid == obj->aim_pid && 0 != rslt->ES_len)
         {
-                b2t(obj->tbuf, rslt->ES.buf, rslt->ES.len);
+                b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len);
                 puts(obj->tbuf);
         }
 }
