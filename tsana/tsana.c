@@ -536,7 +536,7 @@ static void show_cc(obj_t *obj)
                 fprintf(stdout, "0x%08lX", obj->addr);
                 fprintf(stdout, ",%10lu", obj->addr);
         }
-        fprintf(stdout, "0x%04X", rslt->pid);
+        fprintf(stdout, ",0x%04X", rslt->pid);
         fprintf(stdout, ",  %2u,  %2u,  %2d\n",
                 rslt->CC_wait,
                 rslt->CC_find,

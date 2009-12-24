@@ -68,10 +68,10 @@ all: $(NAME)$(POSTFIX)
 $(NAME).a: $(OBJS)
 	ar r $@ $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS)
+$(NAME).exe: $(OBJS) $(DEPS) ../lib/libts.a
 	$(CC) -o $@ $(OBJS) -L../lib -lts
 
-$(NAME): $(OBJS) $(DEPS)
+$(NAME): $(OBJS) $(DEPS) ../lib/libts.a
 	$(CC) -o $@ $(OBJS) -L../lib -lts
 
 clean:

@@ -297,6 +297,7 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         obj->pkg_size = pkg_size;
         obj->state = STATE_NEXT_PAT;
 
+        (*rslt)->CC_lost = 0;
         (*rslt)->is_psi_parsed = 0;
         (*rslt)->concerned_pid = 0x0000; // PAT_PID
 
@@ -436,7 +437,8 @@ static int state_next_pkg(obj_t *obj)
                 }
                 else
                 {
-                        // reserved PID
+                        //fprintf(stderr, "new PID: 0x%04X\n", ts->PID);
+                        //add_reserved_PID(obj);
                 }
                 return -1;
         }
@@ -444,29 +446,30 @@ static int state_next_pkg(obj_t *obj)
         // CC
         if(pids->is_CC_sync)
         {
+                int lost;
+
                 pids->CC += pids->dCC;
-                if(pids->CC != ts->continuity_counter)
+                lost  = (int)ts->continuity_counter;
+                lost -= (int)pids->CC;
+                if(lost < 0)
                 {
-                        int lost;
-
-                        lost = (int)ts->continuity_counter;
-                        lost -= (int)pids->CC;
-                        if(lost < 0)
-                        {
-                                lost += 16;
-                        }
-
-                        rslt->CC_wait = pids->CC;
-                        rslt->CC_find = ts->continuity_counter;
-                        rslt->CC_lost = lost;
-
-                        pids->CC = ts->continuity_counter;
+                        lost += 16;
                 }
+
+                rslt->CC_wait = pids->CC;
+                rslt->CC_find = ts->continuity_counter;
+                rslt->CC_lost = lost;
+
+                pids->CC = ts->continuity_counter;
         }
         else
         {
                 pids->CC = ts->continuity_counter;
                 pids->is_CC_sync = 1;
+
+                rslt->CC_wait = pids->CC;
+                rslt->CC_find = ts->continuity_counter;
+                rslt->CC_lost = 0;
         }
 
         // PCR
