@@ -1,10 +1,35 @@
-# windows or linux
-ifeq ($(TERM),cygwin)
-EXE_POSTFIX = .exe
-else
-EXE_POSTFIX =
-endif
+# =============================================================================
+# definition
+# =============================================================================
 
+# -------------------------------------------------------------------
+# windows or linux
+# -------------------------------------------------------------------
+ifeq ($(TERM),cygwin)
+
+# windows
+ifeq ($(NAME),libts)
+POSTFIX = .a
+else
+POSTFIX = .exe
+endif
+INSTALL_DIR = /cygdrive/c/windows/system32
+
+else # neq ($(TERM),cygwin)
+
+# linux
+ifeq ($(NAME),libts)
+POSTFIX = .a
+else
+POSTFIX =
+endif
+INSTALL_DIR = /cygdrive/c/windows/system32
+
+endif # ($(TERM),cygwin)
+
+# -------------------------------------------------------------------
+# others
+# -------------------------------------------------------------------
 CC = gcc
 CPPFLAGS = -I. -I../lib
 CFLAGS = -Wall -W -Werror
@@ -18,6 +43,9 @@ SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c, %.o, $(SRCS))
 DEPS := $(patsubst %.c, %.d, $(SRCS))
 
+# =============================================================================
+# wildcard rule
+# =============================================================================
 %.d: %.c
 	@echo make dependency file for $<
 	@$(CC) -MM $(CPPFLAGS) $< > $@
@@ -26,17 +54,25 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 %.o: %.c
 	$(COMPILE) -o $@ $<
 
-%.1: %$(EXE_POSTFIX)
+%.1: %$(POSTFIX)
 	-help2man -o $@ $<
 
 %.html: %.1
 	-man2html $< > $@
 
+# =============================================================================
+# supported aim
+# =============================================================================
+all: $(NAME)$(POSTFIX)
+
 $(NAME).a: $(OBJS)
 	ar r $@ $(OBJS)
 
-$(NAME)$(EXE_POSTFIX): $(DEPS) $(OBJS) ../lib/libts.a
-	$(CC) -o $(NAME)$(EXE_POSTFIX) $(OBJS) -L../lib -lts
+$(NAME).exe: $(OBJS) $(DEPS)
+	$(CC) -o $@ $(OBJS) -L../lib -lts
+
+$(NAME): $(OBJS) $(DEPS)
+	$(CC) -o $@ $(OBJS) -L../lib -lts
 
 clean:
 	-rm -f $(OBJS) $(DEPS) *~
@@ -52,11 +88,7 @@ depend: $(DEPS)
 
 -include $(DEPS)
 
-# other things
-
-INSTALL_DIR = /cygdrive/c/windows/system32
-
-../release/%$(EXE_POSTFIX): %$(EXE_POSTFIX)
+../release/%$(POSTFIX): %$(POSTFIX)
 	cp $< $@
 	cp $< $(INSTALL_DIR)
 
@@ -65,9 +97,13 @@ INSTALL_DIR = /cygdrive/c/windows/system32
 
 doc: ../release/$(NAME).html
 
-install: ../release/$(NAME)$(EXE_POSTFIX)
+install: ../release/$(NAME)$(POSTFIX)
 
 uninstall:
-	-rm -f $(INSTALL_DIR)/$(NAME)$(EXE_POSTFIX)
-	-rm -f ../release/$(NAME)$(EXE_POSTFIX)
+	-rm -f $(INSTALL_DIR)/$(NAME)$(POSTFIX)
+	-rm -f ../release/$(NAME)$(POSTFIX)
 	-rm -f ../release/$(NAME).html
+
+# =============================================================================
+# THE END
+# =============================================================================
