@@ -15,6 +15,8 @@
 #include "if.h"
 #include "ts.h"
 
+#define ANY_PID 0x2000 // means any PID of [0x0000,0x1FFF]
+
 //=============================================================================
 // struct definition
 //=============================================================================
@@ -109,7 +111,10 @@ static void show_TS(obj_t *obj);
 int main(int argc, char *argv[])
 {
         int get_rslt;
+        ts_rslt_t *rslt;
+
         obj = create(argc, argv);
+        rslt = obj->rslt;
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkg(obj)))
         {
@@ -127,7 +132,10 @@ int main(int argc, char *argv[])
                                 state_parse_psi(obj);
                                 break;
                         case STATE_PARSE_EACH:
-                                state_parse_each(obj);
+                                if(ANY_PID == obj->aim_pid || rslt->pid == obj->aim_pid)
+                                {
+                                        state_parse_each(obj);
+                                }
                                 break;
                         case STATE_EXIT:
                                 break;
@@ -142,8 +150,8 @@ int main(int argc, char *argv[])
         if(STATE_PARSE_PSI == obj->state)
         {
                 fprintf(stderr, "PSI parsing unfinished!\n");
-                show_pids(obj->rslt->pid_list);
-                show_prog(obj->rslt->prog_list);
+                show_pids(rslt->pid_list);
+                show_prog(rslt->prog_list);
         }
 
         delete(obj);
@@ -277,6 +285,7 @@ static obj_t *create(int argc, char *argv[])
         }
 
         obj->mode = MODE_PID;
+        obj->aim_pid = ANY_PID;
         obj->is_need_time = 0;
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
@@ -318,7 +327,16 @@ static obj_t *create(int argc, char *argv[])
                         else if (0 == strcmp(argv[i], "-pid"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
-                                obj->aim_pid = (uint16_t)(dat & 0x1FFF);
+                                if(0x0000 <= dat && dat <= 0x1FFF)
+                                {
+                                        obj->aim_pid = (uint16_t)dat;
+                                }
+                                else
+                                {
+                                        fprintf(stderr,
+                                                "bad variable for '-pid': 0x%04X, ignore!\n",
+                                                dat);
+                                }
                         }
                         else if (0 == strcmp(argv[i], "-pes"))
                         {
@@ -572,7 +590,7 @@ static void show_pes(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->pid == obj->aim_pid && 0 != rslt->PES_len)
+        if(0 != rslt->PES_len)
         {
                 b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len);
                 puts(obj->tbuf);
@@ -583,7 +601,7 @@ static void show_es(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->pid == obj->aim_pid && 0 != rslt->ES_len)
+        if(0 != rslt->ES_len)
         {
                 b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len);
                 puts(obj->tbuf);
@@ -594,7 +612,7 @@ static void show_ptsdts(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->pid == obj->aim_pid && rslt->has_PTS)
+        if(rslt->has_PTS)
         {
                 if(obj->is_need_time)
                 {

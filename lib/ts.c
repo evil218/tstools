@@ -158,6 +158,8 @@ typedef struct
         uint32_t pkg_size; // 188 or 204
         int state;
 
+        int is_pes_align; // met first PES head
+
         ts_rslt_t rslt;
 }
 obj_t;
@@ -262,8 +264,8 @@ static int parse_TS(obj_t *obj);  // ts layer information
 static int parse_AF(obj_t *obj);  // adaption_fields information
 static int parse_PSI(obj_t *obj); // psi information
 static int parse_PES(obj_t *obj); // pes layer information
-static int parse_PES_switch(obj_t *obj);
-static int parse_PES_detail(obj_t *obj);
+static int parse_PES_head_switch(obj_t *obj);
+static int parse_PES_head_detail(obj_t *obj);
 
 static int parse_PAT_load(obj_t *obj);
 static int parse_PMT_load(obj_t *obj);
@@ -296,6 +298,7 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
 
         obj->pkg_size = pkg_size;
         obj->state = STATE_NEXT_PAT;
+        obj->is_pes_align = 1; // PES align(0: need; 1: dot't need)
 
         (*rslt)->CC_lost = 0;
         (*rslt)->is_psi_parsed = 0;
@@ -714,14 +717,19 @@ static int parse_PES(obj_t *obj)
         pes_t *pes = &(obj->pes);
         ts_rslt_t *rslt = &(obj->rslt);
 
-        //fprintf(stderr, "%02X %02X %02X %02X ", rslt->line[4], rslt->line[5], rslt->line[6], rslt->line[7]);
-
         // record PES data
-        rslt->PES_len = obj->len; //fprintf(stderr, "pes len = %d, ", rslt->PES_len);
-        rslt->PES_buf = obj->p;
+        if(obj->is_pes_align)
+        {
+                rslt->PES_len = obj->len;
+                rslt->PES_buf = obj->p;
+        }
 
         if(ts->payload_unit_start_indicator)
         {
+                obj->is_pes_align = 1;
+                rslt->PES_len = obj->len;
+                rslt->PES_buf = obj->p;
+
                 // PES head start
                 dat = *(obj->p)++; obj->len--;
                 pes->packet_start_code_prefix = dat;
@@ -754,16 +762,19 @@ static int parse_PES(obj_t *obj)
                 //fprintf(stderr, "PES_packet_length = %d, ", pes->PES_packet_length);
                 //fprintf(stderr, "PES_packet_length = 0x%X, ", pes->PES_packet_length);
 
-                parse_PES_switch(obj);
+                parse_PES_head_switch(obj);
         }
 
-        rslt->ES_len = obj->len; //fprintf(stderr, "es len = %d\n", rslt->ES_len);
-        rslt->ES_buf = obj->p;
+        if(obj->is_pes_align)
+        {
+                rslt->ES_len = obj->len;
+                rslt->ES_buf = obj->p;
+        }
 
         return 0;
 }
 
-static int parse_PES_switch(obj_t *obj)
+static int parse_PES_head_switch(obj_t *obj)
 {
         int i;
         uint8_t dat;
@@ -797,13 +808,13 @@ static int parse_PES_switch(obj_t *obj)
         }
         else
         {
-                parse_PES_detail(obj);
+                parse_PES_head_detail(obj);
         }
 
         return 0;
 }
 
-static int parse_PES_detail(obj_t *obj)
+static int parse_PES_head_detail(obj_t *obj)
 {
         int i;
         int header_data_len;
