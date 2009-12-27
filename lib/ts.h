@@ -24,9 +24,11 @@ typedef struct
 
         uint16_t PID:13;
         int is_track; // is video or audio package
-        const char *type; // pid_type string
+        int type; // pid type index
         const char *sdes; // short description
         const char *ldes; // long description
+
+        int count; // packet number received, for statistic
 
         // for check continuity_counter
         uint32_t CC:4;
@@ -56,9 +58,11 @@ typedef struct
         struct NODE *next;
         struct NODE *prev;
 
-        int stream_type;
         uint32_t PID:13;
-        const char *type; // pid_type string
+        int type; // PID type index
+        int stream_type;
+        char *sdes; // stream short description
+        char *ldes; // stream long description
         uint16_t es_info_len;
         uint8_t *es_info_buf;
 }
@@ -75,6 +79,8 @@ typedef struct
         uint8_t line[204]; // current TS package
         uint16_t concerned_pid; // used for PSI parsing
         uint16_t pid;
+
+        ts_pid_t *pids; // item in pid_list
 
         int CC_wait;
         int CC_find;

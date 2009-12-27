@@ -68,6 +68,56 @@ void list_add(struct LIST *list, struct NODE *node)
         }
 }
 
+void list_insert_before(struct LIST *list, struct NODE *next, struct NODE *node)
+{
+        if(NULL == list || NULL == next || NULL == node)
+        {
+                return;
+        }
+        else
+        {
+                node->next = next;
+                node->prev = next->prev;
+
+                if(NULL == next->prev)
+                {
+                        list->head = node;
+                        next->prev = node;
+                }
+                else
+                {
+                        next->prev->next = node;
+                        next->prev = node;
+                }
+                list->count++;
+        }
+}
+
+void list_insert_after(struct LIST *list, struct NODE *prev, struct NODE *node)
+{
+        if(NULL == list || NULL == prev || NULL == node)
+        {
+                return;
+        }
+        else
+        {
+                node->next = prev->next;
+                node->prev = prev;
+
+                if(NULL == prev->next)
+                {
+                        list->tail = node;
+                        prev->next = node;
+                }
+                else
+                {
+                        prev->next->prev = node;
+                        prev->next = node;
+                }
+                list->count++;
+        }
+}
+
 void list_del(struct LIST *list, struct NODE *node)
 {
         if(NULL == list || NULL == node)

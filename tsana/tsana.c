@@ -165,7 +165,7 @@ static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->pid == rslt->concerned_pid)
+        //if(rslt->pid == rslt->concerned_pid)
         {
                 tsParseOther(obj->ts_id);
                 if(obj->is_outpsi)
@@ -234,6 +234,7 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                 }
         }
+        return;
 }
 
 static void state_parse_each(obj_t *obj)
@@ -467,16 +468,15 @@ static void show_pids(struct LIST *list)
         ts_pid_t *pids;
 
         //fprintf(stdout, "pid_list(%d-item):\n\n", list_count(list));
-        fprintf(stdout, " PID  , dCC, track,   type  , abbr, detail\n");
+        fprintf(stdout, " PID  , dCC, track,     abbr, detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, "0x%04X,  %u ,     %c, %s, %s, %s\n",
+                fprintf(stdout, "0x%04X,  %u ,     %c, %s, %s\n",
                         pids->PID,
                         pids->dCC,
                         pids->is_track ? '*' : ' ',
-                        pids->type,
                         pids->sdes,
                         pids->ldes);
         }
@@ -522,8 +522,10 @@ static void show_track(struct LIST *list)
         {
                 track = (ts_track_t *)node;
                 fprintf(stdout, "    track\n");
-                fprintf(stdout, "        stream_type = 0x%02X(%s)\n",
-                        track->stream_type, track->type);
+                fprintf(stdout, "        stream_type = 0x%02X, %s, %s\n",
+                        track->stream_type,
+                        track->sdes,
+                        track->ldes);
                 fprintf(stdout, "        elementary_PID = 0x%04X\n",
                         track->PID);
                 fprintf(stdout, "        ES_info:");
