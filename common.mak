@@ -8,7 +8,7 @@
 ifeq ($(TERM),cygwin)
 
 # windows
-ifeq ($(NAME),libts)
+ifeq ($(NAME),libts1)
 POSTFIX = .a
 else
 POSTFIX = .exe
@@ -18,12 +18,12 @@ INSTALL_DIR = /cygdrive/c/windows/system32
 else # neq ($(TERM),cygwin)
 
 # linux
-ifeq ($(NAME),libts)
+ifeq ($(NAME),libts1)
 POSTFIX = .a
 else
 POSTFIX =
 endif
-INSTALL_DIR = /cygdrive/c/windows/system32
+INSTALL_DIR = /usr/local/bin
 
 endif # ($(TERM),cygwin)
 
@@ -68,11 +68,11 @@ all: $(NAME)$(POSTFIX)
 $(NAME).a: $(OBJS)
 	ar r $@ $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS) ../lib/libts.a
-	$(CC) -o $@ $(OBJS) -L../lib -lts
+$(NAME).exe: $(OBJS) $(DEPS) ../lib/libts1.a
+	$(CC) -o $@ $(OBJS) -L../lib -lts1
 
-$(NAME): $(OBJS) $(DEPS) ../lib/libts.a
-	$(CC) -o $@ $(OBJS) -L../lib -lts
+$(NAME): $(OBJS) $(DEPS) ../lib/libts1.a
+	$(CC) -o $@ $(OBJS) -L../lib -lts1
 
 clean:
 	-rm -f $(OBJS) $(DEPS) *~
@@ -88,11 +88,11 @@ depend: $(DEPS)
 
 -include $(DEPS)
 
-../release/%$(POSTFIX): %$(POSTFIX)
+../release/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 	cp $< $@
 	cp $< $(INSTALL_DIR)
 
-../release/%.html: %.html
+../release/$(NAME).html: $(NAME).html
 	cp $< $@
 
 doc: ../release/$(NAME).html

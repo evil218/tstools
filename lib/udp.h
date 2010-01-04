@@ -12,13 +12,12 @@
 extern "C" {
 #endif
 
-#include <arpa/inet.h>
-#include <errno.h>
-#include <fcntl.h>
+#include <fcntl.h>                      // for fcntl(), O_NONBLOCK, etc
+#include <arpa/inet.h>                  // for inet_ntoa(), inet_addr(), etc
 #include <netinet/in.h>
-#include <signal.h>
 #include <sys/socket.h>
-#include <unistd.h>
+#include <unistd.h>                     // for close()
+#include <sys/select.h>                 // for select(), etc
 
 /*============================================================================
  * Struct Declaration

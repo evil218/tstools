@@ -294,38 +294,38 @@ static obj_t *create(int argc, char *argv[])
 
         for(i = 1; i < argc; i++)
         {
-                if ('-' == argv[i][0])
+                if('-' == argv[i][0])
                 {
-                        if (0 == strcmp(argv[i], "-pid-list"))
+                        if(0 == strcmp(argv[i], "-pid-list"))
                         {
                                 obj->mode = MODE_PID;
                         }
-                        else if (0 == strcmp(argv[i], "-psi-tree"))
+                        else if(0 == strcmp(argv[i], "-psi-tree"))
                         {
                                 obj->mode = MODE_PSI;
                         }
-                        else if (0 == strcmp(argv[i], "-outpsi"))
+                        else if(0 == strcmp(argv[i], "-outpsi"))
                         {
                                 obj->is_outpsi = 1;
                                 obj->mode = MODE_EXIT;
                         }
-                        else if (0 == strcmp(argv[i], "-prepsi"))
+                        else if(0 == strcmp(argv[i], "-prepsi"))
                         {
                                 obj->is_prepsi = 1;
                         }
-                        else if (0 == strcmp(argv[i], "-cc"))
+                        else if(0 == strcmp(argv[i], "-cc"))
                         {
                                 obj->mode = MODE_CC;
                         }
-                        else if (0 == strcmp(argv[i], "-pcr"))
+                        else if(0 == strcmp(argv[i], "-pcr"))
                         {
                                 obj->mode = MODE_PCR;
                         }
-                        else if (0 == strcmp(argv[i], "-debug"))
+                        else if(0 == strcmp(argv[i], "-debug"))
                         {
                                 obj->mode = MODE_DEBUG;
                         }
-                        else if (0 == strcmp(argv[i], "-pid"))
+                        else if(0 == strcmp(argv[i], "-pid"))
                         {
                                 sscanf(argv[++i], "%i" , &dat);
                                 if(0x0000 <= dat && dat <= 0x1FFF)
@@ -339,24 +339,28 @@ static obj_t *create(int argc, char *argv[])
                                                 dat);
                                 }
                         }
-                        else if (0 == strcmp(argv[i], "-pes"))
+                        else if(0 == strcmp(argv[i], "-pes"))
                         {
                                 obj->mode = MODE_PES;
                         }
-                        else if (0 == strcmp(argv[i], "-es"))
+                        else if(0 == strcmp(argv[i], "-es"))
                         {
                                 obj->mode = MODE_ES;
                         }
-                        else if (0 == strcmp(argv[i], "-ptsdts"))
+                        else if(0 == strcmp(argv[i], "-ptsdts"))
                         {
                                 obj->mode = MODE_PTSDTS;
                         }
-                        else if (0 == strcmp(argv[i], "--help"))
+                        else if(0 == strcmp(argv[i], "-h") ||
+                                0 == strcmp(argv[i], "--help")
+                        )
                         {
                                 show_help();
                                 exit(EXIT_SUCCESS);
                         }
-                        else if (0 == strcmp(argv[i], "--version"))
+                        else if(0 == strcmp(argv[i], "-v") ||
+                                0 == strcmp(argv[i], "--version")
+                        )
                         {
                                 show_version();
                                 exit(EXIT_SUCCESS);
@@ -402,24 +406,24 @@ static void show_help()
         puts("Usage: tsana [OPTION]...");
         puts("");
         puts("Options:");
-        puts("  -pid-list      show PID list information, default option");
-        puts("  -psi-tree      show PSI tree information");
-        puts("  -outpsi        output PSI package");
-        puts("  -cc            check Continuity Counter");
-        puts("  -pcr           show all PCR value");
-        puts("  -pid <pid>     set cared <pid>");
-        puts("  -pes           output PES data of <pid>");
-        puts("  -es            output ES data of <pid>");
-        puts("  -ptsdts        output PTS and DTS of <pid>");
+        puts(" -pid-list        show PID list information, default option");
+        puts(" -psi-tree        show PSI tree information");
+        puts(" -outpsi          output PSI package");
+        puts(" -cc              check Continuity Counter");
+        puts(" -pcr             show all PCR value");
+        puts(" -pid <pid>       set cared <pid>");
+        puts(" -pes             output PES data of <pid>");
+        puts(" -es              output ES data of <pid>");
+        puts(" -ptsdts          output PTS and DTS of <pid>");
 #if 0
-        puts("  -o <file>      output file name, default: stdout");
-        puts("  -prepsi <file> get PSI information from <file> first");
-        puts("  -debug         show all errors found");
-        puts("  -flt           filter package with <pid>");
+        puts(" -o <file>        output file name, default: stdout");
+        puts(" -prepsi <file>   get PSI information from <file> first");
+        puts(" -debug           show all errors found");
+        puts(" -flt             filter package with <pid>");
 #endif
         puts("");
-        puts("  --help         display this information");
-        puts("  --version      display my version");
+        puts(" -h, --help       display this information");
+        puts(" -v, --version    display my version");
         puts("");
         puts("Examples:");
         puts("  \"tscat xxx.ts | tsana -cc\" -- report CC error information");
@@ -432,7 +436,7 @@ static void show_version()
         //fprintf(stdout, "tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
         puts("tsana 1.0.0");
         puts("");
-        puts("Copyright (C) 2009 ZHOU Cheng.");
+        puts("Copyright (C) 2009,2010 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
         puts("A PARTICULAR PURPOSE.");

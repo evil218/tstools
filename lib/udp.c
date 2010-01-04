@@ -64,7 +64,7 @@ UDP *udp_open(char *addr, unsigned short port)
         // manage multicast
         struct ip_mreq multicast;
         multicast.imr_multiaddr.s_addr = inet_addr(addr);
-        if(0x000000E0 == (multicast.imr_multiaddr.s_addr & 0x000000F0))
+        if(IN_MULTICAST(ntohl(multicast.imr_multiaddr.s_addr)))
         {
                 multicast.imr_interface.s_addr = htonl(INADDR_ANY);
                 if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
@@ -83,7 +83,7 @@ void udp_close(UDP *udp, char *addr)
 
         // manage multicast
         multicast.imr_multiaddr.s_addr = inet_addr(addr);
-        if(0x000000E0 == (multicast.imr_multiaddr.s_addr & 0x000000F0))
+        if(IN_MULTICAST(ntohl(multicast.imr_multiaddr.s_addr)))
         {
                 multicast.imr_interface.s_addr = htonl(INADDR_ANY);
                 if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
