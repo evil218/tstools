@@ -1,5 +1,5 @@
 @set DESTDIR=f:
-@rem set SOURCE=udp://@224.165.54.210:1231
+@rem set SOURCE=udp://@224.165.54.210:1234
 @set SOURCE=udp://@:1234
 
 @set date=%"date /t"%

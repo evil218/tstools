@@ -29,6 +29,7 @@ void crc_init();
 uint16_t crc16(void *buf, size_t size);
 uint32_t crc32(void *buf, size_t size);
 uint32_t CRC  (void *buf, size_t size, int mode);
+uint32_t CRC_for_TS(void *buf, size_t size, int mode);
 
 #ifdef __cplusplus
 }

@@ -161,8 +161,8 @@ uint32_t CRC(void *buf, size_t size, int mode)
         return accum;
 }
 
-#if 0
-uint32_t CRC(void *buf, size_t size, int mode)
+#if 1
+uint32_t CRC_for_TS(void *buf, size_t size, int mode)
 {
         int bitcount = 0;
         int bitinbyte = 0;

@@ -313,6 +313,10 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->is_prepsi = 1;
                         }
+                        else if(0 == strcmp(argv[i], "-time"))
+                        {
+                                obj->is_need_time = 1;
+                        }
                         else if(0 == strcmp(argv[i], "-cc"))
                         {
                                 obj->mode = MODE_CC;
@@ -409,6 +413,7 @@ static void show_help()
         puts(" -pid-list        show PID list information, default option");
         puts(" -psi-tree        show PSI tree information");
         puts(" -outpsi          output PSI package");
+        puts(" -time            show time instead of address when TS error");
         puts(" -cc              check Continuity Counter");
         puts(" -pcr             show all PCR value");
         puts(" -pid <pid>       set cared <pid>");
@@ -557,11 +562,11 @@ static void show_cc(obj_t *obj)
         }
         else
         {
-                fprintf(stdout, "0x%08lX", obj->addr);
-                fprintf(stdout, ",%10lu", obj->addr);
+                fprintf(stdout, "0x%08lX,", obj->addr);
+                fprintf(stdout, "%10lu,", obj->addr);
         }
-        fprintf(stdout, ",0x%04X", rslt->pid);
-        fprintf(stdout, ",  %2u,  %2u,  %2d\n",
+        fprintf(stdout, "0x%04X,", rslt->pid);
+        fprintf(stdout, "  %2u,  %2u,  %2d\n",
                 rslt->CC_wait,
                 rslt->CC_find,
                 rslt->CC_lost);
@@ -582,11 +587,11 @@ static void show_pcr(obj_t *obj)
         }
         else
         {
-                fprintf(stdout, "0x%08lX", obj->addr);
-                fprintf(stdout, ",%10lu", obj->addr);
+                fprintf(stdout, "0x%08lX,", obj->addr);
+                fprintf(stdout, "%10lu,", obj->addr);
         }
-        fprintf(stdout, ",0x%04X", rslt->pid);
-        fprintf(stdout, ",%13llu,%10llu,    %3u\n",
+        fprintf(stdout, "0x%04X,", rslt->pid);
+        fprintf(stdout, "%13llu,%10llu,    %3u\n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext);
