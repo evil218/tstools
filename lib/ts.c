@@ -1389,9 +1389,16 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         search_in_TS_PID_TABLE(pids->PID, &(pids->type));
         pids->is_track = 0;
         pids->count = 1;
-        pids->CC = ts->continuity_counter;
-        pids->is_CC_sync = 1;
         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
+        if(STATE_NEXT_PKG == obj->state)
+        {
+                pids->CC = ts->continuity_counter - pids->dCC;
+        }
+        else
+        {
+                pids->CC = ts->continuity_counter;
+        }
+        pids->is_CC_sync = 1;
         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
 

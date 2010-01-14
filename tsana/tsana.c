@@ -434,6 +434,7 @@ static void show_help()
         puts("  \"tscat xxx.ts | tsana -cc\" -- report CC error information");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        return;
 }
 
 static void show_version()
@@ -447,6 +448,7 @@ static void show_version()
         puts("A PARTICULAR PURPOSE.");
         puts("");
         puts("Written by ZHOU Cheng.");
+        return;
 }
 
 static int get_one_pkg(obj_t *obj)
@@ -489,6 +491,7 @@ static void show_pids(struct LIST *list)
                         pids->sdes,
                         pids->ldes);
         }
+        return;
 }
 
 static void show_prog(struct LIST *list)
@@ -517,6 +520,7 @@ static void show_prog(struct LIST *list)
                 fprintf(stdout, "\n");
                 show_track(prog->track);
         }
+        return;
 }
 
 static void show_track(struct LIST *list)
@@ -545,6 +549,7 @@ static void show_track(struct LIST *list)
                 }
                 fprintf(stdout, "\n");
         }
+        return;
 }
 
 static void show_cc(obj_t *obj)
@@ -566,7 +571,7 @@ static void show_cc(obj_t *obj)
                 fprintf(stdout, "%10lu,", obj->addr);
         }
         fprintf(stdout, "0x%04X,", rslt->pid);
-        fprintf(stdout, "  %2u,  %2u,  %2d\n",
+        fprintf(stdout, "  %2u,  %2u,  %2d +16n\n",
                 rslt->CC_wait,
                 rslt->CC_find,
                 rslt->CC_lost);
@@ -595,6 +600,7 @@ static void show_pcr(obj_t *obj)
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext);
+        return;
 }
 
 static void show_pes(obj_t *obj)
@@ -606,6 +612,7 @@ static void show_pes(obj_t *obj)
                 b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len);
                 puts(obj->tbuf);
         }
+        return;
 }
 
 static void show_es(obj_t *obj)
@@ -617,6 +624,7 @@ static void show_es(obj_t *obj)
                 b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len);
                 puts(obj->tbuf);
         }
+        return;
 }
 
 static void show_ptsdts(obj_t *obj)
@@ -647,6 +655,7 @@ static void show_ptsdts(obj_t *obj)
                 }
                 fprintf(stdout, "\n");
         }
+        return;
 }
 
 #if 0
@@ -663,6 +672,7 @@ static void show_TS(obj_t *obj)
         fprintf(stdout, "  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
         fprintf(stdout, "  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
         fprintf(stdout, "  0x%X   : continuity_counter\n", ts->continuity_counter);
+        return;
 }
 #endif
 //=============================================================================
