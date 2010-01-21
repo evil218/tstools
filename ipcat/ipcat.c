@@ -119,7 +119,7 @@ static void show_help()
         puts(" -v, --version    print my version, then exit");
         puts("");
         puts("Examples:");
-        puts("  ipcat xxx.ts");
+        puts("  ipcat udp://@22.4165.54.210:1234");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;

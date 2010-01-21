@@ -12,11 +12,12 @@
 extern "C" {
 #endif
 
-#include <fcntl.h>                      // for fcntl(), O_NONBLOCK, etc
-#include <arpa/inet.h>                  // for inet_ntoa(), inet_addr(), etc
-#include <netinet/in.h>
+#include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>                  // for inet_ntoa(), inet_addr(), etc
 #include <unistd.h>                     // for close()
+#include <fcntl.h>                      // for fcntl(), O_NONBLOCK, etc
 #include <sys/select.h>                 // for select(), etc
 
 /*============================================================================
@@ -25,7 +26,6 @@ extern "C" {
 typedef struct
 {
         int sock;
-        int sockaddr_in_len;
         struct sockaddr_in remote;
 }
 UDP;

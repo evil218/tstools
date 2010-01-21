@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define __USE_GNU
+
 #include "udp.h"
 
 #define UDP_LENGTH_MAX                  1536
@@ -28,9 +30,6 @@ UDP *udp_open(char *addr, unsigned short port)
                 perror("malloc");
                 return NULL;
         }
-
-        // init sockaddr_in length
-        udp->sockaddr_in_len = sizeof(udp->remote);
 
         // build socket
         if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -62,13 +61,13 @@ UDP *udp_open(char *addr, unsigned short port)
         }
 
         // manage multicast
-        struct ip_mreq multicast;
-        multicast.imr_multiaddr.s_addr = inet_addr(addr);
-        if(IN_MULTICAST(ntohl(multicast.imr_multiaddr.s_addr)))
+        struct ip_mreq imreq;
+        imreq.imr_multiaddr.s_addr = inet_addr(addr);
+        if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr)))
         {
-                multicast.imr_interface.s_addr = htonl(INADDR_ANY);
+                imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                 if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                              (char *)&multicast, sizeof(multicast)) < 0)
+                              (char *)&imreq, sizeof(imreq)) < 0)
                 {
                         perror("join multicast membership");
                 }
@@ -79,15 +78,15 @@ UDP *udp_open(char *addr, unsigned short port)
 
 void udp_close(UDP *udp, char *addr)
 {
-        struct ip_mreq multicast;
+        struct ip_mreq imreq;
 
         // manage multicast
-        multicast.imr_multiaddr.s_addr = inet_addr(addr);
-        if(IN_MULTICAST(ntohl(multicast.imr_multiaddr.s_addr)))
+        imreq.imr_multiaddr.s_addr = inet_addr(addr);
+        if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr)))
         {
-                multicast.imr_interface.s_addr = htonl(INADDR_ANY);
+                imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                 if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-                              (char *)&multicast, sizeof(multicast)) < 0)
+                              (char *)&imreq, sizeof(imreq)) < 0)
                 {
                         perror("quit multicast membership");
                 }
@@ -100,6 +99,7 @@ size_t udp_read(UDP *udp, char *buf)
 {
         size_t rslt = 0;
         fd_set fds;
+        socklen_t socklen = sizeof(struct sockaddr_in);
 
         FD_ZERO(&fds);
         FD_SET(0, &fds);
@@ -112,7 +112,7 @@ size_t udp_read(UDP *udp, char *buf)
         {
                 rslt = recvfrom(udp->sock, buf, UDP_LENGTH_MAX, 0,
                                 (struct sockaddr *)&udp->remote,
-                                &udp->sockaddr_in_len);
+                                &socklen);
         }
         else if(FD_ISSET(0, &fds))
         {

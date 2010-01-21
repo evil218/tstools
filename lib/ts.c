@@ -1621,17 +1621,11 @@ static int track_type(ts_track_t *track)
                 case 0x02:
                         track->type = VID_PID;
                         track->sdes = "MPEG-2";
-                        track->ldes = "ISO/IEC 13818-2 or MPEG-1 parameter limited";
+                        track->ldes = "ISO/IEC 13818-2"; // or MPEG-1 parameter limited
                         break;
-                case 0x1B:
-                        track->type = VID_PID;
-                        track->sdes = "H.264";
-                        track->ldes = "ISO/IEC 14496-10";
-                        break;
-
                 case 0x03:
                         track->type = AUD_PID;
-                        track->sdes = "MPEG-1 layer2";
+                        track->sdes = "MPEG-1"; // layer2
                         track->ldes = "ISO/IEC 11172-3";
                         break;
                 case 0x04:
@@ -1642,12 +1636,32 @@ static int track_type(ts_track_t *track)
                 case 0x06:
                         track->type = AUD_PID;
                         track->sdes = "A52";
-                        track->ldes = "Dolby A52";
+                        track->ldes = "AAC A52(Dolby Digital DVB)";
+                        break;
+                case 0x0F:
+                        track->type = AUD_PID;
+                        track->sdes = "ADTS";
+                        track->ldes = "AAC ADTS(Audio Data Transport Stream)";
+                        break;
+                case 0x11:
+                        track->type = AUD_PID;
+                        track->sdes = "LATM";
+                        track->ldes = "AAC LATM(Low-overhead Audio TransportMultiplex)";
+                        break;
+                case 0x1B:
+                        track->type = VID_PID;
+                        track->sdes = "H.264";
+                        track->ldes = "ISO/IEC 14496-10";
+                        break;
+                case 0x42:
+                        track->type = VID_PID;
+                        track->sdes = "AVS";
+                        track->ldes = "Advanced Video Standard";
                         break;
                 case 0x81:
                         track->type = AUD_PID;
                         track->sdes = "AC3";
-                        track->ldes = "Dolby AC3";
+                        track->ldes = "Dolby Digital ATSC";
                         break;
                 default:
                         track->type = UNO_PID;
