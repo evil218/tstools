@@ -477,7 +477,11 @@ static int state_next_pkg(obj_t *obj)
         {
                 int lost;
 
-                pids->CC += pids->dCC;
+                if(BIT(0) & ts->adaption_field_control)
+                {
+                        // increase CC only for packet with load
+                        pids->CC += pids->dCC;
+                }
                 lost  = (int)ts->continuity_counter;
                 lost -= (int)pids->CC;
                 if(lost < 0)
