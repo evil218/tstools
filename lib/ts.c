@@ -169,8 +169,9 @@ obj_t;
 //=============================================================================
 // const definition
 //=============================================================================
-enum
+enum PID_TYPE
 {
+        // should be synchronize with PID_TYPE_TABLE[]!
         PAT_PID,
         CAT_PID,
         TSDT_PID,
@@ -202,6 +203,7 @@ enum
 
 static const pid_type_table_t PID_TYPE_TABLE[] =
 {
+        // should be synchronize with enum PID_TYPE!
         {1, " PAT_PID", "program association section"},
         {1, " CAT_PID", "conditional access section"},
         {1, "TSDT_PID", "transport stream description section"},
@@ -1617,50 +1619,155 @@ static int track_type(ts_track_t *track)
 {
         switch(track->stream_type)
         {
+                case 0x00:
+                        track->type = USR_PID;
+                        track->sdes = "Reserved";
+                        track->ldes = "ITU-T|ISO/IEC Reserved";
+                        break;
                 case 0x01:
                         track->type = VID_PID;
                         track->sdes = "MPEG-1";
-                        track->ldes = "ISO/IEC 11172-2";
+                        track->ldes = "ISO/IEC 11172-2 Video";
                         break;
                 case 0x02:
                         track->type = VID_PID;
                         track->sdes = "MPEG-2";
-                        track->ldes = "ISO/IEC 13818-2"; // or MPEG-1 parameter limited
+                        track->ldes = "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited";
                         break;
                 case 0x03:
                         track->type = AUD_PID;
-                        track->sdes = "MPEG-1"; // layer2
-                        track->ldes = "ISO/IEC 11172-3";
+                        track->sdes = "MPEG-1";
+                        track->ldes = "ISO/IEC 11172-3 Audio";
                         break;
                 case 0x04:
                         track->type = AUD_PID;
                         track->sdes = "MPEG-2";
-                        track->ldes = "ISO/IEC 13818-3";
+                        track->ldes = "ISO/IEC 13818-3 Audio";
+                        break;
+                case 0x05:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections";
                         break;
                 case 0x06:
                         track->type = AUD_PID;
                         track->sdes = "A52";
                         track->ldes = "AAC A52(Dolby Digital DVB)";
                         break;
+                case 0x07:
+                        track->type = AUD_PID;
+                        track->sdes = "MHEG";
+                        track->ldes = "ISO/IEC 13522 MHEG";
+                        break;
+                case 0x08:
+                        track->type = AUD_PID;
+                        track->sdes = "DSM-CC";
+                        track->ldes = "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC";
+                        break;
+                case 0x09:
+                        track->type = AUD_PID;
+                        track->sdes = "H.222.1";
+                        track->ldes = "ITU-T Rec.H.222.1";
+                        break;
+                case 0x0A:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG2 type A";
+                        track->ldes = "ISO/IEC 13818-6 type A";
+                        break;
+                case 0x0B:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG2 type B";
+                        track->ldes = "ISO/IEC 13818-6 type B";
+                        break;
+                case 0x0C:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG2 type C";
+                        track->ldes = "ISO/IEC 13818-6 type C";
+                        break;
+                case 0x0D:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG2 type D";
+                        track->ldes = "ISO/IEC 13818-6 type D";
+                        break;
+                case 0x0E:
+                        track->type = AUD_PID;
+                        track->sdes = "auxiliary";
+                        track->ldes = "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary";
+                        break;
                 case 0x0F:
                         track->type = AUD_PID;
-                        track->sdes = "ADTS";
-                        track->ldes = "AAC ADTS(Audio Data Transport Stream)";
+                        track->sdes = "AAC ADTS";
+                        track->ldes = "ISO/IEC 13818-7 Audio with ADTS transport syntax";
+                        break;
+                case 0x10:
+                        track->type = VID_PID;
+                        track->sdes = "MPEG-4";
+                        track->ldes = "ISO/IEC 14496-2 Visual";
                         break;
                 case 0x11:
                         track->type = AUD_PID;
-                        track->sdes = "LATM";
-                        track->ldes = "AAC LATM(Low-overhead Audio TransportMultiplex)";
+                        track->sdes = "AAC LATM";
+                        track->ldes = "ISO/IEC 14496-3 Audio with LATM transport syntax";
+                        break;
+                case 0x12:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-4";
+                        track->ldes = "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets";
+                        break;
+                case 0x13:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-4";
+                        track->ldes = "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections";
+                        break;
+                case 0x14:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "ISO/IEC 13818-6 Synchronized Download Protocol";
+                        break;
+                case 0x15:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "Metadata carried in PES packets";
+                        break;
+                case 0x16:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "Metadata carried in metadata_sections";
+                        break;
+                case 0x17:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "Metadata carried in ISO/IEC 13818-6 Data Carousel";
+                        break;
+                case 0x18:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "Metadata carried in ISO/IEC 13818-6 Object Carousel";
+                        break;
+                case 0x19:
+                        track->type = AUD_PID;
+                        track->sdes = "MPEG-2";
+                        track->ldes = "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol";
+                        break;
+                case 0x1A:
+                        track->type = AUD_PID;
+                        track->sdes = "IPMP";
+                        track->ldes = "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)";
                         break;
                 case 0x1B:
                         track->type = VID_PID;
                         track->sdes = "H.264";
-                        track->ldes = "ISO/IEC 14496-10";
+                        track->ldes = "ITU-T Rec.H.264|ISO/IEC 14496-10 Video";
                         break;
                 case 0x42:
                         track->type = VID_PID;
                         track->sdes = "AVS";
                         track->ldes = "Advanced Video Standard";
+                        break;
+                case 0x7F:
+                        track->type = AUD_PID;
+                        track->sdes = "IPMP";
+                        track->ldes = "IPMP stream";
                         break;
                 case 0x81:
                         track->type = AUD_PID;
