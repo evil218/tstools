@@ -1651,8 +1651,8 @@ static int track_type(ts_track_t *track)
                         break;
                 case 0x06:
                         track->type = AUD_PID;
-                        track->sdes = "A52";
-                        track->ldes = "AAC A52(Dolby Digital DVB)";
+                        track->sdes = "AC3";
+                        track->ldes = "Dolby Digital DVB";
                         break;
                 case 0x07:
                         track->type = AUD_PID;
