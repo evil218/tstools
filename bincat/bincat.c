@@ -12,6 +12,8 @@
 #include "error.h"
 #include "if.h"
 
+#define LINE_LENGTH_MAX                 32767
+
 //=============================================================================
 // Variables definition:
 //=============================================================================
@@ -31,8 +33,8 @@ static void show_version();
 //=============================================================================
 int main(int argc, char *argv[])
 {
-        unsigned char bbuf[ 204 + 10]; // bin data buffer
-        char tbuf[1024 + 10]; // txt data buffer
+        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; // bin data buffer
+        char tbuf[LINE_LENGTH_MAX + 10]; // txt data buffer
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -63,6 +65,7 @@ int main(int argc, char *argv[])
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
+        int dat;
 
         if(1 == argc)
         {
@@ -76,7 +79,21 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(     0 == strcmp(argv[i], "-h") ||
+                        if(0 == strcmp(argv[i], "-n"))
+                        {
+                                sscanf(argv[++i], "%i" , &dat);
+                                if(0 < dat && dat <= (LINE_LENGTH_MAX / 3))
+                                {
+                                        npline = dat;
+                                }
+                                else
+                                {
+                                        fprintf(stderr,
+                                                "bad variable for '-n': %d, use %d instead!\n",
+                                                dat, npline);
+                                }
+                        }
+                        else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")
                         )
                         {
@@ -114,6 +131,7 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
+        puts(" -n <npl>         data count per line, [1,10922], default: 188");
         puts(" -h, --help       display this information");
         puts(" -v, --version    display my version");
         puts("");

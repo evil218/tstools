@@ -12,6 +12,8 @@
 #include "if.h"
 #include "error.h"
 
+#define LINE_LENGTH_MAX                 32767
+
 //=============================================================================
 // Variables definition:
 //=============================================================================
@@ -31,8 +33,8 @@ static void show_version();
 int main(int argc, char *argv[])
 {
         int size;
-        char tbuf[1024 + 10]; // txt data buffer
-        unsigned char bbuf[ 204 + 10]; // bin data buffer
+        char tbuf[LINE_LENGTH_MAX + 10]; // txt data buffer
+        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; // bin data buffer
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -46,7 +48,7 @@ int main(int argc, char *argv[])
                 return -ERR_FOPEN_FAILED;
         }
 
-        while(NULL != fgets(tbuf, 1000, stdin))
+        while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin))
         {
                 size = t2b(bbuf, tbuf);
                 fwrite(bbuf, size, 1, fd_o);
