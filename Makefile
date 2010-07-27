@@ -1,4 +1,4 @@
-DIRS = tscat ipcat tsana tobin
+DIRS = bincat ipcat tsana tobin
 
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory
