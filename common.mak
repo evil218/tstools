@@ -28,14 +28,26 @@ INSTALL_DIR = /usr/local/bin
 endif # ($(TERM),cygwin)
 
 # -------------------------------------------------------------------
+# debug or release
+# -------------------------------------------------------------------
+BUILD_TYPE = release
+
+CFLAGS = -Wall -W -Werror
+CFLAGS += -std=c99
+
+ifeq ($(BUILD_TYPE), release)
+	CFLAGS += -O2
+	OBJ_DIR = release
+else
+	CFLAGS += -g
+	OBJ_DIR = debug
+endif
+
+# -------------------------------------------------------------------
 # others
 # -------------------------------------------------------------------
 CC = gcc
 CPPFLAGS = -I. -I../lib
-CFLAGS = -Wall -W -Werror
-CFLAGS += -std=c99
-CFLAGS += -O2
-#CFLAGS += -g
 CXXFLAGS = $(CFLAGS)
 COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
 
@@ -88,7 +100,7 @@ depend: $(DEPS)
 
 -include $(DEPS)
 
-../release/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
+../$(OBJ_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 	cp $< $@
 	cp $< $(INSTALL_DIR)
 
@@ -97,10 +109,11 @@ depend: $(DEPS)
 
 doc: ../release/$(NAME).html
 
-install: ../release/$(NAME)$(POSTFIX)
+install: ../$(OBJ_DIR)/$(NAME)$(POSTFIX)
 
 uninstall:
 	-rm -f $(INSTALL_DIR)/$(NAME)$(POSTFIX)
+	-rm -f ../debug/$(NAME)$(POSTFIX)
 	-rm -f ../release/$(NAME)$(POSTFIX)
 	-rm -f ../release/$(NAME).html
 

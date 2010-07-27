@@ -1,5 +1,8 @@
 DIRS = tscat ipcat tsana tobin
 
+# Do not print "Entering directory ..."
+MAKEFLAGS += --no-print-directory
+
 all:
 	-@$(MAKE) -C lib $@
 	for dir in $(DIRS); do $(MAKE) -C $$dir $@; done

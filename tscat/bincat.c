@@ -1,8 +1,8 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
-// Name: tscat.c
+// Name: bincat.c
 // Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o tscat tscat.c
+// To build: gcc -std=c99 -o bincat bincat.c
 // Copyright (C) 2008 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
@@ -108,9 +108,9 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'tscat' read TS file, translate 0xXX to 'XY ' format, then send to stdout.");
+        puts("'bincat' read TS file, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
-        puts("Usage: tscat [OPTION] file [OPTION]");
+        puts("Usage: bincat [OPTION] file [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -118,7 +118,7 @@ static void show_help()
         puts(" -v, --version    display my version");
         puts("");
         puts("Examples:");
-        puts("  tscat xxx.ts");
+        puts("  bincat xxx.ts");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
@@ -126,8 +126,8 @@ static void show_help()
 
 static void show_version()
 {
-        //fprintf(stdout, "tscat 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
-        puts("tscat 1.0.0");
+        //fprintf(stdout, "bincat 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
+        puts("bincat 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");

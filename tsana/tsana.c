@@ -431,7 +431,7 @@ static void show_help()
         puts(" -v, --version    display my version");
         puts("");
         puts("Examples:");
-        puts("  \"tscat xxx.ts | tsana -cc\" -- report CC error information");
+        puts("  \"bincat xxx.ts | tsana -cc\" -- report CC error information");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;

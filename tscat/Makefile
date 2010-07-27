@@ -1,3 +1,3 @@
-NAME=tscat
+NAME=bincat
 
 include ../common.mak

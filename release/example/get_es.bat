@@ -2,5 +2,5 @@
 @set PREFIX=f:\
 @set POSTFIX=es
 
-tscat %1 | tsana -pid %PID% -es | tobin %PREFIX%%PID%.%POSTFIX%
+bincat %1 | tsana -pid %PID% -es | tobin %PREFIX%%PID%.%POSTFIX%
 pause

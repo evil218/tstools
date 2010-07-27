@@ -1,7 +1,7 @@
 码流工具箱
 
 目前有如下工具：
-tscat   把二进制文件（*.ts）转换成文本格式，输出到stdout
+bincat  把二进制文件（*.ts）转换成文本格式，输出到stdout
 ipcat   把IP端口收到的码流转换成文本格式，输出到stdout
 tsana   从stdin接收TS包，分析后输出到stdout
 tobin   从stdin接收文本格式的TS包，转换成二进制格式，输出到文件（*.ts）
