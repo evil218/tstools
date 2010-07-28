@@ -66,11 +66,16 @@ DEPS := $(patsubst %.c, %.d, $(SRCS))
 %.o: %.c
 	$(COMPILE) -o $@ $<
 
-%.1: %$(POSTFIX)
+%.1: $(INSTALL_DIR)/%$(POSTFIX)
 	-help2man -o $@ $<
+
+$(INSTALL_DIR)/%$(POSTFIX): %$(POSTFIX)
 
 %.html: %.1
 	-man2html $< > $@
+
+../release/%.html: %.html
+	cp $< $@
 
 # =============================================================================
 # supported aim
@@ -82,9 +87,13 @@ $(NAME).a: $(OBJS)
 
 $(NAME).exe: $(OBJS) $(DEPS) ../lib/libts1.a
 	$(CC) -o $@ $(OBJS) -L../lib -lts1
+	cp $@ ../$(OBJ_DIR)/$@
+	cp $@ $(INSTALL_DIR)/$@
 
 $(NAME): $(OBJS) $(DEPS) ../lib/libts1.a
 	$(CC) -o $@ $(OBJS) -L../lib -lts1
+	cp $@ ../$(OBJ_DIR)/$@
+	cp $@ $(INSTALL_DIR)/$@
 
 clean:
 	-rm -f $(OBJS) $(DEPS) *~
@@ -100,16 +109,9 @@ depend: $(DEPS)
 
 -include $(DEPS)
 
-../$(OBJ_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
-	cp $< $@
-	cp $< $(INSTALL_DIR)
-
-../release/$(NAME).html: $(NAME).html
-	cp $< $@
-
 doc: ../release/$(NAME).html
 
-install: ../$(OBJ_DIR)/$(NAME)$(POSTFIX)
+install: $(NAME)$(POSTFIX)
 
 uninstall:
 	-rm -f $(INSTALL_DIR)/$(NAME)$(POSTFIX)

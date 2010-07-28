@@ -9,10 +9,8 @@
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
 
-#include "if.h"
 #include "error.h"
-
-#define LINE_LENGTH_MAX                 32767
+#include "if.h"
 
 //=============================================================================
 // Variables definition:
