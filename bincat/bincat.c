@@ -123,7 +123,7 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'bincat' read TS file, translate 0xXX to 'XY ' format, then send to stdout.");
+        puts("'bincat' read binary file, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
         puts("Usage: bincat [OPTION] file [OPTION]");
         puts("");
@@ -153,53 +153,6 @@ static void show_version()
         puts("Written by ZHOU Cheng.");
         return;
 }
-
-#if 0
-static void sync_input(obj_t *obj)
-{
-        int sync_byte;
-        URL *url = obj->url;
-
-        obj->addr = 0;
-        url_seek(url, 0, SEEK_SET);
-        do
-        {
-                if(EOF == (sync_byte = url_getc(obj->url)))
-                {
-                        break;
-                }
-                else if(0x47 == sync_byte)
-                {
-                        url_seek(url, obj->ts_size - 1, SEEK_CUR);
-                        if(EOF == (sync_byte = url_getc(obj->url)))
-                        {
-                                break;
-                        }
-                        else if(0x47 == sync_byte)
-                        {
-                                // sync, go back
-                                url_seek(url, -(obj->ts_size + 1), SEEK_CUR);
-                                break;
-                        }
-                        else
-                        {
-                                // not real sync byte
-                                url_seek(url, -(obj->ts_size), SEEK_CUR);
-                        }
-                }
-                else
-                {
-                        (obj->addr)++;
-                }
-        }while(1);
-
-        if(0 != obj->addr)
-        {
-                fprintf(stdout, "Find first sync byte at 0x%lX in %s.\n",
-                        obj->addr, obj->file_i);
-        }
-}
-#endif
 
 //=============================================================================
 // THE END.
