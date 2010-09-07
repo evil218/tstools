@@ -414,9 +414,9 @@ static void show_help()
         puts(" -psi-tree        show PSI tree information");
         puts(" -outpsi          output PSI package");
         puts(" -time            show time instead of address when TS error");
-        puts(" -cc              check Continuity Counter");
-        puts(" -pcr             show all PCR value");
-        puts(" -pid <pid>       set cared <pid>");
+        puts(" -cc              check Continuity Counter of <pid>");
+        puts(" -pcr             show PCR value of <pid>");
+        puts(" -pid <pid>       set cared <pid>, default: ANY PID");
         puts(" -pes             output PES data of <pid>");
         puts(" -es              output ES data of <pid>");
         puts(" -ptsdts          output PTS and DTS of <pid>");
