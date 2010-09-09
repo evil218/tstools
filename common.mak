@@ -113,11 +113,8 @@ doc: ../release/$(NAME).html
 
 install: $(NAME)$(POSTFIX)
 
-uninstall:
+uninstall: $(INSTALL_DIR)/$(NAME)$(POSTFIX)
 	-rm -f $(INSTALL_DIR)/$(NAME)$(POSTFIX)
-	-rm -f ../debug/$(NAME)$(POSTFIX)
-	-rm -f ../release/$(NAME)$(POSTFIX)
-	-rm -f ../release/$(NAME).html
 
 # =============================================================================
 # THE END

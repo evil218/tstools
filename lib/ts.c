@@ -511,7 +511,7 @@ static int state_next_pkg(obj_t *obj)
         if(rslt->has_PCR)
         {
                 rslt->PCR_base = af->program_clock_reference_base;
-                rslt->PCR_ext += af->program_clock_reference_extension;
+                rslt->PCR_ext  = af->program_clock_reference_extension;
 
                 rslt->PCR  = rslt->PCR_base;
                 rslt->PCR *= 300;
