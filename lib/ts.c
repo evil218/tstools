@@ -1435,7 +1435,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                                 else
                                 {
                                         pids->type = the_pids->type;
-                                        fprintf(stderr, "bad element PID!\n");
+                                        fprintf(stderr, "bad element PID(0x%04X)!\n", the_pids->PID);
                                 }
                                 pids->count = the_pids->count;
                                 pids->CC = the_pids->CC;

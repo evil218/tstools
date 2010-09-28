@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
-#include <time.h>   // for time(), etc
+#include <sys/time.h>   // for gettimeofday(), etc
 #include <stdint.h> // for uint?_t, etc
 
 #include "error.h"
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
                         case STATE_EXIT:
                                 break;
                         default:
-                                fprintf(stderr, "Wrong state!\n");
+                                fprintf(stderr, "Wrong state(%d)!\n", obj->state);
                                 obj->state = STATE_EXIT;
                                 break;
                 }
@@ -190,7 +190,7 @@ static void state_parse_psi(obj_t *obj)
                                 obj->addr -= obj->ts_size;
                                 if(obj->is_need_time)
                                 {
-                                        fprintf(stdout, "year-mm-dd HH:MM:SS,");
+                                        fprintf(stdout, "      second. ms us,");
                                 }
                                 else
                                 {
@@ -203,13 +203,13 @@ static void state_parse_psi(obj_t *obj)
                                 obj->addr -= obj->ts_size;
                                 if(obj->is_need_time)
                                 {
-                                        fprintf(stdout, "year-mm-dd HH:MM:SS,");
+                                        fprintf(stdout, "      second. ms us,");
                                 }
                                 else
                                 {
                                         fprintf(stdout, "address(X),address(d),");
                                 }
-                                fprintf(stdout, "   PID,          PCR,  PCR_BASE,PCR_EXT\n");
+                                fprintf(stdout, "   PID,          PCR,      BASE,EXT\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PES:
@@ -219,7 +219,7 @@ static void state_parse_psi(obj_t *obj)
                         case MODE_PTSDTS:
                                 if(obj->is_need_time)
                                 {
-                                        fprintf(stdout, "year-mm-dd HH:MM:SS,");
+                                        fprintf(stdout, "      second. ms us,");
                                 }
                                 else
                                 {
@@ -239,12 +239,11 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
-        time_t tp;
-        struct tm *lt; // local time
+        struct timeval tv;
 
-        time(&tp);
-        lt = localtime(&tp);
-        strftime(obj->time, 255, "%Y-%m-%d %H:%M:%S", lt);
+        gettimeofday(&tv, NULL);
+        sprintf(obj->time, "%12d.%06d",
+                (int)(tv.tv_sec), (int)(tv.tv_usec));
 
         tsParseOther(obj->ts_id);
 
@@ -266,7 +265,7 @@ static void state_parse_each(obj_t *obj)
                         show_ptsdts(obj);
                         break;
                 default:
-                        fprintf(stderr, "wrong mode\n");
+                        fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
                         break;
         }
         return;
@@ -596,7 +595,7 @@ static void show_pcr(obj_t *obj)
                 fprintf(stdout, "%10lu,", obj->addr);
         }
         fprintf(stdout, "0x%04X,", rslt->pid);
-        fprintf(stdout, "%13llu,%10llu,    %3u\n",
+        fprintf(stdout, "%13llu,%10llu,%3u\n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext);
@@ -639,21 +638,20 @@ static void show_ptsdts(obj_t *obj)
                 }
                 else
                 {
-                        fprintf(stdout, "0x%08lX", obj->addr);
-                        fprintf(stdout, ",%10lu", obj->addr);
+                        fprintf(stdout, "0x%08lX,", obj->addr);
+                        fprintf(stdout, "%10lu,", obj->addr);
                 }
-                fprintf(stdout, ",0x%04X", rslt->pid);
-                fprintf(stdout, ",%10llu", rslt->PTS);
+                fprintf(stdout, "0x%04X,", rslt->pid);
+                fprintf(stdout, "%10llu,", rslt->PTS);
 
                 if(rslt->has_DTS)
                 {
-                        fprintf(stdout, ",%10llu", rslt->DTS);
+                        fprintf(stdout, "%10llu\n", rslt->DTS);
                 }
                 else
                 {
-                        fprintf(stdout, ",          ");
+                        fprintf(stdout, "          \n");
                 }
-                fprintf(stdout, "\n");
         }
         return;
 }
