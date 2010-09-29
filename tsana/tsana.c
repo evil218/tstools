@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
-#include <sys/time.h>   // for gettimeofday(), etc
+#include <sys/time.h> // for gettimeofday(), etc
 #include <stdint.h> // for uint?_t, etc
 
 #include "error.h"
@@ -462,7 +462,7 @@ static int get_one_pkg(obj_t *obj)
         }
         //puts(obj->tbuf);
 
-        size = t2b(obj->bbuf, obj->tbuf);
+        size = t2b(obj->bbuf, obj->tbuf + 17); // ignore 17-byte prefix(address or time)
         if(size != 188)
         {
                 //fprintf(stderr, "Bad pkg_size:%d\n%s\n", size, obj->tbuf);

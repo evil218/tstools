@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
 {
         unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; // bin data buffer
         char tbuf[LINE_LENGTH_MAX + 10]; // txt data buffer
+        uint64_t addr = 0;
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -49,7 +50,9 @@ int main(int argc, char *argv[])
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
                 b2t(tbuf, bbuf, npline);
+                fprintf(stdout, "%016llX ", addr);
                 puts(tbuf);
+                addr += npline;
         }
 
         fclose(fd_i);
