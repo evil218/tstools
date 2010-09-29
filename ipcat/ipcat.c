@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         unsigned char bbuf[ 204 + 10]; // bin data buffer
         char tbuf[1024 + 10]; // txt data buffer
         struct timeval tv;
-        uint64_t timestamp; // unit: us
+        uint64_t timestamp; // unit: ns
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -56,6 +56,7 @@ int main(int argc, char *argv[])
                 timestamp = tv.tv_sec;
                 timestamp *= 1e6;
                 timestamp += tv.tv_usec;
+                timestamp *= 1e3;
 
                 b2t(tbuf, bbuf, npline);
                 fprintf(stdout, "%016llX ", timestamp);
