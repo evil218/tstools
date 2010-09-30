@@ -19,6 +19,8 @@ static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; // data number per line
 static char white_space = ' ';
+static int show_address = 1;
+static int dec_address = 0; // default: hex address
 
 //=============================================================================
 // Sub-function declare:
@@ -35,11 +37,13 @@ int main(int argc, char *argv[])
         unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; // bin data buffer
         char tbuf[LINE_LENGTH_MAX + 10]; // txt data buffer
         uint64_t addr = 0;
+        char *addr_fmt;
 
         if(0 != deal_with_parameter(argc, argv))
         {
                 return -1;
         }
+        addr_fmt = (dec_address) ? "%016llu%c" : "%016llX%c";
 
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i)
@@ -51,7 +55,10 @@ int main(int argc, char *argv[])
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
                 b2t(tbuf, bbuf, npline, white_space);
-                fprintf(stdout, "%016llX%c", addr, white_space);
+                if(show_address)
+                {
+                        fprintf(stdout, addr_fmt, addr, white_space);
+                }
                 puts(tbuf);
                 addr += npline;
         }
@@ -81,8 +88,8 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(0 == strcmp(argv[i], "-w") ||
-                           0 == strcmp(argv[i], "--width")
+                        if(     0 == strcmp(argv[i], "-w") ||
+                                0 == strcmp(argv[i], "--width")
                         )
                         {
                                 sscanf(argv[++i], "%i" , &dat);
@@ -96,6 +103,18 @@ static int deal_with_parameter(int argc, char *argv[])
                                                 "bad variable for '-n': %d, use %d instead!\n",
                                                 dat, npline);
                                 }
+                        }
+                        else if(0 == strcmp(argv[i], "-n") ||
+                                0 == strcmp(argv[i], "--noaddr")
+                        )
+                        {
+                                show_address = 0;
+                        }
+                        else if(0 == strcmp(argv[i], "-d") ||
+                                0 == strcmp(argv[i], "--decaddr")
+                        )
+                        {
+                                dec_address = 1;
                         }
                         else if(0 == strcmp(argv[i], "-s") ||
                                 0 == strcmp(argv[i], "--space")
@@ -141,10 +160,12 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -s, --space 's'  white space, default: ' '");
-        puts(" -w, --width <w>  w-byte per line, [1,10922], default: 188");
-        puts(" -h, --help       display this information");
-        puts(" -v, --version    display my version");
+        puts(" -n, --noaddr             do NOT show data address at line head");
+        puts(" -d, --decaddr            dec address format, default: hex");
+        puts(" -s, --seperate <,>       white space, any char like [ ,.:], default: ' '");
+        puts(" -w, --width <w>          w-byte per line, [1,10922], default: 188");
+        puts(" -h, --help               display this information");
+        puts(" -v, --version            display my version");
         puts("");
         puts("Examples:");
         puts("  bincat xxx.ts");
