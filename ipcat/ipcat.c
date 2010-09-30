@@ -137,7 +137,8 @@ static void show_help()
         puts(" -v, --version    print my version, then exit");
         puts("");
         puts("Examples:");
-        puts("  ipcat udp://@22.4165.54.210:1234");
+        puts("  ipcat udp://@:1234");
+        puts("  ipcat udp://@224.165.54.210:1234");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
@@ -145,7 +146,6 @@ static void show_help()
 
 static void show_version()
 {
-        //fprintf(stdout, "ipcat 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
         puts("ipcat 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010 ZHOU Cheng.");

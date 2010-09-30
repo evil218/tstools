@@ -420,10 +420,8 @@ static void show_help()
         puts(" -es              output ES data of <pid>");
         puts(" -ptsdts          output PTS and DTS of <pid>");
 #if 0
-        puts(" -o <file>        output file name, default: stdout");
         puts(" -prepsi <file>   get PSI information from <file> first");
         puts(" -debug           show all errors found");
-        puts(" -flt             filter package with <pid>");
 #endif
         puts("");
         puts(" -h, --help       display this information");
@@ -438,7 +436,6 @@ static void show_help()
 
 static void show_version()
 {
-        //fprintf(stdout, "tsana 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
         puts("tsana 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010 ZHOU Cheng.");
@@ -666,23 +663,6 @@ static void show_ptsdts(obj_t *obj)
         return;
 }
 
-#if 0
-static void show_TS(obj_t *obj)
-{
-        ts_t *ts = obj->ts;
-
-        fprintf(stdout, "TS:\n");
-        fprintf(stdout, "  0x%02X  : sync_byte\n", ts->sync_byte);
-        fprintf(stdout, "  %c     : transport_error_indicator\n", (ts->transport_error_indicator) ? '1' : '0');
-        fprintf(stdout, "  %c     : payload_unit_start_indicator\n", (ts->payload_unit_start_indicator) ? '1' : '0');
-        fprintf(stdout, "  %c     : transport_priority\n", (ts->transport_priority) ? '1' : '0');
-        fprintf(stdout, "  0x%04X: PID\n", ts->PID);
-        fprintf(stdout, "  0b%s  : transport_scrambling_control\n", printb(ts->transport_scrambling_control, 2));
-        fprintf(stdout, "  0b%s  : adaption_field_control\n", printb(ts->adaption_field_control, 2));
-        fprintf(stdout, "  0x%X   : continuity_counter\n", ts->continuity_counter);
-        return;
-}
-#endif
 //=============================================================================
 // THE END.
 //=============================================================================

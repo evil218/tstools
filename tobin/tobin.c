@@ -126,7 +126,6 @@ static void show_help()
 
 static void show_version()
 {
-        //fprintf(stdout, "tobin 0.1.0 (by Cygwin), %s %s\n", __TIME__, __DATE__);
         puts("tobin 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010 ZHOU Cheng.");
