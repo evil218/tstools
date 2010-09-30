@@ -18,6 +18,7 @@
 static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; // data number per line
+static char white_space = ' ';
 
 //=============================================================================
 // Sub-function declare:
@@ -49,8 +50,8 @@ int main(int argc, char *argv[])
 
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
-                b2t(tbuf, bbuf, npline);
-                fprintf(stdout, "%016llX ", addr);
+                b2t(tbuf, bbuf, npline, white_space);
+                fprintf(stdout, "%016llX%c", addr, white_space);
                 puts(tbuf);
                 addr += npline;
         }
@@ -80,7 +81,9 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(0 == strcmp(argv[i], "-n"))
+                        if(0 == strcmp(argv[i], "-w") ||
+                           0 == strcmp(argv[i], "--width")
+                        )
                         {
                                 sscanf(argv[++i], "%i" , &dat);
                                 if(0 < dat && dat <= (LINE_LENGTH_MAX / 3))
@@ -93,6 +96,12 @@ static int deal_with_parameter(int argc, char *argv[])
                                                 "bad variable for '-n': %d, use %d instead!\n",
                                                 dat, npline);
                                 }
+                        }
+                        else if(0 == strcmp(argv[i], "-s") ||
+                                0 == strcmp(argv[i], "--space")
+                        )
+                        {
+                                sscanf(argv[++i], "%c" , &white_space);
                         }
                         else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")
@@ -132,7 +141,8 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -n <npl>         data count per line, [1,10922], default: 188");
+        puts(" -s, --space 's'  white space, default: ' '");
+        puts(" -w, --width <w>  w-byte per line, [1,10922], default: 188");
         puts(" -h, --help       display this information");
         puts(" -v, --version    display my version");
         puts("");

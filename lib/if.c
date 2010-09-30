@@ -77,7 +77,7 @@ static const char *b2t_table[256] =
 //=============================================================================
 // Functions definition:
 //=============================================================================
-int b2t(void *tbuf, void *bbuf, int size)
+int b2t(void *tbuf, void *bbuf, int size, char white_space)
 {
         int i;
         const char *ch;
@@ -90,7 +90,7 @@ int b2t(void *tbuf, void *bbuf, int size)
 
                 *pt++ = *ch++;
                 *pt++ = *ch;
-                *pt++ = ' ';
+                *pt++ = white_space;
         }
         *pt = '\0';
 
@@ -119,7 +119,7 @@ int t2b(void *bbuf, void *tbuf)
 
                 x = *pt++;
                 if('\0' == x || 0x0a == x || 0x0d == x) break;
-                if(' ' != x)
+                if((' ' != x) && (',' != x))
                 {
                         fprintf(stderr, "Bad white space: 0x%02X\n", (int)x);
                         fprintf(stderr, "%s\n", (char *)tbuf);

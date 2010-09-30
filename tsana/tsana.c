@@ -511,10 +511,15 @@ static void show_prog(struct LIST *list)
                 fprintf(stdout, "    PCR_PID = 0x%04X\n",
                         prog->PCR_PID);
                 fprintf(stdout, "    program_info:");
+                fprintf(stdout, "        ");
                 for(i = 0; i < prog->program_info_len; i++)
                 {
-                        if(0x00 == (i & 0x0F)) fprintf(stdout, "\n");
-                        fprintf(stdout, " %02X", *(prog->program_info_buf + i));
+                        if(0x00 == (i & 0x0F))
+                        {
+                                fprintf(stdout, "\n");
+                                fprintf(stdout, "        ");
+                        }
+                        fprintf(stdout, "%02X ", *(prog->program_info_buf + i));
                 }
                 fprintf(stdout, "\n");
                 show_track(prog->track);
@@ -541,10 +546,15 @@ static void show_track(struct LIST *list)
                 fprintf(stdout, "        elementary_PID = 0x%04X\n",
                         track->PID);
                 fprintf(stdout, "        ES_info:");
+                fprintf(stdout, "            ");
                 for(i = 0; i < track->es_info_len; i++)
                 {
-                        if(0x00 == (i & 0x0F)) fprintf(stdout, "\n");
-                        fprintf(stdout, " %02X", *(track->es_info_buf +i));
+                        if(0x00 == (i & 0x0F))
+                        {
+                                fprintf(stdout, "\n");
+                                fprintf(stdout, "            ");
+                        }
+                        fprintf(stdout, "%02X ", *(track->es_info_buf +i));
                 }
                 fprintf(stdout, "\n");
         }
@@ -608,7 +618,7 @@ static void show_pes(obj_t *obj)
 
         if(0 != rslt->PES_len)
         {
-                b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len);
+                b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len, ' ');
                 puts(obj->tbuf);
         }
         return;
@@ -620,7 +630,7 @@ static void show_es(obj_t *obj)
 
         if(0 != rslt->ES_len)
         {
-                b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len);
+                b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len, ' ');
                 puts(obj->tbuf);
         }
         return;

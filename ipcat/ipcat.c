@@ -20,6 +20,7 @@
 static URL *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; // data number per line
+static char white_space = ' ';
 
 //=============================================================================
 // Sub-function declare:
@@ -58,8 +59,8 @@ int main(int argc, char *argv[])
                 timestamp += tv.tv_usec;
                 timestamp *= 1e3;
 
-                b2t(tbuf, bbuf, npline);
-                fprintf(stdout, "%016llX ", timestamp);
+                b2t(tbuf, bbuf, npline, white_space);
+                fprintf(stdout, "%016llX%c", timestamp, white_space);
                 puts(tbuf);
         }
 
@@ -87,7 +88,13 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(     0 == strcmp(argv[i], "-h") ||
+                        if(     0 == strcmp(argv[i], "-s") ||
+                                0 == strcmp(argv[i], "--space")
+                        )
+                        {
+                                sscanf(argv[++i], "%c" , &white_space);
+                        }
+                        else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")
                         )
                         {
@@ -125,6 +132,7 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
+        puts(" -s, --space 's'  white space, default: ' '");
         puts(" -h, --help       print this information, then exit");
         puts(" -v, --version    print my version, then exit");
         puts("");

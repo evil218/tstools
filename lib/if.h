@@ -20,7 +20,7 @@ extern "C" {
 /*============================================================================
  * Public Function Declaration
  ===========================================================================*/
-int b2t(void *tbuf, void *bbuf, int size);
+int b2t(void *tbuf, void *bbuf, int size, char white_space);
 int t2b(void *bbuf, void *tbuf);
 
 #ifdef __cplusplus
