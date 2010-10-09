@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
-#include <sys/time.h> // for gettimeofday(), etc
+#include <time.h> // for localtime(), etc
 #include <stdint.h> // for uint?_t, etc
 
 #include "error.h"
@@ -28,9 +28,6 @@ typedef struct
         int is_outpsi; // output txt psi package to stdout
         int is_prepsi; // get psi information from file first
         uint16_t aim_pid;
-
-        char time[255];
-        uint64_t addr; // address in input
 
         uint32_t ts_size;
         uint8_t bbuf[204];
@@ -142,7 +139,6 @@ int main(int argc, char *argv[])
                                 obj->state = STATE_EXIT;
                                 break;
                 }
-                obj->addr += obj->ts_size;
         }
 
         if(STATE_PARSE_PSI == obj->state)
@@ -186,20 +182,17 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_CC:
                                 print_atp_title();
-                                fprintf(stdout, " %4s, %4s, %10s,\n",
-                                        "wait", "find", "lost(+16n)");
+                                fprintf(stdout, "wait, find, lost, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PCR:
                                 print_atp_title();
-                                fprintf(stdout, " %13s, %10s, %3s,\n",
-                                        "PCR", "BASE", "EXT");
+                                fprintf(stdout, "PCR, BASE, EXT, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PTSDTS:
                                 print_atp_title();
-                                fprintf(stdout, " %10s, %10s,\n",
-                                        "PTS", "DTS");
+                                fprintf(stdout, "PTS, DTS, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PES:
@@ -217,13 +210,6 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
-        struct timeval tv;
-
-        gettimeofday(&tv, NULL);
-        sprintf(obj->time, "%12d%06d",
-                (int)(tv.tv_sec),
-                (int)(tv.tv_usec));
-
         tsParseOther(obj->ts_id);
 
         switch(obj->mode)
@@ -268,8 +254,6 @@ static obj_t *create(int argc, char *argv[])
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
         obj->aim_pid = ANY_PID;
-        obj->time[0] = '\0';
-        obj->addr = 0;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -543,7 +527,7 @@ static void show_cc(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, " %4X, %4X, %4u(+16n),\n",
+        fprintf(stdout, "%X, %X, %2u +16n, \n",
                 rslt->CC_wait,
                 rslt->CC_find,
                 rslt->CC_lost);
@@ -560,7 +544,7 @@ static void show_pcr(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, " %13llu, %10llu, %3u,\n",
+        fprintf(stdout, "%llu, %llu, %u, \n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext);
@@ -574,15 +558,15 @@ static void show_ptsdts(obj_t *obj)
         if(rslt->has_PTS)
         {
                 print_atp_value(obj);
-                fprintf(stdout, " %10llu,", rslt->PTS);
+                fprintf(stdout, "%llu, ", rslt->PTS);
 
                 if(rslt->has_DTS)
                 {
-                        fprintf(stdout, " %10llu,\n", rslt->DTS);
+                        fprintf(stdout, "%llu, \n", rslt->DTS);
                 }
                 else
                 {
-                        fprintf(stdout, " %10s,\n", " ");
+                        fprintf(stdout, ", \n");
                 }
         }
         return;
@@ -614,19 +598,28 @@ static void show_es(obj_t *obj)
 
 static void print_atp_title()
 {
-        fprintf(stdout, "%10s, %19s, %10s, %19s, %6s,",
-                "address", "yyyy-mm-dd_hh-mm-ss",
-                "address", "second ms us",
-                "PID");
+        fprintf(stdout, "address(byte), time(yyyy-mm-dd hh:mm:ss), address(byte), time(ns), PID, ");
         return;
 }
 
 static void print_atp_value(obj_t *obj)
 {
-        fprintf(stdout, "0x%08llX, %19s, %10lld, %19s, 0x%04X,",
-                obj->addr, obj->time,
-                obj->addr, obj->time,
-                obj->rslt->pid);
+        ts_rslt_t *rslt;
+        time_t tp;
+        struct tm *lt; // local time
+        char time[32];
+
+        rslt = obj->rslt;
+
+        // translate time to YMDHMS format
+        tp = rslt->time / 1000000000;
+        lt = localtime(&tp);
+        strftime(time, 32, "%Y-%m-%d %H:%M:%S", lt);
+
+        fprintf(stdout, "0x%llX, %s, %lld, %llu, 0x%04X, ",
+                rslt->addr, time,
+                rslt->addr, rslt->time,
+                rslt->pid);
         return;
 }
 

@@ -76,7 +76,12 @@ typedef struct
         struct LIST *pid_list;
 
         // information about current package
+        uint64_t ref_time; // NOT 0x0000000000000000: referenced arrival time
+        uint64_t ref_addr; // NOT 0xFFFFFFFFFFFFFFFF: referenced data address
+        uint64_t time; // arrival time of this package, unit: (ns)
+        uint64_t addr; // address of this package
         uint8_t line[204]; // current TS package
+
         uint16_t concerned_pid; // used for PSI parsing
         uint16_t pid;
 

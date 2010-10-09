@@ -149,6 +149,8 @@ table_id_table_t;
 
 typedef struct
 {
+        int is_first_pkg;
+
         uint8_t *p; // point to rslt.line
         int len;
 
@@ -340,10 +342,13 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         (*rslt)->prog_list = list_init();
         (*rslt)->pid_list = list_init();
 
+        obj->is_first_pkg = 1;
         obj->pkg_size = pkg_size;
         obj->state = STATE_NEXT_PAT;
         obj->is_pes_align = 1; // PES align(0: need; 1: dot't need)
 
+        (*rslt)->time = 0;
+        (*rslt)->addr = 0;
         (*rslt)->CC_lost = 0;
         (*rslt)->is_psi_parsed = 0;
         (*rslt)->concerned_pid = 0x0000; // PAT_PID
@@ -388,6 +393,17 @@ int tsParseTS(int id, void *pkg)
         memcpy(obj->rslt.line, pkg, obj->pkg_size);
         obj->p = obj->rslt.line;
         obj->len = obj->pkg_size;
+
+        // calculate address
+        if(obj->is_first_pkg)
+        {
+                obj->is_first_pkg = 0;
+                obj->rslt.addr = 0;
+        }
+        else
+        {
+                obj->rslt.addr += obj->pkg_size;
+        }
 
         return parse_TS(obj);
 }

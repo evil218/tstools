@@ -55,9 +55,9 @@ int main(int argc, char *argv[])
         {
                 gettimeofday(&tv, NULL);
                 timestamp = tv.tv_sec;
-                timestamp *= 1e6;
+                timestamp *= 1000000;
                 timestamp += tv.tv_usec;
-                timestamp *= 1e3;
+                timestamp *= 1000;
 
                 b2t(tbuf, bbuf, npline, white_space);
                 fprintf(stdout, "%016llX%c", timestamp, white_space);
