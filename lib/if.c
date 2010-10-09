@@ -118,8 +118,14 @@ int t2b(void *bbuf, void *tbuf)
                 //printf("%02X ", (int)pb[b]);
 
                 x = *pt++;
-                if('\0' == x || 0x0a == x || 0x0d == x) break;
-                if((' ' != x) && (',' != x))
+                if('\0' == x || 0x0a == x || 0x0d == x)
+                {
+                        break;
+                }
+                else if((('0' <= x) && (x <= '9')) ||
+                        (('A' <= x) && (x <= 'F')) ||
+                        (('a' <= x) && (x <= 'f'))
+                )
                 {
                         fprintf(stderr, "Bad white space: 0x%02X\n", (int)x);
                         fprintf(stderr, "%s\n", (char *)tbuf);

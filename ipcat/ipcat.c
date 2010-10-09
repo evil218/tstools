@@ -132,7 +132,7 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -s, --space 's'  white space, default: ' '");
+        puts(" -s, --space <s>  white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -h, --help       print this information, then exit");
         puts(" -v, --version    print my version, then exit");
         puts("");

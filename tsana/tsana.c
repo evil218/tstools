@@ -29,9 +29,8 @@ typedef struct
         int is_prepsi; // get psi information from file first
         uint16_t aim_pid;
 
-        int is_need_time; // time or address
         char time[255];
-        long unsigned int addr; // addr in input
+        uint64_t addr; // address in input
 
         uint32_t ts_size;
         uint8_t bbuf[204];
@@ -49,11 +48,11 @@ enum
 {
         MODE_PID,
         MODE_PSI,
+        MODE_CC,
+        MODE_PCR,
+        MODE_PTSDTS,
         MODE_PES,
         MODE_ES,
-        MODE_PTSDTS,
-        MODE_PCR,
-        MODE_CC,
         MODE_DEBUG,
         MODE_EXIT
 };
@@ -97,13 +96,12 @@ static void show_track(struct LIST *list);
 
 static void show_cc(obj_t *obj);
 static void show_pcr(obj_t *obj);
+static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
 static void show_es(obj_t *obj);
-static void show_ptsdts(obj_t *obj);
 
-#if 0
-static void show_TS(obj_t *obj);
-#endif
+static void print_atp_title(); // atp: address_time_PID
+static void print_atp_value(obj_t *obj); // atp: address_time_PID
 
 //=============================================================================
 // the main function
@@ -170,7 +168,7 @@ static void state_parse_psi(obj_t *obj)
                 tsParseOther(obj->ts_id);
                 if(obj->is_outpsi)
                 {
-                        puts(obj->tbuf);
+                        puts(obj->tbuf + 17);
                 }
         }
 
@@ -187,45 +185,25 @@ static void state_parse_psi(obj_t *obj)
                                 obj->state = STATE_EXIT;
                                 break;
                         case MODE_CC:
-                                obj->addr -= obj->ts_size;
-                                if(obj->is_need_time)
-                                {
-                                        fprintf(stdout, "      second. ms us,");
-                                }
-                                else
-                                {
-                                        fprintf(stdout, "address(X),address(d),");
-                                }
-                                fprintf(stdout, "   PID,wait,find,lost\n");
+                                print_atp_title();
+                                fprintf(stdout, " %4s, %4s, %10s,\n",
+                                        "wait", "find", "lost(+16n)");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PCR:
-                                obj->addr -= obj->ts_size;
-                                if(obj->is_need_time)
-                                {
-                                        fprintf(stdout, "      second. ms us,");
-                                }
-                                else
-                                {
-                                        fprintf(stdout, "address(X),address(d),");
-                                }
-                                fprintf(stdout, "   PID,          PCR,      BASE,EXT\n");
+                                print_atp_title();
+                                fprintf(stdout, " %13s, %10s, %3s,\n",
+                                        "PCR", "BASE", "EXT");
+                                obj->state = STATE_PARSE_EACH;
+                                break;
+                        case MODE_PTSDTS:
+                                print_atp_title();
+                                fprintf(stdout, " %10s, %10s,\n",
+                                        "PTS", "DTS");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PES:
                         case MODE_ES:
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_PTSDTS:
-                                if(obj->is_need_time)
-                                {
-                                        fprintf(stdout, "      second. ms us,");
-                                }
-                                else
-                                {
-                                        fprintf(stdout, "address(X),address(d),");
-                                }
-                                fprintf(stdout, "   PID,       PTS,       DTS\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_EXIT:
@@ -242,8 +220,9 @@ static void state_parse_each(obj_t *obj)
         struct timeval tv;
 
         gettimeofday(&tv, NULL);
-        sprintf(obj->time, "%12d.%06d",
-                (int)(tv.tv_sec), (int)(tv.tv_usec));
+        sprintf(obj->time, "%12d%06d",
+                (int)(tv.tv_sec),
+                (int)(tv.tv_usec));
 
         tsParseOther(obj->ts_id);
 
@@ -255,14 +234,14 @@ static void state_parse_each(obj_t *obj)
                 case MODE_PCR:
                         show_pcr(obj);
                         break;
+                case MODE_PTSDTS:
+                        show_ptsdts(obj);
+                        break;
                 case MODE_PES:
                         show_pes(obj);
                         break;
                 case MODE_ES:
                         show_es(obj);
-                        break;
-                case MODE_PTSDTS:
-                        show_ptsdts(obj);
                         break;
                 default:
                         fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
@@ -285,10 +264,12 @@ static obj_t *create(int argc, char *argv[])
         }
 
         obj->mode = MODE_PID;
-        obj->aim_pid = ANY_PID;
-        obj->is_need_time = 0;
+        obj->state = STATE_PARSE_PSI;
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
+        obj->aim_pid = ANY_PID;
+        obj->time[0] = '\0';
+        obj->addr = 0;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -311,10 +292,6 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-prepsi"))
                         {
                                 obj->is_prepsi = 1;
-                        }
-                        else if(0 == strcmp(argv[i], "-time"))
-                        {
-                                obj->is_need_time = 1;
                         }
                         else if(0 == strcmp(argv[i], "-cc"))
                         {
@@ -382,7 +359,6 @@ static obj_t *create(int argc, char *argv[])
         }
 
         obj->ts_id = tsCreate(obj->ts_size, &(obj->rslt));
-        obj->state = STATE_PARSE_PSI;
 
         return obj;
 }
@@ -412,13 +388,12 @@ static void show_help()
         puts(" -pid-list        show PID list information, default option");
         puts(" -psi-tree        show PSI tree information");
         puts(" -outpsi          output PSI package");
-        puts(" -time            show time instead of address when TS error");
-        puts(" -cc              check Continuity Counter of <pid>");
-        puts(" -pcr             show PCR value of <pid>");
+        puts(" -cc              check Continuity Counter of cared <pid>");
+        puts(" -pcr             show PCR value of cared <pid>");
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
-        puts(" -pes             output PES data of <pid>");
-        puts(" -es              output ES data of <pid>");
-        puts(" -ptsdts          output PTS and DTS of <pid>");
+        puts(" -pes             output PES data of cared <pid>");
+        puts(" -es              output ES data of cared <pid>");
+        puts(" -ptsdts          output PTS and DTS of cared <pid>");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
         puts(" -debug           show all errors found");
@@ -567,17 +542,8 @@ static void show_cc(obj_t *obj)
                 return;
         }
 
-        if(obj->is_need_time)
-        {
-                fprintf(stdout, "%s,", obj->time);
-        }
-        else
-        {
-                fprintf(stdout, "0x%08lX,", obj->addr);
-                fprintf(stdout, "%10lu,", obj->addr);
-        }
-        fprintf(stdout, "0x%04X,", rslt->pid);
-        fprintf(stdout, "  %2u,  %2u,  %2d +16n\n",
+        print_atp_value(obj);
+        fprintf(stdout, " %4X, %4X, %4u(+16n),\n",
                 rslt->CC_wait,
                 rslt->CC_find,
                 rslt->CC_lost);
@@ -592,20 +558,33 @@ static void show_pcr(obj_t *obj)
         {
                 return;
         }
-        if(obj->is_need_time)
-        {
-                fprintf(stdout, "%s,", obj->time);
-        }
-        else
-        {
-                fprintf(stdout, "0x%08lX,", obj->addr);
-                fprintf(stdout, "%10lu,", obj->addr);
-        }
-        fprintf(stdout, "0x%04X,", rslt->pid);
-        fprintf(stdout, "%13llu,%10llu,%3u\n",
+
+        print_atp_value(obj);
+        fprintf(stdout, " %13llu, %10llu, %3u,\n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext);
+        return;
+}
+
+static void show_ptsdts(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(rslt->has_PTS)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, " %10llu,", rslt->PTS);
+
+                if(rslt->has_DTS)
+                {
+                        fprintf(stdout, " %10llu,\n", rslt->DTS);
+                }
+                else
+                {
+                        fprintf(stdout, " %10s,\n", " ");
+                }
+        }
         return;
 }
 
@@ -633,33 +612,21 @@ static void show_es(obj_t *obj)
         return;
 }
 
-static void show_ptsdts(obj_t *obj)
+static void print_atp_title()
 {
-        ts_rslt_t *rslt = obj->rslt;
+        fprintf(stdout, "%10s, %19s, %10s, %19s, %6s,",
+                "address", "yyyy-mm-dd_hh-mm-ss",
+                "address", "second ms us",
+                "PID");
+        return;
+}
 
-        if(rslt->has_PTS)
-        {
-                if(obj->is_need_time)
-                {
-                        fprintf(stdout, "%s,", obj->time);
-                }
-                else
-                {
-                        fprintf(stdout, "0x%08lX,", obj->addr);
-                        fprintf(stdout, "%10lu,", obj->addr);
-                }
-                fprintf(stdout, "0x%04X,", rslt->pid);
-                fprintf(stdout, "%10llu,", rslt->PTS);
-
-                if(rslt->has_DTS)
-                {
-                        fprintf(stdout, "%10llu\n", rslt->DTS);
-                }
-                else
-                {
-                        fprintf(stdout, "          \n");
-                }
-        }
+static void print_atp_value(obj_t *obj)
+{
+        fprintf(stdout, "0x%08llX, %19s, %10lld, %19s, 0x%04X,",
+                obj->addr, obj->time,
+                obj->addr, obj->time,
+                obj->rslt->pid);
         return;
 }
 

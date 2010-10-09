@@ -162,7 +162,7 @@ static void show_help()
         puts("");
         puts(" -n, --noaddr             do NOT show data address at line head");
         puts(" -d, --decaddr            dec address format, default: hex");
-        puts(" -s, --seperate <,>       white space, any char like [ ,.:], default: ' '");
+        puts(" -s, --seperate <,>       white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -w, --width <w>          w-byte per line, [1,10922], default: 188");
         puts(" -h, --help               display this information");
         puts(" -v, --version            display my version");
