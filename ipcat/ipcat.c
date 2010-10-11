@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
-#include <sys/time.h> // for gettimeofday(), etc
 
 #include "error.h"
 #include "if.h"
@@ -36,8 +35,6 @@ int main(int argc, char *argv[])
 {
         unsigned char bbuf[ 204 + 10]; // bin data buffer
         char tbuf[1024 + 10]; // txt data buffer
-        struct timeval tv;
-        uint64_t timestamp; // unit: ns
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -53,14 +50,7 @@ int main(int argc, char *argv[])
 
         while(1 == url_read(bbuf, npline, 1, fd_i))
         {
-                gettimeofday(&tv, NULL);
-                timestamp = tv.tv_sec;
-                timestamp *= 1000000;
-                timestamp += tv.tv_usec;
-                timestamp *= 1000;
-
                 b2t(tbuf, bbuf, npline, white_space);
-                fprintf(stdout, "%016llX%c", timestamp, white_space);
                 puts(tbuf);
         }
 

@@ -19,7 +19,7 @@ static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; // data number per line
 static char white_space = ' ';
-static int show_address = 1;
+static int show_address = 0;
 static int dec_address = 0; // default: hex address
 
 //=============================================================================
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
         {
                 return -1;
         }
-        addr_fmt = (dec_address) ? "%016llu%c" : "%016llX%c";
+        addr_fmt = (dec_address) ? "%llu%c" : "%llX%c";
 
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i)
@@ -104,11 +104,11 @@ static int deal_with_parameter(int argc, char *argv[])
                                                 dat, npline);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-n") ||
-                                0 == strcmp(argv[i], "--noaddr")
+                        else if(0 == strcmp(argv[i], "-a") ||
+                                0 == strcmp(argv[i], "--addr")
                         )
                         {
-                                show_address = 0;
+                                show_address = 1;
                         }
                         else if(0 == strcmp(argv[i], "-d") ||
                                 0 == strcmp(argv[i], "--decaddr")
@@ -160,7 +160,7 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -n, --noaddr             do NOT show data address at line head");
+        puts(" -a, --addr               show data address at line head, default: do NOT show it");
         puts(" -d, --decaddr            dec address format, default: hex");
         puts(" -s, --seperate <,>       white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -w, --width <w>          w-byte per line, [1,10922], default: 188");

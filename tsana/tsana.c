@@ -164,7 +164,7 @@ static void state_parse_psi(obj_t *obj)
                 tsParseOther(obj->ts_id);
                 if(obj->is_outpsi)
                 {
-                        puts(obj->tbuf + 17);
+                        puts(obj->tbuf);
                 }
         }
 
@@ -418,7 +418,7 @@ static int get_one_pkg(obj_t *obj)
         }
         //puts(obj->tbuf);
 
-        size = t2b(obj->bbuf, obj->tbuf + 17); // ignore 17-byte prefix(address or time)
+        size = t2b(obj->bbuf, obj->tbuf);
         if(size != 188)
         {
                 //fprintf(stderr, "Bad pkg_size:%d\n%s\n", size, obj->tbuf);
@@ -598,7 +598,7 @@ static void show_es(obj_t *obj)
 
 static void print_atp_title()
 {
-        fprintf(stdout, "address(byte), time(yyyy-mm-dd hh:mm:ss), address(byte), time(ns), PID, ");
+        fprintf(stdout, "yyyy-mm-dd hh:mm:ss, address(byte), address(byte), time(ns), PID, ");
         return;
 }
 
@@ -607,17 +607,16 @@ static void print_atp_value(obj_t *obj)
         ts_rslt_t *rslt;
         time_t tp;
         struct tm *lt; // local time
-        char time[32];
+        char stime[32];
 
         rslt = obj->rslt;
 
-        // translate time to YMDHMS format
-        tp = rslt->time / 1000000000;
+        time(&tp);
         lt = localtime(&tp);
-        strftime(time, 32, "%Y-%m-%d %H:%M:%S", lt);
+        strftime(stime, 32, "%Y-%m-%d %H:%M:%S", lt);
 
-        fprintf(stdout, "0x%llX, %s, %lld, %llu, 0x%04X, ",
-                rslt->addr, time,
+        fprintf(stdout, "%s, 0x%llX, %lld, %llu, 0x%04X, ",
+                stime, rslt->addr,
                 rslt->addr, rslt->time,
                 rslt->pid);
         return;
