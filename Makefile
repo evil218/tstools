@@ -9,3 +9,6 @@ endef
 
 all doc clean explain depend install uninstall:
 	$(make_dirs)
+
+tag:
+	ctags -R *

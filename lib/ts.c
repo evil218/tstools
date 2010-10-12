@@ -305,6 +305,7 @@ static int state_next_pmt(obj_t *obj);
 static int state_next_pkg(obj_t *obj);
 
 static int dump_TS(obj_t *obj);   // for debug
+
 static int parse_TS(obj_t *obj);  // ts layer information
 static int parse_AF(obj_t *obj);  // adaption_fields information
 static int parse_PSI(obj_t *obj); // psi information
@@ -535,7 +536,7 @@ static int state_next_pkg(obj_t *obj)
         }
 
         // PES head & ES data
-        if(pids->is_track)
+        if(pids->track)
         {
                 parse_PES(obj);
         }
@@ -616,6 +617,7 @@ static int parse_TS(obj_t *obj)
         {
                 rslt->pids = add_new_pid(obj);
         }
+        rslt->pids->count++;
 
         return 0;
 }
@@ -1204,7 +1206,7 @@ static int parse_PAT_load(obj_t *obj)
                 pids->PID = prog->PMT_PID;
                 search_in_TS_PID_TABLE(pids->PID, &(pids->type));
                 pids->count = 0;
-                pids->is_track = 0;
+                pids->track = NULL;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
                 pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
@@ -1285,7 +1287,8 @@ static int parse_PMT_load(obj_t *obj)
 
         // add PCR PID
         pids->PID = prog->PCR_PID;
-        pids->is_track = 0;
+        pids->count = 0;
+        pids->track = NULL;
         pids->type = PCR_PID;
         pids->CC = 0;
         pids->is_CC_sync = 1;
@@ -1351,7 +1354,8 @@ static int parse_PMT_load(obj_t *obj)
 
                 // add track PID
                 pids->PID = track->PID;
-                pids->is_track = 1;
+                pids->count = 0;
+                pids->track = track;
                 pids->type = track->type;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
@@ -1409,7 +1413,7 @@ static ts_pid_t *add_new_pid(obj_t *obj)
 
         pids->PID = rslt->pid;
         search_in_TS_PID_TABLE(pids->PID, &(pids->type));
-        pids->is_track = 0;
+        pids->track = NULL;
         pids->count = 1;
         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
         if(STATE_NEXT_PKG == obj->state)
@@ -1439,7 +1443,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                 {
                         if(PCR_PID == pids->type)
                         {
-                                pids->is_track = the_pids->is_track;
+                                pids->track = the_pids->track;
                                 if(VID_PID == the_pids->type)
                                 {
                                         pids->type = VID_PCR;
@@ -1463,7 +1467,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         else
                         {
                                 // update item information
-                                pids->is_track = the_pids->is_track;
+                                pids->track = the_pids->track;
                                 pids->type = the_pids->type;
                                 pids->count = the_pids->count;
                                 pids->CC = the_pids->CC;
@@ -1485,7 +1489,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         }
 
                         pids->PID = the_pids->PID;
-                        pids->is_track = the_pids->is_track;
+                        pids->track = the_pids->track;
                         pids->type = the_pids->type;
                         pids->count = the_pids->count;
                         pids->CC = the_pids->CC;
@@ -1508,7 +1512,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         }
 
                         pids->PID = the_pids->PID;
-                        pids->is_track = the_pids->is_track;
+                        pids->track = the_pids->track;
                         pids->type = the_pids->type;
                         pids->count = the_pids->count;
                         pids->CC = the_pids->CC;
@@ -1531,7 +1535,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         }
 
                         pids->PID = the_pids->PID;
-                        pids->is_track = the_pids->is_track;
+                        pids->track = the_pids->track;
                         pids->type = the_pids->type;
                         pids->count = the_pids->count;
                         pids->CC = the_pids->CC;
@@ -1553,7 +1557,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
         }
 
         pids->PID = the_pids->PID;
-        pids->is_track = the_pids->is_track;
+        pids->track = the_pids->track;
         pids->type = the_pids->type;
         pids->count = the_pids->count;
         pids->CC = the_pids->CC;

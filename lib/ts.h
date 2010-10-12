@@ -22,26 +22,6 @@ typedef struct
         struct NODE *next;
         struct NODE *prev;
 
-        uint16_t PID:13;
-        int is_track; // is video or audio package
-        int type; // pid type index
-        const char *sdes; // short description
-        const char *ldes; // long description
-
-        int count; // packet number received, for statistic
-
-        // for check continuity_counter
-        uint32_t CC:4;
-        uint32_t dCC:4; // 0 or 1
-        int is_CC_sync;
-}
-ts_pid_t; // unit of pid list
-
-typedef struct
-{
-        struct NODE *next;
-        struct NODE *prev;
-
         uint32_t PMT_PID:13;
         uint32_t PCR_PID:13;
         uint32_t program_number:16;
@@ -70,14 +50,34 @@ ts_track_t; // unit of track list
 
 typedef struct
 {
+        struct NODE *next;
+        struct NODE *prev;
+
+        uint16_t PID:13;
+        int type; // pid type index
+        const char *sdes; // short description
+        const char *ldes; // long description
+
+        uint32_t count; // packet number received, for statistic
+
+        ts_prog_t *prog; // for PMT, PCR and PES package or NULL
+        ts_track_t *track; // for video or audio package or NULL
+
+        // for check continuity_counter
+        uint32_t CC:4;
+        uint32_t dCC:4; // 0 or 1
+        int is_CC_sync;
+}
+ts_pid_t; // unit of pid list
+
+typedef struct
+{
         // PSI, SI and other TS information
         int is_psi_parsed;
         struct LIST *prog_list;
         struct LIST *pid_list;
 
         // information about current package
-        uint64_t ref_time; // NOT 0x0000000000000000: referenced arrival time
-        uint64_t ref_addr; // NOT 0xFFFFFFFFFFFFFFFF: referenced data address
         uint64_t time; // arrival time of this package, unit: (ns)
         uint64_t addr; // address of this package
         uint8_t line[204]; // current TS package
@@ -85,16 +85,16 @@ typedef struct
         uint16_t concerned_pid; // used for PSI parsing
         uint16_t pid;
 
-        ts_pid_t *pids; // item in pid_list
+        ts_pid_t *pids; // point to item in pid_list
 
         int CC_wait;
         int CC_find;
         int CC_lost; // lost != 0 means CC wrong
 
         int has_PCR;
+        uint64_t PCR;
         uint64_t PCR_base;
         uint16_t PCR_ext;
-        uint64_t PCR;
 
         int has_PTS;
         uint64_t PTS;

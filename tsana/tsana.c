@@ -433,16 +433,17 @@ static void show_pids(struct LIST *list)
         struct NODE *node;
         ts_pid_t *pids;
 
-        //fprintf(stdout, "pid_list(%d-item):\n\n", list_count(list));
-        fprintf(stdout, " PID  , dCC, track,     abbr, detail\n");
+        fprintf(stdout, " PID  , percent, count, dCC, track,     abbr, detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, "0x%04X,  %u ,     %c, %s, %s\n",
+                fprintf(stdout, "0x%04X, %7u, %5u,  %u ,     %c, %s, %s\n",
                         pids->PID,
+                        0, // FIXME
+                        pids->count,
                         pids->dCC,
-                        pids->is_track ? '*' : ' ',
+                        (pids->track) ? '*' : ' ',
                         pids->sdes,
                         pids->ldes);
         }
@@ -454,8 +455,6 @@ static void show_prog(struct LIST *list)
         uint16_t i;
         struct NODE *node;
         ts_prog_t *prog;
-
-        //fprintf(stdout, "program_list(%d-item):\n\n", list_count(list));
 
         for(node = list->head; node; node = node->next)
         {
