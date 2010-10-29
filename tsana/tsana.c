@@ -291,7 +291,13 @@ static obj_t *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-pid"))
                         {
-                                sscanf(argv[++i], "%i" , &dat);
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-pid'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &dat);
                                 if(0x0000 <= dat && dat <= 0x1FFF)
                                 {
                                         obj->aim_pid = (uint16_t)dat;
@@ -331,7 +337,7 @@ static obj_t *create(int argc, char *argv[])
                         }
                         else
                         {
-                                fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
+                                fprintf(stderr, "wrong parameter: '%s'\n", argv[i]);
                                 exit(EXIT_FAILURE);
                         }
                 }
