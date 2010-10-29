@@ -1306,11 +1306,16 @@ static int parse_PMT_load(obj_t *obj)
         info_length |= dat;
 
         // record program_info
+        if(info_length > INFO_LEN_MAX)
+        {
+                fprintf(stderr, "PID(0x%04X): program_info_length(%d) too big!\n",
+                        ts->PID, info_length);
+        }
         prog->program_info_len = info_length;
-        prog->program_info_buf = obj->p;
         for(i = 0; i < info_length; i++)
         {
                 dat = *(obj->p)++; obj->len--;
+                prog->program_info[i] = dat;
         }
 
         while(obj->len > 4)
@@ -1342,11 +1347,16 @@ static int parse_PMT_load(obj_t *obj)
                 info_length |= dat;
 
                 // record es_info
+                if(info_length > INFO_LEN_MAX)
+                {
+                        fprintf(stderr, "PID(0x%04X): ES_info_length(%d) too big!\n",
+                                track->PID, info_length);
+                }
                 track->es_info_len = info_length;
-                track->es_info_buf = obj->p;
                 for(i = 0; i < info_length; i++)
                 {
                         dat = *(obj->p)++; obj->len--;
+                        track->es_info[i] = dat;
                 }
 
                 track_type(track);

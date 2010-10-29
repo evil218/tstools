@@ -474,7 +474,7 @@ static void show_prog(struct LIST *list)
                                 fprintf(stdout, "\n");
                                 fprintf(stdout, "        ");
                         }
-                        fprintf(stdout, "%02X ", *(prog->program_info_buf + i));
+                        fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
                 fprintf(stdout, "\n");
                 show_track(prog->track);
@@ -509,7 +509,7 @@ static void show_track(struct LIST *list)
                                 fprintf(stdout, "\n");
                                 fprintf(stdout, "            ");
                         }
-                        fprintf(stdout, "%02X ", *(track->es_info_buf +i));
+                        fprintf(stdout, "%02X ", track->es_info[i]);
                 }
                 fprintf(stdout, "\n");
         }

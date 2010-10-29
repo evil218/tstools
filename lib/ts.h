@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+#define INFO_LEN_MAX                    (0x0001 << 10) // pow(2, 10)
+#define SERVER_STR_MAX                  (188) // max length of server string
+
 //=============================================================================
 // Struct definition:
 //=============================================================================
@@ -25,8 +28,12 @@ typedef struct
         uint32_t PMT_PID:13;
         uint32_t PCR_PID:13;
         uint32_t program_number:16;
-        uint16_t program_info_len;
-        uint8_t *program_info_buf;
+        int program_info_len;
+        uint8_t program_info[INFO_LEN_MAX];
+        int server_name_len;
+        uint8_t server_name[SERVER_STR_MAX];
+        int server_provider_len;
+        uint8_t server_provider[SERVER_STR_MAX];
 
         struct LIST *track; // track list
         int is_parsed;
@@ -43,8 +50,8 @@ typedef struct
         int stream_type;
         char *sdes; // stream short description
         char *ldes; // stream long description
-        uint16_t es_info_len;
-        uint8_t *es_info_buf;
+        int es_info_len;
+        uint8_t es_info[INFO_LEN_MAX];
 }
 ts_track_t; // unit of track list
 
