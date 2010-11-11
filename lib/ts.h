@@ -37,6 +37,13 @@ typedef struct
 
         struct LIST *track; // track list
         int is_parsed;
+
+        // for STC calc
+        //      STCx - PCRb   ADDx - ADDb
+        //      ----------- = -----------
+        //      PCRb - PCRa   ADDb - ADDa
+        uint64_t ADDa, ADDb;
+        uint64_t PCRa, PCRb;
 }
 ts_prog_t; // unit of prog list
 
@@ -48,8 +55,8 @@ typedef struct
         uint32_t PID:13;
         int type; // PID type index
         int stream_type;
-        char *sdes; // stream short description
-        char *ldes; // stream long description
+        const char *sdes; // stream short description
+        const char *ldes; // stream long description
         int es_info_len;
         uint8_t es_info[INFO_LEN_MAX];
 }
@@ -85,7 +92,6 @@ typedef struct
         struct LIST *pid_list;
 
         // information about current package
-        uint64_t time; // arrival time of this package, unit: (ns)
         uint64_t addr; // address of this package
         uint8_t line[204]; // current TS package
 
@@ -97,6 +103,11 @@ typedef struct
         int CC_wait;
         int CC_find;
         int CC_lost; // lost != 0 means CC wrong
+
+        // PMT, PCR, VID and AUD has timestamp according to its PCR
+        uint64_t STC; // System Time Clock of this package
+        uint64_t STC_base;
+        uint16_t STC_ext;
 
         int has_PCR;
         uint64_t PCR;

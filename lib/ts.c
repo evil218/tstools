@@ -348,7 +348,6 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         obj->state = STATE_NEXT_PAT;
         obj->is_pes_align = 1; // PES align(0: need; 1: dot't need)
 
-        (*rslt)->time = 0;
         (*rslt)->addr = 0;
         (*rslt)->CC_lost = 0;
         (*rslt)->is_psi_parsed = 0;
@@ -524,6 +523,30 @@ static int state_next_pkg(obj_t *obj)
                 rslt->CC_lost = 0;
         }
 
+        // calc STC, should be here(before PCR flush)
+        if((pids->prog) && (pids->prog->ADDa != pids->prog->ADDb))
+        {
+                double stc;
+
+                stc = (pids->prog->PCRb - pids->prog->PCRa);
+                //fprintf(stderr, "stc: %f\n", stc);
+                stc *= (rslt->addr - pids->prog->ADDb);
+                //fprintf(stderr, "stc: %f\n", stc);
+                stc /= (pids->prog->ADDb - pids->prog->ADDa);
+                //fprintf(stderr, "stc: %f\n", stc);
+                //fprintf(stderr, "STC: %f\n", stc + pids->prog->PCRb);
+
+                rslt->STC = stc + pids->prog->PCRb;
+                rslt->STC_base = rslt->STC / 300;
+                rslt->STC_ext = rslt->STC % 300;
+        }
+        else
+        {
+                rslt->STC = 0;
+                rslt->STC_base = 0;
+                rslt->STC_ext = 0;
+        }
+
         // PCR
         if(rslt->has_PCR)
         {
@@ -533,6 +556,19 @@ static int state_next_pkg(obj_t *obj)
                 rslt->PCR  = rslt->PCR_base;
                 rslt->PCR *= 300;
                 rslt->PCR += rslt->PCR_ext;
+
+                if(pids->prog)
+                {
+                        pids->prog->PCRa = pids->prog->PCRb;
+                        pids->prog->ADDa = pids->prog->ADDb;
+
+                        pids->prog->PCRb = rslt->PCR;
+                        pids->prog->ADDb = rslt->addr;
+                }
+                else
+                {
+                        fprintf(stderr, "error: PCR package without program pointer!\n");
+                }
         }
 
         // PES head & ES data
@@ -566,6 +602,9 @@ static int parse_TS(obj_t *obj)
 
         // init rslt
         rslt->pids = NULL;
+        rslt->STC = 0;
+        rslt->STC_base = 0;
+        rslt->STC_ext = 0;
         rslt->has_PCR = 0;
         rslt->has_PTS = 0;
         rslt->has_DTS = 0;
@@ -1206,6 +1245,7 @@ static int parse_PAT_load(obj_t *obj)
                 pids->PID = prog->PMT_PID;
                 search_in_TS_PID_TABLE(pids->PID, &(pids->type));
                 pids->count = 0;
+                pids->prog = prog;
                 pids->track = NULL;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
@@ -1224,6 +1264,11 @@ static int parse_PAT_load(obj_t *obj)
                         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
                         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
                         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+
+                        prog->ADDa = 0;
+                        prog->PCRa = 0;
+                        prog->ADDb = 0;
+                        prog->PCRb = 0;
                         list_add(rslt->prog_list, (struct NODE *)prog);
                 }
 
@@ -1288,6 +1333,7 @@ static int parse_PMT_load(obj_t *obj)
         // add PCR PID
         pids->PID = prog->PCR_PID;
         pids->count = 0;
+        pids->prog = prog;
         pids->track = NULL;
         pids->type = PCR_PID;
         pids->CC = 0;
@@ -1365,6 +1411,7 @@ static int parse_PMT_load(obj_t *obj)
                 // add track PID
                 pids->PID = track->PID;
                 pids->count = 0;
+                pids->prog = prog;
                 pids->track = track;
                 pids->type = track->type;
                 pids->CC = 0;
@@ -1423,6 +1470,7 @@ static ts_pid_t *add_new_pid(obj_t *obj)
 
         pids->PID = rslt->pid;
         search_in_TS_PID_TABLE(pids->PID, &(pids->type));
+        pids->prog = NULL;
         pids->track = NULL;
         pids->count = 1;
         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
@@ -1453,6 +1501,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                 {
                         if(PCR_PID == pids->type)
                         {
+                                pids->prog = the_pids->prog;
                                 pids->track = the_pids->track;
                                 if(VID_PID == the_pids->type)
                                 {
@@ -1477,6 +1526,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         else
                         {
                                 // update item information
+                                pids->prog = the_pids->prog;
                                 pids->track = the_pids->track;
                                 pids->type = the_pids->type;
                                 pids->count = the_pids->count;
@@ -1499,6 +1549,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         }
 
                         pids->PID = the_pids->PID;
+                        pids->prog = the_pids->prog;
                         pids->track = the_pids->track;
                         pids->type = the_pids->type;
                         pids->count = the_pids->count;
@@ -1522,6 +1573,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         }
 
                         pids->PID = the_pids->PID;
+                        pids->prog = the_pids->prog;
                         pids->track = the_pids->track;
                         pids->type = the_pids->type;
                         pids->count = the_pids->count;
@@ -1545,6 +1597,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         }
 
                         pids->PID = the_pids->PID;
+                        pids->prog = the_pids->prog;
                         pids->track = the_pids->track;
                         pids->type = the_pids->type;
                         pids->count = the_pids->count;
@@ -1567,6 +1620,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
         }
 
         pids->PID = the_pids->PID;
+        pids->prog = the_pids->prog;
         pids->track = the_pids->track;
         pids->type = the_pids->type;
         pids->count = the_pids->count;

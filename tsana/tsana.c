@@ -127,10 +127,7 @@ int main(int argc, char *argv[])
                                 state_parse_psi(obj);
                                 break;
                         case STATE_PARSE_EACH:
-                                if(ANY_PID == obj->aim_pid || rslt->pid == obj->aim_pid)
-                                {
-                                        state_parse_each(obj);
-                                }
+                                state_parse_each(obj);
                                 break;
                         case STATE_EXIT:
                                 break;
@@ -187,7 +184,7 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_PCR:
                                 print_atp_title();
-                                fprintf(stdout, "PCR, BASE, EXT, \n");
+                                fprintf(stdout, "PCR, BASE, EXT, jitter(ns), \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PTSDTS:
@@ -210,28 +207,33 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
+        ts_rslt_t *rslt = obj->rslt;
+
         tsParseOther(obj->ts_id);
 
-        switch(obj->mode)
+        if(ANY_PID == obj->aim_pid || rslt->pid == obj->aim_pid)
         {
-                case MODE_CC:
-                        show_cc(obj);
-                        break;
-                case MODE_PCR:
-                        show_pcr(obj);
-                        break;
-                case MODE_PTSDTS:
-                        show_ptsdts(obj);
-                        break;
-                case MODE_PES:
-                        show_pes(obj);
-                        break;
-                case MODE_ES:
-                        show_es(obj);
-                        break;
-                default:
-                        fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
-                        break;
+                switch(obj->mode)
+                {
+                        case MODE_CC:
+                                show_cc(obj);
+                                break;
+                        case MODE_PCR:
+                                show_pcr(obj);
+                                break;
+                        case MODE_PTSDTS:
+                                show_ptsdts(obj);
+                                break;
+                        case MODE_PES:
+                                show_pes(obj);
+                                break;
+                        case MODE_ES:
+                                show_es(obj);
+                                break;
+                        default:
+                                fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
+                                break;
+                }
         }
         return;
 }
@@ -452,6 +454,18 @@ static void show_pids(struct LIST *list)
                         (pids->track) ? '*' : ' ',
                         pids->sdes,
                         pids->ldes);
+#if 0 // for test point prog & point track
+                if(pids->prog)
+                {
+                        fprintf(stdout, "PMT: 0x%04X, PCR: 0x%04X\n",
+                                pids->prog->PMT_PID, pids->prog->PCR_PID);
+                }
+                if(pids->track)
+                {
+                        fprintf(stdout, "stream_type: 0x%02X\n",
+                                pids->track->stream_type);
+                }
+#endif
         }
         return;
 }
@@ -541,6 +555,7 @@ static void show_cc(obj_t *obj)
 
 static void show_pcr(obj_t *obj)
 {
+        double jitter;
         ts_rslt_t *rslt = obj->rslt;
 
         if(!(rslt->has_PCR))
@@ -548,11 +563,16 @@ static void show_pcr(obj_t *obj)
                 return;
         }
 
+        jitter = rslt->PCR;
+        jitter -= rslt->STC;
+        jitter *= (1000 / 27);
+
         print_atp_value(obj);
-        fprintf(stdout, "%llu, %llu, %u, \n",
+        fprintf(stdout, "%llu, %llu, %u, %d \n",
                 rslt->PCR,
                 rslt->PCR_base,
-                rslt->PCR_ext);
+                rslt->PCR_ext,
+                (int)jitter);
         return;
 }
 
@@ -603,7 +623,7 @@ static void show_es(obj_t *obj)
 
 static void print_atp_title()
 {
-        fprintf(stdout, "yyyy-mm-dd hh:mm:ss, address(byte), address(byte), time(ns), PID, ");
+        fprintf(stdout, "yyyy-mm-dd hh:mm:ss, address(byte), address(byte), STC, STC_base, PID, ");
         return;
 }
 
@@ -620,9 +640,10 @@ static void print_atp_value(obj_t *obj)
         lt = localtime(&tp);
         strftime(stime, 32, "%Y-%m-%d %H:%M:%S", lt);
 
-        fprintf(stdout, "%s, 0x%llX, %lld, %llu, 0x%04X, ",
-                stime, rslt->addr,
-                rslt->addr, rslt->time,
+        fprintf(stdout, "%s, 0x%llX, %lld, %llu, %llu, 0x%04X, ",
+                stime,
+                rslt->addr, rslt->addr,
+                rslt->STC, rslt->STC_base,
                 rslt->pid);
         return;
 }
