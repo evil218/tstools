@@ -184,12 +184,12 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_PCR:
                                 print_atp_title();
-                                fprintf(stdout, "PCR, BASE, EXT, jitter(ns), \n");
+                                fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(us), \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PTSDTS:
                                 print_atp_title();
-                                fprintf(stdout, "PTS, DTS, \n");
+                                fprintf(stdout, "PTS, PTS_interval(ms), PTS-PCR(ms), DTS, DTS_interval(ms), DTS-PCR(ms), \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PES:
@@ -555,7 +555,6 @@ static void show_cc(obj_t *obj)
 
 static void show_pcr(obj_t *obj)
 {
-        double jitter;
         ts_rslt_t *rslt = obj->rslt;
 
         if(!(rslt->has_PCR))
@@ -563,16 +562,13 @@ static void show_pcr(obj_t *obj)
                 return;
         }
 
-        jitter = rslt->PCR;
-        jitter -= rslt->STC;
-        jitter *= (1000 / 27);
-
         print_atp_value(obj);
-        fprintf(stdout, "%llu, %llu, %u, %d \n",
+        fprintf(stdout, "%llu, %llu, %3u, %+.2f, %+.3f \n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
-                (int)jitter);
+                rslt->PCR_interval,
+                rslt->PCR_jitter);
         return;
 }
 
@@ -583,15 +579,15 @@ static void show_ptsdts(obj_t *obj)
         if(rslt->has_PTS)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "%llu, ", rslt->PTS);
+                fprintf(stdout, "%llu, %+.2f, %+.2f, ", rslt->PTS, rslt->PTS_interval, rslt->PTS_minus_STC);
 
                 if(rslt->has_DTS)
                 {
-                        fprintf(stdout, "%llu, \n", rslt->DTS);
+                        fprintf(stdout, "%llu, %+.2f, %+.2f, \n", rslt->DTS, rslt->DTS_interval, rslt->DTS_minus_STC);
                 }
                 else
                 {
-                        fprintf(stdout, ", \n");
+                        fprintf(stdout, ", , , \n");
                 }
         }
         return;

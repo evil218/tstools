@@ -59,6 +59,9 @@ typedef struct
         const char *ldes; // stream long description
         int es_info_len;
         uint8_t es_info[INFO_LEN_MAX];
+
+        uint64_t PTS_last;
+        uint64_t DTS_last;
 }
 ts_track_t; // unit of track list
 
@@ -113,12 +116,18 @@ typedef struct
         uint64_t PCR;
         uint64_t PCR_base;
         uint16_t PCR_ext;
+        double PCR_interval; // (ms)
+        double PCR_jitter; // (us)
 
         int has_PTS;
         uint64_t PTS;
+        double PTS_interval; // (ms)
+        double PTS_minus_STC; // (ms)
 
         int has_DTS;
         uint64_t DTS;
+        double DTS_interval; // (ms)
+        double DTS_minus_STC; // (ms)
 
         // PES data info in this TS
         uint16_t PES_len;

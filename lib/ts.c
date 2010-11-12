@@ -559,9 +559,21 @@ static int state_next_pkg(obj_t *obj)
 
                 if(pids->prog)
                 {
+                        // PCR_interval (ms), FIXME: delta(PCR) or delta(STC)?
+                        rslt->PCR_interval = rslt->PCR;
+                        rslt->PCR_interval -= pids->prog->PCRb;
+                        rslt->PCR_interval /= (27000);
+
+                        // PCR_jitter (us)
+                        rslt->PCR_jitter = rslt->PCR;
+                        rslt->PCR_jitter -= rslt->STC;
+                        rslt->PCR_jitter /= (27);
+
+                        // the PCR package before last PCR package
                         pids->prog->PCRa = pids->prog->PCRb;
                         pids->prog->ADDa = pids->prog->ADDb;
 
+                        // last PCR package
                         pids->prog->PCRb = rslt->PCR;
                         pids->prog->ADDb = rslt->addr;
                 }
@@ -575,6 +587,42 @@ static int state_next_pkg(obj_t *obj)
         if(pids->track)
         {
                 parse_PES(obj);
+        }
+
+        // dealwith PTS, DTS, should be here, after parse PES!
+        if(rslt->has_PTS)
+        {
+                if(pids->track)
+                {
+                        // PTS_interval (ms)
+                        rslt->PTS_interval = rslt->PTS;
+                        rslt->PTS_interval -= pids->track->PTS_last;
+                        rslt->PTS_interval /= (90);
+                        pids->track->PTS_last = rslt->PTS;
+
+                        // PTS_minus_STC (ms)
+                        rslt->PTS_minus_STC = rslt->PTS;
+                        rslt->PTS_minus_STC -= rslt->STC_base;
+                        rslt->PTS_minus_STC /= (90);
+
+                        if(rslt->has_DTS)
+                        {
+                                // DTS_interval (ms)
+                                rslt->DTS_interval = rslt->DTS;
+                                rslt->DTS_interval -= pids->track->DTS_last;
+                                rslt->DTS_interval /= (90);
+                                pids->track->DTS_last = rslt->DTS;
+
+                                // DTS_minus_STC (ms)
+                                rslt->DTS_minus_STC = rslt->DTS;
+                                rslt->DTS_minus_STC -= rslt->STC_base;
+                                rslt->DTS_minus_STC /= (90);
+                        }
+                }
+                else
+                {
+                        fprintf(stderr, "package has PTS, but has NOT track point!\n");
+                }
         }
 
         return 0;
@@ -946,6 +994,7 @@ static int parse_PES_head_detail(obj_t *obj)
                 return -1;
         }
 
+        // get PTS, DTS
         if(0x02 == pes->PTS_DTS_flags) // '10'
         {
                 // PTS
