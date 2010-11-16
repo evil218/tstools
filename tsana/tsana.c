@@ -380,12 +380,12 @@ static void show_help()
         puts(" -pid-list        show PID list information, default option");
         puts(" -psi-tree        show PSI tree information");
         puts(" -outpsi          output PSI package");
-        puts(" -cc              check Continuity Counter of cared <pid>");
-        puts(" -pcr             show PCR value of cared <pid>");
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
+        puts(" -cc              check Continuity Counter of cared <pid>");
+        puts(" -pcr             show PCR information of cared <pid>");
+        puts(" -ptsdts          output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
-        puts(" -ptsdts          output PTS and DTS of cared <pid>");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
         puts(" -debug           show all errors found");
@@ -563,12 +563,12 @@ static void show_pcr(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, "%llu, %llu, %3u, %+.2f, %+.3f \n",
+        fprintf(stdout, "%llu, %llu, %3u, %+7.3f, %+6.3f \n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
-                rslt->PCR_interval,
-                rslt->PCR_jitter);
+                (double)(rslt->PCR_interval) / (27000), // ms
+                (double)(rslt->PCR_jitter) / (27)); // us
         return;
 }
 
@@ -579,11 +579,17 @@ static void show_ptsdts(obj_t *obj)
         if(rslt->has_PTS)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "%llu, %+.2f, %+.2f, ", rslt->PTS, rslt->PTS_interval, rslt->PTS_minus_STC);
+                fprintf(stdout, "%llu, %+8.3f, %+.3f, ",
+                        rslt->PTS,
+                        (double)(rslt->PTS_interval) / (90), // ms
+                        (double)(rslt->PTS_minus_STC) / (90)); // ms
 
                 if(rslt->has_DTS)
                 {
-                        fprintf(stdout, "%llu, %+.2f, %+.2f, \n", rslt->DTS, rslt->DTS_interval, rslt->DTS_minus_STC);
+                        fprintf(stdout, "%llu, %+8.3f, %+.3f, \n",
+                                rslt->DTS,
+                                (double)(rslt->DTS_interval) / (90), // ms
+                                (double)(rslt->DTS_minus_STC) / (90)); // ms
                 }
                 else
                 {

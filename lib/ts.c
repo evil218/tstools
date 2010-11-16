@@ -325,6 +325,9 @@ static int is_all_prog_parsed(obj_t *obj);
 static int track_type(ts_track_t *track);
 static ts_pid_t *pids_match(struct LIST *list, uint16_t pid);
 
+static int64_t difftime_27M(uint64_t t1, uint64_t t2); // for STC, etc
+static int64_t difftime_90K(uint64_t t1, uint64_t t2); // for STC_base, etc
+
 //=============================================================================
 // public function definition
 //=============================================================================
@@ -360,6 +363,8 @@ int tsDelete(int id)
 {
         obj_t *obj;
         ts_rslt_t *rslt;
+        struct NODE *node;
+        ts_prog_t *prog;
 
         obj = (obj_t *)id;
         if(NULL == obj)
@@ -370,6 +375,11 @@ int tsDelete(int id)
         else
         {
                 rslt = &(obj->rslt);
+                for(node = rslt->prog_list->head; node; node = node->next)
+                {
+                        prog = (ts_prog_t *)node;
+                        list_free(prog->track);
+                }
                 list_free(rslt->prog_list);
                 list_free(rslt->pid_list);
 
@@ -559,15 +569,9 @@ static int state_next_pkg(obj_t *obj)
 
                 if(pids->prog)
                 {
-                        // PCR_interval (ms), FIXME: delta(PCR) or delta(STC)?
-                        rslt->PCR_interval = rslt->PCR;
-                        rslt->PCR_interval -= pids->prog->PCRb;
-                        rslt->PCR_interval /= (27000);
-
-                        // PCR_jitter (us)
-                        rslt->PCR_jitter = rslt->PCR;
-                        rslt->PCR_jitter -= rslt->STC;
-                        rslt->PCR_jitter /= (27);
+                        // when calc PCR_interval, use rslt->STC or rslt->PCR?
+                        rslt->PCR_interval = difftime_27M(rslt->STC, pids->prog->PCRb);
+                        rslt->PCR_jitter = difftime_27M(rslt->PCR, rslt->STC);
 
                         // the PCR package before last PCR package
                         pids->prog->PCRa = pids->prog->PCRb;
@@ -594,29 +598,15 @@ static int state_next_pkg(obj_t *obj)
         {
                 if(pids->track)
                 {
-                        // PTS_interval (ms)
-                        rslt->PTS_interval = rslt->PTS;
-                        rslt->PTS_interval -= pids->track->PTS_last;
-                        rslt->PTS_interval /= (90);
+                        rslt->PTS_interval = difftime_90K(rslt->PTS, pids->track->PTS_last);
+                        rslt->PTS_minus_STC = difftime_90K(rslt->PTS, rslt->STC_base);
                         pids->track->PTS_last = rslt->PTS;
-
-                        // PTS_minus_STC (ms)
-                        rslt->PTS_minus_STC = rslt->PTS;
-                        rslt->PTS_minus_STC -= rslt->STC_base;
-                        rslt->PTS_minus_STC /= (90);
 
                         if(rslt->has_DTS)
                         {
-                                // DTS_interval (ms)
-                                rslt->DTS_interval = rslt->DTS;
-                                rslt->DTS_interval -= pids->track->DTS_last;
-                                rslt->DTS_interval /= (90);
+                                rslt->DTS_interval = difftime_90K(rslt->DTS, pids->track->DTS_last);
+                                rslt->DTS_minus_STC = difftime_90K(rslt->DTS, rslt->STC_base);
                                 pids->track->DTS_last = rslt->DTS;
-
-                                // DTS_minus_STC (ms)
-                                rslt->DTS_minus_STC = rslt->DTS;
-                                rslt->DTS_minus_STC -= rslt->STC_base;
-                                rslt->DTS_minus_STC /= (90);
                         }
                 }
                 else
@@ -647,6 +637,7 @@ static int parse_TS(obj_t *obj)
         ts_t *ts = &(obj->ts);
         af_t *af = &(obj->af);
         ts_rslt_t *rslt = &(obj->rslt);
+        ts_error_t *err = &(rslt->err);
 
         // init rslt
         rslt->pids = NULL;
@@ -664,9 +655,32 @@ static int parse_TS(obj_t *obj)
         ts->sync_byte = dat;
         if(0x47 != ts->sync_byte)
         {
-                fprintf(stderr, "sync_byte(0x47) wrong: %02X\n", dat);
-                dump_TS(obj);
-                return -1;
+                err->Sync_byte_error++;
+                if(err->Sync_byte_error > 10)
+                {
+                        fprintf(stderr, "error: 1.0: too many continual Sync_byte_error package, EXIT!\n");
+                        dump_TS(obj);
+                        err->TS_sync_loss++;
+                        return -1;
+                }
+                else if(err->Sync_byte_error > 1)
+                {
+                        fprintf(stderr, "error: 1.1: TS_sync_loss\n");
+                        dump_TS(obj);
+                        ts->sync_byte = 0x47;
+                        err->TS_sync_loss++;
+                }
+                else
+                {
+                        fprintf(stderr, "error: 1.2: Sync_byte_error\n");
+                        dump_TS(obj);
+                        ts->sync_byte = 0x47;
+                }
+        }
+        else
+        {
+                err->TS_sync_loss = 0;
+                err->Sync_byte_error = 0;
         }
 
         dat = *(obj->p)++; obj->len--;
@@ -1932,6 +1946,54 @@ static ts_pid_t *pids_match(struct LIST *list, uint16_t pid)
         }
 
         return NULL;
+}
+
+// for STC, etc
+// return(t1 - t2)
+// dealwith t1 overflow condition
+static int64_t difftime_27M(uint64_t t1, uint64_t t2)
+{
+        int64_t rslt;
+
+        if(t1 >= t2)
+        {
+                rslt = (int64_t)(t1 - t2);
+        }
+        else if((t1 < 1 * 27000000) && (2576980377600 - t2 < 1 * 27000000))
+        {
+                // t1 overflowed from (2^33) * 300
+                rslt = (int64_t)(t1 + 2576980377600 - t2);
+        }
+        else
+        {
+                rslt = -(int64_t)(t2 - t1);
+        }
+
+        return rslt;
+}
+
+// for STC_base, etc
+// return(t1 - t2)
+// dealwith t1 overflow condition
+static int64_t difftime_90K(uint64_t t1, uint64_t t2)
+{
+        int64_t rslt;
+
+        if(t1 >= t2)
+        {
+                rslt = (int64_t)(t1 - t2);
+        }
+        else if((t1 < 1 * 90 * 1000) && (8589934592 - t2 < 1 * 90 * 1000))
+        {
+                // t1 overflowed from 2^33
+                rslt = (int64_t)(t1 + 8589934592 - t2);
+        }
+        else
+        {
+                rslt = -(int64_t)(t2 - t1);
+        }
+
+        return rslt;
 }
 
 //=============================================================================

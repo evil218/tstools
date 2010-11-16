@@ -89,6 +89,53 @@ ts_pid_t; // unit of pid list
 
 typedef struct
 {
+        // First priority: necessary for de-codability (basic monitoring)
+        int TS_sync_loss; // 1.1
+        int Sync_byte_error; // 1.2
+        int PAT_error; // 1.3
+        int PAT_error_2; // 1.3.a
+        int Continuity_count_error; // 1.4
+        int PMT_error; // 1.5
+        int PMT_error_2; // 1.5.a
+        int PID_error; // 1.6
+
+        // Second priority: recommended for continuous or periodic monitoring
+        int Transport_error; // 2.1
+        int CRC_error; // 2.2
+        int PCR_error; // 2.3
+        int PCR_repetition_error; // 2.3a
+        int PCR_discontinuity_indicator_error; // 2.3b
+        int PCR_accuracy_error; // 2.4
+        int PTS_error; // 2.5
+        int CAT_error; // 2.6
+
+        // Third priority: application dependant monitoring
+        int NIT_error; // 3.1
+        int NIT_actual_error; // 3.1.a
+        int NIT_other_error; // 3.1.b
+        int SI_repetition_error; // 3.2
+        int Buffer_error; // 3.3
+        int Unreferenced_PID; // 3.4
+        int Unreferenced_PID_2; // 3.4.a
+        int SDT_error; // 3.5
+        int SDT_actual_error; // 3.5.a
+        int SDT_other_error; // 3.5.b
+        int EIT_error; // 3.6
+        int EIT_actual_error; // 3.6.a
+        int EIT_other_error; // 3.6.b
+        int EIT_PF_error; // 3.6.c
+        int RST_error; // 3.7
+        int TDT_error; // 3.8
+        int Empty_buffer_error; // 3.9
+        int Data_delay_error; // 3.10
+}
+ts_error_t; // TR 101 290 V1.2.1 2001-05
+
+typedef struct
+{
+        // error
+        ts_error_t err;
+
         // PSI, SI and other TS information
         int is_psi_parsed;
         struct LIST *prog_list;
@@ -116,18 +163,18 @@ typedef struct
         uint64_t PCR;
         uint64_t PCR_base;
         uint16_t PCR_ext;
-        double PCR_interval; // (ms)
-        double PCR_jitter; // (us)
+        int64_t PCR_interval;
+        int64_t PCR_jitter;
 
         int has_PTS;
         uint64_t PTS;
-        double PTS_interval; // (ms)
-        double PTS_minus_STC; // (ms)
+        int64_t PTS_interval;
+        int64_t PTS_minus_STC;
 
         int has_DTS;
         uint64_t DTS;
-        double DTS_interval; // (ms)
-        double DTS_minus_STC; // (ms)
+        int64_t DTS_interval;
+        int64_t DTS_minus_STC;
 
         // PES data info in this TS
         uint16_t PES_len;
