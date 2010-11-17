@@ -3,7 +3,7 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: October 2010<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: November 2010<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
@@ -30,18 +30,22 @@ show PID list information, default option
 show PSI tree information
 <DT><B>-outpsi</B><DD>
 output PSI package
+<DT><B>-pid</B> &lt;pid&gt;<DD>
+set cared &lt;pid&gt;, default: ANY PID
+<DT><B>-prog</B> &lt;prog&gt;<DD>
+set cared &lt;prog&gt;, default: ANY program
 <DT><B>-cc</B><DD>
 check Continuity Counter of cared &lt;pid&gt;
 <DT><B>-pcr</B><DD>
-show PCR value of cared &lt;pid&gt;
-<DT><B>-pid</B> &lt;pid&gt;<DD>
-set cared &lt;pid&gt;, default: ANY PID
+show PCR information of cared &lt;pid&gt;
+<DT><B>-rate</B><DD>
+output bit rate of PID of cared &lt;program&gt;
+<DT><B>-ptsdts</B><DD>
+output PTS and DTS information of cared &lt;pid&gt;
 <DT><B>-pes</B><DD>
 output PES data of cared &lt;pid&gt;
 <DT><B>-es</B><DD>
 output ES data of cared &lt;pid&gt;
-<DT><B>-ptsdts</B><DD>
-output PTS and DTS of cared &lt;pid&gt;
 <DT><B>-h</B>, <B>--help</B><DD>
 display this information
 <DT><B>-v</B>, <B>--version</B><DD>
@@ -111,6 +115,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 02:05:43 GMT, October 09, 2010
+Time: 10:15:43 GMT, November 17, 2010
 </BODY>
 </HTML>

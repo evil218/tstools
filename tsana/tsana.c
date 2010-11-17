@@ -412,8 +412,8 @@ static void show_help()
         puts(" -prog <prog>     set cared <prog>, default: ANY program");
         puts(" -cc              check Continuity Counter of cared <pid>");
         puts(" -pcr             show PCR information of cared <pid>");
+        puts(" -rate            output bit rate of PID of cared <program>");
         puts(" -ptsdts          output PTS and DTS information of cared <pid>");
-        puts(" -rate            output bit rate information of cared <pid> or <program>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
 #if 0
@@ -710,7 +710,13 @@ static void show_es(obj_t *obj)
 
 static void print_atp_title()
 {
-        fprintf(stdout, "yyyy-mm-dd hh:mm:ss, address(byte), address(byte), STC, STC_base, PID, ");
+        fprintf(stdout,
+                FYELLOW "yyyy-mm-dd hh:mm:ss" NONE
+                ", "
+                FYELLOW "address(byte)" NONE
+                ", address(byte), STC, STC_base, "
+                FYELLOW "PID" NONE
+                ", ");
         return;
 }
 
@@ -727,7 +733,13 @@ static void print_atp_value(obj_t *obj)
         lt = localtime(&tp);
         strftime(stime, 32, "%Y-%m-%d %H:%M:%S", lt);
 
-        fprintf(stdout, "%s, 0x%llX, %lld, %llu, %llu, 0x%04X, ",
+        fprintf(stdout,
+                FYELLOW "%s" NONE
+                ", "
+                FYELLOW "0x%llX" NONE
+                ", %lld, %llu, %llu, "
+                FYELLOW "0x%04X" NONE
+                ", ",
                 stime,
                 rslt->addr, rslt->addr,
                 rslt->STC, rslt->STC_base,
