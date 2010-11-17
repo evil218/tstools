@@ -13,9 +13,10 @@
 
 #include "error.h"
 #include "if.h"
-#include "ts.h"
+#include "ts.h" // has "list.h" already
 
-#define ANY_PID 0x2000 // means any PID of [0x0000,0x1FFF]
+#define ANY_PID                         0x2000 // any PID of [0x0000,0x1FFF]
+#define ANY_PROG                        0x0000 // any prog of [0x0001,0xFFFF]
 
 //=============================================================================
 // struct definition
@@ -28,6 +29,7 @@ typedef struct
         int is_outpsi; // output txt psi package to stdout
         int is_prepsi; // get psi information from file first
         uint16_t aim_pid;
+        uint16_t aim_prog;
 
         uint32_t ts_size;
         uint8_t bbuf[204];
@@ -48,6 +50,7 @@ enum
         MODE_CC,
         MODE_PCR,
         MODE_PTSDTS,
+        MODE_RATE,
         MODE_PES,
         MODE_ES,
         MODE_DEBUG,
@@ -93,6 +96,7 @@ static void show_track(struct LIST *list);
 
 static void show_cc(obj_t *obj);
 static void show_pcr(obj_t *obj);
+static void show_rate(obj_t *obj);
 static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
 static void show_es(obj_t *obj);
@@ -192,6 +196,7 @@ static void state_parse_psi(obj_t *obj)
                                 fprintf(stdout, "PTS, PTS_interval(ms), PTS-PCR(ms), DTS, DTS_interval(ms), DTS-PCR(ms), \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
+                        case MODE_RATE:
                         case MODE_PES:
                         case MODE_ES:
                                 obj->state = STATE_PARSE_EACH;
@@ -207,33 +212,31 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
-
         tsParseOther(obj->ts_id);
 
-        if(ANY_PID == obj->aim_pid || rslt->pid == obj->aim_pid)
+        switch(obj->mode)
         {
-                switch(obj->mode)
-                {
-                        case MODE_CC:
-                                show_cc(obj);
-                                break;
-                        case MODE_PCR:
-                                show_pcr(obj);
-                                break;
-                        case MODE_PTSDTS:
-                                show_ptsdts(obj);
-                                break;
-                        case MODE_PES:
-                                show_pes(obj);
-                                break;
-                        case MODE_ES:
-                                show_es(obj);
-                                break;
-                        default:
-                                fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
-                                break;
-                }
+                case MODE_CC:
+                        show_cc(obj);
+                        break;
+                case MODE_PCR:
+                        show_pcr(obj);
+                        break;
+                case MODE_RATE:
+                        show_rate(obj);
+                        break;
+                case MODE_PTSDTS:
+                        show_ptsdts(obj);
+                        break;
+                case MODE_PES:
+                        show_pes(obj);
+                        break;
+                case MODE_ES:
+                        show_es(obj);
+                        break;
+                default:
+                        fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
+                        break;
         }
         return;
 }
@@ -256,6 +259,7 @@ static obj_t *create(int argc, char *argv[])
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
         obj->aim_pid = ANY_PID;
+        obj->aim_prog = ANY_PROG;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -287,6 +291,10 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->mode = MODE_PCR;
                         }
+                        else if(0 == strcmp(argv[i], "-rate"))
+                        {
+                                obj->mode = MODE_RATE;
+                        }
                         else if(0 == strcmp(argv[i], "-debug"))
                         {
                                 obj->mode = MODE_DEBUG;
@@ -308,6 +316,26 @@ static obj_t *create(int argc, char *argv[])
                                 {
                                         fprintf(stderr,
                                                 "bad variable for '-pid': 0x%04X, ignore!\n",
+                                                dat);
+                                }
+                        }
+                        else if(0 == strcmp(argv[i], "-prog"))
+                        {
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-prog'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &dat);
+                                if(0x0001 <= dat && dat <= 0xFFFF)
+                                {
+                                        obj->aim_prog = dat;
+                                }
+                                else
+                                {
+                                        fprintf(stderr,
+                                                "bad variable for '-prog': %u, ignore!\n",
                                                 dat);
                                 }
                         }
@@ -381,9 +409,11 @@ static void show_help()
         puts(" -psi-tree        show PSI tree information");
         puts(" -outpsi          output PSI package");
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
+        puts(" -prog <prog>     set cared <prog>, default: ANY program");
         puts(" -cc              check Continuity Counter of cared <pid>");
         puts(" -pcr             show PCR information of cared <pid>");
         puts(" -ptsdts          output PTS and DTS information of cared <pid>");
+        puts(" -rate            output bit rate information of cared <pid> or <program>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
 #if 0
@@ -540,6 +570,10 @@ static void show_cc(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        {
+                return;
+        }
         if(0 == rslt->CC_lost)
         {
                 return;
@@ -557,6 +591,10 @@ static void show_pcr(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        {
+                return;
+        }
         if(!(rslt->has_PCR))
         {
                 return;
@@ -572,29 +610,68 @@ static void show_pcr(obj_t *obj)
         return;
 }
 
+static void show_rate(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        struct NODE *node;
+        ts_pid_t *pid_item;
+
+        if(!(rslt->has_PCR))
+        {
+                return;
+        }
+        if(ANY_PROG != obj->aim_prog && 
+           rslt->pids->prog->program_number != obj->aim_prog)
+        {
+                return;
+        }
+
+        // traverse pid_list
+        // if it belongs to this program, output its bitrate
+        for(node = rslt->pid_list->head; node; node = node->next)
+        {
+                pid_item = (ts_pid_t *)node;
+                if(pid_item->prog &&
+                   pid_item->prog->program_number == rslt->pids->prog->program_number)
+                {
+                        fprintf(stdout, "0x%04X, %9.6f, ",
+                                pid_item->PID,
+                                pid_item->rate);
+                }
+        }
+        fprintf(stdout, "\n");
+        return;
+}
+
 static void show_ptsdts(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(rslt->has_PTS)
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
         {
-                print_atp_value(obj);
-                fprintf(stdout, "%llu, %+8.3f, %+.3f, ",
-                        rslt->PTS,
-                        (double)(rslt->PTS_interval) / (90), // ms
-                        (double)(rslt->PTS_minus_STC) / (90)); // ms
+                return;
+        }
+        if(!(rslt->has_PTS))
+        {
+                return;
+        }
 
-                if(rslt->has_DTS)
-                {
-                        fprintf(stdout, "%llu, %+8.3f, %+.3f, \n",
-                                rslt->DTS,
-                                (double)(rslt->DTS_interval) / (90), // ms
-                                (double)(rslt->DTS_minus_STC) / (90)); // ms
-                }
-                else
-                {
-                        fprintf(stdout, ", , , \n");
-                }
+        print_atp_value(obj);
+        fprintf(stdout, "%llu, %+8.3f, %+.3f, ",
+                rslt->PTS,
+                (double)(rslt->PTS_interval) / (90), // ms
+                (double)(rslt->PTS_minus_STC) / (90)); // ms
+
+        if(rslt->has_DTS)
+        {
+                fprintf(stdout, "%llu, %+8.3f, %+.3f, \n",
+                        rslt->DTS,
+                        (double)(rslt->DTS_interval) / (90), // ms
+                        (double)(rslt->DTS_minus_STC) / (90)); // ms
+        }
+        else
+        {
+                fprintf(stdout, ", , , \n");
         }
         return;
 }
@@ -603,6 +680,10 @@ static void show_pes(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        {
+                return;
+        }
         if(0 != rslt->PES_len)
         {
                 b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len, ' ');
@@ -615,6 +696,10 @@ static void show_es(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        {
+                return;
+        }
         if(0 != rslt->ES_len)
         {
                 b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len, ' ');

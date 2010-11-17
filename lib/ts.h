@@ -8,11 +8,11 @@
 #ifndef _TS_H
 #define _TS_H
 
-#include "list.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "list.h"
 
 #define INFO_LEN_MAX                    (0x0001 << 10) // pow(2, 10)
 #define SERVER_STR_MAX                  (188) // max length of server string
@@ -20,73 +20,6 @@ extern "C" {
 //=============================================================================
 // Struct definition:
 //=============================================================================
-typedef struct
-{
-        struct NODE *next;
-        struct NODE *prev;
-
-        uint32_t PMT_PID:13;
-        uint32_t PCR_PID:13;
-        uint32_t program_number:16;
-        int program_info_len;
-        uint8_t program_info[INFO_LEN_MAX];
-        int server_name_len;
-        uint8_t server_name[SERVER_STR_MAX];
-        int server_provider_len;
-        uint8_t server_provider[SERVER_STR_MAX];
-
-        struct LIST *track; // track list
-        int is_parsed;
-
-        // for STC calc
-        //      STCx - PCRb   ADDx - ADDb
-        //      ----------- = -----------
-        //      PCRb - PCRa   ADDb - ADDa
-        uint64_t ADDa, ADDb;
-        uint64_t PCRa, PCRb;
-}
-ts_prog_t; // unit of prog list
-
-typedef struct
-{
-        struct NODE *next;
-        struct NODE *prev;
-
-        uint32_t PID:13;
-        int type; // PID type index
-        int stream_type;
-        const char *sdes; // stream short description
-        const char *ldes; // stream long description
-        int es_info_len;
-        uint8_t es_info[INFO_LEN_MAX];
-
-        uint64_t PTS_last;
-        uint64_t DTS_last;
-}
-ts_track_t; // unit of track list
-
-typedef struct
-{
-        struct NODE *next;
-        struct NODE *prev;
-
-        uint16_t PID:13;
-        int type; // pid type index
-        const char *sdes; // short description
-        const char *ldes; // long description
-
-        uint32_t count; // packet number received, for statistic
-
-        ts_prog_t *prog; // for PMT, PCR and PES package or NULL
-        ts_track_t *track; // for video or audio package or NULL
-
-        // for check continuity_counter
-        uint32_t CC:4;
-        uint32_t dCC:4; // 0 or 1
-        int is_CC_sync;
-}
-ts_pid_t; // unit of pid list
-
 typedef struct
 {
         // First priority: necessary for de-codability (basic monitoring)
@@ -130,6 +63,90 @@ typedef struct
         int Data_delay_error; // 3.10
 }
 ts_error_t; // TR 101 290 V1.2.1 2001-05
+
+typedef struct
+{
+        // for list
+        struct NODE *next;
+        struct NODE *prev;
+
+        // program information
+        int is_parsed;
+        uint32_t PMT_PID:13;
+        uint32_t PCR_PID:13;
+        uint32_t program_number:16;
+        int program_info_len;
+        uint8_t program_info[INFO_LEN_MAX];
+
+        // server information
+        int server_name_len;
+        uint8_t server_name[SERVER_STR_MAX];
+        int server_provider_len;
+        uint8_t server_provider[SERVER_STR_MAX];
+
+        // track list
+        struct LIST *track;
+
+        // for STC calc
+        //      STCx - PCRb   ADDx - ADDb
+        //      ----------- = -----------
+        //      PCRb - PCRa   ADDb - ADDa
+        uint64_t ADDa, ADDb;
+        uint64_t PCRa, PCRb;
+}
+ts_prog_t; // unit of prog list
+
+typedef struct
+{
+        // for list
+        struct NODE *next;
+        struct NODE *prev;
+
+        // PID
+        uint32_t PID:13;
+        int type; // PID type index
+
+        // stream_type
+        int stream_type;
+        const char *sdes; // stream type short description
+        const char *ldes; // stream type long description
+
+        // es_info
+        int es_info_len;
+        uint8_t es_info[INFO_LEN_MAX];
+
+        // for PTS/DTS mark
+        uint64_t PTS;
+        uint64_t DTS;
+}
+ts_track_t; // unit of track list
+
+typedef struct
+{
+        // for list
+        struct NODE *next;
+        struct NODE *prev;
+
+        // PID
+        uint16_t PID:13;
+        int type; // PID type index
+        const char *sdes; // PID type short description
+        const char *ldes; // PID type long description
+
+        // relative pointer
+        ts_prog_t *prog; // for PMT, PCR and PES package or NULL
+        ts_track_t *track; // for video or audio package or NULL
+
+        // for continuity_counter check
+        int is_CC_sync;
+        uint32_t CC:4;
+        uint32_t dCC:4; // 0 or 1
+
+        // for statistic
+        uint32_t count; // packet received from last PCR
+        double rate; // Mbps
+}
+ts_pid_t; // unit of pid list
 
 typedef struct
 {
