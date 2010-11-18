@@ -134,8 +134,8 @@ typedef struct
         const char *ldes; // PID type long description
 
         // relative pointer
-        ts_prog_t *prog; // for PMT, PCR and PES package or NULL
-        ts_track_t *track; // for video or audio package or NULL
+        ts_prog_t *prog; // should be prog0 if does not belong to any program
+        ts_track_t *track; // should be NULL if not video or audio package
 
         // for continuity_counter check
         int is_CC_sync;
@@ -157,6 +157,7 @@ typedef struct
         int is_psi_parsed;
         struct LIST *prog_list;
         struct LIST *pid_list;
+        ts_prog_t *prog0; // first program in this stream
 
         // information about current package
         uint64_t addr; // address of this package

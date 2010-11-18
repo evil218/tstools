@@ -620,19 +620,25 @@ static void show_rate(obj_t *obj)
         {
                 return;
         }
+        if(rslt->pids->prog != rslt->prog0)
+        {
+                return;
+        }
+#if 0
         if(ANY_PROG != obj->aim_prog && 
            rslt->pids->prog->program_number != obj->aim_prog)
         {
                 return;
         }
+#endif
 
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list->head; node; node = node->next)
         {
                 pid_item = (ts_pid_t *)node;
-                if(pid_item->prog &&
-                   pid_item->prog->program_number == rslt->pids->prog->program_number)
+                if(ANY_PROG == obj->aim_prog ||
+                   (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
                         fprintf(stdout, "0x%04X, %9.6f, ",
                                 pid_item->PID,

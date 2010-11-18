@@ -359,6 +359,7 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         (*rslt)->CC_lost = 0;
         (*rslt)->is_psi_parsed = 0;
         (*rslt)->concerned_pid = 0x0000; // PAT_PID
+        (*rslt)->prog0 = NULL;
 
         return (int)obj;
 }
@@ -596,13 +597,12 @@ static int state_next_pkg(obj_t *obj)
                         prog->PCRb = rslt->PCR;
                         prog->ADDb = rslt->addr;
 
-                        // traverse pid_list
-                        // if it belongs to this program, clear its packet count
-                        for(node = rslt->pid_list->head; node; node = node->next)
+                        if(prog == rslt->prog0)
                         {
-                                pid_item = (ts_pid_t *)node;
-                                if(pid_item->prog == prog)
+                                // calc bitrate and clear the packet count
+                                for(node = rslt->pid_list->head; node; node = node->next)
                                 {
+                                        pid_item = (ts_pid_t *)node;
                                         pid_item->rate = (pid_item->count * 188.0 * 8 * 27 / (rslt->PCR_interval));
                                         pid_item->count = 0;
                                 }
@@ -1301,10 +1301,13 @@ static int parse_PES_head_detail(obj_t *obj)
 static int parse_PAT_load(obj_t *obj)
 {
         uint8_t dat;
+        int is_prog0 = 1;
         psi_t *psi = &(obj->psi);
         ts_rslt_t *rslt = &(obj->rslt);
         ts_prog_t *prog;
         ts_pid_t ts_pid, *pids = &ts_pid;
+        struct NODE *node;
+        ts_pid_t *pid_item;
 
         while(obj->len > 4)
         {
@@ -1315,6 +1318,25 @@ static int parse_PAT_load(obj_t *obj)
                         DBG(ERR_MALLOC_FAILED);
                         return -ERR_MALLOC_FAILED;
                 }
+
+                // record first prog for bitrate calc
+                if(is_prog0)
+                {
+                        is_prog0 = 0;
+                        rslt->prog0 = prog;
+
+                        // traverse pid_list
+                        // if it des not belong to any program, use prog0
+                        for(node = rslt->pid_list->head; node; node = node->next)
+                        {
+                                pid_item = (ts_pid_t *)node;
+                                if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
+                                {
+                                        pid_item->prog = rslt->prog0;
+                                }
+                        }
+                }
+
                 prog->track = list_init();
                 prog->is_parsed = 0;
 
@@ -1563,7 +1585,15 @@ static ts_pid_t *add_new_pid(obj_t *obj)
 
         pids->PID = rslt->pid;
         search_in_TS_PID_TABLE(pids->PID, &(pids->type));
-        pids->prog = NULL;
+        if((NULL != rslt->prog0) && 
+           (pids->PID < 0x0020 || pids->PID == 0x1FFF))
+        {
+                pids->prog = rslt->prog0;
+        }
+        else
+        {
+                pids->prog = NULL;
+        }
         pids->track = NULL;
         pids->count = 1;
         pids->rate = 0.0;
