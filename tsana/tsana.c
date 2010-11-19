@@ -30,6 +30,7 @@ typedef struct
         int is_prepsi; // get psi information from file first
         uint16_t aim_pid;
         uint16_t aim_prog;
+        uint64_t aim_interval; // for rate calc
 
         uint32_t ts_size;
         uint8_t bbuf[204];
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
 
         obj = create(argc, argv);
         rslt = obj->rslt;
+        rslt->aim_interval = obj->aim_interval;
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkg(obj)))
         {
@@ -260,6 +262,7 @@ static obj_t *create(int argc, char *argv[])
         obj->is_prepsi = 0;
         obj->aim_pid = ANY_PID;
         obj->aim_prog = ANY_PROG;
+        obj->aim_interval = 27000000;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -339,6 +342,26 @@ static obj_t *create(int argc, char *argv[])
                                                 dat);
                                 }
                         }
+                        else if(0 == strcmp(argv[i], "-interval"))
+                        {
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-interval'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &dat);
+                                if(1 <= dat && dat <= 10000) // 1ms ~ 10s
+                                {
+                                        obj->aim_interval = dat * 27000;
+                                }
+                                else
+                                {
+                                        fprintf(stderr,
+                                                "bad variable for '-interval': %u, use 1000ms instead!\n",
+                                                dat);
+                                }
+                        }
                         else if(0 == strcmp(argv[i], "-pes"))
                         {
                                 obj->mode = MODE_PES;
@@ -410,6 +433,7 @@ static void show_help()
         puts(" -outpsi          output PSI package");
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
         puts(" -prog <prog>     set cared <prog>, default: ANY program");
+        puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
         puts(" -cc              check Continuity Counter of cared <pid>");
         puts(" -pcr             show PCR information of cared <pid>");
         puts(" -rate            output bit rate of PID of cared <program>");
@@ -616,21 +640,10 @@ static void show_rate(obj_t *obj)
         struct NODE *node;
         ts_pid_t *pid_item;
 
-        if(!(rslt->has_PCR))
+        if(!(rslt->has_rate))
         {
                 return;
         }
-        if(rslt->pids->prog != rslt->prog0)
-        {
-                return;
-        }
-#if 0
-        if(ANY_PROG != obj->aim_prog && 
-           rslt->pids->prog->program_number != obj->aim_prog)
-        {
-                return;
-        }
-#endif
 
         // traverse pid_list
         // if it belongs to this program, output its bitrate

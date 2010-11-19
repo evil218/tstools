@@ -360,6 +360,7 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         (*rslt)->is_psi_parsed = 0;
         (*rslt)->concerned_pid = 0x0000; // PAT_PID
         (*rslt)->prog0 = NULL;
+        (*rslt)->interval = 0;
 
         return (int)obj;
 }
@@ -599,12 +600,18 @@ static int state_next_pkg(obj_t *obj)
 
                         if(prog == rslt->prog0)
                         {
-                                // calc bitrate and clear the packet count
-                                for(node = rslt->pid_list->head; node; node = node->next)
+                                rslt->interval += difftime_27M(prog->PCRb, prog->PCRa);
+                                if(rslt->interval >= rslt->aim_interval)
                                 {
-                                        pid_item = (ts_pid_t *)node;
-                                        pid_item->rate = (pid_item->count * 188.0 * 8 * 27 / (rslt->PCR_interval));
-                                        pid_item->count = 0;
+                                        // calc bitrate and clear the packet count
+                                        for(node = rslt->pid_list->head; node; node = node->next)
+                                        {
+                                                pid_item = (ts_pid_t *)node;
+                                                pid_item->rate = (pid_item->count * 188.0 * 8 * 27 / (rslt->interval));
+                                                pid_item->count = 0;
+                                        }
+                                        rslt->interval = 0;
+                                        rslt->has_rate = 1;
                                 }
                         }
                 }
@@ -671,6 +678,7 @@ static int parse_TS(obj_t *obj)
         rslt->STC = 0;
         rslt->STC_base = 0;
         rslt->STC_ext = 0;
+        rslt->has_rate = 0;
         rslt->has_PCR = 0;
         rslt->has_PTS = 0;
         rslt->has_DTS = 0;

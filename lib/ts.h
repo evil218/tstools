@@ -168,14 +168,20 @@ typedef struct
 
         ts_pid_t *pids; // point to item in pid_list
 
-        int CC_wait;
-        int CC_find;
-        int CC_lost; // lost != 0 means CC wrong
-
         // PMT, PCR, VID and AUD has timestamp according to its PCR
+        // other PID has timestamp according to the PCR in the 1st program
         uint64_t STC; // System Time Clock of this package
         uint64_t STC_base;
         uint16_t STC_ext;
+
+        // for bit-rate
+        uint64_t aim_interval; // appointed interval
+        uint64_t interval; // time passed from last rate calc
+        int has_rate; // new bit-rate ready
+
+        int CC_wait;
+        int CC_find;
+        int CC_lost; // lost != 0 means CC wrong
 
         int has_PCR;
         uint64_t PCR;
