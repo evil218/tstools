@@ -645,6 +645,13 @@ static void show_rate(obj_t *obj)
                 return;
         }
 
+        fprintf(stdout,
+                FYELLOW "0x%llX" NONE
+                ", "
+                FYELLOW "0x%04X" NONE
+                ", ",
+                rslt->addr,
+                rslt->pid);
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list->head; node; node = node->next)
@@ -653,7 +660,7 @@ static void show_rate(obj_t *obj)
                 if(ANY_PROG == obj->aim_prog ||
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
-                        fprintf(stdout, "0x%04X, %9.6f, ",
+                        fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
                                 pid_item->PID,
                                 pid_item->rate);
                 }

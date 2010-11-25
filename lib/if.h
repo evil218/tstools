@@ -18,8 +18,8 @@ extern "C" {
 #define LINE_LENGTH_MAX                 32767 // max line length in txt file
 
 // ANSI control for printf
-#define NONE                            "\033[0m" // recover all
-#define LIGHT                           "\033[1m" // high light colour
+#define NONE                            "\033[00m" // recover all
+#define LIGHT                           "\033[01m" // high light colour
 
 #define FGRAY                           "\033[30m"
 #define FRED                            "\033[31m"
