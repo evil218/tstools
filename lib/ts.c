@@ -7,14 +7,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h> // for uint?_t, etc
-#include <string.h> // for memcpy, etc
+#include <string.h> // for memset, memcpy, etc
 
 #include "error.h"
 #include "ts.h"
 
+//=============================================================================
+// micro definition
+//=============================================================================
 #define BIT(n)                          (1<<(n))
-#define UINT_27M                        (27 * 1000 * 1000) // uint: do NOT use 1e3 
-#define UINT_90K                        (90 * 1000) // uint: do NOT use 1e3
+
+#define PCR_US                          (27) // 27 clk means 1(us)
+#define PCR_MS                          (27 * 1000) // uint: do NOT use 1e3 
+#define PCR_1S                          (27 * 1000 * 1000) // uint: do NOT use 1e3 
+#define PCR_BASE_1S                     (90 * 1000) // uint: do NOT use 1e3
+
 #define PCR_OVERFLOW                    ((1LL << 33) * 300) // pow(2, 33) * 300
 #define PCR_BASE_OVERFLOW               (1LL << 33) // pow(2, 33)
 
@@ -338,6 +345,7 @@ static int64_t difftime_90K(uint64_t t1, uint64_t t2); // for STC_base, etc
 int tsCreate(int pkg_size, ts_rslt_t **rslt)
 {
         obj_t *obj;
+        ts_error_t *err;
 
         obj = (obj_t *)malloc(sizeof(obj_t));
         if(NULL == obj)
@@ -361,6 +369,10 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         (*rslt)->concerned_pid = 0x0000; // PAT_PID
         (*rslt)->prog0 = NULL;
         (*rslt)->interval = 0;
+
+        // clear error struct
+        err = &((*rslt)->err);
+        memset(err, 0, sizeof(ts_error_t));
 
         return (int)obj;
 }
@@ -507,6 +519,7 @@ static int state_next_pkg(obj_t *obj)
         ts_pid_t *pids = rslt->pids;
         ts_track_t *track = pids->track; // may be NULL
         ts_prog_t *prog = pids->prog; // may be NULL
+        ts_error_t *err = &(rslt->err);
 
         // CC
         if(pids->is_CC_sync)
@@ -540,6 +553,7 @@ static int state_next_pkg(obj_t *obj)
                 rslt->CC_find = ts->continuity_counter;
                 rslt->CC_lost = 0;
         }
+        err->Continuity_count_error = rslt->CC_lost;
 
         // calc STC, should be here(before PCR flush)
         if((prog) && (prog->ADDa != prog->ADDb))
@@ -588,7 +602,26 @@ static int state_next_pkg(obj_t *obj)
 
                         // when calc PCR_interval, use rslt->STC or rslt->PCR?
                         rslt->PCR_interval = difftime_27M(rslt->STC, prog->PCRb);
+                        if(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * PCR_MS)
+                        {
+                                // 0 < interval < +40ms
+                                err->PCR_repetition_error = 0;
+                        }
+                        else
+                        {
+                                err->PCR_repetition_error = 1;
+                        }
+
                         rslt->PCR_jitter = difftime_27M(rslt->PCR, rslt->STC);
+                        if(-13 <= rslt->PCR_jitter && rslt->PCR_jitter <= +13)
+                        {
+                                // -500ns < jitter < +500ns
+                                err->PCR_accuracy_error = 0;
+                        }
+                        else
+                        {
+                                err->PCR_accuracy_error = 1;
+                        }
 
                         // the PCR package before last PCR package
                         prog->PCRa = prog->PCRb;
@@ -691,26 +724,12 @@ static int parse_TS(obj_t *obj)
         if(0x47 != ts->sync_byte)
         {
                 err->Sync_byte_error++;
-                if(err->Sync_byte_error > 10)
+                if(err->Sync_byte_error > 1)
                 {
-                        fprintf(stderr, "error: 1.0: too many continual Sync_byte_error package, EXIT!\n");
-                        dump_TS(obj);
-                        err->TS_sync_loss++;
-                        return -1;
-                }
-                else if(err->Sync_byte_error > 1)
-                {
-                        fprintf(stderr, "error: 1.1: TS_sync_loss\n");
-                        dump_TS(obj);
-                        ts->sync_byte = 0x47;
                         err->TS_sync_loss++;
                 }
-                else
-                {
-                        fprintf(stderr, "error: 1.2: Sync_byte_error\n");
-                        dump_TS(obj);
-                        ts->sync_byte = 0x47;
-                }
+                dump_TS(obj);
+                ts->sync_byte = 0x47;
         }
         else
         {
@@ -723,6 +742,7 @@ static int parse_TS(obj_t *obj)
         ts->payload_unit_start_indicator = (dat & BIT(6)) >> 6;
         ts->transport_priority = (dat & BIT(5)) >> 5;
         ts->PID = dat & 0x1F;
+        err->Transport_error = ts->transport_error_indicator;
 
         dat = *(obj->p)++; obj->len--;
         ts->PID <<= 8;
@@ -2034,7 +2054,7 @@ static int64_t difftime_27M(uint64_t t1, uint64_t t2)
         {
                 rslt = (int64_t)(t1 - t2);
         }
-        else if((t1 < 1 * UINT_27M) && (PCR_OVERFLOW - t2 < 1 * UINT_27M))
+        else if((t1 < 1 * PCR_1S) && (PCR_OVERFLOW - t2 < 1 * PCR_1S))
         {
                 rslt = (int64_t)(t1 + PCR_OVERFLOW - t2);
         }
@@ -2057,7 +2077,7 @@ static int64_t difftime_90K(uint64_t t1, uint64_t t2)
         {
                 rslt = (int64_t)(t1 - t2);
         }
-        else if((t1 < 1 * UINT_90K) && (PCR_BASE_OVERFLOW - t2 < 1 * UINT_90K))
+        else if((t1 < 1 * PCR_BASE_1S) && (PCR_BASE_OVERFLOW - t2 < 1 * PCR_BASE_1S))
         {
                 rslt = (int64_t)(t1 + PCR_BASE_OVERFLOW - t2);
         }

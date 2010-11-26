@@ -18,6 +18,9 @@
 #define ANY_PID                         0x2000 // any PID of [0x0000,0x1FFF]
 #define ANY_PROG                        0x0000 // any prog of [0x0001,0xFFFF]
 
+#define PCR_US                          (27) // 27 clk means 1(us)
+#define PCR_MS                          (27 * 1000) // uint: do NOT use 1e3 
+
 //=============================================================================
 // struct definition
 //=============================================================================
@@ -28,6 +31,7 @@ typedef struct
 
         int is_outpsi; // output txt psi package to stdout
         int is_prepsi; // get psi information from file first
+        int is_mono; // use colour when print
         uint16_t aim_pid;
         uint16_t aim_prog;
         uint64_t aim_interval; // for rate calc
@@ -48,13 +52,12 @@ enum
 {
         MODE_PID,
         MODE_PSI,
-        MODE_CC,
         MODE_PCR,
         MODE_PTSDTS,
         MODE_RATE,
         MODE_PES,
         MODE_ES,
-        MODE_DEBUG,
+        MODE_ERROR,
         MODE_EXIT
 };
 
@@ -95,14 +98,14 @@ static void show_pids(struct LIST *list);
 static void show_prog(struct LIST *list);
 static void show_track(struct LIST *list);
 
-static void show_cc(obj_t *obj);
 static void show_pcr(obj_t *obj);
 static void show_rate(obj_t *obj);
 static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
 static void show_es(obj_t *obj);
+static void show_error(obj_t *obj);
 
-static void print_atp_title(); // atp: address_time_PID
+static void print_atp_title(obj_t *obj); // atp: address_time_PID
 static void print_atp_value(obj_t *obj); // atp: address_time_PID
 
 //=============================================================================
@@ -162,13 +165,10 @@ static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        //if(rslt->pid == rslt->concerned_pid)
+        tsParseOther(obj->ts_id);
+        if(obj->is_outpsi)
         {
-                tsParseOther(obj->ts_id);
-                if(obj->is_outpsi)
-                {
-                        puts(obj->tbuf);
-                }
+                puts(obj->tbuf);
         }
 
         if(rslt->is_psi_parsed)
@@ -183,19 +183,19 @@ static void state_parse_psi(obj_t *obj)
                                 show_prog(obj->rslt->prog_list);
                                 obj->state = STATE_EXIT;
                                 break;
-                        case MODE_CC:
-                                print_atp_title();
-                                fprintf(stdout, "wait, find, lost, \n");
-                                obj->state = STATE_PARSE_EACH;
-                                break;
                         case MODE_PCR:
-                                print_atp_title();
+                                print_atp_title(obj);
                                 fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(us), \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PTSDTS:
-                                print_atp_title();
+                                print_atp_title(obj);
                                 fprintf(stdout, "PTS, PTS_interval(ms), PTS-PCR(ms), DTS, DTS_interval(ms), DTS-PCR(ms), \n");
+                                obj->state = STATE_PARSE_EACH;
+                                break;
+                        case MODE_ERROR:
+                                print_atp_title(obj);
+                                fprintf(stdout, "level, detail, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_RATE:
@@ -218,9 +218,6 @@ static void state_parse_each(obj_t *obj)
 
         switch(obj->mode)
         {
-                case MODE_CC:
-                        show_cc(obj);
-                        break;
                 case MODE_PCR:
                         show_pcr(obj);
                         break;
@@ -235,6 +232,9 @@ static void state_parse_each(obj_t *obj)
                         break;
                 case MODE_ES:
                         show_es(obj);
+                        break;
+                case MODE_ERROR:
+                        show_error(obj);
                         break;
                 default:
                         fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
@@ -260,9 +260,10 @@ static obj_t *create(int argc, char *argv[])
         obj->state = STATE_PARSE_PSI;
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
+        obj->is_mono = 0;
         obj->aim_pid = ANY_PID;
         obj->aim_prog = ANY_PROG;
-        obj->aim_interval = 27000000;
+        obj->aim_interval = 1000 * PCR_MS;
         obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
@@ -286,9 +287,9 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->is_prepsi = 1;
                         }
-                        else if(0 == strcmp(argv[i], "-cc"))
+                        else if(0 == strcmp(argv[i], "-mono"))
                         {
-                                obj->mode = MODE_CC;
+                                obj->is_mono = 1;
                         }
                         else if(0 == strcmp(argv[i], "-pcr"))
                         {
@@ -298,9 +299,9 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->mode = MODE_RATE;
                         }
-                        else if(0 == strcmp(argv[i], "-debug"))
+                        else if(0 == strcmp(argv[i], "-err"))
                         {
-                                obj->mode = MODE_DEBUG;
+                                obj->mode = MODE_ERROR;
                         }
                         else if(0 == strcmp(argv[i], "-pid"))
                         {
@@ -353,7 +354,7 @@ static obj_t *create(int argc, char *argv[])
                                 sscanf(argv[i], "%i" , &dat);
                                 if(1 <= dat && dat <= 10000) // 1ms ~ 10s
                                 {
-                                        obj->aim_interval = dat * 27000;
+                                        obj->aim_interval = dat * PCR_MS;
                                 }
                                 else
                                 {
@@ -434,22 +435,22 @@ static void show_help()
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
         puts(" -prog <prog>     set cared <prog>, default: ANY program");
         puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
-        puts(" -cc              check Continuity Counter of cared <pid>");
         puts(" -pcr             show PCR information of cared <pid>");
         puts(" -rate            output bit rate of PID of cared <program>");
         puts(" -ptsdts          output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
+        puts(" -err             show all errors found");
+        puts(" -mono            disable colour effect, default: use colour to help read");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
-        puts(" -debug           show all errors found");
 #endif
         puts("");
         puts(" -h, --help       display this information");
         puts(" -v, --version    display my version");
         puts("");
         puts("Examples:");
-        puts("  \"bincat xxx.ts | tsana -cc\" -- report CC error information");
+        puts("  \"bincat xxx.ts | tsana -err\" -- report all error information");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
@@ -495,12 +496,12 @@ static void show_pids(struct LIST *list)
         struct NODE *node;
         ts_pid_t *pids;
 
-        fprintf(stdout, " PID  , percent, count, dCC, track,     abbr, detail\n");
+        fprintf(stdout, FYELLOW " PID  " NONE ", percent, count, dCC, track," FYELLOW "     abbr" NONE ", detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, "0x%04X, %7u, %5u,  %u ,     %c, %s, %s\n",
+                fprintf(stdout, FYELLOW "0x%04X" NONE ", %7u, %5u,  %u ,     %c," FYELLOW " %s" NONE ", %s\n",
                         pids->PID,
                         0, // FIXME
                         pids->count,
@@ -533,14 +534,14 @@ static void show_prog(struct LIST *list)
         for(node = list->head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
-                fprintf(stdout, "+ program %d(0x%04X), PMT_PID = 0x%04X\n",
+                fprintf(stdout, "+ program " FYELLOW "%d" NONE "(0x%04X"
+                        "), PMT_PID = " FYELLOW "0x%04X" NONE "\n",
                         prog->program_number,
                         prog->program_number,
                         prog->PMT_PID);
-                fprintf(stdout, "    PCR_PID = 0x%04X\n",
+                fprintf(stdout, "    PCR_PID = " FYELLOW "0x%04X" NONE "\n",
                         prog->PCR_PID);
-                fprintf(stdout, "    program_info:");
-                fprintf(stdout, "        ");
+                fprintf(stdout, "    program_info:" FYELLOW);
                 for(i = 0; i < prog->program_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
@@ -550,7 +551,7 @@ static void show_prog(struct LIST *list)
                         }
                         fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
-                fprintf(stdout, "\n");
+                fprintf(stdout, NONE "\n");
                 show_track(prog->track);
         }
         return;
@@ -568,14 +569,13 @@ static void show_track(struct LIST *list)
         {
                 track = (ts_track_t *)node;
                 fprintf(stdout, "    track\n");
-                fprintf(stdout, "        stream_type = 0x%02X, %s, %s\n",
+                fprintf(stdout, "        stream_type = " FYELLOW "0x%02X" NONE ", %s, %s\n",
                         track->stream_type,
                         track->sdes,
                         track->ldes);
-                fprintf(stdout, "        elementary_PID = 0x%04X\n",
+                fprintf(stdout, "        elementary_PID = " FYELLOW "0x%04X" NONE "\n",
                         track->PID);
-                fprintf(stdout, "        ES_info:");
-                fprintf(stdout, "            ");
+                fprintf(stdout, "        ES_info:" FYELLOW);
                 for(i = 0; i < track->es_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
@@ -585,29 +585,8 @@ static void show_track(struct LIST *list)
                         }
                         fprintf(stdout, "%02X ", track->es_info[i]);
                 }
-                fprintf(stdout, "\n");
+                fprintf(stdout, NONE "\n");
         }
-        return;
-}
-
-static void show_cc(obj_t *obj)
-{
-        ts_rslt_t *rslt = obj->rslt;
-
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
-        {
-                return;
-        }
-        if(0 == rslt->CC_lost)
-        {
-                return;
-        }
-
-        print_atp_value(obj);
-        fprintf(stdout, "%X, %X, %2u +16n, \n",
-                rslt->CC_wait,
-                rslt->CC_find,
-                rslt->CC_lost);
         return;
 }
 
@@ -629,8 +608,8 @@ static void show_pcr(obj_t *obj)
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
-                (double)(rslt->PCR_interval) / (27000), // ms
-                (double)(rslt->PCR_jitter) / (27)); // us
+                (double)(rslt->PCR_interval) / PCR_MS,
+                (double)(rslt->PCR_jitter) / PCR_US);
         return;
 }
 
@@ -645,13 +624,26 @@ static void show_rate(obj_t *obj)
                 return;
         }
 
-        fprintf(stdout,
-                FYELLOW "0x%llX" NONE
-                ", "
-                FYELLOW "0x%04X" NONE
-                ", ",
-                rslt->addr,
-                rslt->pid);
+        if(obj->is_mono)
+        {
+                fprintf(stdout,
+                        "0x%llX"
+                        ", "
+                        "0x%04X"
+                        ", ",
+                        rslt->addr,
+                        rslt->pid);
+        }
+        else
+        {
+                fprintf(stdout,
+                        FYELLOW "0x%llX" NONE
+                        ", "
+                        FYELLOW "0x%04X" NONE
+                        ", ",
+                        rslt->addr,
+                        rslt->pid);
+        }
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list->head; node; node = node->next)
@@ -660,9 +652,18 @@ static void show_rate(obj_t *obj)
                 if(ANY_PROG == obj->aim_prog ||
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
-                        fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
-                                pid_item->PID,
-                                pid_item->rate);
+                        if(obj->is_mono)
+                        {
+                                fprintf(stdout, "0x%04X" ", %9.6f, ",
+                                        pid_item->PID,
+                                        pid_item->rate);
+                        }
+                        else
+                        {
+                                fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
+                                        pid_item->PID,
+                                        pid_item->rate);
+                        }
                 }
         }
         fprintf(stdout, "\n");
@@ -734,15 +735,129 @@ static void show_es(obj_t *obj)
         return;
 }
 
-static void print_atp_title()
+static void show_error(obj_t *obj)
 {
-        fprintf(stdout,
-                FYELLOW "yyyy-mm-dd hh:mm:ss" NONE
-                ", "
-                FYELLOW "address(byte)" NONE
-                ", address(byte), STC, STC_base, "
-                FYELLOW "PID" NONE
-                ", ");
+        ts_rslt_t *rslt = obj->rslt;
+        ts_error_t *err = &(rslt->err);
+
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        {
+                return;
+        }
+
+        // First priority: necessary for de-codability (basic monitoring)
+        if(err->TS_sync_loss)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_1.1, TS_sync_loss\n");
+                if(err->Sync_byte_error > 10)
+                {
+                        fprintf(stdout, "\nToo many continual Sync_byte_error package, EXIT!\n");
+                        exit(EXIT_FAILURE);
+                }
+                return;
+        }
+        if(err->Sync_byte_error == 1)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_1.2, Sync_byte_error\n");
+        }
+        if(err->PAT_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_1.3, PAT_error\n");
+                err->PAT_error = 0;
+        }
+        if(err->Continuity_count_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_1.4, Continuity_count_error(%X-%X=%2u)\n",
+                        rslt->CC_find, rslt->CC_wait, rslt->CC_lost);
+        }
+        if(err->PMT_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_1.5, PMT_error\n");
+                err->PMT_error = 0;
+        }
+        if(err->PID_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_1.6, PID_error\n");
+                err->PID_error = 0;
+        }
+
+        // Second priority: recommended for continuous or periodic monitoring
+        if(err->Transport_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.1, Transport_error\n");
+        }
+        if(err->CRC_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.2, CRC_error\n");
+                err->CRC_error = 0;
+        }
+        if(err->PCR_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.3, PCR_error\n");
+                err->PCR_error = 0;
+        }
+        if(err->PCR_repetition_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.3, PCR_repetition_error\n");
+                err->PCR_repetition_error = 0;
+        }
+        if(err->PCR_accuracy_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.4, PCR_accuracy_error\n");
+                err->PCR_accuracy_error = 0;
+        }
+        if(err->PTS_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.5, PTS_error\n");
+                err->PTS_error = 0;
+        }
+        if(err->CAT_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "TR-101-290_2.6, CAT_error\n");
+                err->CAT_error = 0;
+        }
+
+        // Third priority: application dependant monitoring
+        // ...
+
+        return;
+}
+
+static void print_atp_title(obj_t *obj)
+{
+        if(obj->is_mono)
+        {
+                fprintf(stdout,
+                        "yyyy-mm-dd hh:mm:ss"
+                        ", "
+                        "address"
+                        ", address, STC, STC_base, "
+                        "PID"
+                        ", ");
+        }
+        else
+        {
+                fprintf(stdout,
+                        FYELLOW "yyyy-mm-dd hh:mm:ss" NONE
+                        ", "
+                        FYELLOW "address" NONE
+                        ", address, STC, STC_base, "
+                        FYELLOW "PID" NONE
+                        ", ");
+        }
         return;
 }
 
@@ -759,17 +874,34 @@ static void print_atp_value(obj_t *obj)
         lt = localtime(&tp);
         strftime(stime, 32, "%Y-%m-%d %H:%M:%S", lt);
 
-        fprintf(stdout,
-                FYELLOW "%s" NONE
-                ", "
-                FYELLOW "0x%llX" NONE
-                ", %lld, %llu, %llu, "
-                FYELLOW "0x%04X" NONE
-                ", ",
-                stime,
-                rslt->addr, rslt->addr,
-                rslt->STC, rslt->STC_base,
-                rslt->pid);
+        if(obj->is_mono)
+        {
+                fprintf(stdout,
+                        "%s"
+                        ", "
+                        "0x%llX"
+                        ", %lld, %llu, %llu, "
+                        "0x%04X"
+                        ", ",
+                        stime,
+                        rslt->addr, rslt->addr,
+                        rslt->STC, rslt->STC_base,
+                        rslt->pid);
+        }
+        else
+        {
+                fprintf(stdout,
+                        FYELLOW "%s" NONE
+                        ", "
+                        FYELLOW "0x%llX" NONE
+                        ", %lld, %llu, %llu, "
+                        FYELLOW "0x%04X" NONE
+                        ", ",
+                        stime,
+                        rslt->addr, rslt->addr,
+                        rslt->STC, rslt->STC_base,
+                        rslt->pid);
+        }
         return;
 }
 
