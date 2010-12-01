@@ -88,11 +88,10 @@ typedef struct
         struct LIST *track;
 
         // for STC calc
-        //      STCx - PCRb   ADDx - ADDb
-        //      ----------- = -----------
-        //      PCRb - PCRa   ADDb - ADDa
-        uint64_t ADDa, ADDb;
-        uint64_t PCRa, PCRb;
+        uint64_t ADDa; // PCR package a: package address
+        uint64_t PCRa; // PCR package a: PCR value
+        uint64_t ADDb; // PCR package b: package address
+        uint64_t PCRb; // PCR package b: PCR value
 }
 ts_prog_t; // unit of prog list
 
@@ -116,8 +115,8 @@ typedef struct
         uint8_t es_info[INFO_LEN_MAX];
 
         // for PTS/DTS mark
-        uint64_t PTS;
-        uint64_t DTS;
+        uint64_t PTS; // last PTS
+        uint64_t DTS; // last DTS
 }
 ts_track_t; // unit of track list
 
@@ -143,8 +142,10 @@ typedef struct
         uint32_t dCC:4; // 0 or 1
 
         // for statistic
-        uint32_t count; // packet received from last PCR
-        double rate; // Mbps
+        uint32_t cnt; // packet received from last PCR
+        uint32_t lcnt; // packet received from PCRa to PCRb
+
+        uint64_t STC; // last STC
 }
 ts_pid_t; // unit of pid list
 
@@ -174,10 +175,19 @@ typedef struct
         uint64_t STC_base;
         uint16_t STC_ext;
 
-        // for bit-rate
+        // for bit-rate statistic
         uint64_t aim_interval; // appointed interval
         uint64_t interval; // time passed from last rate calc
+        uint64_t sys_cnt; // system package count
+        uint64_t psi_cnt; // psi-si package count
+        uint64_t nul_cnt; // empty package count
+
+        // for rate calc
         int has_rate; // new bit-rate ready
+        uint64_t last_interval; // interval from PCRa to PCRb
+        uint64_t last_sys_cnt; // system package count from PCRa to PCRb
+        uint64_t last_psi_cnt; // psi-si package count from PCRa to PCRb
+        uint64_t last_nul_cnt; // empty package count from PCRa to PCRb
 
         int CC_wait;
         int CC_find;

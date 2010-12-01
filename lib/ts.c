@@ -556,25 +556,26 @@ static int state_next_pkg(obj_t *obj)
         err->Continuity_count_error = rslt->CC_lost;
 
         // calc STC, should be here(before PCR flush)
-        if((prog) && (prog->ADDa != prog->ADDb))
+        if((prog) &&
+           (prog->PCRa != PCR_OVERFLOW) &&
+           (prog->PCRb != PCR_OVERFLOW) &&
+           (prog->PCRa != prog->PCRb))
         {
                 long double delta;
 
+                // STCx - PCRb   ADDx - ADDb
+                // ----------- = -----------
+                // PCRb - PCRa   ADDb - ADDa
                 delta = difftime_27M(prog->PCRb, prog->PCRa);
-                //fprintf(stderr, "stc: %f\n", delta);
                 delta *= (rslt->addr - prog->ADDb);
-                //fprintf(stderr, "stc: %f\n", delta);
                 delta /= (prog->ADDb - prog->ADDa);
-                //fprintf(stderr, "stc: %f\n", delta);
 
                 rslt->STC = prog->PCRb;
                 rslt->STC += delta;
-                //fprintf(stderr, "STC: %f\n", rslt->STC);
-                if(rslt->STC > PCR_OVERFLOW)
+                if(rslt->STC >= PCR_OVERFLOW)
                 {
                         rslt->STC -= PCR_OVERFLOW;
                 }
-                //fprintf(stderr, "STC: %f\n", rslt->STC);
                 rslt->STC_base = rslt->STC / 300;
                 rslt->STC_ext = rslt->STC % 300;
         }
@@ -602,24 +603,20 @@ static int state_next_pkg(obj_t *obj)
 
                         // when calc PCR_interval, use rslt->STC or rslt->PCR?
                         rslt->PCR_interval = difftime_27M(rslt->STC, prog->PCRb);
-                        if(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * PCR_MS)
+                        if((prog->PCRa != PCR_OVERFLOW) &&
+                           (prog->PCRb != PCR_OVERFLOW) &&
+                           !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * PCR_MS))
                         {
-                                // 0 < interval < +40ms
-                                err->PCR_repetition_error = 0;
-                        }
-                        else
-                        {
+                                // NOT: 0 < interval < +40ms
                                 err->PCR_repetition_error = 1;
                         }
 
                         rslt->PCR_jitter = difftime_27M(rslt->PCR, rslt->STC);
-                        if(-13 <= rslt->PCR_jitter && rslt->PCR_jitter <= +13)
+                        if((prog->PCRa != PCR_OVERFLOW) &&
+                           (prog->PCRb != PCR_OVERFLOW) &&
+                           !(-13 <= rslt->PCR_jitter && rslt->PCR_jitter <= +13))
                         {
-                                // -500ns < jitter < +500ns
-                                err->PCR_accuracy_error = 0;
-                        }
-                        else
-                        {
+                                // NOT: -500ns < jitter < +500ns
                                 err->PCR_accuracy_error = 1;
                         }
 
@@ -640,10 +637,22 @@ static int state_next_pkg(obj_t *obj)
                                         for(node = rslt->pid_list->head; node; node = node->next)
                                         {
                                                 pid_item = (ts_pid_t *)node;
-                                                pid_item->rate = (pid_item->count * 188.0 * 8 * 27 / (rslt->interval));
-                                                pid_item->count = 0;
+                                                pid_item->lcnt = pid_item->cnt;
+                                                pid_item->cnt = 0;
                                         }
+
+                                        rslt->last_sys_cnt = rslt->sys_cnt;
+                                        rslt->sys_cnt = 0;
+
+                                        rslt->last_psi_cnt = rslt->psi_cnt;
+                                        rslt->psi_cnt = 0;
+
+                                        rslt->last_nul_cnt = rslt->nul_cnt;
+                                        rslt->nul_cnt = 0;
+
+                                        rslt->last_interval = rslt->interval;
                                         rslt->interval = 0;
+
                                         rslt->has_rate = 1;
                                 }
                         }
@@ -729,7 +738,6 @@ static int parse_TS(obj_t *obj)
                         err->TS_sync_loss++;
                 }
                 dump_TS(obj);
-                ts->sync_byte = 0x47;
         }
         else
         {
@@ -773,7 +781,18 @@ static int parse_TS(obj_t *obj)
         {
                 rslt->pids = add_new_pid(obj);
         }
-        rslt->pids->count++;
+
+        // statistic
+        rslt->pids->cnt++;
+        rslt->sys_cnt++;
+        if(ts->PID < 0x0020)
+        {
+                rslt->psi_cnt++;
+        }
+        if(0x1FFF == ts->PID)
+        {
+                rslt->nul_cnt++;
+        }
 
         return 0;
 }
@@ -1384,8 +1403,8 @@ static int parse_PAT_load(obj_t *obj)
 
                 pids->PID = prog->PMT_PID;
                 search_in_TS_PID_TABLE(pids->PID, &(pids->type));
-                pids->count = 0;
-                pids->rate = 0.0;
+                pids->cnt = 0;
+                pids->lcnt = 0;
                 pids->prog = prog;
                 pids->track = NULL;
                 pids->CC = 0;
@@ -1407,9 +1426,9 @@ static int parse_PAT_load(obj_t *obj)
                         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
 
                         prog->ADDa = 0;
-                        prog->PCRa = 0;
+                        prog->PCRa = PCR_OVERFLOW;
                         prog->ADDb = 0;
-                        prog->PCRb = 0;
+                        prog->PCRb = PCR_OVERFLOW;
                         list_add(rslt->prog_list, (struct NODE *)prog);
                 }
 
@@ -1473,8 +1492,8 @@ static int parse_PMT_load(obj_t *obj)
 
         // add PCR PID
         pids->PID = prog->PCR_PID;
-        pids->count = 0;
-        pids->rate = 0.0;
+        pids->cnt = 0;
+        pids->lcnt = 0;
         pids->prog = prog;
         pids->track = NULL;
         pids->type = PCR_PID;
@@ -1552,8 +1571,8 @@ static int parse_PMT_load(obj_t *obj)
 
                 // add track PID
                 pids->PID = track->PID;
-                pids->count = 0;
-                pids->rate = 0.0;
+                pids->cnt = 0;
+                pids->lcnt = 0;
                 pids->prog = prog;
                 pids->track = track;
                 pids->type = track->type;
@@ -1623,8 +1642,8 @@ static ts_pid_t *add_new_pid(obj_t *obj)
                 pids->prog = NULL;
         }
         pids->track = NULL;
-        pids->count = 1;
-        pids->rate = 0.0;
+        pids->cnt = 1;
+        pids->lcnt = 0;
         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
         if(STATE_NEXT_PKG == obj->state)
         {
@@ -1668,8 +1687,8 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                                         pids->type = the_pids->type;
                                         fprintf(stderr, "bad element PID(0x%04X)!\n", the_pids->PID);
                                 }
-                                pids->count = the_pids->count;
-                                pids->rate = the_pids->rate;
+                                pids->cnt = the_pids->cnt;
+                                pids->lcnt = the_pids->lcnt;
                                 pids->CC = the_pids->CC;
                                 pids->is_CC_sync = the_pids->is_CC_sync;
                                 pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
@@ -1682,8 +1701,8 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                                 pids->prog = the_pids->prog;
                                 pids->track = the_pids->track;
                                 pids->type = the_pids->type;
-                                pids->count = the_pids->count;
-                                pids->rate = the_pids->rate;
+                                pids->cnt = the_pids->cnt;
+                                pids->lcnt = the_pids->lcnt;
                                 pids->CC = the_pids->CC;
                                 pids->is_CC_sync = the_pids->is_CC_sync;
                                 pids->dCC = the_pids->dCC;
@@ -1706,8 +1725,8 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         pids->prog = the_pids->prog;
                         pids->track = the_pids->track;
                         pids->type = the_pids->type;
-                        pids->count = the_pids->count;
-                        pids->rate = the_pids->rate;
+                        pids->cnt = the_pids->cnt;
+                        pids->lcnt = the_pids->lcnt;
                         pids->CC = the_pids->CC;
                         pids->is_CC_sync = the_pids->is_CC_sync;
                         pids->dCC = the_pids->dCC;
@@ -1731,8 +1750,8 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         pids->prog = the_pids->prog;
                         pids->track = the_pids->track;
                         pids->type = the_pids->type;
-                        pids->count = the_pids->count;
-                        pids->rate = the_pids->rate;
+                        pids->cnt = the_pids->cnt;
+                        pids->lcnt = the_pids->lcnt;
                         pids->CC = the_pids->CC;
                         pids->is_CC_sync = the_pids->is_CC_sync;
                         pids->dCC = the_pids->dCC;
@@ -1756,8 +1775,8 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         pids->prog = the_pids->prog;
                         pids->track = the_pids->track;
                         pids->type = the_pids->type;
-                        pids->count = the_pids->count;
-                        pids->rate = the_pids->rate;
+                        pids->cnt = the_pids->cnt;
+                        pids->lcnt = the_pids->lcnt;
                         pids->CC = the_pids->CC;
                         pids->is_CC_sync = the_pids->is_CC_sync;
                         pids->dCC = the_pids->dCC;
@@ -1780,8 +1799,8 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
         pids->prog = the_pids->prog;
         pids->track = the_pids->track;
         pids->type = the_pids->type;
-        pids->count = the_pids->count;
-        pids->rate = the_pids->rate;
+        pids->cnt = the_pids->cnt;
+        pids->lcnt = the_pids->lcnt;
         pids->CC = the_pids->CC;
         pids->is_CC_sync = the_pids->is_CC_sync;
         pids->dCC = the_pids->dCC;

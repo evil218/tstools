@@ -54,7 +54,9 @@ enum
         MODE_PSI,
         MODE_PCR,
         MODE_PTSDTS,
-        MODE_RATE,
+        MODE_SYS_RATE,
+        MODE_PSI_RATE,
+        MODE_PROG_RATE,
         MODE_PES,
         MODE_ES,
         MODE_ERROR,
@@ -99,7 +101,9 @@ static void show_prog(struct LIST *list);
 static void show_track(struct LIST *list);
 
 static void show_pcr(obj_t *obj);
-static void show_rate(obj_t *obj);
+static void show_sys_rate(obj_t *obj);
+static void show_psi_rate(obj_t *obj);
+static void show_prog_rate(obj_t *obj);
 static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
 static void show_es(obj_t *obj);
@@ -198,7 +202,9 @@ static void state_parse_psi(obj_t *obj)
                                 fprintf(stdout, "level, detail, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
-                        case MODE_RATE:
+                        case MODE_SYS_RATE:
+                        case MODE_PSI_RATE:
+                        case MODE_PROG_RATE:
                         case MODE_PES:
                         case MODE_ES:
                                 obj->state = STATE_PARSE_EACH;
@@ -221,8 +227,14 @@ static void state_parse_each(obj_t *obj)
                 case MODE_PCR:
                         show_pcr(obj);
                         break;
-                case MODE_RATE:
-                        show_rate(obj);
+                case MODE_SYS_RATE:
+                        show_sys_rate(obj);
+                        break;
+                case MODE_PSI_RATE:
+                        show_psi_rate(obj);
+                        break;
+                case MODE_PROG_RATE:
+                        show_prog_rate(obj);
                         break;
                 case MODE_PTSDTS:
                         show_ptsdts(obj);
@@ -295,9 +307,17 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->mode = MODE_PCR;
                         }
-                        else if(0 == strcmp(argv[i], "-rate"))
+                        else if(0 == strcmp(argv[i], "-sys-rate"))
                         {
-                                obj->mode = MODE_RATE;
+                                obj->mode = MODE_SYS_RATE;
+                        }
+                        else if(0 == strcmp(argv[i], "-psi-rate"))
+                        {
+                                obj->mode = MODE_PSI_RATE;
+                        }
+                        else if(0 == strcmp(argv[i], "-prog-rate"))
+                        {
+                                obj->mode = MODE_PROG_RATE;
                         }
                         else if(0 == strcmp(argv[i], "-err"))
                         {
@@ -435,12 +455,14 @@ static void show_help()
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
         puts(" -prog <prog>     set cared <prog>, default: ANY program");
         puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
-        puts(" -pcr             show PCR information of cared <pid>");
-        puts(" -rate            output bit rate of PID of cared <program>");
+        puts(" -pcr             output PCR information of cared <pid>");
+        puts(" -sys-rate        output system bit-rate");
+        puts(" -psi-rate        output psi/si bit-rate");
+        puts(" -prog-rate       output bit-rate of cared <prog>");
         puts(" -ptsdts          output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
-        puts(" -err             show all errors found");
+        puts(" -err             output all errors found");
         puts(" -mono            disable colour effect, default: use colour to help read");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
@@ -504,7 +526,7 @@ static void show_pids(struct LIST *list)
                 fprintf(stdout, FYELLOW "0x%04X" NONE ", %7u, %5u,  %u ,     %c," FYELLOW " %s" NONE ", %s\n",
                         pids->PID,
                         0, // FIXME
-                        pids->count,
+                        pids->cnt,
                         pids->dCC,
                         (pids->track) ? '*' : ' ',
                         pids->sdes,
@@ -613,7 +635,89 @@ static void show_pcr(obj_t *obj)
         return;
 }
 
-static void show_rate(obj_t *obj)
+static void show_sys_rate(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        struct NODE *node;
+        ts_pid_t *pid_item;
+
+        if(!(rslt->has_rate))
+        {
+                return;
+        }
+
+        if(obj->is_mono)
+        {
+                fprintf(stdout,
+                        "0x%llX"
+                        ", "
+                        "0x%04X"
+                        ", ",
+                        rslt->addr,
+                        rslt->pid);
+        }
+        else
+        {
+                fprintf(stdout,
+                        FYELLOW "0x%llX" NONE
+                        ", "
+                        FYELLOW "0x%04X" NONE
+                        ", ",
+                        rslt->addr,
+                        rslt->pid);
+        }
+
+        if(obj->is_mono)
+        {
+                fprintf(stdout,
+                        "sys" ", %9.6f, "
+                        "psi-si" ", %9.6f, "
+                        "empty" ", %9.6f, ",
+                        rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                        rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                        rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+        }
+        else
+        {
+                fprintf(stdout,
+                        FYELLOW "sys" NONE ", %9.6f, "
+                        FYELLOW "psi-si" NONE ", %9.6f, "
+                        FYELLOW "empty" NONE ", %9.6f, ",
+                        rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                        rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                        rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+        }
+#if 1
+        // traverse pid_list
+        // if it belongs to this program, output its bitrate
+        for(node = rslt->pid_list->head; node; node = node->next)
+        {
+                pid_item = (ts_pid_t *)node;
+                if(ANY_PROG == obj->aim_prog ||
+                   (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
+                {
+#if 0
+                        if(obj->is_mono)
+                        {
+                                fprintf(stdout, "0x%04X" ", %9.6f, ",
+                                        pid_item->PID,
+                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                        }
+                        else
+                        {
+                                fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
+                                        pid_item->PID,
+                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                        }
+#endif
+                }
+        }
+#endif
+        fprintf(stdout, "\n");
+        return;
+}
+
+static void show_psi_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
         struct NODE *node;
@@ -656,13 +760,70 @@ static void show_rate(obj_t *obj)
                         {
                                 fprintf(stdout, "0x%04X" ", %9.6f, ",
                                         pid_item->PID,
-                                        pid_item->rate);
+                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                         }
                         else
                         {
                                 fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
                                         pid_item->PID,
-                                        pid_item->rate);
+                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                        }
+                }
+        }
+        fprintf(stdout, "\n");
+        return;
+}
+
+static void show_prog_rate(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        struct NODE *node;
+        ts_pid_t *pid_item;
+
+        if(!(rslt->has_rate))
+        {
+                return;
+        }
+
+        if(obj->is_mono)
+        {
+                fprintf(stdout,
+                        "0x%llX"
+                        ", "
+                        "0x%04X"
+                        ", ",
+                        rslt->addr,
+                        rslt->pid);
+        }
+        else
+        {
+                fprintf(stdout,
+                        FYELLOW "0x%llX" NONE
+                        ", "
+                        FYELLOW "0x%04X" NONE
+                        ", ",
+                        rslt->addr,
+                        rslt->pid);
+        }
+        // traverse pid_list
+        // if it belongs to this program, output its bitrate
+        for(node = rslt->pid_list->head; node; node = node->next)
+        {
+                pid_item = (ts_pid_t *)node;
+                if(ANY_PROG == obj->aim_prog ||
+                   (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
+                {
+                        if(obj->is_mono)
+                        {
+                                fprintf(stdout, "0x%04X" ", %9.6f, ",
+                                        pid_item->PID,
+                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                        }
+                        else
+                        {
+                                fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
+                                        pid_item->PID,
+                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                         }
                 }
         }
