@@ -29,7 +29,7 @@ typedef struct
         int mode;
         int state;
 
-        int is_outpsi; // output txt psi package to stdout
+        int is_outpsi; // output txt psi packet to stdout
         int is_prepsi; // get psi information from file first
         int is_mono; // use colour when print
         uint16_t aim_pid;
@@ -134,6 +134,7 @@ int main(int argc, char *argv[])
                 {
                         break;
                 }
+                tsParseOther(obj->ts_id);
                 switch(obj->state)
                 {
                         case STATE_PARSE_PSI:
@@ -169,7 +170,6 @@ static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        tsParseOther(obj->ts_id);
         if(obj->is_outpsi)
         {
                 puts(obj->tbuf);
@@ -220,8 +220,6 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
-        tsParseOther(obj->ts_id);
-
         switch(obj->mode)
         {
                 case MODE_PCR:
@@ -444,14 +442,14 @@ static int delete(obj_t *obj)
 
 static void show_help()
 {
-        puts("'tsana' get TS package from stdin, analyse, then send the result to stdout.");
+        puts("'tsana' get TS packet from stdin, analyse, then send the result to stdout.");
         puts("");
         puts("Usage: tsana [OPTION]...");
         puts("");
         puts("Options:");
         puts(" -pid-list        show PID list information, default option");
         puts(" -psi-tree        show PSI tree information");
-        puts(" -outpsi          output PSI package");
+        puts(" -outpsi          output PSI packet");
         puts(" -pid <pid>       set cared <pid>, default: ANY PID");
         puts(" -prog <prog>     set cared <prog>, default: ANY program");
         puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
@@ -913,7 +911,7 @@ static void show_error(obj_t *obj)
                 fprintf(stdout, "TR-101-290_1.1, TS_sync_loss\n");
                 if(err->Sync_byte_error > 10)
                 {
-                        fprintf(stdout, "\nToo many continual Sync_byte_error package, EXIT!\n");
+                        fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
                         exit(EXIT_FAILURE);
                 }
                 return;
@@ -969,13 +967,15 @@ static void show_error(obj_t *obj)
         if(err->PCR_repetition_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.3, PCR_repetition_error\n");
+                fprintf(stdout, "TR-101-290_2.3, PCR_repetition_error(%+7.3f ms)\n",
+                        (double)(rslt->PCR_interval) / PCR_MS);
                 err->PCR_repetition_error = 0;
         }
         if(err->PCR_accuracy_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.4, PCR_accuracy_error\n");
+                fprintf(stdout, "TR-101-290_2.4, PCR_accuracy_error(%+6.3f ms)\n",
+                        (double)(rslt->PCR_jitter) / PCR_US);
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error)

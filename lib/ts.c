@@ -236,12 +236,12 @@ static const pid_type_table_t PID_TYPE_TABLE[] =
         {1, " SIT_PID", "selection information section"},
         {1, " USR_PID", "user define"},
         {1, " PMT_PID", "program map section"},
-        {1, " VID_PID", "video package"},
-        {1, " VID_PCR", "video package with PCR"},
-        {1, " AUD_PID", "audio package"},
-        {1, " AUD_PCR", "audio package with PCR"},
+        {1, " VID_PID", "video packet"},
+        {1, " VID_PCR", "video packet with PCR"},
+        {1, " AUD_PID", "audio packet"},
+        {1, " AUD_PCR", "audio packet with PCR"},
         {0, " PCR_PID", "program counter reference"},
-        {0, "NULL_PID", "empty package"},
+        {0, "NULL_PID", "empty packet"},
         {1, " UNO_PID", "unknown"},
         {0, " BAD_PID", "illegal"}
 };
@@ -620,11 +620,11 @@ static int state_next_pkg(obj_t *obj)
                                 err->PCR_accuracy_error = 1;
                         }
 
-                        // the PCR package before last PCR package
+                        // the PCR packet before last PCR packet
                         prog->PCRa = prog->PCRb;
                         prog->ADDa = prog->ADDb;
 
-                        // last PCR package
+                        // last PCR packet
                         prog->PCRb = rslt->PCR;
                         prog->ADDb = rslt->addr;
 
@@ -659,7 +659,7 @@ static int state_next_pkg(obj_t *obj)
                 }
                 else
                 {
-                        fprintf(stderr, "error: PCR package without program pointer!\n");
+                        fprintf(stderr, "error: PCR packet without program pointer!\n");
                 }
         }
 
@@ -687,7 +687,7 @@ static int state_next_pkg(obj_t *obj)
                 }
                 else
                 {
-                        fprintf(stderr, "package has PTS, but has NOT track point!\n");
+                        fprintf(stderr, "packet has PTS, but has NOT track point!\n");
                 }
         }
 

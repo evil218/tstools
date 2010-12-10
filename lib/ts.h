@@ -88,10 +88,10 @@ typedef struct
         struct LIST *track;
 
         // for STC calc
-        uint64_t ADDa; // PCR package a: package address
-        uint64_t PCRa; // PCR package a: PCR value
-        uint64_t ADDb; // PCR package b: package address
-        uint64_t PCRb; // PCR package b: PCR value
+        uint64_t ADDa; // PCR packet a: packet address
+        uint64_t PCRa; // PCR packet a: PCR value
+        uint64_t ADDb; // PCR packet b: packet address
+        uint64_t PCRb; // PCR packet b: PCR value
 }
 ts_prog_t; // unit of prog list
 
@@ -134,7 +134,7 @@ typedef struct
 
         // relative pointer
         ts_prog_t *prog; // should be prog0 if does not belong to any program
-        ts_track_t *track; // should be NULL if not video or audio package
+        ts_track_t *track; // should be NULL if not video or audio packet
 
         // for continuity_counter check
         int is_CC_sync;
@@ -160,9 +160,9 @@ typedef struct
         struct LIST *pid_list;
         ts_prog_t *prog0; // first program in this stream
 
-        // information about current package
-        uint64_t addr; // address of this package
-        uint8_t line[204]; // current TS package
+        // information about current packet
+        uint64_t addr; // address of this packet
+        uint8_t line[204]; // current TS packet
 
         uint16_t concerned_pid; // used for PSI parsing
         uint16_t pid;
@@ -171,23 +171,23 @@ typedef struct
 
         // PMT, PCR, VID and AUD has timestamp according to its PCR
         // other PID has timestamp according to the PCR in the 1st program
-        uint64_t STC; // System Time Clock of this package
+        uint64_t STC; // System Time Clock of this packet
         uint64_t STC_base;
         uint16_t STC_ext;
 
         // for bit-rate statistic
         uint64_t aim_interval; // appointed interval
         uint64_t interval; // time passed from last rate calc
-        uint64_t sys_cnt; // system package count
-        uint64_t psi_cnt; // psi-si package count
-        uint64_t nul_cnt; // empty package count
+        uint64_t sys_cnt; // system packet count
+        uint64_t psi_cnt; // psi-si packet count
+        uint64_t nul_cnt; // empty packet count
 
         // for rate calc
         int has_rate; // new bit-rate ready
         uint64_t last_interval; // interval from PCRa to PCRb
-        uint64_t last_sys_cnt; // system package count from PCRa to PCRb
-        uint64_t last_psi_cnt; // psi-si package count from PCRa to PCRb
-        uint64_t last_nul_cnt; // empty package count from PCRa to PCRb
+        uint64_t last_sys_cnt; // system packet count from PCRa to PCRb
+        uint64_t last_psi_cnt; // psi-si packet count from PCRa to PCRb
+        uint64_t last_nul_cnt; // empty packet count from PCRa to PCRb
 
         int CC_wait;
         int CC_find;
