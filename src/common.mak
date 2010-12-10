@@ -37,10 +37,10 @@ CFLAGS += -std=c99
 
 ifeq ($(BUILD_TYPE), release)
 	CFLAGS += -O2
-	OBJ_DIR = release
+	OBJ_DIR = ../../release
 else
 	CFLAGS += -g
-	OBJ_DIR = debug
+	OBJ_DIR = ../../debug
 endif
 
 # -------------------------------------------------------------------
@@ -87,12 +87,12 @@ $(NAME).a: $(OBJS)
 
 $(NAME).exe: $(OBJS) $(DEPS) ../lib/libts1.a
 	$(CC) -o $@ $(OBJS) -L../lib -lts1
-	cp $@ ../$(OBJ_DIR)/$@
+	cp $@ $(OBJ_DIR)/$@
 	cp $@ $(INSTALL_DIR)/$@
 
 $(NAME): $(OBJS) $(DEPS) ../lib/libts1.a
 	$(CC) -o $@ $(OBJS) -L../lib -lts1
-	cp $@ ../$(OBJ_DIR)/$@
+	cp $@ $(OBJ_DIR)/$@
 	cp $@ $(INSTALL_DIR)/$@
 
 clean:
