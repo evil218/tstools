@@ -1,3 +1,8 @@
-all:
-	txt2tags tstool.t2t
-	cp tstool.html ../release
+%.html: %.t2t
+	txt2tags $<
+	cp $@ ../release
+
+all: tstools.html
+
+clean:
+	rm *.html

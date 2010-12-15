@@ -1,21 +1,21 @@
-TStool说明书
-[周骋 zhoucheng@tsinghua.org.cn]
+TStools说明书
+周骋
 最后更新：2010年12月13日
 %! target : html
 %! style : fancy.css
 %! encoding: utf-8
 %! options : --toc --enum-title
 
-=初识TStool=
+=初识TStools=
 
-++TStool的诞生++
+++TStools的诞生++
 搞数字电视编解码就要跟码流打交道，分析码流的过程中我一直希望把一些繁琐的操作自动化。
 虽然公司有码流分析仪，但几个人共用一个仪器总是不方便，并且有些功能码流分析仪也不支持。
 
 2009年初，我开发的H.264编码器出现PCR异常，非常需要连续记录PCR值以便分析其变化规律。
 码流分析仪只关注像PCR间隔和PCR抖动这样的指标，不能连续输出PCR值。
-于是TStool的最初版本诞生了——SVN的日志记录了它版本化的日子：4月1日。
-当时有tsana、ts2es和tsflt三个工具，因此叫TStool（TS工具集）——是不是有点BusyBox的味道？
+于是TStools的最初版本诞生了——SVN的日志记录了它版本化的日子：4月1日。
+当时有tsana、ts2es和tsflt三个工具，因此叫TStools（TS工具集）——是不是有点BusyBox的味道？
 - tsana分析TS包头，如果有PCR就提取并打印出来；
 - ts2es借用了同事给的一个函数，实现TS到ES的转换（试了一下，好像功能不对）；
 - tsflt可以将码流中指定PID的包打印出来。
@@ -26,23 +26,22 @@ TStool说明书
 因此准确地捕捉丢包事件，对调试工作会有很大帮助。
 但是码流分析仪的软件夜里可能会死机，导致拷机实验失败。
 因此我在tsana工具中增加了UDP接收模块，跟踪指定PID的CC值，一旦不连续就把系统时间和CC情况打印出来。
-
 如果想同时分析所有PID的丢包情况就要复杂一些了：
-+ tsana要同时跟踪每一种PID的CC数值——需要建立一个链表记录所有出现过的PID；
-+ tsana要知道每个PID的类型——空包和PCR包的CC值是不变的。
+- tsana要同时跟踪每一种PID的CC数值——需要建立一个链表记录所有出现过的PID；
+- tsana要知道每个PID的类型——空包和PCR包的CC值是不变的。
 
 
-即使是完整的实现丢包检测都必须做PSI分析，因此我在这个简单的基础上停下来，开始考虑TStool的架构。
+即使是完整的实现丢包检测都必须做PSI分析，因此我在这个简单的基础上停下来，开始考虑TStools的架构。
 
-++TStool的基本思路++
+++TStools的基本思路++
 Hi! This is my test document.
 Its content will end here.
 
-=使用TStool=
+=使用TStools=
 Hi! This is my test document.
 Its content will end here.
 
-=深入了解TStool=
+=深入了解TStools=
 Hi! This is my test document.
 Its content will end here.
-
+[周骋 zhoucheng@tsinghua.org.cn]
