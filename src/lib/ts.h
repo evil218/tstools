@@ -162,7 +162,7 @@ typedef struct
 
         // information about current packet
         uint64_t addr; // address of this packet
-        uint8_t line[204]; // current TS packet
+        uint8_t line[256]; // current TS packet, 188-byte or 204-byte
 
         uint16_t concerned_pid; // used for PSI parsing
         uint16_t pid;
@@ -223,9 +223,9 @@ ts_rslt_t; // parse result
 //============================================================================
 // public function declaration
 //============================================================================
-int tsCreate(int pkg_size, ts_rslt_t **rslt);
+int tsCreate(ts_rslt_t **rslt);
 int tsDelete(int id);
-int tsParseTS(int id, void *pkg);
+int tsParseTS(int id, void *pkt, int size);
 int tsParseOther(int id);
 
 #ifdef __cplusplus

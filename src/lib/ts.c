@@ -160,7 +160,7 @@ table_id_table_t;
 
 typedef struct
 {
-        int is_first_pkg;
+        int is_first_pkt;
 
         uint8_t *p; // point to rslt.line
         int len;
@@ -170,7 +170,7 @@ typedef struct
         pes_t pes;
         psi_t psi;
 
-        uint32_t pkg_size; // 188 or 204
+        uint32_t pkt_size; // 188 or 204
         int state;
 
         int is_pes_align; // met first PES head
@@ -305,7 +305,7 @@ enum
 {
         STATE_NEXT_PAT,
         STATE_NEXT_PMT,
-        STATE_NEXT_PKG
+        STATE_NEXT_PKT
 };
 
 //=============================================================================
@@ -313,7 +313,7 @@ enum
 //=============================================================================
 static int state_next_pat(obj_t *obj);
 static int state_next_pmt(obj_t *obj);
-static int state_next_pkg(obj_t *obj);
+static int state_next_pkt(obj_t *obj);
 
 static int dump_TS(obj_t *obj);   // for debug
 
@@ -342,7 +342,7 @@ static int64_t difftime_90K(uint64_t t1, uint64_t t2); // for STC_base, etc
 //=============================================================================
 // public function definition
 //=============================================================================
-int tsCreate(int pkg_size, ts_rslt_t **rslt)
+int tsCreate(ts_rslt_t **rslt)
 {
         obj_t *obj;
         ts_error_t *err;
@@ -358,8 +358,8 @@ int tsCreate(int pkg_size, ts_rslt_t **rslt)
         (*rslt)->prog_list = list_init();
         (*rslt)->pid_list = list_init();
 
-        obj->is_first_pkg = 1;
-        obj->pkg_size = pkg_size;
+        obj->is_first_pkt = 1;
+        obj->pkt_size = 188; // modified in each tsParseTS()
         obj->state = STATE_NEXT_PAT;
         obj->is_pes_align = 1; // PES align(0: need; 1: dot't need)
 
@@ -407,7 +407,7 @@ int tsDelete(int id)
         }
 }
 
-int tsParseTS(int id, void *pkg)
+int tsParseTS(int id, void *pkt, int size)
 {
         obj_t *obj;
 
@@ -418,19 +418,21 @@ int tsParseTS(int id, void *pkg)
                 return -ERR_BAD_ID;
         }
 
-        memcpy(obj->rslt.line, pkg, obj->pkg_size);
+        obj->pkt_size = size;
+        memcpy(obj->rslt.line, pkt, obj->pkt_size);
         obj->p = obj->rslt.line;
-        obj->len = obj->pkg_size;
+        obj->len = 188; // ignore data after 188 when 204-byte
+        //dump_TS(obj); // for debug
 
         // calculate address
-        if(obj->is_first_pkg)
+        if(obj->is_first_pkt)
         {
-                obj->is_first_pkg = 0;
+                obj->is_first_pkt = 0;
                 obj->rslt.addr = 0;
         }
         else
         {
-                obj->rslt.addr += obj->pkg_size;
+                obj->rslt.addr += obj->pkt_size;
         }
 
         return parse_TS(obj);
@@ -455,9 +457,9 @@ int tsParseOther(int id)
                 case STATE_NEXT_PMT:
                         state_next_pmt(obj);
                         break;
-                case STATE_NEXT_PKG:
+                case STATE_NEXT_PKT:
                 default:
-                        state_next_pkg(obj);
+                        state_next_pkt(obj);
                         break;
         }
 
@@ -483,7 +485,7 @@ static int state_next_pat(obj_t *obj)
         if(is_all_prog_parsed(obj))
         {
                 obj->rslt.is_psi_parsed = 1;
-                obj->state = STATE_NEXT_PKG;
+                obj->state = STATE_NEXT_PKT;
         }
 
         return 0;
@@ -505,13 +507,13 @@ static int state_next_pmt(obj_t *obj)
         if(is_all_prog_parsed(obj))
         {
                 obj->rslt.is_psi_parsed = 1;
-                obj->state = STATE_NEXT_PKG;
+                obj->state = STATE_NEXT_PKT;
         }
 
         return 0;
 }
 
-static int state_next_pkg(obj_t *obj)
+static int state_next_pkt(obj_t *obj)
 {
         ts_t *ts = &(obj->ts);
         af_t *af = &(obj->af);
@@ -698,9 +700,9 @@ static int dump_TS(obj_t *obj)
 {
         uint32_t i;
 
-        for(i = 0; i < obj->pkg_size; i++)
+        for(i = 0; i < obj->pkt_size; i++)
         {
-                fprintf(stderr, " %02X", obj->rslt.line[i]);
+                fprintf(stderr, "%02X ", obj->rslt.line[i]);
         }
         fprintf(stderr, "\n");
 
@@ -737,6 +739,7 @@ static int parse_TS(obj_t *obj)
                 {
                         err->TS_sync_loss++;
                 }
+                fprintf(stderr, "Sync byte error!\n");
                 dump_TS(obj);
         }
         else
@@ -1645,7 +1648,7 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         pids->cnt = 1;
         pids->lcnt = 0;
         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
-        if(STATE_NEXT_PKG == obj->state)
+        if(STATE_NEXT_PKT == obj->state)
         {
                 pids->CC = ts->continuity_counter - pids->dCC;
         }

@@ -15,6 +15,9 @@
 #include "if.h"
 #include "ts.h" // has "list.h" already
 
+#define PKT_BBUF                        (256) // 188 or 204
+#define PKT_TBUF                        (PKT_BBUF * 3 + 10)
+
 #define ANY_PID                         0x2000 // any PID of [0x0000,0x1FFF]
 #define ANY_PROG                        0x0000 // any prog of [0x0001,0xFFFF]
 
@@ -37,8 +40,8 @@ typedef struct
         uint64_t aim_interval; // for rate calc
 
         uint32_t ts_size;
-        uint8_t bbuf[204];
-        char tbuf[1024];
+        uint8_t bbuf[PKT_BBUF];
+        char tbuf[PKT_TBUF];
 
         int ts_id;
         ts_rslt_t *rslt;
@@ -72,8 +75,8 @@ enum
 
 enum
 {
-        GOT_WRONG_PKG,
-        GOT_RIGHT_PKG,
+        GOT_WRONG_PKT,
+        GOT_RIGHT_PKT,
         GOT_EOF
 };
 
@@ -94,7 +97,7 @@ static int delete(obj_t *obj);
 static void show_help();
 static void show_version();
 
-static int get_one_pkg(obj_t *obj);
+static int get_one_pkt(obj_t *obj);
 
 static void show_pids(struct LIST *list);
 static void show_prog(struct LIST *list);
@@ -124,13 +127,13 @@ int main(int argc, char *argv[])
         rslt = obj->rslt;
         rslt->aim_interval = obj->aim_interval;
 
-        while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkg(obj)))
+        while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj)))
         {
-                if(GOT_WRONG_PKG == get_rslt)
+                if(GOT_WRONG_PKT == get_rslt)
                 {
                         break;
                 }
-                if(0 != tsParseTS(obj->ts_id, obj->bbuf))
+                if(0 != tsParseTS(obj->ts_id, obj->bbuf, obj->ts_size))
                 {
                         break;
                 }
@@ -274,7 +277,6 @@ static obj_t *create(int argc, char *argv[])
         obj->aim_pid = ANY_PID;
         obj->aim_prog = ANY_PROG;
         obj->aim_interval = 1000 * PCR_MS;
-        obj->ts_size = 188; // FIXME: should be established in sync_input()
 
         for(i = 1; i < argc; i++)
         {
@@ -420,7 +422,7 @@ static obj_t *create(int argc, char *argv[])
                 }
         }
 
-        obj->ts_id = tsCreate(obj->ts_size, &(obj->rslt));
+        obj->ts_id = tsCreate(&(obj->rslt));
 
         return obj;
 }
@@ -489,12 +491,12 @@ static void show_version()
         return;
 }
 
-static int get_one_pkg(obj_t *obj)
+static int get_one_pkt(obj_t *obj)
 {
         char *rslt;
         int size;
 
-        rslt = fgets(obj->tbuf, 1000, stdin);
+        rslt = fgets(obj->tbuf, PKT_TBUF, stdin);
         if(NULL == rslt)
         {
                 return GOT_EOF;
@@ -502,13 +504,14 @@ static int get_one_pkg(obj_t *obj)
         //puts(obj->tbuf);
 
         size = t2b(obj->bbuf, obj->tbuf);
-        if(size != 188)
+        if((size != 188) && (size != 204))
         {
-                //fprintf(stderr, "Bad pkg_size:%d\n%s\n", size, obj->tbuf);
-                return GOT_WRONG_PKG;
+                fprintf(stderr, "Bad packet size:%d\n%s\n", size, obj->tbuf);
+                return GOT_WRONG_PKT;
         }
 
-        return GOT_RIGHT_PKG;
+        obj->ts_size = size;
+        return GOT_RIGHT_PKT;
 }
 
 static void show_pids(struct LIST *list)
