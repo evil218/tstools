@@ -74,7 +74,7 @@ $(INSTALL_DIR)/%$(POSTFIX): %$(POSTFIX)
 %.html: %.1
 	-man2html $< > $@
 
-../release/%.html: %.html
+$(OBJ_DIR)/doc/%.html: %.html
 	cp $< $@
 
 # =============================================================================
@@ -109,7 +109,7 @@ depend: $(DEPS)
 
 -include $(DEPS)
 
-doc: ../release/$(NAME).html
+doc: $(OBJ_DIR)/doc/$(NAME).html
 
 install: $(NAME)$(POSTFIX)
 

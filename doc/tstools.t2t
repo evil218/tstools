@@ -98,10 +98,20 @@ Unix的小工具思想太强大了！
 [3.jpg]
 
 =使用TStools=
-Hi! This is my test document.
-Its content will end here.
+
+++单个工具++
+Unix下每个工具的使用说明一般要用“--help”来看，
+如果你懒得去命令行敲键盘，就看看这些自动生成的链接吧！
+翻译成中文有点画蛇添足，说明书还是看原版的好：
+- [bincat bincat.html]
+- [ipcat ipcat.html]
+- [tsana tsana.html]
+- [tobin tobin.html]
+
+
+++组合用法++
+未完成...
 
 =深入了解TStools=
-Hi! This is my test document.
-Its content will end here.
+未完成...
 [周骋 zhoucheng@tsinghua.org.cn]
