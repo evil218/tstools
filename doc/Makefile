@@ -1,6 +1,6 @@
 %.html: %.t2t
 	txt2tags $<
-	cp $@ ../release
+	cp $@ ../release/doc
 
 all: tstools.html
 
