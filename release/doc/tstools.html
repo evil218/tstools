@@ -30,8 +30,22 @@
     <UL>
     <LI><A HREF="#toc7">2.1. 单个工具</A>
     <LI><A HREF="#toc8">2.2. 组合用法</A>
+      <UL>
+      <LI><A HREF="#toc9">2.2.1. PID成分分析</A>
+      <LI><A HREF="#toc10">2.2.2. 节目树分析</A>
+      <LI><A HREF="#toc11">2.2.3. 错误分析</A>
+      <LI><A HREF="#toc12">2.2.4. PCR分析</A>
+      <LI><A HREF="#toc13">2.2.5. PTS、DTS分析</A>
+      <LI><A HREF="#toc14">2.2.6. 码率分析</A>
+      <LI><A HREF="#toc15">2.2.7. 导出PES数据</A>
+      <LI><A HREF="#toc16">2.2.8. 导出ES数据</A>
+      <LI><A HREF="#toc17">2.2.9. 实时流录制</A>
+      </UL>
     </UL>
-  <LI><A HREF="#toc9">深入了解TStools</A>
+  <LI><A HREF="#toc18">深入了解TStools</A>
+    <UL>
+    <LI><A HREF="#toc19">3.1. 时钟恢复方案</A>
+    </UL>
   </OL>
 
 <P></P>
@@ -93,7 +107,7 @@
 因此作为一个懒人，我选择文本界面，只是简单地把分析结果打印出来。
 </P>
 <P>
-<IMG ALIGN="middle" SRC="1.jpg" BORDER="0" ALT="">
+<IMG ALIGN="middle" SRC="pic_multi_IF.jpg" BORDER="0" ALT="">
 </P>
 <P>
 这里必须提一下csv文件格式，说它是一种文件格式实在是搞复杂了，
@@ -123,44 +137,42 @@
 <P>
 Unix下有一个叫做“过滤器”的概念：
 每个工具处理stdin（标准输入）传入的内容，产生的结果写给stdout（标准输出），出现的错误写入stderr（标准错误）。
-多个这样的过滤器可以用“管道”连接起来，完成复杂的任务。
+由于“管道”可以实现输入输出重新定向，多个这样的过滤器可以用管道连接起来，完成复杂的任务。
 如果把tsana设计成一个过滤器，仅处理从stdin输入的码流，借助管道就可以支持任意形式的输入。
 </P>
 <P>
-<IMG ALIGN="middle" SRC="2.jpg" BORDER="0" ALT="">
+<IMG ALIGN="middle" SRC="pic_pipe.jpg" BORDER="0" ALT="">
 </P>
 <P>
 采用这个方案需要解决一个衍生问题：二进制形式的TS数据以什么样的格式在管道间传输？
-二进制数据由于可读性差，需要特殊的同步协议，在Unix世界中被严重鄙视。
+二进制文件由于可读性差，数据定位复杂，传输时需要同步，在Unix世界中被严重鄙视。
 大部分过滤器都采用文本格式，一行行地（每行同步一次）传递数据。
 因此我设计了bincat工具，把二进制形式的TS文件读出来，以文本方式一包一行地发给stdout；
 又设计了ipcat工具，把TS over IP中的UDP包拆开成数个TS包，以文本方式一包一行地发给stdout；
 而tsana只是简单的从stdin中一包一行的接收TS包就可以了，它不需要知道是谁在给它码流。
 以后如果要增加新的输入形式就写一个xxcat就行了，tsana不需要改代码重新编译。
-</P>
-<P>
-解释一下cat，这是unix下一个非常普通的工具，它把文本文件读出来输出到stdout。
-因为cat不支持二进制文件，所以我仿照它写了一个tscat，后来扩展了其功能不再限定TS文件，于是形成了bincat。
+（解释一下cat，这是unix下一个非常普通的工具，它把文本文件读出来输出到stdout。
+因为cat不支持二进制文件，所以我仿照它写了一个tscat，后来扩展了其功能不再限定TS文件，于是形成了bincat。）
 </P>
 <P>
 规定用文本形式一行传送一个TS包还不够明确，具体这一行是什么格式呢？
 考虑到阅读方便，TS包中的188（或204）个字节之间要有分隔符，
 前面提到的英文逗号自然可以，但是过于密集的逗号还是影响阅读，因此用单个空格做分隔符更好。
 于是每个TS包变成了这样的文本行：“?? ?? ?? ... ?? \n”，每个字节变成了3个可显字符。
-如果用户需要，bincat允许指定任何字符用作间隔符，而tsana也允许间隔处出现任何[0-9A-Fa-f]范围之外的字符。
+（如果用户需要，bincat允许指定任何字符用作间隔符，而tsana也允许间隔处出现任何[0-9A-Fa-f]范围之外的字符。）
 如果bincat中使用“printf("%02X ", x)”把数据转换成文本形式，效率就太低了。
 对于这样一个固定的转换，使用查表法可以克服TS数据文本化的唯一弊端——效率问题。
 </P>
 <P>
 当TS包变成文本行时，我忽然发现除了tsana，还可以直接使用Unix下的很多工具直接处理bincat的输出：
-可以用grep过滤出指定PID的TS包，可以用sed修改某些数据......只要你会使用强大的正规表达式。
+可以用grep过滤出指定PID的TS包，可以用sed修改某些数据，可以用vim快速定位目标数据......它们都支持强大的正规表达式。
 最后一个问题：这些工具的输出还是文本格式，如果想回到二进制格式呢？
 于是我设计了tobin工具，把符合上述格式的文本转换回二进制文件（阴阳平衡很重要）。
 当tobin出现时，我发现用“ipcat + tobin”立刻就能实现实时流的录制功能（用VLC录流是需要一点技巧的）。
 Unix的小工具思想太强大了！
 </P>
 <P>
-<IMG ALIGN="middle" SRC="3.jpg" BORDER="0" ALT="">
+<IMG ALIGN="middle" SRC="pic_recorder.jpg" BORDER="0" ALT="">
 </P>
 
 <A NAME="toc6"></A>
@@ -176,25 +188,173 @@ Unix下每个工具的使用说明一般要用“--help”来看，
 </P>
 
 <UL>
-<LI><A HREF="bincat.html">bincat</A>
-<LI><A HREF="ipcat.html">ipcat</A>
-<LI><A HREF="tsana.html">tsana</A>
-<LI><A HREF="tobin.html">tobin</A>
+<LI><A HREF="bincat.html">bincat</A>：打开指定的TS文件，将每个TS包转换成TXT格式发送到stdout。
+<LI><A HREF="ipcat.html">ipcat</A>：接收UDP包，拆成TS包转换成TXT格式发送到stdout。
+<LI><A HREF="tsana.html">tsana</A>：从stdin接收TXT格式的TS包，按照参数要求分析，并以TXT格式输出到stdout。
+<LI><A HREF="tobin.html">tobin</A>：从stdin接收TXT格式的数据，转换成二进制写入指定文件。
 </UL>
 
 <A NAME="toc8"></A>
 <H2>2.2. 组合用法</H2>
 
+<A NAME="toc9"></A>
+<H3>2.2.1. PID成分分析</H3>
+
+<PRE>
+  语法：
+      bincat xxx.ts | tsana [-pid-list]
+  
+  例子：
+      $ bincat c111_sd_1min.ts | tsana
+       PID  , percent, count, dCC, track,     abbr, detail
+      0x0000,       0,     2,  1 ,      ,  PAT_PID, program association section
+      0x0050,       0,     1,  1 ,      ,  PMT_PID, program map section
+      0x0051,       0,     0,  0 ,      ,  PCR_PID, program counter reference
+      0x0052,       0,     0,  1 ,     *,  VID_PID, video packet
+      0x0053,       0,     0,  1 ,     *,  AUD_PID, audio packet
+      0x1FFF,       0,   124,  0 ,      , NULL_PID, empty packet
+</PRE>
+
 <P>
-未完成...
+参数“-pid-list”并不是必须的，因为这是tsana的缺省操作。
+输出列表根据PID从小到大排序：
 </P>
 
-<A NAME="toc9"></A>
-<H1>3. 深入了解TStools</H1>
+<UL>
+<LI>“percent”：该PID占的比重（尚未实现）；
+<LI>“count”：该PID的包数；
+<LI>“dCC”：该PID的CC每次是否应该加1（PCR包和空包的CC不需要增加）；
+<LI>“track”：该PID是否是音频或视频这样的媒体流；
+<LI>“abbr”：该PID类型简介；
+<LI>“detail”：该PID的详细解释。
+</UL>
 
 <P>
-未完成...
-<A HREF="mailto:zhoucheng@tsinghua.org.cn">周骋</A>
+<IMG ALIGN="middle" SRC="pic_PID_list.jpg" BORDER="0" ALT="">
+</P>
+<P>
+分析器内部会维护一个PID链表，分析期间遇到的新PID包或者PSI表中声明的PID按照从小到大的顺序插入表中。
+因为采用链表，其长度是没有限制的，最多可以有从0x0000到0x1FFF共8192项。
+因为插入时是排序的（插入的这段代码比较凌乱），所以很容易从小到大打印输出。
+</P>
+<P>
+PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，输出PID链表。
+因此除了PSI中声明的PID，其它PID是否能分析到取决于PSI分析期间是否能遇到。
+最糟糕的情况是：PAT和各个PMT表相继出现，中间没有其它PID包。
+这种情况下分析到的PID将仅仅是这些表中所提及的。
+</P>
+<P>
+由于码流长度的无限性，要分析码流中包含哪些PID，决定什么时候结束分析是个重要问题。
+如果码流正常，大部分PID都将在PSI表中声明，因此完成节目分析时已经可以输出PID表了。
+但是像SDT、NIT这样的表在PAT、PMT体系中是找不到的，更何况一些码流中会有意无意的出现unknown PID。
+因此限定分析时间是个更合理的方案——任何有用的PID至少每秒钟应该出现1次。
+根据码流中第1个节目的PCR时间，可以判断分析时间是否超过1秒钟了，tsana很快会做这个改变。
+</P>
+
+<A NAME="toc10"></A>
+<H3>2.2.2. 节目树分析</H3>
+
+<PRE>
+  语法：
+      bincat xxx.ts | tsana -psi-tree
+  
+  例子：
+      $ bincat c111_sd_1min.ts | tsana -psi-tree
+      + program 3(0x0003), PMT_PID = 0x0050
+          PCR_PID = 0x0051
+          program_info:
+          track
+              stream_type = 0x1B, H.264, ITU-T Rec.H.264|ISO/IEC 14496-10 Video
+              elementary_PID = 0x0052
+              ES_info:
+          track
+              stream_type = 0x03, MPEG-1, ISO/IEC 11172-3 Audio
+              elementary_PID = 0x0053
+              ES_info:
+</PRE>
+
+<P>
+参数“-psi-tree”告诉tsana在完成PSI/SI分析后，把所有节目信息以树的形式打印出来。
+节目树按照PAT中的声明顺序依次打印每个节目的信息：节目号、PMT_PID、PCR_PID、program_info和该节目的多个track。
+每个track包含stream_type，PID和ES_info。
+</P>
+<P>
+<IMG ALIGN="middle" SRC="pic_PSI_tree.jpg" BORDER="0" ALT="">
+</P>
+<P>
+分析器内部维护了1个prog链表，链表的每1项有自己的track链表。
+在PSI/SI分析的过程中，这些链表因为收集到的信息不断长大。
+因为采用链表，这些表的长度没有限制，码流中声明了多少就能放下多少。
+</P>
+<P>
+要注意的是，目前分析器的所有操作都以TS包为单位进行，目前还不支持因为超长需要多个TS包承载的PAT或PMT。
+分析SDT的功能还没实现。
+</P>
+
+<A NAME="toc11"></A>
+<H3>2.2.3. 错误分析</H3>
+
+<PRE>
+  语法：bincat xxx.ts | tsana -err
+</PRE>
+
+<A NAME="toc12"></A>
+<H3>2.2.4. PCR分析</H3>
+
+<PRE>
+  语法：bincat xxx.ts | tsana [-pid 0x0101] -pcr
+</PRE>
+
+<A NAME="toc13"></A>
+<H3>2.2.5. PTS、DTS分析</H3>
+
+<PRE>
+  语法：bincat xxx.ts | tsana [-pid 0x0101] -ptsdts
+</PRE>
+
+<A NAME="toc14"></A>
+<H3>2.2.6. 码率分析</H3>
+
+<PRE>
+  语法：bincat xxx.ts | tsana -sys-rate
+  语法：bincat xxx.ts | tsana -psi-rate
+  语法：bincat xxx.ts | tsana [-prog 27] -prog-rate
+</PRE>
+
+<A NAME="toc15"></A>
+<H3>2.2.7. 导出PES数据</H3>
+
+<PRE>
+  语法：bincat xxx.ts | tsana [-pid 0x0032] -pes | tobin 32.pes
+</PRE>
+
+<A NAME="toc16"></A>
+<H3>2.2.8. 导出ES数据</H3>
+
+<PRE>
+  语法：bincat xxx.ts | tsana [-pid 0x0032] -es | tobin 32.es
+</PRE>
+
+<A NAME="toc17"></A>
+<H3>2.2.9. 实时流录制</H3>
+
+<PRE>
+  语法：ipcat udp://@:1234 | tobin xxx.ts
+  语法：ipcat udp://@224.165.54.31:1234 | tobin xxx.ts
+</PRE>
+
+<A NAME="toc18"></A>
+<H1>3. 深入了解TStools</H1>
+
+<A NAME="toc19"></A>
+<H2>3.1. 时钟恢复方案</H2>
+
+<P>
+在分析码流的PCR指标时，需要精确的知道码流的到达时间。
+</P>
+<P>
+先写这些吧！
+朋友们要是发现了BUG，或者有什么好的意见和建议，可以通过<A HREF="mailto:zhoucheng@tsinghua.org.cn">周骋</A>联系我。
 </P>
 
 <!-- html code generated by txt2tags 2.6 (http://txt2tags.org) -->
