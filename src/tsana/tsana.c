@@ -99,7 +99,7 @@ static void show_version();
 
 static int get_one_pkt(obj_t *obj);
 
-static void show_pids(struct LIST *list);
+static void show_pid_list(obj_t *obj);
 static void show_prog(struct LIST *list);
 static void show_track(struct LIST *list);
 
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
         if(STATE_PARSE_PSI == obj->state)
         {
                 fprintf(stderr, "PSI parsing unfinished!\n");
-                show_pids(rslt->pid_list);
+                //show_pids(rslt->pid_list);
                 show_prog(rslt->prog_list);
         }
 
@@ -182,10 +182,6 @@ static void state_parse_psi(obj_t *obj)
         {
                 switch(obj->mode)
                 {
-                        case MODE_PID:
-                                show_pids(obj->rslt->pid_list);
-                                obj->state = STATE_EXIT;
-                                break;
                         case MODE_PSI:
                                 show_prog(obj->rslt->prog_list);
                                 obj->state = STATE_EXIT;
@@ -205,6 +201,7 @@ static void state_parse_psi(obj_t *obj)
                                 fprintf(stdout, "level, detail, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
+                        case MODE_PID:
                         case MODE_SYS_RATE:
                         case MODE_PSI_RATE:
                         case MODE_PROG_RATE:
@@ -225,6 +222,9 @@ static void state_parse_each(obj_t *obj)
 {
         switch(obj->mode)
         {
+                case MODE_PID:
+                        show_pid_list(obj);
+                        break;
                 case MODE_PCR:
                         show_pcr(obj);
                         break;
@@ -514,37 +514,34 @@ static int get_one_pkt(obj_t *obj)
         return GOT_RIGHT_PKT;
 }
 
-static void show_pids(struct LIST *list)
+static void show_pid_list(obj_t *obj)
 {
         struct NODE *node;
         ts_pid_t *pids;
+        ts_rslt_t *rslt = obj->rslt;
+        struct LIST *list = rslt->pid_list;
+
+        if(!(rslt->has_rate))
+        {
+                return;
+        }
 
         fprintf(stdout, FYELLOW " PID  " NONE ", percent, count, dCC, track," FYELLOW "     abbr" NONE ", detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, FYELLOW "0x%04X" NONE ", %7u, %5u,  %u ,     %c," FYELLOW " %s" NONE ", %s\n",
+                fprintf(stdout, FYELLOW "0x%04X" NONE ", %7.4f, %5u,  %u ,     %c," FYELLOW " %s" NONE ", %s\n",
                         pids->PID,
-                        0, // FIXME
-                        pids->cnt,
+                        pids->lcnt * 100.0 / rslt->last_sys_cnt,
+                        pids->lcnt,
                         pids->dCC,
                         (pids->track) ? '*' : ' ',
                         pids->sdes,
                         pids->ldes);
-#if 0 // for test point prog & point track
-                if(pids->prog)
-                {
-                        fprintf(stdout, "PMT: 0x%04X, PCR: 0x%04X\n",
-                                pids->prog->PMT_PID, pids->prog->PCR_PID);
-                }
-                if(pids->track)
-                {
-                        fprintf(stdout, "stream_type: 0x%02X\n",
-                                pids->track->stream_type);
-                }
-#endif
         }
+        obj->state = STATE_EXIT;
+
         return;
 }
 

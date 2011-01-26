@@ -92,6 +92,8 @@ typedef struct
         uint64_t PCRa; // PCR packet a: PCR value
         uint64_t ADDb; // PCR packet b: packet address
         uint64_t PCRb; // PCR packet b: PCR value
+        int STC_sync; // true: PCRa and PCRb OK, STC can be calc
+        uint64_t interval;
 }
 ts_prog_t; // unit of prog list
 

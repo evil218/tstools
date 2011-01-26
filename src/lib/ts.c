@@ -558,9 +558,8 @@ static int state_next_pkt(obj_t *obj)
         err->Continuity_count_error = rslt->CC_lost;
 
         // calc STC, should be here(before PCR flush)
-        if((prog) &&
-           (prog->PCRa != PCR_OVERFLOW) &&
-           (prog->PCRb != PCR_OVERFLOW) &&
+        if((prog) && 
+           (prog->STC_sync) &&
            (prog->PCRa != prog->PCRb))
         {
                 long double delta;
@@ -600,41 +599,73 @@ static int state_next_pkt(obj_t *obj)
 
                 if(prog)
                 {
-                        struct NODE *node;
-                        ts_pid_t *pid_item;
-
-                        // when calc PCR_interval, use rslt->STC or rslt->PCR?
+                        // PCR_interval, use rslt->STC or rslt->PCR?
                         rslt->PCR_interval = difftime_27M(rslt->STC, prog->PCRb);
-                        if((prog->PCRa != PCR_OVERFLOW) &&
-                           (prog->PCRb != PCR_OVERFLOW) &&
+                        if((prog->STC_sync) &&
                            !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * PCR_MS))
                         {
-                                // NOT: 0 < interval < +40ms
+                                // !(0 < interval < +40ms)
                                 err->PCR_repetition_error = 1;
                         }
 
+                        // PCR_jitter
                         rslt->PCR_jitter = difftime_27M(rslt->PCR, rslt->STC);
-                        if((prog->PCRa != PCR_OVERFLOW) &&
-                           (prog->PCRb != PCR_OVERFLOW) &&
+                        if((prog->STC_sync) &&
                            !(-13 <= rslt->PCR_jitter && rslt->PCR_jitter <= +13))
                         {
-                                // NOT: -500ns < jitter < +500ns
+                                // !(-500ns < jitter < +500ns)
                                 err->PCR_accuracy_error = 1;
                         }
 
-                        // the PCR packet before last PCR packet
+                        // PCRa: the PCR packet before last PCR packet
                         prog->PCRa = prog->PCRb;
                         prog->ADDa = prog->ADDb;
 
-                        // last PCR packet
+                        // PCRb: last PCR packet
                         prog->PCRb = rslt->PCR;
                         prog->ADDb = rslt->addr;
 
+                        // STC_sync
+                        if(!prog->STC_sync)
+                        {
+                                if(prog->PCRb != PCR_OVERFLOW)
+                                {
+                                        if(prog->PCRa == PCR_OVERFLOW)
+                                        {
+                                                struct NODE *node;
+                                                ts_pid_t *pid_item;
+
+                                                // 1st PCR of this program
+                                                // clear cnt & interval
+                                                for(node = rslt->pid_list->head; node; node = node->next)
+                                                {
+                                                        pid_item = (ts_pid_t *)node;
+                                                        if(pid_item->prog == prog)
+                                                        {
+                                                                pid_item->lcnt = 0;
+                                                                pid_item->cnt = 0;
+                                                        }
+                                                }
+                                                prog->interval = 0;
+                                        }
+                                        else
+                                        {
+                                                // 2ed PCR of this program
+                                                // STC can be calc
+                                                prog->STC_sync = 1;
+                                        }
+                                }
+                        }
+
+                        // the packet that use PCR of first program
                         if(prog == rslt->prog0)
                         {
                                 rslt->interval += difftime_27M(prog->PCRb, prog->PCRa);
                                 if(rslt->interval >= rslt->aim_interval)
                                 {
+                                        struct NODE *node;
+                                        ts_pid_t *pid_item;
+
                                         // calc bitrate and clear the packet count
                                         for(node = rslt->pid_list->head; node; node = node->next)
                                         {
@@ -669,27 +700,19 @@ static int state_next_pkt(obj_t *obj)
         if(track)
         {
                 parse_PES(obj);
-        }
 
-        // dealwith PTS, DTS, should be here, after parse PES!
-        if(rslt->has_PTS)
-        {
-                if(track)
+                if(rslt->has_PTS)
                 {
                         rslt->PTS_interval = difftime_90K(rslt->PTS, track->PTS);
                         rslt->PTS_minus_STC = difftime_90K(rslt->PTS, rslt->STC_base);
                         track->PTS = rslt->PTS; // record last PTS in track
-
-                        if(rslt->has_DTS)
-                        {
-                                rslt->DTS_interval = difftime_90K(rslt->DTS, track->DTS);
-                                rslt->DTS_minus_STC = difftime_90K(rslt->DTS, rslt->STC_base);
-                                track->DTS = rslt->DTS; // record last DTS in track
-                        }
                 }
-                else
+
+                if(rslt->has_DTS)
                 {
-                        fprintf(stderr, "packet has PTS, but has NOT track point!\n");
+                        rslt->DTS_interval = difftime_90K(rslt->DTS, track->DTS);
+                        rslt->DTS_minus_STC = difftime_90K(rslt->DTS, rslt->STC_base);
+                        track->DTS = rslt->DTS; // record last DTS in track
                 }
         }
 
@@ -1432,6 +1455,7 @@ static int parse_PAT_load(obj_t *obj)
                         prog->PCRa = PCR_OVERFLOW;
                         prog->ADDb = 0;
                         prog->PCRb = PCR_OVERFLOW;
+                        prog->STC_sync = 0;
                         list_add(rslt->prog_list, (struct NODE *)prog);
                 }
 
