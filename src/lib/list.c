@@ -1,3 +1,4 @@
+/* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
 // Name: list.c
 // Purpose: Common Bidirection List
@@ -11,45 +12,34 @@
 //=============================================================================
 // Functions definition:
 //=============================================================================
-struct LIST *list_init()
+void list_init(LIST *list)
 {
-        struct LIST *list;
-
-        list = (struct LIST *)malloc(sizeof(struct LIST));
-        if(NULL == list)
+        if(NULL != list)
         {
-                printf("Malloc memory for list failure!\n");
-                exit(EXIT_FAILURE);
+                list->head = NULL;
+                list->tail = NULL;
+                list->count = 0;
         }
-
-        list->head = NULL;
-        list->tail = NULL;
-        list->count = 0;
-
-        return list;
 }
 
-void list_free(struct LIST *list)
+void list_free(LIST *list)
 {
-        struct NODE *node;
-
-        node = list->head;
-        while(NULL != node)
+        if(NULL != list)
         {
-                list->head = node->next;
-                free(node); // assume that system will free allocated size
-                node = list->head;
+                NODE *node;
+
+                for(node = list->head; NULL != node;)
+                {
+                        list->head = node->next;
+                        free(node);
+                        node = list->head;
+                }
         }
-        free(list);
 }
 
-void list_add(struct LIST *list, struct NODE *node)
+void list_add(LIST *list, NODE *node)
 {
-        if(NULL == list || NULL == node)
-        {
-                return;
-        }
-        else
+        if(NULL != list && NULL != node)
         {
                 node->next = NULL;
                 node->prev = list->tail;
@@ -68,13 +58,9 @@ void list_add(struct LIST *list, struct NODE *node)
         }
 }
 
-void list_insert_before(struct LIST *list, struct NODE *next, struct NODE *node)
+void list_insert_before(LIST *list, NODE *next, NODE *node)
 {
-        if(NULL == list || NULL == next || NULL == node)
-        {
-                return;
-        }
-        else
+        if(NULL != list && NULL != next && NULL != node)
         {
                 node->next = next;
                 node->prev = next->prev;
@@ -93,13 +79,9 @@ void list_insert_before(struct LIST *list, struct NODE *next, struct NODE *node)
         }
 }
 
-void list_insert_after(struct LIST *list, struct NODE *prev, struct NODE *node)
+void list_insert_after(LIST *list, NODE *prev, NODE *node)
 {
-        if(NULL == list || NULL == prev || NULL == node)
-        {
-                return;
-        }
-        else
+        if(NULL != list && NULL != prev && NULL != node)
         {
                 node->next = prev->next;
                 node->prev = prev;
@@ -118,13 +100,9 @@ void list_insert_after(struct LIST *list, struct NODE *prev, struct NODE *node)
         }
 }
 
-void list_del(struct LIST *list, struct NODE *node)
+void list_del(LIST *list, NODE *node)
 {
-        if(NULL == list || NULL == node)
-        {
-                return;
-        }
-        else
+        if(NULL != list && NULL != node)
         {
                 if(NULL == node->prev)
                 {
@@ -143,68 +121,34 @@ void list_del(struct LIST *list, struct NODE *node)
                 {
                         node->next->prev = node->prev;
                 }
+
                 list->count--;
         }
 }
 
-int list_count(struct LIST *list)
+int list_count(LIST *list)
 {
-        if(NULL == list)
-        {
-                return 0;
-        }
-        else
-        {
-                return list->count;
-        }
+        return (NULL != list) ? list->count : 0;
 }
 
-struct NODE *list_head(struct LIST *list)
+NODE *list_head(LIST *list)
 {
-        if(NULL == list)
-        {
-                return NULL;
-        }
-        else
-        {
-                return list->head;
-        }
+        return (NULL != list) ? list->head : NULL;
 }
 
-struct NODE *list_tail(struct LIST *list)
+NODE *list_tail(LIST *list)
 {
-        if(NULL == list)
-        {
-                return NULL;
-        }
-        else
-        {
-                return list->tail;
-        }
+        return (NULL != list) ? list->tail : NULL;
 }
 
-struct NODE *list_next(struct NODE *node)
+NODE *list_next(NODE *node)
 {
-        if(NULL == node)
-        {
-                return NULL;
-        }
-        else
-        {
-                return node->next;
-        }
+        return (NULL != node) ? node->next : NULL;
 }
 
-struct NODE *list_prev(struct NODE *node)
+NODE *list_prev(NODE *node)
 {
-        if(NULL == node)
-        {
-                return NULL;
-        }
-        else
-        {
-                return node->prev;
-        }
+        return (NULL != node) ? node->prev : NULL;
 }
 
 /*****************************************************************************

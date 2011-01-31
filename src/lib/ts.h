@@ -20,7 +20,7 @@ extern "C" {
 //=============================================================================
 // Struct definition:
 //=============================================================================
-typedef struct
+typedef struct _ts_error_t
 {
         // First priority: necessary for de-codability (basic monitoring)
         int TS_sync_loss; // 1.1
@@ -64,11 +64,11 @@ typedef struct
 }
 ts_error_t; // TR 101 290 V1.2.1 2001-05
 
-typedef struct
+typedef struct _ts_prog_t
 {
         // for list
-        struct NODE *next;
-        struct NODE *prev;
+        NODE *next;
+        NODE *prev;
 
         // program information
         int is_parsed;
@@ -84,8 +84,8 @@ typedef struct
         int server_provider_len;
         uint8_t server_provider[SERVER_STR_MAX];
 
-        // track list
-        struct LIST *track;
+        // tracks
+        LIST track_list;
 
         // for STC calc
         uint64_t ADDa; // PCR packet a: packet address
@@ -97,11 +97,11 @@ typedef struct
 }
 ts_prog_t; // unit of prog list
 
-typedef struct
+typedef struct _ts_track_t
 {
         // for list
-        struct NODE *next;
-        struct NODE *prev;
+        NODE *next;
+        NODE *prev;
 
         // PID
         uint32_t PID:13;
@@ -122,11 +122,11 @@ typedef struct
 }
 ts_track_t; // unit of track list
 
-typedef struct
+typedef struct _ts_pid_t
 {
         // for list
-        struct NODE *next;
-        struct NODE *prev;
+        NODE *next;
+        NODE *prev;
 
         // PID
         uint16_t PID:13;
@@ -151,15 +151,15 @@ typedef struct
 }
 ts_pid_t; // unit of pid list
 
-typedef struct
+typedef struct _ts_rslt_t
 {
         // error
         ts_error_t err;
 
         // PSI, SI and other TS information
         int is_psi_parsed;
-        struct LIST *prog_list;
-        struct LIST *pid_list;
+        LIST prog_list;
+        LIST pid_list;
         ts_prog_t *prog0; // first program in this stream
 
         // information about current packet

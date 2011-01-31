@@ -100,8 +100,8 @@ static void show_version();
 static int get_one_pkt(obj_t *obj);
 
 static void show_pid_list(obj_t *obj);
-static void show_prog(struct LIST *list);
-static void show_track(struct LIST *list);
+static void show_prog(LIST *list);
+static void show_track(LIST *list);
 
 static void show_pcr(obj_t *obj);
 static void show_sys_rate(obj_t *obj);
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
         {
                 fprintf(stderr, "PSI parsing unfinished!\n");
                 //show_pids(rslt->pid_list);
-                show_prog(rslt->prog_list);
+                show_prog(&(rslt->prog_list));
         }
 
         delete(obj);
@@ -183,7 +183,7 @@ static void state_parse_psi(obj_t *obj)
                 switch(obj->mode)
                 {
                         case MODE_PSI:
-                                show_prog(obj->rslt->prog_list);
+                                show_prog(&(obj->rslt->prog_list));
                                 obj->state = STATE_EXIT;
                                 break;
                         case MODE_PCR:
@@ -516,10 +516,10 @@ static int get_one_pkt(obj_t *obj)
 
 static void show_pid_list(obj_t *obj)
 {
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pids;
         ts_rslt_t *rslt = obj->rslt;
-        struct LIST *list = rslt->pid_list;
+        LIST *list = &(rslt->pid_list);
 
         if(!(rslt->has_rate))
         {
@@ -545,10 +545,10 @@ static void show_pid_list(obj_t *obj)
         return;
 }
 
-static void show_prog(struct LIST *list)
+static void show_prog(LIST *list)
 {
         uint16_t i;
-        struct NODE *node;
+        NODE *node;
         ts_prog_t *prog;
 
         for(node = list->head; node; node = node->next)
@@ -572,15 +572,15 @@ static void show_prog(struct LIST *list)
                         fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
                 fprintf(stdout, NONE "\n");
-                show_track(prog->track);
+                show_track(&(prog->track_list));
         }
         return;
 }
 
-static void show_track(struct LIST *list)
+static void show_track(LIST *list)
 {
         uint16_t i;
-        struct NODE *node;
+        NODE *node;
         ts_track_t *track;
 
         //fprintf(stdout, "track_list(%d-item):\n\n", list_count(list));
@@ -636,7 +636,7 @@ static void show_pcr(obj_t *obj)
 static void show_sys_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pid_item;
 
         if(!(rslt->has_rate))
@@ -688,7 +688,7 @@ static void show_sys_rate(obj_t *obj)
 #if 1
         // traverse pid_list
         // if it belongs to this program, output its bitrate
-        for(node = rslt->pid_list->head; node; node = node->next)
+        for(node = rslt->pid_list.head; node; node = node->next)
         {
                 pid_item = (ts_pid_t *)node;
                 if(ANY_PROG == obj->aim_prog ||
@@ -718,7 +718,7 @@ static void show_sys_rate(obj_t *obj)
 static void show_psi_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pid_item;
 
         if(!(rslt->has_rate))
@@ -748,7 +748,7 @@ static void show_psi_rate(obj_t *obj)
         }
         // traverse pid_list
         // if it belongs to this program, output its bitrate
-        for(node = rslt->pid_list->head; node; node = node->next)
+        for(node = rslt->pid_list.head; node; node = node->next)
         {
                 pid_item = (ts_pid_t *)node;
                 if(ANY_PROG == obj->aim_prog ||
@@ -775,7 +775,7 @@ static void show_psi_rate(obj_t *obj)
 static void show_prog_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pid_item;
 
         if(!(rslt->has_rate))
@@ -805,7 +805,7 @@ static void show_prog_rate(obj_t *obj)
         }
         // traverse pid_list
         // if it belongs to this program, output its bitrate
-        for(node = rslt->pid_list->head; node; node = node->next)
+        for(node = rslt->pid_list.head; node; node = node->next)
         {
                 pid_item = (ts_pid_t *)node;
                 if(ANY_PROG == obj->aim_prog ||

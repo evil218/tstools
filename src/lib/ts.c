@@ -28,7 +28,7 @@
 //=============================================================================
 // struct definition
 //=============================================================================
-typedef struct
+typedef struct _ts_t
 {
         uint32_t sync_byte:8;
         uint32_t transport_error_indicator:1;
@@ -41,7 +41,7 @@ typedef struct
 }
 ts_t;
 
-typedef struct
+typedef struct _af_t
 {
         uint32_t adaption_field_length:8;
         uint32_t discontinuity_indicator:1;
@@ -61,7 +61,7 @@ typedef struct
 }
 af_t;
 
-typedef struct
+typedef struct _pes_t
 {
         uint32_t packet_start_code_prefix:24;
         uint32_t stream_id:8;
@@ -107,7 +107,7 @@ typedef struct
 }
 pes_t;
 
-typedef struct
+typedef struct _psi_t
 {
         uint32_t pointer_field:8; // 
         uint32_t table_id:8; // TABLE_ID_TABLE
@@ -134,7 +134,7 @@ typedef struct
 }
 psi_t;
 
-typedef struct
+typedef struct _pid_type_table_t
 {
         int dCC;        // delta of CC field: 0 or 1
         char *sdes;     // short description
@@ -142,7 +142,7 @@ typedef struct
 }
 pid_type_table_t;
 
-typedef struct
+typedef struct _ts_pid_table_t
 {
         uint16_t min;   // PID range
         uint16_t max;   // PID range
@@ -150,7 +150,7 @@ typedef struct
 }
 ts_pid_table_t;
 
-typedef struct
+typedef struct _table_id_table_t
 {
         uint8_t min;    // table ID range
         uint8_t max;    // table ID range
@@ -158,7 +158,7 @@ typedef struct
 }
 table_id_table_t;
 
-typedef struct
+typedef struct _obj_t
 {
         int is_first_pkt;
 
@@ -328,13 +328,13 @@ static int parse_PAT_load(obj_t *obj);
 static int parse_PMT_load(obj_t *obj);
 
 static int search_in_TS_PID_TABLE(uint16_t pid, int *type);
-static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *pids);
+static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
 static int is_pmt_pid(obj_t *obj);
 static int is_unparsed_prog(obj_t *obj);
 static int is_all_prog_parsed(obj_t *obj);
 static int track_type(ts_track_t *track);
-static ts_pid_t *pids_match(struct LIST *list, uint16_t pid);
+static ts_pid_t *pids_match(LIST *list, uint16_t pid);
 
 static int64_t difftime_27M(uint64_t t1, uint64_t t2); // for STC, etc
 static int64_t difftime_90K(uint64_t t1, uint64_t t2); // for STC_base, etc
@@ -355,8 +355,8 @@ int tsCreate(ts_rslt_t **rslt)
         }
 
         *rslt = &(obj->rslt);
-        (*rslt)->prog_list = list_init();
-        (*rslt)->pid_list = list_init();
+        list_init(&((*rslt)->prog_list));
+        list_init(&((*rslt)->pid_list));
 
         obj->is_first_pkt = 1;
         obj->pkt_size = 188; // modified in each tsParseTS()
@@ -380,9 +380,6 @@ int tsCreate(ts_rslt_t **rslt)
 int tsDelete(int id)
 {
         obj_t *obj;
-        ts_rslt_t *rslt;
-        struct NODE *node;
-        ts_prog_t *prog;
 
         obj = (obj_t *)id;
         if(NULL == obj)
@@ -392,14 +389,18 @@ int tsDelete(int id)
         }
         else
         {
+                ts_rslt_t *rslt;
+                NODE *node;
+                ts_prog_t *prog;
+
                 rslt = &(obj->rslt);
-                for(node = rslt->prog_list->head; node; node = node->next)
+                for(node = rslt->prog_list.head; node; node = node->next)
                 {
                         prog = (ts_prog_t *)node;
-                        list_free(prog->track);
+                        list_free(&(prog->track_list));
                 }
-                list_free(rslt->prog_list);
-                list_free(rslt->pid_list);
+                list_free(&(rslt->prog_list));
+                list_free(&(rslt->pid_list));
 
                 free(obj);
 
@@ -632,12 +633,12 @@ static int state_next_pkt(obj_t *obj)
                                 {
                                         if(prog->PCRa == PCR_OVERFLOW)
                                         {
-                                                struct NODE *node;
+                                                NODE *node;
                                                 ts_pid_t *pid_item;
 
                                                 // 1st PCR of this program
                                                 // clear cnt & interval
-                                                for(node = rslt->pid_list->head; node; node = node->next)
+                                                for(node = rslt->pid_list.head; node; node = node->next)
                                                 {
                                                         pid_item = (ts_pid_t *)node;
                                                         if(pid_item->prog == prog)
@@ -663,11 +664,11 @@ static int state_next_pkt(obj_t *obj)
                                 rslt->interval += difftime_27M(prog->PCRb, prog->PCRa);
                                 if(rslt->interval >= rslt->aim_interval)
                                 {
-                                        struct NODE *node;
+                                        NODE *node;
                                         ts_pid_t *pid_item;
 
                                         // calc bitrate and clear the packet count
-                                        for(node = rslt->pid_list->head; node; node = node->next)
+                                        for(node = rslt->pid_list.head; node; node = node->next)
                                         {
                                                 pid_item = (ts_pid_t *)node;
                                                 pid_item->lcnt = pid_item->cnt;
@@ -802,7 +803,7 @@ static int parse_TS(obj_t *obj)
         }
 
         rslt->pid = ts->PID; // record into rslt struct
-        rslt->pids = pids_match(obj->rslt.pid_list, rslt->pid);
+        rslt->pids = pids_match(&(obj->rslt.pid_list), rslt->pid);
         if(NULL == rslt->pids)
         {
                 rslt->pids = add_new_pid(obj);
@@ -1379,7 +1380,7 @@ static int parse_PAT_load(obj_t *obj)
         ts_rslt_t *rslt = &(obj->rslt);
         ts_prog_t *prog;
         ts_pid_t ts_pid, *pids = &ts_pid;
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pid_item;
 
         while(obj->len > 4)
@@ -1400,7 +1401,7 @@ static int parse_PAT_load(obj_t *obj)
 
                         // traverse pid_list
                         // if it des not belong to any program, use prog0
-                        for(node = rslt->pid_list->head; node; node = node->next)
+                        for(node = rslt->pid_list.head; node; node = node->next)
                         {
                                 pid_item = (ts_pid_t *)node;
                                 if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
@@ -1410,7 +1411,7 @@ static int parse_PAT_load(obj_t *obj)
                         }
                 }
 
-                prog->track = list_init();
+                list_init(&(prog->track_list));
                 prog->is_parsed = 0;
 
                 dat = *(obj->p)++; obj->len--;
@@ -1456,10 +1457,10 @@ static int parse_PAT_load(obj_t *obj)
                         prog->ADDb = 0;
                         prog->PCRb = PCR_OVERFLOW;
                         prog->STC_sync = 0;
-                        list_add(rslt->prog_list, (struct NODE *)prog);
+                        list_add(&(rslt->prog_list), (NODE *)prog);
                 }
 
-                add_to_pid_list(rslt->pid_list, pids);
+                add_to_pid_list(&(rslt->pid_list), pids);
         }
 
         dat = *(obj->p)++; obj->len--;
@@ -1487,14 +1488,14 @@ static int parse_PMT_load(obj_t *obj)
         uint16_t i;
         uint8_t dat;
         uint16_t info_length;
-        struct NODE *node;
+        NODE *node;
         ts_prog_t *prog;
         ts_pid_t ts_pid, *pids = &ts_pid;
         ts_track_t *track;
         ts_t *ts = &(obj->ts);
         psi_t *psi = &(obj->psi);
 
-        for(node = obj->rslt.prog_list->head; node; node = node->next)
+        for(node = obj->rslt.prog_list.head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
                 if(psi->idx.program_number == prog->program_number)
@@ -1529,7 +1530,7 @@ static int parse_PMT_load(obj_t *obj)
         pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
-        add_to_pid_list(obj->rslt.pid_list, pids);
+        add_to_pid_list(&(obj->rslt.pid_list), pids);
 
         // program_info_length
         dat = *(obj->p)++; obj->len--;
@@ -1594,7 +1595,7 @@ static int parse_PMT_load(obj_t *obj)
                 }
 
                 track_type(track);
-                list_add(prog->track, (struct NODE *)track);
+                list_add(&(prog->track_list), (NODE *)track);
 
                 // add track PID
                 pids->PID = track->PID;
@@ -1608,7 +1609,7 @@ static int parse_PMT_load(obj_t *obj)
                 pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
                 pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
                 pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
-                add_to_pid_list(obj->rslt.pid_list, pids);
+                add_to_pid_list(&(obj->rslt.pid_list), pids);
         }
 
         dat = *(obj->p)++; obj->len--;
@@ -1684,12 +1685,12 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
 
-        return add_to_pid_list(rslt->pid_list, pids);
+        return add_to_pid_list(&(rslt->pid_list), pids);
 }
 
-static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
+static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 {
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pids;
 
         for(node = list->head; node; node = node->next)
@@ -1760,7 +1761,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         pids->sdes = the_pids->sdes;
                         pids->ldes = the_pids->ldes;
 
-                        list_insert_before(list, node, (struct NODE *)pids);
+                        list_insert_before(list, node, (NODE *)pids);
                         return pids;
                 }
 
@@ -1785,7 +1786,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         pids->sdes = the_pids->sdes;
                         pids->ldes = the_pids->ldes;
 
-                        list_add(list, (struct NODE *)pids);
+                        list_add(list, (NODE *)pids);
                         return pids;
                 }
 
@@ -1810,7 +1811,7 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
                         pids->sdes = the_pids->sdes;
                         pids->ldes = the_pids->ldes;
 
-                        list_insert_after(list, node, (struct NODE *)pids);
+                        list_insert_after(list, node, (NODE *)pids);
                         return pids;
                 }
         }
@@ -1834,17 +1835,17 @@ static ts_pid_t *add_to_pid_list(struct LIST *list, ts_pid_t *the_pids)
         pids->sdes = the_pids->sdes;
         pids->ldes = the_pids->ldes;
 
-        list_add(list, (struct NODE *)pids);
+        list_add(list, (NODE *)pids);
         return pids;
 }
 
 static int is_pmt_pid(obj_t *obj)
 {
         ts_t *ts = &(obj->ts);
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pids;
 
-        for(node = obj->rslt.pid_list->head; node; node = node->next)
+        for(node = obj->rslt.pid_list.head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
                 if(ts->PID == pids->PID)
@@ -1865,10 +1866,10 @@ static int is_pmt_pid(obj_t *obj)
 static int is_unparsed_prog(obj_t *obj)
 {
         psi_t *psi = &(obj->psi);
-        struct NODE *node;
+        NODE *node;
         ts_prog_t *prog;
 
-        for(node = obj->rslt.prog_list->head; node; node = node->next)
+        for(node = obj->rslt.prog_list.head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
                 if(psi->idx.program_number == prog->program_number)
@@ -1888,10 +1889,10 @@ static int is_unparsed_prog(obj_t *obj)
 
 static int is_all_prog_parsed(obj_t *obj)
 {
-        struct NODE *node;
+        NODE *node;
         ts_prog_t *prog;
 
-        for(node = obj->rslt.prog_list->head; node; node = node->next)
+        for(node = obj->rslt.prog_list.head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
                 if(0 == prog->is_parsed)
@@ -2071,9 +2072,9 @@ static int track_type(ts_track_t *track)
         return 0;
 }
 
-static ts_pid_t *pids_match(struct LIST *list, uint16_t pid)
+static ts_pid_t *pids_match(LIST *list, uint16_t pid)
 {
-        struct NODE *node;
+        NODE *node;
         ts_pid_t *pids;
 
 
