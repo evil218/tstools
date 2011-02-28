@@ -64,6 +64,17 @@ typedef struct _ts_error_t
 }
 ts_error_t; // TR 101 290 V1.2.1 2001-05
 
+typedef struct _ts_psi_t
+{
+        // for list
+        NODE *next;
+        NODE *prev;
+
+        uint8_t section_number;
+        uint8_t section[1024];
+}
+ts_psi_t; // unit of PSI/SI section list
+
 typedef struct _ts_prog_t
 {
         // for list
@@ -72,9 +83,9 @@ typedef struct _ts_prog_t
 
         // program information
         int is_parsed;
-        uint32_t PMT_PID:13;
-        uint32_t PCR_PID:13;
-        uint32_t program_number:16;
+        uint16_t PMT_PID; // 13-bit
+        uint16_t PCR_PID; // 13-bit
+        uint16_t program_number;
         int program_info_len;
         uint8_t program_info[INFO_LEN_MAX];
 
@@ -104,7 +115,7 @@ typedef struct _ts_track_t
         NODE *prev;
 
         // PID
-        uint32_t PID:13;
+        uint16_t PID; // 13-bit
         int type; // PID type index
 
         // stream_type
@@ -129,7 +140,7 @@ typedef struct _ts_pid_t
         NODE *prev;
 
         // PID
-        uint16_t PID:13;
+        uint16_t PID; // 13-bit
         int type; // PID type index
         const char *sdes; // PID type short description
         const char *ldes; // PID type long description
@@ -140,8 +151,8 @@ typedef struct _ts_pid_t
 
         // for continuity_counter check
         int is_CC_sync;
-        uint32_t CC:4;
-        uint32_t dCC:4; // 0 or 1
+        uint8_t CC; // 4-bit
+        uint8_t dCC; // 0 or 1
 
         // for statistic
         uint32_t cnt; // packet received from last PCR

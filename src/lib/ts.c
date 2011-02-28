@@ -30,107 +30,107 @@
 //=============================================================================
 typedef struct _ts_t
 {
-        uint32_t sync_byte:8;
-        uint32_t transport_error_indicator:1;
-        uint32_t payload_unit_start_indicator:1;
-        uint32_t transport_priority:1;
-        uint32_t PID:13;
-        uint32_t transport_scrambling_control:2;
-        uint32_t adaption_field_control:2;
-        uint32_t continuity_counter:4;
+        uint8_t sync_byte;
+        uint8_t transport_error_indicator; // 1-bit
+        uint8_t payload_unit_start_indicator; // 1-bit
+        uint8_t transport_priority; // 1-bit
+        uint16_t PID; // 13-bit
+        uint8_t transport_scrambling_control; // 2-bit
+        uint8_t adaption_field_control; // 2-bit
+        uint8_t continuity_counter; // 4-bit
 }
 ts_t;
 
 typedef struct _af_t
 {
-        uint32_t adaption_field_length:8;
-        uint32_t discontinuity_indicator:1;
-        uint32_t random_access_indicator:1;
-        uint32_t elementary_stream_priority_indicator:1;
-        uint32_t PCR_flag:1;
-        uint32_t OPCR_flag:1;
-        uint32_t splicing_pointer_flag:1;
-        uint32_t transport_private_data_flag:1;
-        uint32_t adaption_field_extension_flag:1;
-        uint64_t program_clock_reference_base:33;
-        uint32_t program_clock_reference_extension:9;
-        uint64_t original_program_clock_reference_base:33;
-        uint32_t original_program_clock_reference_extension:9;
-        uint32_t splice_countdown:8;
+        uint8_t adaption_field_length;
+        uint8_t discontinuity_indicator; // 1-bit
+        uint8_t random_access_indicator; // 1-bit
+        uint8_t elementary_stream_priority_indicator; // 1-bit
+        uint8_t PCR_flag; // 1-bit
+        uint8_t OPCR_flag; // 1-bit
+        uint8_t splicing_pointer_flag; // 1-bit
+        uint8_t transport_private_data_flag; // 1-bit
+        uint8_t adaption_field_extension_flag; // 1-bit
+        uint64_t program_clock_reference_base; // 33-bit
+        uint16_t program_clock_reference_extension; // 9-bit
+        uint64_t original_program_clock_reference_base; // 33-bit
+        uint16_t original_program_clock_reference_extension; // 9-bit
+        uint8_t splice_countdown;
         // ...
 }
 af_t;
 
 typedef struct _pes_t
 {
-        uint32_t packet_start_code_prefix:24;
-        uint32_t stream_id:8;
-        uint32_t PES_packet_length:16;
-        uint32_t PES_scrambling_control:2;
-        uint32_t PES_priority:1;
-        uint32_t data_alignment_indicator:1;
-        uint32_t copyright:1;
-        uint32_t original_or_copy:1;
-        uint32_t PTS_DTS_flags:2;
-        uint32_t ESCR_flag:1;
-        uint32_t ES_rate_flag:1;
-        uint32_t DSM_trick_mode_flag:1;
-        uint32_t additional_copy_info_flag:1;
-        uint32_t PES_CRC_flag:1;
-        uint32_t PES_extension_flag:1;
-        uint32_t PES_header_data_length:8;
-        uint64_t PTS:33;
-        uint64_t DTS:33;
-        uint64_t ESCR_base:33;
-        uint32_t ESCR_extension:9;
-        uint32_t ES_rate:22;
-        uint32_t trick_mode_control:3;
-        uint32_t field_id:2;
-        uint32_t intra_slice_refresh:1;
-        uint32_t frequency_truncation:2;
-        uint32_t rep_cntrl:5;
-        uint32_t additional_copy_info:7;
-        uint32_t previous_PES_packet_CRC:16;
-        uint32_t PES_private_data_flag:1;
-        uint32_t pack_header_field_flag:1;
-        uint32_t program_packet_sequence_counter_flag:1;
-        uint32_t P_STD_buffer_flag:1;
-        uint32_t PES_extension_flag_2:1;
+        uint32_t packet_start_code_prefix; // 24-bit
+        uint8_t stream_id;
+        uint16_t PES_packet_length;
+        uint8_t PES_scrambling_control; // 2-bit
+        uint8_t PES_priority; // 1-bit
+        uint8_t data_alignment_indicator; // 1-bit
+        uint8_t copyright; // 1-bit
+        uint8_t original_or_copy; // 1-bit
+        uint8_t PTS_DTS_flags; // 2-bit
+        uint8_t ESCR_flag; // 1-bit
+        uint8_t ES_rate_flag; // 1-bit
+        uint8_t DSM_trick_mode_flag; // 1-bit
+        uint8_t additional_copy_info_flag; // 1-bit
+        uint8_t PES_CRC_flag; // 1-bit
+        uint8_t PES_extension_flag; // 1-bit
+        uint8_t PES_header_data_length;
+        uint64_t PTS; // 33-bit
+        uint64_t DTS; // 33-bit
+        uint64_t ESCR_base; // 33-bit
+        uint16_t ESCR_extension; // 9-bit
+        uint32_t ES_rate; // 22-bit
+        uint8_t trick_mode_control; // 3-bit
+        uint8_t field_id; // 2-bit
+        uint8_t intra_slice_refresh; // 1-bit
+        uint8_t frequency_truncation; // 2-bit
+        uint8_t rep_cntrl; // 5-bit
+        uint8_t additional_copy_info; // 7-bit
+        uint16_t previous_PES_packet_CRC;
+        uint8_t PES_private_data_flag; // 1-bit
+        uint8_t pack_header_field_flag; // 1-bit
+        uint8_t program_packet_sequence_counter_flag; // 1-bit
+        uint8_t P_STD_buffer_flag; // 1-bit
+        uint8_t PES_extension_flag_2; // 1-bit
         uint8_t  PES_private_data[16]; // 128-bit
-        uint32_t pack_field_length:8;
-        uint32_t program_packet_sequence_counter:7;
-        uint32_t MPEG1_MPEG2_identifier:1;
-        uint32_t original_stuff_length:6;
-        uint32_t P_STD_buffer_scale:1;
-        uint32_t P_STD_buffer_size:13;
-        uint32_t PES_extension_field_length:7;
+        uint8_t pack_field_length;
+        uint8_t program_packet_sequence_counter; // 7-bit
+        uint8_t MPEG1_MPEG2_identifier; // 1-bit
+        uint8_t original_stuff_length; // 6-bit
+        uint8_t P_STD_buffer_scale; // 1-bit
+        uint16_t P_STD_buffer_size; // 13-bit
+        uint8_t PES_extension_field_length; // 7-bit
 }
 pes_t;
 
 typedef struct _psi_t
 {
-        uint32_t pointer_field:8; // 
-        uint32_t table_id:8; // TABLE_ID_TABLE
-        uint32_t sectin_syntax_indicator:1;
-        uint32_t pad0:1; // '0'
-        uint32_t reserved0:2;
-        uint32_t section_length:12;
+        uint8_t pointer_field;
+        uint8_t table_id; // TABLE_ID_TABLE
+        uint8_t sectin_syntax_indicator; // 1-bit
+        uint8_t pad0; // 1-bit, '0'
+        uint8_t reserved0; // 2-bit
+        uint16_t section_length; // 12-bit
         union
         {
-                uint32_t idx:16;
-                uint32_t transport_stream_id:16;
-                uint32_t program_number:16;
+                uint16_t idx;
+                uint16_t transport_stream_id;
+                uint16_t program_number;
         }idx;
-        uint32_t reserved1:2;
-        uint32_t version_number:5;
-        uint32_t current_next_indicator:1;
-        uint32_t section_number:8;
-        uint32_t last_section_number:8;
+        uint8_t reserved1; // 2-bit
+        uint8_t version_number; // 5-bit
+        uint8_t current_next_indicator; // 1-bit
+        uint8_t section_number;
+        uint8_t last_section_number;
 
-        uint32_t CRC3:8; // most significant byte
-        uint32_t CRC2:8;
-        uint32_t CRC1:8;
-        uint32_t CRC0:8; // last significant byte
+        uint8_t CRC3; // most significant byte
+        uint8_t CRC2;
+        uint8_t CRC1;
+        uint8_t CRC0; // last significant byte
 }
 psi_t;
 
@@ -533,6 +533,7 @@ static int state_next_pkt(obj_t *obj)
                 {
                         // increase CC only for packet with load
                         pids->CC += pids->dCC;
+                        pids->CC &= 0x0F; // 4-bit
                 }
                 lost  = (int)ts->continuity_counter;
                 lost -= (int)pids->CC;
