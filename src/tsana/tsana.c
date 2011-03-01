@@ -526,16 +526,15 @@ static void show_pid_list(obj_t *obj)
                 return;
         }
 
-        fprintf(stdout, FYELLOW " PID  " NONE ", percent, count, dCC, track," FYELLOW "     abbr" NONE ", detail\n");
+        fprintf(stdout, FYELLOW " PID  " NONE ", percent, count, track," FYELLOW "     abbr" NONE ", detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, FYELLOW "0x%04X" NONE ", %7.4f, %5u,  %u ,     %c," FYELLOW " %s" NONE ", %s\n",
+                fprintf(stdout, FYELLOW "0x%04X" NONE ", %7.4f, %5u,     %c," FYELLOW " %s" NONE ", %s\n",
                         pids->PID,
                         pids->lcnt * 100.0 / rslt->last_sys_cnt,
                         pids->lcnt,
-                        pids->dCC,
                         (pids->track) ? '*' : ' ',
                         pids->sdes,
                         pids->ldes);

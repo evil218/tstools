@@ -136,7 +136,6 @@ psi_t;
 
 typedef struct _pid_type_table_t
 {
-        int dCC;        // delta of CC field: 0 or 1
         char *sdes;     // short description
         char *ldes;     // long description
 }
@@ -217,33 +216,33 @@ enum PID_TYPE
 static const pid_type_table_t PID_TYPE_TABLE[] =
 {
         // should be synchronize with enum PID_TYPE!
-        {1, " PAT_PID", "program association section"},
-        {1, " CAT_PID", "conditional access section"},
-        {1, "TSDT_PID", "transport stream description section"},
-        {0, " RSV_PID", "reserved"},
-        {1, " NIT_PID", "network information section"},
-        {1, "  ST_PID", "stuffing section"},
-        {1, " SDT_PID", "service description section"},
-        {1, " BAT_PID", "bouquet association section"},
-        {1, " EIT_PID", "event information section"},
-        {1, " RST_PID", "running status section"},
-        {1, " TDT_PID", "time data section"},
-        {1, " TOT_PID", "time offset section"},
-        {1, "  NS_PID", "Network Synchroniztion"},
-        {1, " INB_PID", "Inband signaling"},
-        {1, " MSU_PID", "Measurement"},
-        {1, " DIT_PID", "discontinuity information section"},
-        {1, " SIT_PID", "selection information section"},
-        {1, " USR_PID", "user define"},
-        {1, " PMT_PID", "program map section"},
-        {1, " VID_PID", "video packet"},
-        {1, " VID_PCR", "video packet with PCR"},
-        {1, " AUD_PID", "audio packet"},
-        {1, " AUD_PCR", "audio packet with PCR"},
-        {0, " PCR_PID", "program counter reference"},
-        {0, "NULL_PID", "empty packet"},
-        {1, " UNO_PID", "unknown"},
-        {0, " BAD_PID", "illegal"}
+        {" PAT_PID", "program association section"},
+        {" CAT_PID", "conditional access section"},
+        {"TSDT_PID", "transport stream description section"},
+        {" RSV_PID", "reserved"},
+        {" NIT_PID", "network information section"},
+        {"  ST_PID", "stuffing section"},
+        {" SDT_PID", "service description section"},
+        {" BAT_PID", "bouquet association section"},
+        {" EIT_PID", "event information section"},
+        {" RST_PID", "running status section"},
+        {" TDT_PID", "time data section"},
+        {" TOT_PID", "time offset section"},
+        {"  NS_PID", "Network Synchroniztion"},
+        {" INB_PID", "Inband signaling"},
+        {" MSU_PID", "Measurement"},
+        {" DIT_PID", "discontinuity information section"},
+        {" SIT_PID", "selection information section"},
+        {" USR_PID", "user define"},
+        {" PMT_PID", "program map section"},
+        {" VID_PID", "video packet"},
+        {" VID_PCR", "video packet with PCR"},
+        {" AUD_PID", "audio packet"},
+        {" AUD_PCR", "audio packet with PCR"},
+        {" PCR_PID", "program counter reference"},
+        {"NULL_PID", "empty packet"},
+        {" UNO_PID", "unknown"},
+        {" BAD_PID", "illegal"}
 };
 
 static const ts_pid_table_t TS_PID_TABLE[] =
@@ -527,14 +526,21 @@ static int state_next_pkt(obj_t *obj)
         // CC
         if(pids->is_CC_sync)
         {
+                uint8_t dCC;
                 int lost;
 
-                if(BIT(0) & ts->adaption_field_control)
+                if((1 == ts->adaption_field_control) || // 01
+                   (3 == ts->adaption_field_control))   // 11
                 {
-                        // increase CC only for packet with load
-                        pids->CC += pids->dCC;
-                        pids->CC &= 0x0F; // 4-bit
+                        dCC = 1;
                 }
+                else // 00 or 10
+                {
+                        dCC = 0;
+                }
+
+                pids->CC += dCC;
+                pids->CC &= 0x0F; // 4-bit
                 lost  = (int)ts->continuity_counter;
                 lost -= (int)pids->CC;
                 if(lost < 0)
@@ -545,19 +551,22 @@ static int state_next_pkt(obj_t *obj)
                 rslt->CC_wait = pids->CC;
                 rslt->CC_find = ts->continuity_counter;
                 rslt->CC_lost = lost;
-
-                pids->CC = ts->continuity_counter;
         }
         else
         {
-                pids->CC = ts->continuity_counter;
                 pids->is_CC_sync = 1;
 
                 rslt->CC_wait = pids->CC;
                 rslt->CC_find = ts->continuity_counter;
                 rslt->CC_lost = 0;
         }
+        pids->CC = ts->continuity_counter; // update CC
         err->Continuity_count_error = rslt->CC_lost;
+        if(0x1FFF == ts->PID)
+        {
+                // continuity_counter of null packet is undefined
+                err->Continuity_count_error = 0;
+        }
 
         // calc STC, should be here(before PCR flush)
         if((prog) && 
@@ -788,6 +797,11 @@ static int parse_TS(obj_t *obj)
         ts->transport_scrambling_control = (dat & (BIT(7) | BIT(6))) >> 6;
         ts->adaption_field_control = (dat & (BIT(5) | BIT(4))) >> 4;;
         ts->continuity_counter = dat & 0x0F;
+
+        if(0x00 == ts->adaption_field_control)
+        {
+                fprintf(stderr, "Bad adaption_field_control field(00)!\n");
+        }
 
         if(BIT(1) & ts->adaption_field_control)
         {
@@ -1437,7 +1451,6 @@ static int parse_PAT_load(obj_t *obj)
                 pids->track = NULL;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
-                pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
                 pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
                 pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
 
@@ -1449,7 +1462,6 @@ static int parse_PAT_load(obj_t *obj)
                 else
                 {
                         pids->type = PMT_PID;
-                        pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
                         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
                         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
 
@@ -1528,7 +1540,6 @@ static int parse_PMT_load(obj_t *obj)
         pids->type = PCR_PID;
         pids->CC = 0;
         pids->is_CC_sync = 1;
-        pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
         add_to_pid_list(&(obj->rslt.pid_list), pids);
@@ -1607,7 +1618,6 @@ static int parse_PMT_load(obj_t *obj)
                 pids->type = track->type;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
-                pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
                 pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
                 pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
                 add_to_pid_list(&(obj->rslt.pid_list), pids);
@@ -1654,7 +1664,6 @@ static int search_in_TS_PID_TABLE(uint16_t pid, int *type)
 static ts_pid_t *add_new_pid(obj_t *obj)
 {
         ts_pid_t ts_pid, *pids;
-        ts_t *ts = &(obj->ts);
         ts_rslt_t *rslt = &(obj->rslt);
 
         pids = &ts_pid;
@@ -1673,16 +1682,8 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         pids->track = NULL;
         pids->cnt = 1;
         pids->lcnt = 0;
-        pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
-        if(STATE_NEXT_PKT == obj->state)
-        {
-                pids->CC = ts->continuity_counter - pids->dCC;
-        }
-        else
-        {
-                pids->CC = ts->continuity_counter;
-        }
-        pids->is_CC_sync = 1;
+        //pids->CC = ts->continuity_counter;
+        pids->is_CC_sync = 0;
         pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
         pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
 
@@ -1720,7 +1721,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                                 pids->lcnt = the_pids->lcnt;
                                 pids->CC = the_pids->CC;
                                 pids->is_CC_sync = the_pids->is_CC_sync;
-                                pids->dCC = PID_TYPE_TABLE[pids->type].dCC;
                                 pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
                                 pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
                         }
@@ -1734,7 +1734,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                                 pids->lcnt = the_pids->lcnt;
                                 pids->CC = the_pids->CC;
                                 pids->is_CC_sync = the_pids->is_CC_sync;
-                                pids->dCC = the_pids->dCC;
                                 pids->sdes = the_pids->sdes;
                                 pids->ldes = the_pids->ldes;
                         }
@@ -1758,7 +1757,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                         pids->lcnt = the_pids->lcnt;
                         pids->CC = the_pids->CC;
                         pids->is_CC_sync = the_pids->is_CC_sync;
-                        pids->dCC = the_pids->dCC;
                         pids->sdes = the_pids->sdes;
                         pids->ldes = the_pids->ldes;
 
@@ -1783,7 +1781,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                         pids->lcnt = the_pids->lcnt;
                         pids->CC = the_pids->CC;
                         pids->is_CC_sync = the_pids->is_CC_sync;
-                        pids->dCC = the_pids->dCC;
                         pids->sdes = the_pids->sdes;
                         pids->ldes = the_pids->ldes;
 
@@ -1808,7 +1805,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                         pids->lcnt = the_pids->lcnt;
                         pids->CC = the_pids->CC;
                         pids->is_CC_sync = the_pids->is_CC_sync;
-                        pids->dCC = the_pids->dCC;
                         pids->sdes = the_pids->sdes;
                         pids->ldes = the_pids->ldes;
 
@@ -1832,7 +1828,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
         pids->lcnt = the_pids->lcnt;
         pids->CC = the_pids->CC;
         pids->is_CC_sync = the_pids->is_CC_sync;
-        pids->dCC = the_pids->dCC;
         pids->sdes = the_pids->sdes;
         pids->ldes = the_pids->ldes;
 

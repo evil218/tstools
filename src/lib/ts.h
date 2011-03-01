@@ -152,7 +152,6 @@ typedef struct _ts_pid_t
         // for continuity_counter check
         int is_CC_sync;
         uint8_t CC; // 4-bit
-        uint8_t dCC; // 0 or 1
 
         // for statistic
         uint32_t cnt; // packet received from last PCR
