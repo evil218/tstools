@@ -173,9 +173,10 @@ static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(obj->is_outpsi)
+        if(obj->is_outpsi && rslt->is_psi_si)
         {
-                puts(obj->tbuf);
+                fprintf(stdout, obj->tbuf);
+                //fprintf(stderr, "%s, mode=%d\n", (rslt->is_psi_parsed) ? "done" : "next", obj->mode);
         }
 
         if(rslt->is_psi_parsed)
@@ -520,22 +521,33 @@ static void show_pid_list(obj_t *obj)
         ts_pid_t *pids;
         ts_rslt_t *rslt = obj->rslt;
         LIST *list = &(rslt->pid_list);
+        char *fmt;
+        char *fmt_color = FYELLOW "0x%04X, %s, %s" NONE "\n";
+        char *fmt_mono  =         "0x%04X, %s, %s"      "\n";
 
         if(!(rslt->has_rate))
         {
                 return;
         }
 
-        fprintf(stdout, FYELLOW " PID  " NONE ", percent, count, track," FYELLOW "     abbr" NONE ", detail\n");
+        fprintf(stdout, "  PID ,     abbr, detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fprintf(stdout, FYELLOW "0x%04X" NONE ", %7.4f, %5u,     %c," FYELLOW " %s" NONE ", %s\n",
+                fmt = fmt_mono;
+                if(0 == strcmp(pids->sdes, " VID_PID") ||
+                   0 == strcmp(pids->sdes, " VID_PCR") ||
+                   0 == strcmp(pids->sdes, " AUD_PID") ||
+                   0 == strcmp(pids->sdes, " AUD_PCR"))
+                {
+                        if(!(obj->is_mono))
+                        {
+                                fmt = fmt_color;;
+                        }
+                }
+                fprintf(stdout, fmt,
                         pids->PID,
-                        pids->lcnt * 100.0 / rslt->last_sys_cnt,
-                        pids->lcnt,
-                        (pids->track) ? '*' : ' ',
                         pids->sdes,
                         pids->ldes);
         }

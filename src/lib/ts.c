@@ -501,6 +501,7 @@ static int state_next_pmt(obj_t *obj)
         parse_PSI(obj);
         if(is_unparsed_prog(obj))
         {
+                obj->rslt.is_psi_si = 1;
                 parse_PMT_load(obj);
         }
 
@@ -752,6 +753,7 @@ static int parse_TS(obj_t *obj)
         ts_error_t *err = &(rslt->err);
 
         // init rslt
+        rslt->is_psi_si = 0;
         rslt->pids = NULL;
         rslt->STC = 0;
         rslt->STC_base = 0;
@@ -830,6 +832,7 @@ static int parse_TS(obj_t *obj)
         if(ts->PID < 0x0020)
         {
                 rslt->psi_cnt++;
+                rslt->is_psi_si = 1;
         }
         if(0x1FFF == ts->PID)
         {

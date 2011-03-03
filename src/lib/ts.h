@@ -168,6 +168,7 @@ typedef struct _ts_rslt_t
 
         // PSI, SI and other TS information
         int is_psi_parsed;
+        int is_psi_si;
         LIST prog_list;
         LIST pid_list;
         ts_prog_t *prog0; // first program in this stream
