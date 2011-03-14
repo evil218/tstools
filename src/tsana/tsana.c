@@ -525,21 +525,21 @@ static void show_pid_list(obj_t *obj)
         char *fmt_color = FYELLOW "0x%04X, %s, %s" NONE "\n";
         char *fmt_mono  =         "0x%04X, %s, %s"      "\n";
 
-        if(!(rslt->has_rate))
+        if(!(rslt->is_psi_parsed))
         {
                 return;
         }
 
-        fprintf(stdout, "  PID ,     abbr, detail\n");
+        fprintf(stdout, "  PID , abbr, detail\n");
 
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
                 fmt = fmt_mono;
-                if(0 == strcmp(pids->sdes, " VID_PID") ||
-                   0 == strcmp(pids->sdes, " VID_PCR") ||
-                   0 == strcmp(pids->sdes, " AUD_PID") ||
-                   0 == strcmp(pids->sdes, " AUD_PCR"))
+                if(0 == strcmp(pids->sdes, " VID") ||
+                   0 == strcmp(pids->sdes, "PVID") ||
+                   0 == strcmp(pids->sdes, " AUD") ||
+                   0 == strcmp(pids->sdes, "PAUD"))
                 {
                         if(!(obj->is_mono))
                         {

@@ -136,26 +136,35 @@ psi_t;
 
 typedef struct _pid_type_table_t
 {
-        char *sdes;     // short description
-        char *ldes;     // long description
+        char *sdes; // short description
+        char *ldes; // long description
 }
 pid_type_table_t;
 
 typedef struct _ts_pid_table_t
 {
-        uint16_t min;   // PID range
-        uint16_t max;   // PID range
-        int     type;   // index of item in PID_TYPE_TABLE[]
+        uint16_t min; // PID range
+        uint16_t max; // PID range
+        int     type; // index of item in PID_TYPE[]
 }
 ts_pid_table_t;
 
 typedef struct _table_id_table_t
 {
-        uint8_t min;    // table ID range
-        uint8_t max;    // table ID range
-        int     type;   // index of item in PID_TYPE_TABLE[]
+        uint8_t min; // table ID range
+        uint8_t max; // table ID range
+        int    type; // index of item in PID_TYPE[]
 }
 table_id_table_t;
+
+typedef struct _stream_type_t
+{
+        uint8_t stream_type;
+        int   type; // index of item in PID_TYPE[]
+        char *sdes; // short description
+        char *ldes; // long description
+}
+stream_type_t;
 
 typedef struct _obj_t
 {
@@ -181,9 +190,9 @@ obj_t;
 //=============================================================================
 // const definition
 //=============================================================================
-enum PID_TYPE
+enum PID_TYPE_ENUM
 {
-        // should be synchronize with PID_TYPE_TABLE[]!
+        // should be synchronize with PID_TYPE[]!
         PAT_PID,
         CAT_PID,
         TSDT_PID,
@@ -213,58 +222,58 @@ enum PID_TYPE
         BAD_PID
 };
 
-static const pid_type_table_t PID_TYPE_TABLE[] =
+static const pid_type_table_t PID_TYPE[] =
 {
-        // should be synchronize with enum PID_TYPE!
-        {" PAT_PID", "program association section"},
-        {" CAT_PID", "conditional access section"},
-        {"TSDT_PID", "transport stream description section"},
-        {" RSV_PID", "reserved"},
-        {" NIT_PID", "network information section"},
-        {"  ST_PID", "stuffing section"},
-        {" SDT_PID", "service description section"},
-        {" BAT_PID", "bouquet association section"},
-        {" EIT_PID", "event information section"},
-        {" RST_PID", "running status section"},
-        {" TDT_PID", "time data section"},
-        {" TOT_PID", "time offset section"},
-        {"  NS_PID", "Network Synchroniztion"},
-        {" INB_PID", "Inband signaling"},
-        {" MSU_PID", "Measurement"},
-        {" DIT_PID", "discontinuity information section"},
-        {" SIT_PID", "selection information section"},
-        {" USR_PID", "user define"},
-        {" PMT_PID", "program map section"},
-        {" VID_PID", "video packet"},
-        {" VID_PCR", "video packet with PCR"},
-        {" AUD_PID", "audio packet"},
-        {" AUD_PCR", "audio packet with PCR"},
-        {" PCR_PID", "program counter reference"},
-        {"NULL_PID", "empty packet"},
-        {" UNO_PID", "unknown"},
-        {" BAD_PID", "illegal"}
+        // should be synchronize with enum PID_TYPE_ENUM!
+        {" PAT", "program association section"},
+        {" CAT", "conditional access section"},
+        {"TSDT", "transport stream description section"},
+        {" RSV", "reserved"},
+        {" NIT", "network information section"},
+        {"  ST", "stuffing section"},
+        {" SDT", "service description section"},
+        {" BAT", "bouquet association section"},
+        {" EIT", "event information section"},
+        {" RST", "running status section"},
+        {" TDT", "time data section"},
+        {" TOT", "time offset section"},
+        {"  NS", "Network Synchroniztion"},
+        {" INB", "Inband signaling"},
+        {" MSU", "Measurement"},
+        {" DIT", "discontinuity information section"},
+        {" SIT", "selection information section"},
+        {" USR", "user define"},
+        {" PMT", "program map section"},
+        {" VID", "video packet"},
+        {"PVID", "video packet with PCR"},
+        {" AUD", "audio packet"},
+        {"PAUD", "audio packet with PCR"},
+        {" PCR", "program counter reference"},
+        {"NULL", "empty packet"},
+        {" UNO", "unknown"},
+        {" BAD", "illegal"}
 };
 
-static const ts_pid_table_t TS_PID_TABLE[] =
+static const ts_pid_table_t PID_TABLE[] =
 {
         /* 0*/{0x0000, 0x0000,  PAT_PID},
         /* 1*/{0x0001, 0x0001,  CAT_PID},
         /* 2*/{0x0002, 0x0002, TSDT_PID},
-        /* 3*/{0x0003, 0x000f,  RSV_PID},
+        /* 3*/{0x0003, 0x000F,  RSV_PID},
         /* 4*/{0x0010, 0x0010,  NIT_PID}, // NIT/ST
         /* 5*/{0x0011, 0x0011,  SDT_PID}, // SDT/BAT/ST
         /* 6*/{0x0012, 0x0012,  EIT_PID}, // EIT/ST
         /* 7*/{0x0013, 0x0013,  RST_PID}, // RST/ST
         /* 8*/{0x0014, 0x0014,  TDT_PID}, // TDT/TOT/ST
         /* 9*/{0x0015, 0x0015,   NS_PID},
-        /*10*/{0x0016, 0x001b,  RSV_PID},
-        /*11*/{0x001c, 0x001c,  INB_PID},
-        /*12*/{0x001d, 0x001d,  MSU_PID},
-        /*13*/{0x001e, 0x001e,  DIT_PID},
-        /*14*/{0x001f, 0x001f,  SIT_PID},
-        /*15*/{0x0020, 0x1ffe,  USR_PID},
-        /*16*/{0x1fff, 0x1fff, NULL_PID},
-        /*17*/{0x2000, 0xffff,  BAD_PID}
+        /*10*/{0x0016, 0x001B,  RSV_PID},
+        /*11*/{0x001C, 0x001C,  INB_PID},
+        /*12*/{0x001D, 0x001D,  MSU_PID},
+        /*13*/{0x001E, 0x001E,  DIT_PID},
+        /*14*/{0x001F, 0x001F,  SIT_PID},
+        /*15*/{0x0020, 0x1FFE,  USR_PID},
+        /*16*/{0x1FFF, 0x1FFF, NULL_PID},
+        /*17*/{0x2000, 0xFFFF,  BAD_PID} // loop stop condition!
 };
 
 static const table_id_table_t TABLE_ID_TABLE[] =
@@ -280,21 +289,57 @@ static const table_id_table_t TABLE_ID_TABLE[] =
         /* 8*/{0x43, 0x45,  RSV_PID},
         /* 9*/{0x46, 0x46,  SDT_PID}, // other transport stream
         /*10*/{0x47, 0x49,  RSV_PID},
-        /*11*/{0x4a, 0x4a,  BAT_PID},
-        /*12*/{0x4b, 0x4d,  RSV_PID},
-        /*13*/{0x4e, 0x4e,  EIT_PID}, // actual transport stream,P/F"},
-        /*14*/{0x4f, 0x4f,  EIT_PID}, // other transport stream,P/F"},
-        /*15*/{0x50, 0x5f,  EIT_PID}, // actual transport stream,schedule"},
-        /*16*/{0x60, 0x6f,  EIT_PID}, // other transport stream,schedule"},
+        /*11*/{0x4A, 0x4A,  BAT_PID},
+        /*12*/{0x4B, 0x4D,  RSV_PID},
+        /*13*/{0x4E, 0x4E,  EIT_PID}, // actual transport stream,P/F"},
+        /*14*/{0x4F, 0x4F,  EIT_PID}, // other transport stream,P/F"},
+        /*15*/{0x50, 0x5F,  EIT_PID}, // actual transport stream,schedule"},
+        /*16*/{0x60, 0x6F,  EIT_PID}, // other transport stream,schedule"},
         /*17*/{0x70, 0x70,  TDT_PID},
         /*18*/{0x71, 0x71,  RST_PID},
         /*19*/{0x72, 0x72,   ST_PID},
         /*20*/{0x73, 0x73,  TOT_PID},
-        /*21*/{0x74, 0x7d,  RSV_PID},
-        /*22*/{0x7e, 0x7e,  DIT_PID},
-        /*23*/{0x7f, 0x7f,  SIT_PID},
-        /*24*/{0x80, 0xfe,  USR_PID},
-        /*25*/{0xff, 0xff,  RSV_PID}
+        /*21*/{0x74, 0x7D,  RSV_PID},
+        /*22*/{0x7E, 0x7E,  DIT_PID},
+        /*23*/{0x7F, 0x7F,  SIT_PID},
+        /*24*/{0x80, 0xFE,  USR_PID},
+        /*25*/{0xFF, 0xFF,  RSV_PID}
+};
+
+static const stream_type_t STREAM_TYPE_TABLE[] =
+{
+        {0x00, USR_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
+        {0x01, VID_PID, "MPEG-1", "ISO/IEC 11172-2 Video"},
+        {0x02, VID_PID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
+        {0x03, AUD_PID, "MPEG-1", "ISO/IEC 11172-3 Audio"},
+        {0x04, AUD_PID, "MPEG-2", "ISO/IEC 13818-3 Audio"},
+        {0x05, AUD_PID, "MPEG-2", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
+        {0x06, AUD_PID, "AC3", "Dolby Digital DVB"},
+        {0x07, AUD_PID, "MHEG", "ISO/IEC 13522 MHEG"},
+        {0x08, AUD_PID, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
+        {0x09, AUD_PID, "H.222.1", "ITU-T Rec.H.222.1"},
+        {0x0A, AUD_PID, "MPEG2 type A", "ISO/IEC 13818-6 type A"},
+        {0x0B, AUD_PID, "MPEG2 type B", "ISO/IEC 13818-6 type B"},
+        {0x0C, AUD_PID, "MPEG2 type C", "ISO/IEC 13818-6 type C"},
+        {0x0D, AUD_PID, "MPEG2 type D", "ISO/IEC 13818-6 type D"},
+        {0x0E, AUD_PID, "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"},
+        {0x0F, AUD_PID, "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"},
+        {0x10, VID_PID, "MPEG-4", "ISO/IEC 14496-2 Visual"},
+        {0x11, AUD_PID, "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"},
+        {0x12, AUD_PID, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"},
+        {0x13, AUD_PID, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"},
+        {0x14, AUD_PID, "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"},
+        {0x15, AUD_PID, "MPEG-2", "Metadata carried in PES packets"},
+        {0x16, AUD_PID, "MPEG-2", "Metadata carried in metadata_sections"},
+        {0x17, AUD_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"},
+        {0x18, AUD_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"},
+        {0x19, AUD_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"},
+        {0x1A, AUD_PID, "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"},
+        {0x1B, VID_PID, "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"},
+        {0x42, VID_PID, "AVS", "Advanced Video Standard"},
+        {0x7F, AUD_PID, "IPMP", "IPMP stream"},
+        {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
+        {0xFF, UNO_PID, "", ""} // loop stop condition!
 };
 
 //=============================================================================
@@ -326,12 +371,12 @@ static int parse_PES_head_detail(obj_t *obj);
 static int parse_PAT_load(obj_t *obj);
 static int parse_PMT_load(obj_t *obj);
 
-static int search_in_TS_PID_TABLE(uint16_t pid, int *type);
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
 static int is_pmt_pid(obj_t *obj);
 static int is_unparsed_prog(obj_t *obj);
 static int is_all_prog_parsed(obj_t *obj);
+static int pid_type(uint16_t pid);
 static int track_type(ts_track_t *track);
 static ts_pid_t *pids_match(LIST *list, uint16_t pid);
 
@@ -709,7 +754,7 @@ static int state_next_pkt(obj_t *obj)
         }
 
         // PES head & ES data
-        if(track)
+        if(track && (0 == ts->transport_scrambling_control))
         {
                 parse_PES(obj);
 
@@ -997,7 +1042,7 @@ static int parse_PES(obj_t *obj)
         ts_rslt_t *rslt = &(obj->rslt);
 
         // record PES data
-        if(obj->is_pes_align)
+        if(obj->is_pes_align) // FIXME
         {
                 rslt->PES_len = obj->len;
                 rslt->PES_buf = obj->p;
@@ -1005,7 +1050,7 @@ static int parse_PES(obj_t *obj)
 
         if(ts->payload_unit_start_indicator)
         {
-                obj->is_pes_align = 1;
+                obj->is_pes_align = 1; // FIXME
                 rslt->PES_len = obj->len;
                 rslt->PES_buf = obj->p;
 
@@ -1044,7 +1089,7 @@ static int parse_PES(obj_t *obj)
                 parse_PES_head_switch(obj);
         }
 
-        if(obj->is_pes_align)
+        if(obj->is_pes_align) // FIXME
         {
                 rslt->ES_len = obj->len;
                 rslt->ES_buf = obj->p;
@@ -1447,15 +1492,15 @@ static int parse_PAT_load(obj_t *obj)
                 prog->PMT_PID |= dat;
 
                 pids->PID = prog->PMT_PID;
-                search_in_TS_PID_TABLE(pids->PID, &(pids->type));
+                pids->type = pid_type(pids->PID);
                 pids->cnt = 0;
                 pids->lcnt = 0;
                 pids->prog = prog;
                 pids->track = NULL;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
-                pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+                pids->sdes = PID_TYPE[pids->type].sdes;
+                pids->ldes = PID_TYPE[pids->type].ldes;
 
                 if(0 == prog->program_number)
                 {
@@ -1465,8 +1510,8 @@ static int parse_PAT_load(obj_t *obj)
                 else
                 {
                         pids->type = PMT_PID;
-                        pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
-                        pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+                        pids->sdes = PID_TYPE[pids->type].sdes;
+                        pids->ldes = PID_TYPE[pids->type].ldes;
 
                         prog->ADDa = 0;
                         prog->PCRa = PCR_OVERFLOW;
@@ -1543,8 +1588,8 @@ static int parse_PMT_load(obj_t *obj)
         pids->type = PCR_PID;
         pids->CC = 0;
         pids->is_CC_sync = 1;
-        pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
-        pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+        pids->sdes = PID_TYPE[pids->type].sdes;
+        pids->ldes = PID_TYPE[pids->type].ldes;
         add_to_pid_list(&(obj->rslt.pid_list), pids);
 
         // program_info_length
@@ -1621,8 +1666,8 @@ static int parse_PMT_load(obj_t *obj)
                 pids->type = track->type;
                 pids->CC = 0;
                 pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
-                pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+                pids->sdes = PID_TYPE[pids->type].sdes;
+                pids->ldes = PID_TYPE[pids->type].ldes;
                 add_to_pid_list(&(obj->rslt.pid_list), pids);
         }
 
@@ -1646,24 +1691,6 @@ static int parse_PMT_load(obj_t *obj)
         return 0;
 }
 
-static int search_in_TS_PID_TABLE(uint16_t pid, int *type)
-{
-        int i;
-        int count = sizeof(TS_PID_TABLE) / sizeof(ts_pid_table_t);
-
-        for(i = 0; i < count; i++)
-        {
-                if(TS_PID_TABLE[i].min <= pid && pid <= TS_PID_TABLE[i].max)
-                {
-                        *type = TS_PID_TABLE[i].type;
-                        return 0;
-                }
-        }
-
-        *type = UNO_PID;
-        return -1; // illegal PID value
-}
-
 static ts_pid_t *add_new_pid(obj_t *obj)
 {
         ts_pid_t ts_pid, *pids;
@@ -1672,7 +1699,7 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         pids = &ts_pid;
 
         pids->PID = rslt->pid;
-        search_in_TS_PID_TABLE(pids->PID, &(pids->type));
+        pids->type = pid_type(pids->PID);
         if((NULL != rslt->prog0) && 
            (pids->PID < 0x0020 || pids->PID == 0x1FFF))
         {
@@ -1687,8 +1714,8 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         pids->lcnt = 0;
         //pids->CC = ts->continuity_counter;
         pids->is_CC_sync = 0;
-        pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
-        pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+        pids->sdes = PID_TYPE[pids->type].sdes;
+        pids->ldes = PID_TYPE[pids->type].ldes;
 
         return add_to_pid_list(&(rslt->pid_list), pids);
 }
@@ -1724,8 +1751,8 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                                 pids->lcnt = the_pids->lcnt;
                                 pids->CC = the_pids->CC;
                                 pids->is_CC_sync = the_pids->is_CC_sync;
-                                pids->sdes = PID_TYPE_TABLE[pids->type].sdes;
-                                pids->ldes = PID_TYPE_TABLE[pids->type].ldes;
+                                pids->sdes = PID_TYPE[pids->type].sdes;
+                                pids->ldes = PID_TYPE[pids->type].ldes;
                         }
                         else
                         {
@@ -1903,171 +1930,36 @@ static int is_all_prog_parsed(obj_t *obj)
         return 1;
 }
 
+static int pid_type(uint16_t pid)
+{
+        const ts_pid_table_t *p;
+
+        for(p = PID_TABLE; p->type != BAD_PID; p++)
+        {
+                if(p->min <= pid && pid <= p->max)
+                {
+                        break;
+                }
+        }
+
+        return p->type;
+}
+
 static int track_type(ts_track_t *track)
 {
-        switch(track->stream_type)
+        const stream_type_t *p;
+
+        for(p = STREAM_TYPE_TABLE; p->type != UNO_PID; p++)
         {
-                case 0x00:
-                        track->type = USR_PID;
-                        track->sdes = "Reserved";
-                        track->ldes = "ITU-T|ISO/IEC Reserved";
+                if(p->stream_type == track->stream_type)
+                {
                         break;
-                case 0x01:
-                        track->type = VID_PID;
-                        track->sdes = "MPEG-1";
-                        track->ldes = "ISO/IEC 11172-2 Video";
-                        break;
-                case 0x02:
-                        track->type = VID_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited";
-                        break;
-                case 0x03:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-1";
-                        track->ldes = "ISO/IEC 11172-3 Audio";
-                        break;
-                case 0x04:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "ISO/IEC 13818-3 Audio";
-                        break;
-                case 0x05:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections";
-                        break;
-                case 0x06:
-                        track->type = AUD_PID;
-                        track->sdes = "AC3";
-                        track->ldes = "Dolby Digital DVB";
-                        break;
-                case 0x07:
-                        track->type = AUD_PID;
-                        track->sdes = "MHEG";
-                        track->ldes = "ISO/IEC 13522 MHEG";
-                        break;
-                case 0x08:
-                        track->type = AUD_PID;
-                        track->sdes = "DSM-CC";
-                        track->ldes = "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC";
-                        break;
-                case 0x09:
-                        track->type = AUD_PID;
-                        track->sdes = "H.222.1";
-                        track->ldes = "ITU-T Rec.H.222.1";
-                        break;
-                case 0x0A:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG2 type A";
-                        track->ldes = "ISO/IEC 13818-6 type A";
-                        break;
-                case 0x0B:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG2 type B";
-                        track->ldes = "ISO/IEC 13818-6 type B";
-                        break;
-                case 0x0C:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG2 type C";
-                        track->ldes = "ISO/IEC 13818-6 type C";
-                        break;
-                case 0x0D:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG2 type D";
-                        track->ldes = "ISO/IEC 13818-6 type D";
-                        break;
-                case 0x0E:
-                        track->type = AUD_PID;
-                        track->sdes = "auxiliary";
-                        track->ldes = "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary";
-                        break;
-                case 0x0F:
-                        track->type = AUD_PID;
-                        track->sdes = "AAC ADTS";
-                        track->ldes = "ISO/IEC 13818-7 Audio with ADTS transport syntax";
-                        break;
-                case 0x10:
-                        track->type = VID_PID;
-                        track->sdes = "MPEG-4";
-                        track->ldes = "ISO/IEC 14496-2 Visual";
-                        break;
-                case 0x11:
-                        track->type = AUD_PID;
-                        track->sdes = "AAC LATM";
-                        track->ldes = "ISO/IEC 14496-3 Audio with LATM transport syntax";
-                        break;
-                case 0x12:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-4";
-                        track->ldes = "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets";
-                        break;
-                case 0x13:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-4";
-                        track->ldes = "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections";
-                        break;
-                case 0x14:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "ISO/IEC 13818-6 Synchronized Download Protocol";
-                        break;
-                case 0x15:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "Metadata carried in PES packets";
-                        break;
-                case 0x16:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "Metadata carried in metadata_sections";
-                        break;
-                case 0x17:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "Metadata carried in ISO/IEC 13818-6 Data Carousel";
-                        break;
-                case 0x18:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "Metadata carried in ISO/IEC 13818-6 Object Carousel";
-                        break;
-                case 0x19:
-                        track->type = AUD_PID;
-                        track->sdes = "MPEG-2";
-                        track->ldes = "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol";
-                        break;
-                case 0x1A:
-                        track->type = AUD_PID;
-                        track->sdes = "IPMP";
-                        track->ldes = "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)";
-                        break;
-                case 0x1B:
-                        track->type = VID_PID;
-                        track->sdes = "H.264";
-                        track->ldes = "ITU-T Rec.H.264|ISO/IEC 14496-10 Video";
-                        break;
-                case 0x42:
-                        track->type = VID_PID;
-                        track->sdes = "AVS";
-                        track->ldes = "Advanced Video Standard";
-                        break;
-                case 0x7F:
-                        track->type = AUD_PID;
-                        track->sdes = "IPMP";
-                        track->ldes = "IPMP stream";
-                        break;
-                case 0x81:
-                        track->type = AUD_PID;
-                        track->sdes = "AC3";
-                        track->ldes = "Dolby Digital ATSC";
-                        break;
-                default:
-                        track->type = UNO_PID;
-                        track->sdes = "";
-                        track->ldes = "";
-                        break;
+                }
         }
+
+        track->type = p->type;
+        track->sdes = p->sdes;
+        track->ldes = p->ldes;
         return 0;
 }
 

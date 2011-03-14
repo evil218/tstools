@@ -64,16 +64,27 @@ typedef struct _ts_error_t
 }
 ts_error_t; // TR 101 290 V1.2.1 2001-05
 
-typedef struct _ts_psi_t
+typedef struct _ts_section_t
 {
         // for list
         NODE *next;
         NODE *prev;
 
         uint8_t section_number;
-        uint8_t section[1024];
+        uint8_t data[1024];
 }
-ts_psi_t; // unit of PSI/SI section list
+ts_section_t; // unit of section list
+
+typedef struct _ts_table_t
+{
+        // for list
+        NODE *next;
+        NODE *prev;
+
+        uint8_t table_id;
+        LIST section; // ts_section_t
+}
+ts_table_t; // unit of PSI/SI table list
 
 typedef struct _ts_prog_t
 {
@@ -83,6 +94,7 @@ typedef struct _ts_prog_t
 
         // program information
         int is_parsed;
+        LIST section; // PMT section list
         uint16_t PMT_PID; // 13-bit
         uint16_t PCR_PID; // 13-bit
         uint16_t program_number;
@@ -166,9 +178,10 @@ typedef struct _ts_rslt_t
         // error
         ts_error_t err;
 
-        // PSI, SI and other TS information
+        // PSI/SI and other TS information
         int is_psi_parsed;
         int is_psi_si;
+        LIST table; // ts_table_t, PSI/SI table list except PMT
         LIST prog_list;
         LIST pid_list;
         ts_prog_t *prog0; // first program in this stream
