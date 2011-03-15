@@ -19,6 +19,7 @@ typedef struct _NODE
 {
         struct _NODE *next;
         struct _NODE *prev;
+        uint32_t key; // for list_insert()
 }
 NODE;
 
@@ -26,7 +27,6 @@ typedef struct _LIST
 {
         NODE *head;
         NODE *tail;
-
         int count;
 }
 LIST;
@@ -34,15 +34,17 @@ LIST;
 /*============================================================================
  * Public Function Declaration
  ===========================================================================*/
-void list_init(LIST *list);
-void list_free(LIST *list);
+void  list_init(LIST *list);
+void  list_free(LIST *list);
 
-void list_add(LIST *list, NODE *node); // to the end of list
-void list_insert_before(LIST *list, NODE *next, NODE *node);
-void list_insert_after(LIST *list, NODE *prev, NODE *node);
-void list_del(LIST *list, NODE *node);
-int list_count(LIST *list);
+void  list_add(LIST *list, NODE *node); // to the end of list
+void  list_del(LIST *list, NODE *node);
+void  list_insert_before(LIST *list, NODE *next, NODE *node);
+void  list_insert_after(LIST *list, NODE *prev, NODE *node);
+void  list_insert(LIST *list, NODE *node); // sort with key, small first
+NODE *list_search(LIST *list, uint32_t key);
 
+int   list_cnt(LIST *list);
 NODE *list_head(LIST *list);
 NODE *list_tail(LIST *list);
 NODE *list_next(NODE *node);

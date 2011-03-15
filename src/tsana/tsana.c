@@ -101,7 +101,7 @@ static int get_one_pkt(obj_t *obj);
 
 static void show_pid_list(obj_t *obj);
 static void show_prog(LIST *list);
-static void show_track(LIST *list);
+static void show_track(LIST *list, uint16_t pcr_pid);
 
 static void show_pcr(obj_t *obj);
 static void show_sys_rate(obj_t *obj);
@@ -536,15 +536,9 @@ static void show_pid_list(obj_t *obj)
         {
                 pids = (ts_pid_t *)node;
                 fmt = fmt_mono;
-                if(0 == strcmp(pids->sdes, " VID") ||
-                   0 == strcmp(pids->sdes, "PVID") ||
-                   0 == strcmp(pids->sdes, " AUD") ||
-                   0 == strcmp(pids->sdes, "PAUD"))
+                if((NULL != pids->track) && !(obj->is_mono))
                 {
-                        if(!(obj->is_mono))
-                        {
-                                fmt = fmt_color;;
-                        }
+                        fmt = fmt_color;
                 }
                 fprintf(stdout, fmt,
                         pids->PID,
@@ -565,12 +559,12 @@ static void show_prog(LIST *list)
         for(node = list->head; node; node = node->next)
         {
                 prog = (ts_prog_t *)node;
-                fprintf(stdout, "+ program " FYELLOW "%d" NONE "(0x%04X"
-                        "), PMT_PID = " FYELLOW "0x%04X" NONE "\n",
+                fprintf(stdout, "+ program " FYELLOW "%d" NONE "(0x%04X)"
+                        ", PMT_PID = " FYELLOW "0x%04X" NONE
+                        ", PCR_PID = " FYELLOW "0x%04X" NONE "\n",
                         prog->program_number,
                         prog->program_number,
-                        prog->PMT_PID);
-                fprintf(stdout, "    PCR_PID = " FYELLOW "0x%04X" NONE "\n",
+                        prog->PMT_PID,
                         prog->PCR_PID);
                 fprintf(stdout, "    program_info:" FYELLOW);
                 for(i = 0; i < prog->program_info_len; i++)
@@ -583,18 +577,16 @@ static void show_prog(LIST *list)
                         fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
                 fprintf(stdout, NONE "\n");
-                show_track(&(prog->track_list));
+                show_track(&(prog->track_list), prog->PCR_PID);
         }
         return;
 }
 
-static void show_track(LIST *list)
+static void show_track(LIST *list, uint16_t pcr_pid)
 {
         uint16_t i;
         NODE *node;
         ts_track_t *track;
-
-        //fprintf(stdout, "track_list(%d-item):\n\n", list_count(list));
 
         for(node = list->head; node; node = node->next)
         {
@@ -604,8 +596,9 @@ static void show_track(LIST *list)
                         track->stream_type,
                         track->sdes,
                         track->ldes);
-                fprintf(stdout, "        elementary_PID = " FYELLOW "0x%04X" NONE "\n",
-                        track->PID);
+                fprintf(stdout, "        elementary_PID = " FYELLOW "0x%04X" NONE
+                        FRED "%s" NONE "\n",
+                        track->PID, (track->PID == pcr_pid) ? " with PCR" : "");
                 fprintf(stdout, "        ES_info:" FYELLOW);
                 for(i = 0; i < track->es_info_len; i++)
                 {

@@ -69,6 +69,7 @@ typedef struct _ts_section_t
         // for list
         NODE *next;
         NODE *prev;
+        uint32_t key; // copy section_number as key
 
         uint8_t section_number;
         uint8_t data[1024];
@@ -80,6 +81,7 @@ typedef struct _ts_table_t
         // for list
         NODE *next;
         NODE *prev;
+        uint32_t key; // copy table_id as key
 
         uint8_t table_id;
         LIST section; // ts_section_t
@@ -91,6 +93,7 @@ typedef struct _ts_prog_t
         // for list
         NODE *next;
         NODE *prev;
+        uint32_t key; // copy program_number as key
 
         // program information
         int is_parsed;
@@ -125,6 +128,7 @@ typedef struct _ts_track_t
         // for list
         NODE *next;
         NODE *prev;
+        uint32_t key; // copy PID as key
 
         // PID
         uint16_t PID; // 13-bit
@@ -150,6 +154,7 @@ typedef struct _ts_pid_t
         // for list
         NODE *next;
         NODE *prev;
+        uint32_t key; // copy PID as key
 
         // PID
         uint16_t PID; // 13-bit

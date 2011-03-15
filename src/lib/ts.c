@@ -1521,7 +1521,8 @@ static int parse_PAT_load(obj_t *obj)
                         prog->ADDb = 0;
                         prog->PCRb = PCR_OVERFLOW;
                         prog->STC_sync = 0;
-                        list_add(&(rslt->prog_list), (NODE *)prog);
+                        prog->key = prog->program_number; // set key for sort
+                        list_insert(&(rslt->prog_list), (NODE *)prog);
                 }
 
                 add_to_pid_list(&(rslt->pid_list), pids);
@@ -1667,6 +1668,7 @@ static int parse_PMT_load(obj_t *obj)
                                 default:      track->type = UNO_PCR; break;
                         }
                 }
+                track->key = track->PID; // set key for sort
                 list_add(&(prog->track_list), (NODE *)track);
 
                 // add track PID
@@ -1755,46 +1757,26 @@ static void ts_pid_t_cpy(ts_pid_t *dst, ts_pid_t *src)
 
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 {
-        NODE *node;
         ts_pid_t *pids;
 
-        for(node = list->head; node; node = node->next)
+        if(NULL != (pids = (ts_pid_t *)list_search(list, the_pids->PID)))
         {
-                pids = (ts_pid_t *)node;
-
-                if(pids->PID == the_pids->PID)
+                // in pid_list already, just update information
+                ts_pid_t_cpy(pids, the_pids);
+        }
+        else
+        {
+                pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
+                if(NULL == pids)
                 {
-                        // in pid_list already, just update information
-                        ts_pid_t_cpy(pids, the_pids);
-                        return pids;
+                        DBG(ERR_MALLOC_FAILED);
+                        return NULL;
                 }
 
-                if(pids->PID > the_pids->PID)
-                {
-                        // find a big one, insert before
-                        pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                        if(NULL == pids)
-                        {
-                                DBG(ERR_MALLOC_FAILED);
-                                return NULL;
-                        }
-
-                        ts_pid_t_cpy(pids, the_pids);
-                        list_insert_before(list, node, (NODE *)pids);
-                        return pids;
-                }
+                ts_pid_t_cpy(pids, the_pids);
+                pids->key = the_pids->PID; // set key for sort
+                list_insert(list, (NODE *)pids);
         }
-
-        // reach list tail, add
-        pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-        if(NULL == pids)
-        {
-                DBG(ERR_MALLOC_FAILED);
-                return NULL;
-        }
-
-        ts_pid_t_cpy(pids, the_pids);
-        list_add(list, (NODE *)pids);
         return pids;
 }
 

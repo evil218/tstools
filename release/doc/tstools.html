@@ -206,25 +206,21 @@ Unix下每个工具的使用说明一般要用“--help”来看，
   
   例子：
       $ bincat c111_sd_1min.ts | tsana
-       PID  , percent, count, dCC, track,     abbr, detail
-      0x0000,       0,     2,  1 ,      ,  PAT_PID, program association section
-      0x0050,       0,     1,  1 ,      ,  PMT_PID, program map section
-      0x0051,       0,     0,  0 ,      ,  PCR_PID, program counter reference
-      0x0052,       0,     0,  1 ,     *,  VID_PID, video packet
-      0x0053,       0,     0,  1 ,     *,  AUD_PID, audio packet
-      0x1FFF,       0,   124,  0 ,      , NULL_PID, empty packet
+        PID , abbr, detail
+      0x0000,  PAT, program association section
+      0x0050,  PMT, program map section
+      0x0051,  PCR, program counter reference
+      0x0052,  VID, video packet
+      0x0053,  AUD, audio packet
+      0x1FFF, NULL, empty packet
 </PRE>
 
 <P>
 参数“-pid-list”并不是必须的，因为这是tsana的缺省操作。
-输出列表根据PID从小到大排序：
+输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）：
 </P>
 
 <UL>
-<LI>“percent”：该PID占的比重（尚未实现）；
-<LI>“count”：该PID的包数；
-<LI>“dCC”：该PID的CC每次是否应该加1（PCR包和空包的CC不需要增加）；
-<LI>“track”：该PID是否是音频或视频这样的媒体流；
 <LI>“abbr”：该PID类型简介；
 <LI>“detail”：该PID的详细解释。
 </UL>
@@ -235,7 +231,7 @@ Unix下每个工具的使用说明一般要用“--help”来看，
 <P>
 分析器内部会维护一个PID链表，分析期间遇到的新PID包或者PSI表中声明的PID按照从小到大的顺序插入表中。
 因为采用链表，其长度是没有限制的，最多可以有从0x0000到0x1FFF共8192项。
-因为插入时是排序的（插入的这段代码比较凌乱），所以很容易从小到大打印输出。
+因为插入时是排序的，所以很容易从小到大打印输出。
 </P>
 <P>
 PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，输出PID链表。
@@ -260,8 +256,7 @@ PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，�
   
   例子：
       $ bincat c111_sd_1min.ts | tsana -psi-tree
-      + program 3(0x0003), PMT_PID = 0x0050
-          PCR_PID = 0x0051
+      + program 3(0x0003), PMT_PID = 0x0050, PCR_PID = 0x0051
           program_info:
           track
               stream_type = 0x1B, H.264, ITU-T Rec.H.264|ISO/IEC 14496-10 Video
@@ -287,7 +282,7 @@ PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，�
 因为采用链表，这些表的长度没有限制，码流中声明了多少就能放下多少。
 </P>
 <P>
-要注意的是，目前分析器的所有操作都以TS包为单位进行，目前还不支持因为超长需要多个TS包承载的PAT或PMT。
+要注意的是，目前分析器的所有操作都以TS包为单位进行，目前还不支持因为超长需要多个TS包承载的PSI/SI。
 分析SDT的功能还没实现。
 </P>
 
