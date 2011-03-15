@@ -219,6 +219,7 @@ enum PID_TYPE_ENUM
         PCR_PID,
         NULL_PID,
         UNO_PID,
+        UNO_PCR,
         BAD_PID
 };
 
@@ -251,6 +252,7 @@ static const pid_type_table_t PID_TYPE[] =
         {" PCR", "program counter reference"},
         {"NULL", "empty packet"},
         {" UNO", "unknown"},
+        {"PUNO", "unknown packet with PCR"},
         {" BAD", "illegal"}
 };
 
@@ -308,7 +310,7 @@ static const table_id_table_t TABLE_ID_TABLE[] =
 
 static const stream_type_t STREAM_TYPE_TABLE[] =
 {
-        {0x00, USR_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
+        {0x00, UNO_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
         {0x01, VID_PID, "MPEG-1", "ISO/IEC 11172-2 Video"},
         {0x02, VID_PID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
         {0x03, AUD_PID, "MPEG-1", "ISO/IEC 11172-3 Audio"},
@@ -371,6 +373,7 @@ static int parse_PES_head_detail(obj_t *obj);
 static int parse_PAT_load(obj_t *obj);
 static int parse_PMT_load(obj_t *obj);
 
+static void ts_pid_t_cpy(ts_pid_t *dst, ts_pid_t *src);
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
 static int is_pmt_pid(obj_t *obj);
@@ -1655,6 +1658,15 @@ static int parse_PMT_load(obj_t *obj)
                 }
 
                 track_type(track);
+                if(track->PID == prog->PCR_PID)
+                {
+                        switch(track->type)
+                        {
+                                case VID_PID: track->type = VID_PCR; break;
+                                case AUD_PID: track->type = AUD_PCR; break;
+                                default:      track->type = UNO_PCR; break;
+                        }
+                }
                 list_add(&(prog->track_list), (NODE *)track);
 
                 // add track PID
@@ -1720,6 +1732,27 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         return add_to_pid_list(&(rslt->pid_list), pids);
 }
 
+static void ts_pid_t_cpy(ts_pid_t *dst, ts_pid_t *src)
+{
+        if(NULL == dst || NULL == src)
+        {
+                DBG(ERR_OTHER);
+                return;
+        }
+
+        dst->PID = src->PID;
+        dst->prog = src->prog;
+        dst->track = src->track;
+        dst->type = src->type;
+        dst->cnt = src->cnt;
+        dst->lcnt = src->lcnt;
+        dst->CC = src->CC;
+        dst->is_CC_sync = src->is_CC_sync;
+        dst->sdes = src->sdes;
+        dst->ldes = src->ldes;
+        return;
+}
+
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 {
         NODE *node;
@@ -1728,50 +1761,17 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
+
                 if(pids->PID == the_pids->PID)
                 {
-                        if(PCR_PID == pids->type)
-                        {
-                                pids->prog = the_pids->prog;
-                                pids->track = the_pids->track;
-                                if(VID_PID == the_pids->type)
-                                {
-                                        pids->type = VID_PCR;
-                                }
-                                else if(AUD_PID == the_pids->type)
-                                {
-                                        pids->type = AUD_PCR;
-                                }
-                                else
-                                {
-                                        pids->type = the_pids->type;
-                                        fprintf(stderr, "bad element PID(0x%04X)!\n", the_pids->PID);
-                                }
-                                pids->cnt = the_pids->cnt;
-                                pids->lcnt = the_pids->lcnt;
-                                pids->CC = the_pids->CC;
-                                pids->is_CC_sync = the_pids->is_CC_sync;
-                                pids->sdes = PID_TYPE[pids->type].sdes;
-                                pids->ldes = PID_TYPE[pids->type].ldes;
-                        }
-                        else
-                        {
-                                // update item information
-                                pids->prog = the_pids->prog;
-                                pids->track = the_pids->track;
-                                pids->type = the_pids->type;
-                                pids->cnt = the_pids->cnt;
-                                pids->lcnt = the_pids->lcnt;
-                                pids->CC = the_pids->CC;
-                                pids->is_CC_sync = the_pids->is_CC_sync;
-                                pids->sdes = the_pids->sdes;
-                                pids->ldes = the_pids->ldes;
-                        }
+                        // in pid_list already, just update information
+                        ts_pid_t_cpy(pids, the_pids);
                         return pids;
                 }
 
                 if(pids->PID > the_pids->PID)
                 {
+                        // find a big one, insert before
                         pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
                         if(NULL == pids)
                         {
@@ -1779,70 +1779,13 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                                 return NULL;
                         }
 
-                        pids->PID = the_pids->PID;
-                        pids->prog = the_pids->prog;
-                        pids->track = the_pids->track;
-                        pids->type = the_pids->type;
-                        pids->cnt = the_pids->cnt;
-                        pids->lcnt = the_pids->lcnt;
-                        pids->CC = the_pids->CC;
-                        pids->is_CC_sync = the_pids->is_CC_sync;
-                        pids->sdes = the_pids->sdes;
-                        pids->ldes = the_pids->ldes;
-
+                        ts_pid_t_cpy(pids, the_pids);
                         list_insert_before(list, node, (NODE *)pids);
-                        return pids;
-                }
-
-                if(NULL == node->next)
-                {
-                        pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                        if(NULL == pids)
-                        {
-                                DBG(ERR_MALLOC_FAILED);
-                                return NULL;
-                        }
-
-                        pids->PID = the_pids->PID;
-                        pids->prog = the_pids->prog;
-                        pids->track = the_pids->track;
-                        pids->type = the_pids->type;
-                        pids->cnt = the_pids->cnt;
-                        pids->lcnt = the_pids->lcnt;
-                        pids->CC = the_pids->CC;
-                        pids->is_CC_sync = the_pids->is_CC_sync;
-                        pids->sdes = the_pids->sdes;
-                        pids->ldes = the_pids->ldes;
-
-                        list_add(list, (NODE *)pids);
-                        return pids;
-                }
-
-                if(((ts_pid_t *)(node->next))->PID > the_pids->PID)
-                {
-                        pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                        if(NULL == pids)
-                        {
-                                DBG(ERR_MALLOC_FAILED);
-                                return NULL;
-                        }
-
-                        pids->PID = the_pids->PID;
-                        pids->prog = the_pids->prog;
-                        pids->track = the_pids->track;
-                        pids->type = the_pids->type;
-                        pids->cnt = the_pids->cnt;
-                        pids->lcnt = the_pids->lcnt;
-                        pids->CC = the_pids->CC;
-                        pids->is_CC_sync = the_pids->is_CC_sync;
-                        pids->sdes = the_pids->sdes;
-                        pids->ldes = the_pids->ldes;
-
-                        list_insert_after(list, node, (NODE *)pids);
                         return pids;
                 }
         }
 
+        // reach list tail, add
         pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
         if(NULL == pids)
         {
@@ -1850,17 +1793,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 return NULL;
         }
 
-        pids->PID = the_pids->PID;
-        pids->prog = the_pids->prog;
-        pids->track = the_pids->track;
-        pids->type = the_pids->type;
-        pids->cnt = the_pids->cnt;
-        pids->lcnt = the_pids->lcnt;
-        pids->CC = the_pids->CC;
-        pids->is_CC_sync = the_pids->is_CC_sync;
-        pids->sdes = the_pids->sdes;
-        pids->ldes = the_pids->ldes;
-
+        ts_pid_t_cpy(pids, the_pids);
         list_add(list, (NODE *)pids);
         return pids;
 }
@@ -1949,7 +1882,7 @@ static int track_type(ts_track_t *track)
 {
         const stream_type_t *p;
 
-        for(p = STREAM_TYPE_TABLE; p->type != UNO_PID; p++)
+        for(p = STREAM_TYPE_TABLE; 0xFF != p->stream_type; p++)
         {
                 if(p->stream_type == track->stream_type)
                 {
