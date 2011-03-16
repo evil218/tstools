@@ -361,27 +361,23 @@ static int state_next_pat(obj_t *obj);
 static int state_next_pmt(obj_t *obj);
 static int state_next_pkt(obj_t *obj);
 
-static int dump_TS(obj_t *obj);   // for debug
+static int dump_TS(obj_t *obj); // for debug
 
-static int parse_TS(obj_t *obj);  // ts layer information
-static int parse_AF(obj_t *obj);  // adaption_fields information
-static int parse_PSI(obj_t *obj); // psi information
-static int parse_PES(obj_t *obj); // pes layer information
+static int parse_TS_head(obj_t *obj); // TS head information
+static int parse_AF(obj_t *obj); // Adaption Fields information
+static int parse_PSI_head(obj_t *obj); // PSI information
+static int parse_PES(obj_t *obj); // PES layer information
 static int parse_PES_head_switch(obj_t *obj);
 static int parse_PES_head_detail(obj_t *obj);
 
 static int parse_PAT_load(obj_t *obj);
 static int parse_PMT_load(obj_t *obj);
 
-static void ts_pid_t_cpy(ts_pid_t *dst, ts_pid_t *src);
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
-static int is_pmt_pid(obj_t *obj);
-static int is_unparsed_prog(obj_t *obj);
 static int is_all_prog_parsed(obj_t *obj);
 static int pid_type(uint16_t pid);
 static int track_type(ts_track_t *track);
-static ts_pid_t *pids_match(LIST *list, uint16_t pid);
 
 static int64_t difftime_27M(uint64_t t1, uint64_t t2); // for STC, etc
 static int64_t difftime_90K(uint64_t t1, uint64_t t2); // for STC_base, etc
@@ -483,7 +479,7 @@ int tsParseTS(int id, void *pkt, int size)
                 obj->rslt.addr += obj->pkt_size;
         }
 
-        return parse_TS(obj);
+        return parse_TS_head(obj);
 }
 
 int tsParseOther(int id)
@@ -526,7 +522,7 @@ static int state_next_pat(obj_t *obj)
                 return -1;
         }
 
-        parse_PSI(obj);
+        parse_PSI_head(obj);
         parse_PAT_load(obj);
         obj->state = STATE_NEXT_PMT;
 
@@ -541,13 +537,23 @@ static int state_next_pat(obj_t *obj)
 
 static int state_next_pmt(obj_t *obj)
 {
-        if(!is_pmt_pid(obj))
+        psi_t *psi = &(obj->psi);
+        ts_t *ts = &(obj->ts);
+        ts_pid_t *pids;
+        ts_prog_t *prog;
+
+        pids = (ts_pid_t *)list_search(&(obj->rslt.pid_list), ts->PID);
+        if((NULL == pids) || (PMT_PID != pids->type))
         {
+                // not PMT
                 return -1;
         }
 
-        parse_PSI(obj);
-        if(is_unparsed_prog(obj))
+        parse_PSI_head(obj);
+
+        // is unparsed prog?
+        prog = (ts_prog_t *)list_search(&(obj->rslt.prog_list), psi->idx.program_number);
+        if((NULL != prog) && !(prog->is_parsed))
         {
                 obj->rslt.is_psi_si = 1;
                 parse_PMT_load(obj);
@@ -792,7 +798,7 @@ static int dump_TS(obj_t *obj)
         return 0;
 }
 
-static int parse_TS(obj_t *obj)
+static int parse_TS_head(obj_t *obj)
 {
         uint8_t dat;
         ts_t *ts = &(obj->ts);
@@ -868,7 +874,7 @@ static int parse_TS(obj_t *obj)
         }
 
         rslt->pid = ts->PID; // record into rslt struct
-        rslt->pids = pids_match(&(obj->rslt.pid_list), rslt->pid);
+        rslt->pids = (ts_pid_t *)list_search(&(obj->rslt.pid_list), rslt->pid);
         if(NULL == rslt->pids)
         {
                 rslt->pids = add_new_pid(obj);
@@ -991,7 +997,7 @@ static int parse_AF(obj_t *obj)
         return 0;
 }
 
-static int parse_PSI(obj_t *obj)
+static int parse_PSI_head(obj_t *obj)
 {
         uint8_t dat;
         psi_t *psi = &(obj->psi);
@@ -1521,11 +1527,11 @@ static int parse_PAT_load(obj_t *obj)
                         prog->ADDb = 0;
                         prog->PCRb = PCR_OVERFLOW;
                         prog->STC_sync = 0;
-                        prog->key = prog->program_number; // set key for sort
+                        prog->key = prog->program_number; // use prog# to sort and search prog_list
                         list_insert(&(rslt->prog_list), (NODE *)prog);
                 }
 
-                add_to_pid_list(&(rslt->pid_list), pids);
+                add_to_pid_list(&(rslt->pid_list), pids); // PMT_PID
         }
 
         dat = *(obj->p)++; obj->len--;
@@ -1594,7 +1600,7 @@ static int parse_PMT_load(obj_t *obj)
         pids->is_CC_sync = 1;
         pids->sdes = PID_TYPE[pids->type].sdes;
         pids->ldes = PID_TYPE[pids->type].ldes;
-        add_to_pid_list(&(obj->rslt.pid_list), pids);
+        add_to_pid_list(&(obj->rslt.pid_list), pids); // PCR_PID
 
         // program_info_length
         dat = *(obj->p)++; obj->len--;
@@ -1668,7 +1674,7 @@ static int parse_PMT_load(obj_t *obj)
                                 default:      track->type = UNO_PCR; break;
                         }
                 }
-                track->key = track->PID; // set key for sort
+                track->key = track->PID; // use PID to sort and search track_list
                 list_add(&(prog->track_list), (NODE *)track);
 
                 // add track PID
@@ -1682,7 +1688,7 @@ static int parse_PMT_load(obj_t *obj)
                 pids->is_CC_sync = 0;
                 pids->sdes = PID_TYPE[pids->type].sdes;
                 pids->ldes = PID_TYPE[pids->type].ldes;
-                add_to_pid_list(&(obj->rslt.pid_list), pids);
+                add_to_pid_list(&(obj->rslt.pid_list), pids); // elementary_PID
         }
 
         dat = *(obj->p)++; obj->len--;
@@ -1731,28 +1737,7 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         pids->sdes = PID_TYPE[pids->type].sdes;
         pids->ldes = PID_TYPE[pids->type].ldes;
 
-        return add_to_pid_list(&(rslt->pid_list), pids);
-}
-
-static void ts_pid_t_cpy(ts_pid_t *dst, ts_pid_t *src)
-{
-        if(NULL == dst || NULL == src)
-        {
-                DBG(ERR_OTHER);
-                return;
-        }
-
-        dst->PID = src->PID;
-        dst->prog = src->prog;
-        dst->track = src->track;
-        dst->type = src->type;
-        dst->cnt = src->cnt;
-        dst->lcnt = src->lcnt;
-        dst->CC = src->CC;
-        dst->is_CC_sync = src->is_CC_sync;
-        dst->sdes = src->sdes;
-        dst->ldes = src->ldes;
-        return;
+        return add_to_pid_list(&(rslt->pid_list), pids); // other_PID
 }
 
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
@@ -1762,7 +1747,28 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
         if(NULL != (pids = (ts_pid_t *)list_search(list, the_pids->PID)))
         {
                 // in pid_list already, just update information
-                ts_pid_t_cpy(pids, the_pids);
+#if 0
+                if(pids->PID != the_pids->PID) DBG(ERR_OTHER);
+                if(pids->prog != the_pids->prog) DBG(ERR_OTHER);
+                if(pids->track != the_pids->track) DBG(ERR_OTHER);
+                if(pids->type != the_pids->type) DBG(ERR_OTHER);
+                if(pids->cnt != the_pids->cnt) DBG(ERR_OTHER);
+                if(pids->lcnt != the_pids->lcnt) DBG(ERR_OTHER);
+                if(pids->CC != the_pids->CC) DBG(ERR_OTHER);
+                if(pids->is_CC_sync != the_pids->is_CC_sync) DBG(ERR_OTHER);
+                if(pids->sdes != the_pids->sdes) DBG(ERR_OTHER);
+                if(pids->ldes != the_pids->ldes) DBG(ERR_OTHER);
+#endif
+                pids->PID = the_pids->PID;
+                pids->prog = the_pids->prog;
+                pids->track = the_pids->track;
+                pids->type = the_pids->type;
+                pids->cnt = the_pids->cnt;
+                pids->lcnt = the_pids->lcnt;
+                pids->CC = the_pids->CC;
+                pids->is_CC_sync = the_pids->is_CC_sync;
+                pids->sdes = the_pids->sdes;
+                pids->ldes = the_pids->ldes;
         }
         else
         {
@@ -1773,59 +1779,21 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                         return NULL;
                 }
 
-                ts_pid_t_cpy(pids, the_pids);
-                pids->key = the_pids->PID; // set key for sort
+                pids->PID = the_pids->PID;
+                pids->prog = the_pids->prog;
+                pids->track = the_pids->track;
+                pids->type = the_pids->type;
+                pids->cnt = the_pids->cnt;
+                pids->lcnt = the_pids->lcnt;
+                pids->CC = the_pids->CC;
+                pids->is_CC_sync = the_pids->is_CC_sync;
+                pids->sdes = the_pids->sdes;
+                pids->ldes = the_pids->ldes;
+
+                pids->key = the_pids->PID; // use PID to sort and search pid_list
                 list_insert(list, (NODE *)pids);
         }
         return pids;
-}
-
-static int is_pmt_pid(obj_t *obj)
-{
-        ts_t *ts = &(obj->ts);
-        NODE *node;
-        ts_pid_t *pids;
-
-        for(node = obj->rslt.pid_list.head; node; node = node->next)
-        {
-                pids = (ts_pid_t *)node;
-                if(ts->PID == pids->PID)
-                {
-                        if(PMT_PID == pids->type)
-                        {
-                                return 1;
-                        }
-                        else
-                        {
-                                return 0;
-                        }
-                }
-        }
-        return 0;
-}
-
-static int is_unparsed_prog(obj_t *obj)
-{
-        psi_t *psi = &(obj->psi);
-        NODE *node;
-        ts_prog_t *prog;
-
-        for(node = obj->rslt.prog_list.head; node; node = node->next)
-        {
-                prog = (ts_prog_t *)node;
-                if(psi->idx.program_number == prog->program_number)
-                {
-                        if(0 == prog->is_parsed)
-                        {
-                                return 1;
-                        }
-                        else
-                        {
-                                return 0;
-                        }
-                }
-        }
-        return 0;
 }
 
 static int is_all_prog_parsed(obj_t *obj)
@@ -1876,24 +1844,6 @@ static int track_type(ts_track_t *track)
         track->sdes = p->sdes;
         track->ldes = p->ldes;
         return 0;
-}
-
-static ts_pid_t *pids_match(LIST *list, uint16_t pid)
-{
-        NODE *node;
-        ts_pid_t *pids;
-
-
-        for(node = list->head; node; node = node->next)
-        {
-                pids = (ts_pid_t *)node;
-                if(pid == pids->PID)
-                {
-                        return pids;
-                }
-        }
-
-        return NULL;
 }
 
 // for STC, etc

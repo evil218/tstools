@@ -591,14 +591,15 @@ static void show_track(LIST *list, uint16_t pcr_pid)
         for(node = list->head; node; node = node->next)
         {
                 track = (ts_track_t *)node;
-                fprintf(stdout, "    track\n");
-                fprintf(stdout, "        stream_type = " FYELLOW "0x%02X" NONE ", %s, %s\n",
+                fprintf(stdout, "    track " FYELLOW "0x%04X" NONE
+                        ", stream_type = " FYELLOW "0x%02X" NONE
+                        FRED "%s" NONE "\n",
+                        track->PID,
                         track->stream_type,
+                        (track->PID == pcr_pid) ? " with PCR" : "");
+                fprintf(stdout, "        type: %s, %s\n",
                         track->sdes,
                         track->ldes);
-                fprintf(stdout, "        elementary_PID = " FYELLOW "0x%04X" NONE
-                        FRED "%s" NONE "\n",
-                        track->PID, (track->PID == pcr_pid) ? " with PCR" : "");
                 fprintf(stdout, "        ES_info:" FYELLOW);
                 for(i = 0; i < track->es_info_len; i++)
                 {
