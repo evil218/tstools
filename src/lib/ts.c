@@ -17,13 +17,14 @@
 //=============================================================================
 #define BIT(n)                          (1<<(n))
 
-#define PCR_US                          (27) // 27 clk means 1(us)
-#define PCR_MS                          (27 * 1000) // uint: do NOT use 1e3 
-#define PCR_1S                          (27 * 1000 * 1000) // uint: do NOT use 1e3 
-#define PCR_BASE_1S                     (90 * 1000) // uint: do NOT use 1e3
+#define STC_BASE_MS                     (90) // 90 clk == 1(ms)
+#define STC_BASE_1S                     (90 * 1000) // do NOT use 1e3
+#define STC_BASE_OVF                    (1LL << 33)         // 0x0200000000
 
-#define PCR_OVERFLOW                    ((1LL << 33) * 300) // pow(2, 33) * 300
-#define PCR_BASE_OVERFLOW               (1LL << 33) // pow(2, 33)
+#define STC_US                          (27)               // 27 clk == 1(us)
+#define STC_MS                          (27 * 1000)        // do NOT use 1e3 
+#define STC_1S                          (27 * 1000 * 1000) // do NOT use 1e3 
+#define STC_OVF                         (STC_BASE_OVF * 300) // 2576980377600
 
 //=============================================================================
 // struct definition
@@ -275,7 +276,7 @@ static const ts_pid_table_t PID_TABLE[] =
         /*14*/{0x001F, 0x001F,  SIT_PID},
         /*15*/{0x0020, 0x1FFE,  USR_PID},
         /*16*/{0x1FFF, 0x1FFF, NULL_PID},
-        /*17*/{0x2000, 0xFFFF,  BAD_PID} // loop stop condition!
+        /*17*/{0x2000, 0xFFFF,  BAD_PID}, // loop stop condition!
 };
 
 static const table_id_table_t TABLE_ID_TABLE[] =
@@ -305,7 +306,7 @@ static const table_id_table_t TABLE_ID_TABLE[] =
         /*22*/{0x7E, 0x7E,  DIT_PID},
         /*23*/{0x7F, 0x7F,  SIT_PID},
         /*24*/{0x80, 0xFE,  USR_PID},
-        /*25*/{0xFF, 0xFF,  RSV_PID}
+        /*25*/{0xFF, 0xFF,  RSV_PID}, // loop stop condition!
 };
 
 static const stream_type_t STREAM_TYPE_TABLE[] =
@@ -366,12 +367,12 @@ static int dump_TS(obj_t *obj); // for debug
 static int parse_TS_head(obj_t *obj); // TS head information
 static int parse_AF(obj_t *obj); // Adaption Fields information
 static int parse_PSI_head(obj_t *obj); // PSI information
-static int parse_PES(obj_t *obj); // PES layer information
+static int parse_PES_head(obj_t *obj); // PES layer information
 static int parse_PES_head_switch(obj_t *obj);
 static int parse_PES_head_detail(obj_t *obj);
 
 static int parse_PAT_load(obj_t *obj);
-static int parse_PMT_load(obj_t *obj);
+static int parse_PMT_load(obj_t *obj, ts_prog_t *prog);
 
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
@@ -379,8 +380,8 @@ static int is_all_prog_parsed(obj_t *obj);
 static int pid_type(uint16_t pid);
 static int track_type(ts_track_t *track);
 
-static int64_t difftime_27M(uint64_t t1, uint64_t t2); // for STC, etc
-static int64_t difftime_90K(uint64_t t1, uint64_t t2); // for STC_base, etc
+static uint64_t lmt_add(uint64_t t1, uint64_t t2, uint64_t ovf);
+static int64_t lmt_min(uint64_t t1, uint64_t t2, uint64_t ovf);
 
 //=============================================================================
 // public function definition
@@ -432,14 +433,11 @@ int tsDelete(int id)
         }
         else
         {
-                ts_rslt_t *rslt;
-                NODE *node;
-                ts_prog_t *prog;
+                ts_rslt_t *rslt = &(obj->rslt);
 
-                rslt = &(obj->rslt);
-                for(node = rslt->prog_list.head; node; node = node->next)
+                for(NODE *node = rslt->prog_list.head; node; node = node->next)
                 {
-                        prog = (ts_prog_t *)node;
+                        ts_prog_t *prog = (ts_prog_t *)node;
                         list_free(&(prog->track_list));
                 }
                 list_free(&(rslt->prog_list));
@@ -556,7 +554,7 @@ static int state_next_pmt(obj_t *obj)
         if((NULL != prog) && !(prog->is_parsed))
         {
                 obj->rslt.is_psi_si = 1;
-                parse_PMT_load(obj);
+                parse_PMT_load(obj, prog);
         }
 
         if(is_all_prog_parsed(obj))
@@ -633,16 +631,11 @@ static int state_next_pkt(obj_t *obj)
                 // STCx - PCRb   ADDx - ADDb
                 // ----------- = -----------
                 // PCRb - PCRa   ADDb - ADDa
-                delta = difftime_27M(prog->PCRb, prog->PCRa);
+                delta = lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
                 delta *= (rslt->addr - prog->ADDb);
                 delta /= (prog->ADDb - prog->ADDa);
+                rslt->STC = lmt_add(prog->PCRb, (uint64_t)delta, STC_OVF);
 
-                rslt->STC = prog->PCRb;
-                rslt->STC += delta;
-                if(rslt->STC >= PCR_OVERFLOW)
-                {
-                        rslt->STC -= PCR_OVERFLOW;
-                }
                 rslt->STC_base = rslt->STC / 300;
                 rslt->STC_ext = rslt->STC % 300;
         }
@@ -666,16 +659,16 @@ static int state_next_pkt(obj_t *obj)
                 if(prog)
                 {
                         // PCR_interval, use rslt->STC or rslt->PCR?
-                        rslt->PCR_interval = difftime_27M(rslt->STC, prog->PCRb);
+                        rslt->PCR_interval = lmt_min(rslt->STC, prog->PCRb, STC_OVF);
                         if((prog->STC_sync) &&
-                           !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * PCR_MS))
+                           !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * STC_MS))
                         {
                                 // !(0 < interval < +40ms)
                                 err->PCR_repetition_error = 1;
                         }
 
                         // PCR_jitter
-                        rslt->PCR_jitter = difftime_27M(rslt->PCR, rslt->STC);
+                        rslt->PCR_jitter = lmt_min(rslt->PCR, rslt->STC, STC_OVF);
                         if((prog->STC_sync) &&
                            !(-13 <= rslt->PCR_jitter && rslt->PCR_jitter <= +13))
                         {
@@ -694,18 +687,14 @@ static int state_next_pkt(obj_t *obj)
                         // STC_sync
                         if(!prog->STC_sync)
                         {
-                                if(prog->PCRb != PCR_OVERFLOW)
+                                if(prog->PCRb != STC_OVF)
                                 {
-                                        if(prog->PCRa == PCR_OVERFLOW)
+                                        if(prog->PCRa == STC_OVF)
                                         {
-                                                NODE *node;
-                                                ts_pid_t *pid_item;
-
-                                                // 1st PCR of this program
-                                                // clear cnt & interval
-                                                for(node = rslt->pid_list.head; node; node = node->next)
+                                                // 1st PCR of this program, clear cnt & interval
+                                                for(NODE *node = rslt->pid_list.head; node; node = node->next)
                                                 {
-                                                        pid_item = (ts_pid_t *)node;
+                                                        ts_pid_t *pid_item = (ts_pid_t *)node;
                                                         if(pid_item->prog == prog)
                                                         {
                                                                 pid_item->lcnt = 0;
@@ -716,8 +705,7 @@ static int state_next_pkt(obj_t *obj)
                                         }
                                         else
                                         {
-                                                // 2ed PCR of this program
-                                                // STC can be calc
+                                                // 2ed PCR of this program, STC can be calc
                                                 prog->STC_sync = 1;
                                         }
                                 }
@@ -726,16 +714,13 @@ static int state_next_pkt(obj_t *obj)
                         // the packet that use PCR of first program
                         if(prog == rslt->prog0)
                         {
-                                rslt->interval += difftime_27M(prog->PCRb, prog->PCRa);
+                                rslt->interval += lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
                                 if(rslt->interval >= rslt->aim_interval)
                                 {
-                                        NODE *node;
-                                        ts_pid_t *pid_item;
-
                                         // calc bitrate and clear the packet count
-                                        for(node = rslt->pid_list.head; node; node = node->next)
+                                        for(NODE *node = rslt->pid_list.head; node; node = node->next)
                                         {
-                                                pid_item = (ts_pid_t *)node;
+                                                ts_pid_t *pid_item = (ts_pid_t *)node;
                                                 pid_item->lcnt = pid_item->cnt;
                                                 pid_item->cnt = 0;
                                         }
@@ -765,19 +750,19 @@ static int state_next_pkt(obj_t *obj)
         // PES head & ES data
         if(track && (0 == ts->transport_scrambling_control))
         {
-                parse_PES(obj);
+                parse_PES_head(obj);
 
                 if(rslt->has_PTS)
                 {
-                        rslt->PTS_interval = difftime_90K(rslt->PTS, track->PTS);
-                        rslt->PTS_minus_STC = difftime_90K(rslt->PTS, rslt->STC_base);
+                        rslt->PTS_interval = lmt_min(rslt->PTS, track->PTS, STC_BASE_OVF);
+                        rslt->PTS_minus_STC = lmt_min(rslt->PTS, rslt->STC_base, STC_BASE_OVF);
                         track->PTS = rslt->PTS; // record last PTS in track
                 }
 
                 if(rslt->has_DTS)
                 {
-                        rslt->DTS_interval = difftime_90K(rslt->DTS, track->DTS);
-                        rslt->DTS_minus_STC = difftime_90K(rslt->DTS, rslt->STC_base);
+                        rslt->DTS_interval = lmt_min(rslt->DTS, track->DTS, STC_BASE_OVF);
+                        rslt->DTS_minus_STC = lmt_min(rslt->DTS, rslt->STC_base, STC_BASE_OVF);
                         track->DTS = rslt->DTS; // record last DTS in track
                 }
         }
@@ -1043,7 +1028,7 @@ static int parse_PSI_head(obj_t *obj)
         return 0;
 }
 
-static int parse_PES(obj_t *obj)
+static int parse_PES_head(obj_t *obj)
 {
         uint8_t dat;
         ts_t *ts = &(obj->ts);
@@ -1452,8 +1437,6 @@ static int parse_PAT_load(obj_t *obj)
         ts_rslt_t *rslt = &(obj->rslt);
         ts_prog_t *prog;
         ts_pid_t ts_pid, *pids = &ts_pid;
-        NODE *node;
-        ts_pid_t *pid_item;
 
         while(obj->len > 4)
         {
@@ -1473,9 +1456,9 @@ static int parse_PAT_load(obj_t *obj)
 
                         // traverse pid_list
                         // if it des not belong to any program, use prog0
-                        for(node = rslt->pid_list.head; node; node = node->next)
+                        for(NODE *node = rslt->pid_list.head; node; node = node->next)
                         {
-                                pid_item = (ts_pid_t *)node;
+                                ts_pid_t *pid_item = (ts_pid_t *)node;
                                 if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
                                 {
                                         pid_item->prog = rslt->prog0;
@@ -1523,9 +1506,9 @@ static int parse_PAT_load(obj_t *obj)
                         pids->ldes = PID_TYPE[pids->type].ldes;
 
                         prog->ADDa = 0;
-                        prog->PCRa = PCR_OVERFLOW;
+                        prog->PCRa = STC_OVF;
                         prog->ADDb = 0;
-                        prog->PCRb = PCR_OVERFLOW;
+                        prog->PCRb = STC_OVF;
                         prog->STC_sync = 0;
                         prog->key = prog->program_number; // use prog# to sort and search prog_list
                         list_insert(&(rslt->prog_list), (NODE *)prog);
@@ -1554,31 +1537,15 @@ static int parse_PAT_load(obj_t *obj)
         return 0;
 }
 
-static int parse_PMT_load(obj_t *obj)
+static int parse_PMT_load(obj_t *obj, ts_prog_t *prog)
 {
         uint16_t i;
         uint8_t dat;
         uint16_t info_length;
-        NODE *node;
-        ts_prog_t *prog;
         ts_pid_t ts_pid, *pids = &ts_pid;
         ts_track_t *track;
         ts_t *ts = &(obj->ts);
         psi_t *psi = &(obj->psi);
-
-        for(node = obj->rslt.prog_list.head; node; node = node->next)
-        {
-                prog = (ts_prog_t *)node;
-                if(psi->idx.program_number == prog->program_number)
-                {
-                        break;
-                }
-        }
-        if(!node)
-        {
-                fprintf(stderr, "Wrong PID: 0x%04X\n", ts->PID);
-                exit(EXIT_FAILURE);
-        }
 
         prog->is_parsed = 1;
 
@@ -1798,12 +1765,9 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 
 static int is_all_prog_parsed(obj_t *obj)
 {
-        NODE *node;
-        ts_prog_t *prog;
-
-        for(node = obj->rslt.prog_list.head; node; node = node->next)
+        for(NODE *node = obj->rslt.prog_list.head; node; node = node->next)
         {
-                prog = (ts_prog_t *)node;
+                ts_prog_t *prog = (ts_prog_t *)node;
                 if(0 == prog->is_parsed)
                 {
                         obj->rslt.concerned_pid = prog->PMT_PID;
@@ -1846,47 +1810,47 @@ static int track_type(ts_track_t *track)
         return 0;
 }
 
-// for STC, etc
-// return(t1 - t2)
-// dealwith t1 overflow condition
-static int64_t difftime_27M(uint64_t t1, uint64_t t2)
+/* rslt(int) = t1(uint) + t2(uint), t belongs to [0, ovf - 1] */
+static uint64_t lmt_add(uint64_t t1, uint64_t t2, uint64_t ovf)
 {
-        int64_t rslt;
+        uint64_t rslt;
 
-        if(t1 >= t2)
+        if(t1 >= ovf || t2 >= ovf)
         {
-                rslt = (int64_t)(t1 - t2);
+                fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n",
+                        ovf, t1, t2);
+                return 0;
         }
-        else if((t1 < 1 * PCR_1S) && (PCR_OVERFLOW - t2 < 1 * PCR_1S))
-        {
-                rslt = (int64_t)(t1 + PCR_OVERFLOW - t2);
-        }
-        else
-        {
-                rslt = -(int64_t)(t2 - t1);
-        }
+
+        rslt = (t1 + t2);
+        rslt -= ((rslt >= ovf) ? ovf : 0);
 
         return rslt;
 }
 
-// for STC_base, etc
-// return(t1 - t2)
-// dealwith t1 overflow condition
-static int64_t difftime_90K(uint64_t t1, uint64_t t2)
+/* rslt(int) = t1(uint) - t2(uint), t belongs to [0, ovf - 1] */
+static int64_t lmt_min(uint64_t t1, uint64_t t2, uint64_t ovf)
 {
         int64_t rslt;
 
-        if(t1 >= t2)
+        if(t1 >= ovf || t2 >= ovf)
         {
-                rslt = (int64_t)(t1 - t2);
+                fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n",
+                        ovf, t1, t2);
+                return 0;
         }
-        else if((t1 < 1 * PCR_BASE_1S) && (PCR_BASE_OVERFLOW - t2 < 1 * PCR_BASE_1S))
+
+        t1 += ((t1 < t2) ? ovf : 0);
+        t1 -= t2;
+
+        if(t1 >= (ovf >> 1))
         {
-                rslt = (int64_t)(t1 + PCR_BASE_OVERFLOW - t2);
+                rslt = (int64_t)(ovf - t1);
+                rslt *= (-1);
         }
         else
         {
-                rslt = -(int64_t)(t2 - t1);
+                rslt = t1;
         }
 
         return rslt;
