@@ -10,6 +10,11 @@
 #include "list.h"
 
 //=============================================================================
+// sub-function declaration
+//=============================================================================
+static void list_insert_before(LIST *list, NODE *next, NODE *node);
+
+//=============================================================================
 // Functions definition:
 //=============================================================================
 void list_init(LIST *list)
@@ -41,31 +46,6 @@ void list_free(LIST *list)
         return;
 }
 
-void list_add(LIST *list, NODE *node)
-{
-        if(NULL == list ||
-           NULL == node)
-        {
-                return;
-        }
-
-        node->next = NULL;
-        node->prev = list->tail;
-
-        if(NULL == list->tail)
-        {
-                list->head = node;
-                list->tail = node;
-        }
-        else
-        {
-                list->tail->next = node;
-                list->tail = node;
-        }
-        list->count++;
-        return;
-}
-
 void list_del(LIST *list, NODE *node)
 {
         if(NULL == list ||
@@ -76,6 +56,7 @@ void list_del(LIST *list, NODE *node)
 
         if(NULL == node->prev)
         {
+                // head node
                 list->head = node->next;
         }
         else
@@ -85,6 +66,7 @@ void list_del(LIST *list, NODE *node)
 
         if(NULL == node->next)
         {
+                // tail node
                 list->tail = node->prev;
         }
         else
@@ -96,59 +78,35 @@ void list_del(LIST *list, NODE *node)
         return;
 }
 
-void list_insert_before(LIST *list, NODE *next, NODE *node)
+void list_add(LIST *list, NODE *node, uint32_t key)
 {
         if(NULL == list ||
-           NULL == next ||
            NULL == node)
         {
                 return;
         }
 
-        node->next = next;
-        node->prev = next->prev;
+        node->key = key;
+        node->next = NULL;
+        node->prev = list->tail;
 
-        if(NULL == next->prev)
+        if(NULL == list->tail)
         {
+                // empty list
                 list->head = node;
-                next->prev = node;
-        }
-        else
-        {
-                next->prev->next = node;
-                next->prev = node;
-        }
-        list->count++;
-        return;
-}
-
-void list_insert_after(LIST *list, NODE *prev, NODE *node)
-{
-        if(NULL == list ||
-           NULL == prev ||
-           NULL == node)
-        {
-                return;
-        }
-
-        node->next = prev->next;
-        node->prev = prev;
-
-        if(NULL == prev->next)
-        {
                 list->tail = node;
-                prev->next = node;
         }
         else
         {
-                prev->next->prev = node;
-                prev->next = node;
+                // normal list
+                list->tail->next = node;
+                list->tail = node;
         }
         list->count++;
         return;
 }
 
-void list_insert(LIST *list, NODE *node)
+void list_insert(LIST *list, NODE *node, uint32_t key)
 {
         if(NULL == list ||
            NULL == node)
@@ -156,15 +114,17 @@ void list_insert(LIST *list, NODE *node)
                 return;
         }
 
+        node->key = key;
         for(NODE *x = list->head; x; x = x->next)
         {
-                if(x->key == node->key)
+                if(x->key == key)
                 {
+                        // find a node with the same key in list
                         fprintf(stderr, "node in list already, ignore!\n");
                         return;
                 }
 
-                if(x->key > node->key)
+                if(x->key > key)
                 {
                         // find a big one, insert before
                         list_insert_before(list, x, node);
@@ -173,7 +133,7 @@ void list_insert(LIST *list, NODE *node)
         }
 
         // reach list tail, add
-        list_add(list, node);
+        list_add(list, node, key);
         return;
 }
 
@@ -217,6 +177,37 @@ NODE *list_next(NODE *node)
 NODE *list_prev(NODE *node)
 {
         return (NULL != node) ? node->prev : NULL;
+}
+
+//=============================================================================
+// sub-function definition
+//=============================================================================
+static void list_insert_before(LIST *list, NODE *next, NODE *node)
+{
+        if(NULL == list ||
+           NULL == next ||
+           NULL == node)
+        {
+                return;
+        }
+
+        node->next = next;
+        node->prev = next->prev;
+
+        if(NULL == next->prev)
+        {
+                // head node
+                list->head = node;
+                next->prev = node;
+        }
+        else
+        {
+                // normal node
+                next->prev->next = node;
+                next->prev = node;
+        }
+        list->count++;
+        return;
 }
 
 /*****************************************************************************

@@ -1510,8 +1510,7 @@ static int parse_PAT_load(obj_t *obj)
                         prog->ADDb = 0;
                         prog->PCRb = STC_OVF;
                         prog->STC_sync = 0;
-                        prog->key = prog->program_number; // use prog# to sort and search prog_list
-                        list_insert(&(rslt->prog_list), (NODE *)prog);
+                        list_insert(&(rslt->prog_list), (NODE *)prog, prog->program_number);
                 }
 
                 add_to_pid_list(&(rslt->pid_list), pids); // PMT_PID
@@ -1641,8 +1640,7 @@ static int parse_PMT_load(obj_t *obj, ts_prog_t *prog)
                                 default:      track->type = UNO_PCR; break;
                         }
                 }
-                track->key = track->PID; // use PID to sort and search track_list
-                list_add(&(prog->track_list), (NODE *)track);
+                list_add(&(prog->track_list), (NODE *)track, track->PID);
 
                 // add track PID
                 pids->PID = track->PID;
@@ -1757,8 +1755,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids->sdes = the_pids->sdes;
                 pids->ldes = the_pids->ldes;
 
-                pids->key = the_pids->PID; // use PID to sort and search pid_list
-                list_insert(list, (NODE *)pids);
+                list_insert(list, (NODE *)pids, the_pids->PID);
         }
         return pids;
 }

@@ -37,11 +37,9 @@ LIST;
 void  list_init(LIST *list);
 void  list_free(LIST *list);
 
-void  list_add(LIST *list, NODE *node); // to the end of list
 void  list_del(LIST *list, NODE *node);
-void  list_insert_before(LIST *list, NODE *next, NODE *node);
-void  list_insert_after(LIST *list, NODE *prev, NODE *node);
-void  list_insert(LIST *list, NODE *node); // sort with key, small first
+void  list_add(LIST *list, NODE *node, uint32_t key); // to list tail
+void  list_insert(LIST *list, NODE *node, uint32_t key); // small key first
 NODE *list_search(LIST *list, uint32_t key);
 
 int   list_cnt(LIST *list);
