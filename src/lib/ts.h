@@ -162,6 +162,10 @@ typedef struct _ts_pid_t
         const char *sdes; // PID type short description
         const char *ldes; // PID type long description
 
+        // section, only for PID with PSI/SI
+        int section_idx; // to index data in section
+        uint8_t section[4096]; // 184 * 6 = 1104 > 4096
+
         // relative pointer
         ts_prog_t *prog; // should be prog0 if does not belong to any program
         ts_track_t *track; // should be NULL if not video or audio packet
@@ -186,7 +190,7 @@ typedef struct _ts_rslt_t
         // PSI/SI and other TS information
         int is_psi_parsed;
         int is_psi_si;
-        LIST table; // ts_table_t, PSI/SI table list except PMT
+        LIST table; // PSI/SI table list except PMT
         LIST prog_list;
         LIST pid_list;
         ts_prog_t *prog0; // first program in this stream

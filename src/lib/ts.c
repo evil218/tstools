@@ -10,6 +10,7 @@
 #include <string.h> // for memset, memcpy, etc
 
 #include "error.h"
+#include "crc.h"
 #include "ts.h"
 
 //=============================================================================
@@ -110,28 +111,19 @@ pes_t;
 
 typedef struct _psi_t
 {
-        uint8_t pointer_field;
         uint8_t table_id; // TABLE_ID_TABLE
         uint8_t sectin_syntax_indicator; // 1-bit
-        uint8_t pad0; // 1-bit, '0'
+        uint8_t private_indicator; // 1-bit
         uint8_t reserved0; // 2-bit
         uint16_t section_length; // 12-bit
-        union
-        {
-                uint16_t idx;
-                uint16_t transport_stream_id;
-                uint16_t program_number;
-        }idx;
+        uint16_t index; // transport_stream_id or program_number
         uint8_t reserved1; // 2-bit
         uint8_t version_number; // 5-bit
         uint8_t current_next_indicator; // 1-bit
         uint8_t section_number;
         uint8_t last_section_number;
 
-        uint8_t CRC3; // most significant byte
-        uint8_t CRC2;
-        uint8_t CRC1;
-        uint8_t CRC0; // last significant byte
+        uint32_t CRC_32;
 }
 psi_t;
 
@@ -285,7 +277,7 @@ static const table_id_table_t TABLE_ID_TABLE[] =
         /* 1*/{0x01, 0x01,  CAT_PID},
         /* 2*/{0x02, 0x02,  PMT_PID},
         /* 3*/{0x03, 0x03, TSDT_PID},
-        /* 4*/{0x04, 0x3f,  RSV_PID},
+        /* 4*/{0x04, 0x3F,  RSV_PID},
         /* 5*/{0x40, 0x40,  NIT_PID}, // actual network
         /* 6*/{0x41, 0x41,  NIT_PID}, // other network
         /* 7*/{0x42, 0x42,  SDT_PID}, // actual transport stream
@@ -350,9 +342,13 @@ static const stream_type_t STREAM_TYPE_TABLE[] =
 //=============================================================================
 enum
 {
-        STATE_NEXT_PAT,
-        STATE_NEXT_PMT,
-        STATE_NEXT_PKT
+        // note, in any state: 
+        //     * meet new PID -> add to pid_list
+        //     * meet new table -> add to section_list and parse
+        //     * meet old table -> if it was modified, report a warning
+        STATE_NEXT_PAT, // colloct PAT section, parse to create prog_list
+        STATE_NEXT_PMT, // collect PMT section, parse to create track_list
+        STATE_NEXT_PKT  // parse packet with current lists
 };
 
 //=============================================================================
@@ -366,13 +362,13 @@ static int dump_TS(obj_t *obj); // for debug
 
 static int parse_TS_head(obj_t *obj); // TS head information
 static int parse_AF(obj_t *obj); // Adaption Fields information
-static int parse_PSI_head(obj_t *obj); // PSI information
+static int section(obj_t *obj); // collect PSI/SI section and parse them
+static int parse_PSI_head(psi_t *psi, uint8_t *section);
+static int parse_PAT_load(obj_t *obj, uint8_t *section);
+static int parse_PMT_load(obj_t *obj, uint8_t *section);
 static int parse_PES_head(obj_t *obj); // PES layer information
 static int parse_PES_head_switch(obj_t *obj);
 static int parse_PES_head_detail(obj_t *obj);
-
-static int parse_PAT_load(obj_t *obj);
-static int parse_PMT_load(obj_t *obj, ts_prog_t *prog);
 
 static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
@@ -517,11 +513,10 @@ static int state_next_pat(obj_t *obj)
 
         if(0x0000 != ts->PID)
         {
-                return -1;
+                return -1; // not PAT
         }
 
-        parse_PSI_head(obj);
-        parse_PAT_load(obj);
+        section(obj);
         obj->state = STATE_NEXT_PMT;
 
         if(is_all_prog_parsed(obj))
@@ -535,27 +530,16 @@ static int state_next_pat(obj_t *obj)
 
 static int state_next_pmt(obj_t *obj)
 {
-        psi_t *psi = &(obj->psi);
         ts_t *ts = &(obj->ts);
         ts_pid_t *pids;
-        ts_prog_t *prog;
 
         pids = (ts_pid_t *)list_search(&(obj->rslt.pid_list), ts->PID);
         if((NULL == pids) || (PMT_PID != pids->type))
         {
-                // not PMT
-                return -1;
+                return -1; // not PMT
         }
 
-        parse_PSI_head(obj);
-
-        // is unparsed prog?
-        prog = (ts_prog_t *)list_search(&(obj->rslt.prog_list), psi->idx.program_number);
-        if((NULL != prog) && !(prog->is_parsed))
-        {
-                obj->rslt.is_psi_si = 1;
-                parse_PMT_load(obj, prog);
-        }
+        section(obj);
 
         if(is_all_prog_parsed(obj))
         {
@@ -862,20 +846,20 @@ static int parse_TS_head(obj_t *obj)
         rslt->pids = (ts_pid_t *)list_search(&(obj->rslt.pid_list), rslt->pid);
         if(NULL == rslt->pids)
         {
+                // find new PID, add it in pid_list
                 rslt->pids = add_new_pid(obj);
         }
 
-        // statistic
+        // statistic & PSI/SI section collect
         rslt->pids->cnt++;
         rslt->sys_cnt++;
+        rslt->nul_cnt += ((0x1FFF == ts->PID) ? 1 : 0);
         if(ts->PID < 0x0020)
         {
+                // PSI/SI packet
                 rslt->psi_cnt++;
                 rslt->is_psi_si = 1;
-        }
-        if(0x1FFF == ts->PID)
-        {
-                rslt->nul_cnt++;
+                section(obj);
         }
 
         return 0;
@@ -982,48 +966,321 @@ static int parse_AF(obj_t *obj)
         return 0;
 }
 
-static int parse_PSI_head(obj_t *obj)
+static int section(obj_t *obj)
 {
         uint8_t dat;
+        ts_t *ts = &(obj->ts);
         psi_t *psi = &(obj->psi);
+        ts_pid_t *pids = obj->rslt.pids;
 
-        dat = *(obj->p)++; obj->len--;
-        psi->pointer_field = dat; // special byte before PSI!
-
-        dat = *(obj->p)++; obj->len--;
-        psi->table_id = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->sectin_syntax_indicator = (dat & BIT(7)) >> 7;
-        psi->section_length = dat & 0x0F;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->section_length <<= 8;
-        psi->section_length |= dat;
-        if(psi->section_length > obj->len)
+        if(0 == pids->section_idx)
         {
-                fprintf(stderr, "PSI_section_length(%d) is too long!\n", psi->section_length);
+                if(1 == ts->payload_unit_start_indicator)
+                {
+                       // find section head
+                       dat = *(obj->p)++; obj->len--;
+                       obj->p += dat; // pointer_field
+                       obj->len -= dat;
+                       for(; obj->len > 0;)
+                       {
+                               dat = *(obj->p)++; obj->len--;
+                               pids->section[pids->section_idx] = dat;
+                               pids->section_idx++;
+                       }
+                       if(0 == parse_PSI_head(psi, pids->section))
+                       {
+                               switch(psi->table_id)
+                               {
+                                       case 0x00:
+                                               parse_PAT_load(obj, pids->section);
+                                               break;
+                                       case 0x02:
+                                               parse_PMT_load(obj, pids->section);
+                                               break;
+                                       default:
+                                               break;
+                               }
+                       }
+                }
+                else
+                {
+                        // section async, ignore
+                        return 0;
+                }
+        }
+        return 0;
+}
+
+static int parse_PSI_head(psi_t *psi, uint8_t *section)
+{
+        uint8_t *p;
+        uint32_t CRC_32;
+
+        p = section;
+        psi->table_id = *p++;
+        psi->sectin_syntax_indicator = (*p & BIT(7)) >> 7;
+        psi->private_indicator = (*p & BIT(6)) >> 6;
+        psi->section_length   = *p++ & 0x0F;
+        psi->section_length <<= 8;
+        psi->section_length  |= *p++;
+        psi->index   = *p++;
+        psi->index <<= 8;
+        psi->index  |= *p++;
+        psi->version_number = (*p & 0x3E) >> 1;
+        psi->current_next_indicator = *p++ & BIT(0);
+        psi->section_number = *p++;
+        psi->last_section_number = *p++;
+
+        if(((0 == psi->private_indicator) && (psi->section_length > 1021)) ||
+           ((1 == psi->private_indicator) && (psi->section_length > 4093)))
+        {
+                fprintf(stderr, "section_length(%d) is too long!\n",
+                        psi->section_length);
                 return -1;
         }
-        // ignore data after CRC of this PSI
-        obj->len = psi->section_length;
+#if 0
+        fprintf(stderr, "Table(0x%02X), length(%d), section(%d/%d)\n",
+                psi->table_id,
+                psi->section_length,
+                psi->section_number,
+                psi->last_section_number);
+#endif
 
-        dat = *(obj->p)++; obj->len--;
-        psi->idx.idx = dat;
+        p = section + 3 + psi->section_length - 4;
+        psi->CRC_32   = *p++;
+        psi->CRC_32 <<= 8;
+        psi->CRC_32  |= *p++;
+        psi->CRC_32 <<= 8;
+        psi->CRC_32  |= *p++;
+        psi->CRC_32 <<= 8;
+        psi->CRC_32  |= *p++;
 
-        dat = *(obj->p)++; obj->len--;
-        psi->idx.idx <<= 8;
-        psi->idx.idx |= dat;
+        CRC_32 = CRC_for_TS(section, 3 + psi->section_length - 4, MODE_CRC32);
+        if(CRC_32 != psi->CRC_32)
+        {
+                fprintf(stderr, "Table(0x%02X), CRC_32 err: wait 0x%08X, meet 0x%08X\n",
+                        psi->table_id,
+                        CRC_32, psi->CRC_32);
+                return -1;
+        }
 
-        dat = *(obj->p)++; obj->len--;
-        psi->version_number = (dat & 0x3E) >> 1;
-        psi->current_next_indicator = dat & BIT(0);
+        return 0;
+}
 
-        dat = *(obj->p)++; obj->len--;
-        psi->section_number = dat;
+static int parse_PAT_load(obj_t *obj, uint8_t *section)
+{
+        uint8_t dat;
+        uint8_t *p = section + 8;
+        psi_t *psi = &(obj->psi);
+        int len = psi->section_length - 5;
+        ts_pid_t ts_pid, *pids = &ts_pid;
+        ts_prog_t *prog;
+        ts_rslt_t *rslt = &(obj->rslt);
 
-        dat = *(obj->p)++; obj->len--;
-        psi->last_section_number = dat;
+        while(len > 4)
+        {
+                // add program
+                prog = (ts_prog_t *)malloc(sizeof(ts_prog_t));
+                if(NULL == prog)
+                {
+                        DBG(ERR_MALLOC_FAILED);
+                        return -ERR_MALLOC_FAILED;
+                }
+
+                // record first prog for bitrate calc
+                if(NULL == rslt->prog0)
+                {
+                        rslt->prog0 = prog;
+
+                        // traverse pid_list
+                        // if it des not belong to any program, use prog0
+                        for(NODE *node = rslt->pid_list.head; node; node = node->next)
+                        {
+                                ts_pid_t *pid_item = (ts_pid_t *)node;
+                                if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
+                                {
+                                        pid_item->prog = rslt->prog0;
+                                }
+                        }
+                }
+
+                list_init(&(prog->track_list));
+                prog->is_parsed = 0;
+
+                dat = *p++; len--;
+                prog->program_number = dat;
+
+                dat = *p++; len--;
+                prog->program_number <<= 8;
+                prog->program_number |= dat;
+
+                dat = *p++; len--;
+                prog->PMT_PID = dat & 0x1F;
+
+                dat = *p++; len--;
+                prog->PMT_PID <<= 8;
+                prog->PMT_PID |= dat;
+
+                pids->PID = prog->PMT_PID;
+                pids->type = pid_type(pids->PID);
+                pids->cnt = 0;
+                pids->lcnt = 0;
+                pids->prog = prog;
+                pids->track = NULL;
+                pids->CC = 0;
+                pids->is_CC_sync = 0;
+                pids->sdes = PID_TYPE[pids->type].sdes;
+                pids->ldes = PID_TYPE[pids->type].ldes;
+
+                if(0 == prog->program_number)
+                {
+                        // network PID, not a program
+                        free(prog);
+                }
+                else
+                {
+                        pids->type = PMT_PID;
+                        pids->sdes = PID_TYPE[pids->type].sdes;
+                        pids->ldes = PID_TYPE[pids->type].ldes;
+
+                        prog->ADDa = 0;
+                        prog->PCRa = STC_OVF;
+                        prog->ADDb = 0;
+                        prog->PCRb = STC_OVF;
+                        prog->STC_sync = 0;
+                        list_insert(&(rslt->prog_list), (NODE *)prog, prog->program_number);
+                }
+
+                add_to_pid_list(&(rslt->pid_list), pids); // PMT_PID
+        }
+
+        return 0;
+}
+
+static int parse_PMT_load(obj_t *obj, uint8_t *section)
+{
+        uint8_t dat;
+        uint8_t *p = section + 8;
+        psi_t *psi = &(obj->psi);
+        int len = psi->section_length - 5;
+        ts_pid_t ts_pid, *pids = &ts_pid;
+        ts_prog_t *prog;
+        ts_track_t *track;
+
+        prog = (ts_prog_t *)list_search(&(obj->rslt.prog_list), psi->index);
+        if((NULL == prog) || (prog->is_parsed))
+        {
+                return -1; // parsed program, ignore
+        }
+
+        obj->rslt.is_psi_si = 1;
+        prog->is_parsed = 1;
+
+        dat = *p++; len--;
+        prog->PCR_PID = dat & 0x1F;
+
+        dat = *p++; len--;
+        prog->PCR_PID <<= 8;
+        prog->PCR_PID |= dat;
+
+        // add PCR PID
+        pids->PID = prog->PCR_PID;
+        pids->cnt = 0;
+        pids->lcnt = 0;
+        pids->prog = prog;
+        pids->track = NULL;
+        pids->type = PCR_PID;
+        pids->CC = 0;
+        pids->is_CC_sync = 1;
+        pids->sdes = PID_TYPE[pids->type].sdes;
+        pids->ldes = PID_TYPE[pids->type].ldes;
+        add_to_pid_list(&(obj->rslt.pid_list), pids); // PCR_PID
+
+        // program_info_length
+        dat = *p++; len--;
+        prog->program_info_len = dat & 0x0F;
+
+        dat = *p++; len--;
+        prog->program_info_len <<= 8;
+        prog->program_info_len |= dat;
+
+        // record program_info
+        if(prog->program_info_len > INFO_LEN_MAX)
+        {
+                fprintf(stderr, "PID(0x%04X): program_info_length(%d) too big!\n",
+                        obj->ts.PID, prog->program_info_len);
+        }
+
+        // record program_info
+        memcpy(prog->program_info, p, prog->program_info_len);
+        p += prog->program_info_len;
+        len -= prog->program_info_len;
+
+        while(len > 4)
+        {
+                // add track
+                track = (ts_track_t *)malloc(sizeof(ts_track_t));
+                if(NULL == track)
+                {
+                        fprintf(stderr, "Malloc memory failure!\n");
+                        exit(EXIT_FAILURE);
+                }
+
+                dat = *p++; len--;
+                track->stream_type = dat;
+
+                dat = *p++; len--;
+                track->PID = dat & 0x1F;
+
+                dat = *p++; len--;
+                track->PID <<= 8;
+                track->PID |= dat;
+
+                // ES_info_length
+                dat = *p++; len--;
+                track->es_info_len = dat & 0x0F;
+
+                dat = *p++; len--;
+                track->es_info_len <<= 8;
+                track->es_info_len |= dat;
+
+                // record es_info
+                if(track->es_info_len > INFO_LEN_MAX)
+                {
+                        fprintf(stderr, "PID(0x%04X): ES_info_length(%d) too big!\n",
+                                track->PID, track->es_info_len);
+                }
+
+                // record es_info
+                memcpy(track->es_info, p, track->es_info_len);
+                p += track->es_info_len;
+                len -= track->es_info_len;
+
+                track_type(track);
+                if(track->PID == prog->PCR_PID)
+                {
+                        switch(track->type)
+                        {
+                                case VID_PID: track->type = VID_PCR; break;
+                                case AUD_PID: track->type = AUD_PCR; break;
+                                default:      track->type = UNO_PCR; break;
+                        }
+                }
+                list_add(&(prog->track_list), (NODE *)track, track->PID);
+
+                // add track PID
+                pids->PID = track->PID;
+                pids->cnt = 0;
+                pids->lcnt = 0;
+                pids->prog = prog;
+                pids->track = track;
+                pids->type = track->type;
+                pids->CC = 0;
+                pids->is_CC_sync = 0;
+                pids->sdes = PID_TYPE[pids->type].sdes;
+                pids->ldes = PID_TYPE[pids->type].ldes;
+                add_to_pid_list(&(obj->rslt.pid_list), pids); // elementary_PID
+        }
 
         return 0;
 }
@@ -1429,253 +1686,6 @@ static int parse_PES_head_detail(obj_t *obj)
         return 0;
 }
 
-static int parse_PAT_load(obj_t *obj)
-{
-        uint8_t dat;
-        int is_prog0 = 1;
-        psi_t *psi = &(obj->psi);
-        ts_rslt_t *rslt = &(obj->rslt);
-        ts_prog_t *prog;
-        ts_pid_t ts_pid, *pids = &ts_pid;
-
-        while(obj->len > 4)
-        {
-                // add program
-                prog = (ts_prog_t *)malloc(sizeof(ts_prog_t));
-                if(NULL == prog)
-                {
-                        DBG(ERR_MALLOC_FAILED);
-                        return -ERR_MALLOC_FAILED;
-                }
-
-                // record first prog for bitrate calc
-                if(is_prog0)
-                {
-                        is_prog0 = 0;
-                        rslt->prog0 = prog;
-
-                        // traverse pid_list
-                        // if it des not belong to any program, use prog0
-                        for(NODE *node = rslt->pid_list.head; node; node = node->next)
-                        {
-                                ts_pid_t *pid_item = (ts_pid_t *)node;
-                                if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
-                                {
-                                        pid_item->prog = rslt->prog0;
-                                }
-                        }
-                }
-
-                list_init(&(prog->track_list));
-                prog->is_parsed = 0;
-
-                dat = *(obj->p)++; obj->len--;
-                prog->program_number = dat;
-
-                dat = *(obj->p)++; obj->len--;
-                prog->program_number <<= 8;
-                prog->program_number |= dat;
-
-                dat = *(obj->p)++; obj->len--;
-                prog->PMT_PID = dat & 0x1F;
-
-                dat = *(obj->p)++; obj->len--;
-                prog->PMT_PID <<= 8;
-                prog->PMT_PID |= dat;
-
-                pids->PID = prog->PMT_PID;
-                pids->type = pid_type(pids->PID);
-                pids->cnt = 0;
-                pids->lcnt = 0;
-                pids->prog = prog;
-                pids->track = NULL;
-                pids->CC = 0;
-                pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE[pids->type].sdes;
-                pids->ldes = PID_TYPE[pids->type].ldes;
-
-                if(0 == prog->program_number)
-                {
-                        // network PID, not a program
-                        free(prog);
-                }
-                else
-                {
-                        pids->type = PMT_PID;
-                        pids->sdes = PID_TYPE[pids->type].sdes;
-                        pids->ldes = PID_TYPE[pids->type].ldes;
-
-                        prog->ADDa = 0;
-                        prog->PCRa = STC_OVF;
-                        prog->ADDb = 0;
-                        prog->PCRb = STC_OVF;
-                        prog->STC_sync = 0;
-                        list_insert(&(rslt->prog_list), (NODE *)prog, prog->program_number);
-                }
-
-                add_to_pid_list(&(rslt->pid_list), pids); // PMT_PID
-        }
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC3 = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC2 = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC1 = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC0 = dat;
-
-        if(0 != obj->len)
-        {
-                fprintf(stderr, "PSI load length error!\n");
-        }
-
-        return 0;
-}
-
-static int parse_PMT_load(obj_t *obj, ts_prog_t *prog)
-{
-        uint16_t i;
-        uint8_t dat;
-        uint16_t info_length;
-        ts_pid_t ts_pid, *pids = &ts_pid;
-        ts_track_t *track;
-        ts_t *ts = &(obj->ts);
-        psi_t *psi = &(obj->psi);
-
-        prog->is_parsed = 1;
-
-        dat = *(obj->p)++; obj->len--;
-        prog->PCR_PID = dat & 0x1F;
-
-        dat = *(obj->p)++; obj->len--;
-        prog->PCR_PID <<= 8;
-        prog->PCR_PID |= dat;
-
-        // add PCR PID
-        pids->PID = prog->PCR_PID;
-        pids->cnt = 0;
-        pids->lcnt = 0;
-        pids->prog = prog;
-        pids->track = NULL;
-        pids->type = PCR_PID;
-        pids->CC = 0;
-        pids->is_CC_sync = 1;
-        pids->sdes = PID_TYPE[pids->type].sdes;
-        pids->ldes = PID_TYPE[pids->type].ldes;
-        add_to_pid_list(&(obj->rslt.pid_list), pids); // PCR_PID
-
-        // program_info_length
-        dat = *(obj->p)++; obj->len--;
-        info_length = dat & 0x0F;
-
-        dat = *(obj->p)++; obj->len--;
-        info_length <<= 8;
-        info_length |= dat;
-
-        // record program_info
-        if(info_length > INFO_LEN_MAX)
-        {
-                fprintf(stderr, "PID(0x%04X): program_info_length(%d) too big!\n",
-                        ts->PID, info_length);
-        }
-        prog->program_info_len = info_length;
-        for(i = 0; i < info_length; i++)
-        {
-                dat = *(obj->p)++; obj->len--;
-                prog->program_info[i] = dat;
-        }
-
-        while(obj->len > 4)
-        {
-                // add track
-                track = (ts_track_t *)malloc(sizeof(ts_track_t));
-                if(NULL == track)
-                {
-                        fprintf(stderr, "Malloc memory failure!\n");
-                        exit(EXIT_FAILURE);
-                }
-
-                dat = *(obj->p)++; obj->len--;
-                track->stream_type = dat;
-
-                dat = *(obj->p)++; obj->len--;
-                track->PID = dat & 0x1F;
-
-                dat = *(obj->p)++; obj->len--;
-                track->PID <<= 8;
-                track->PID |= dat;
-
-                // ES_info_length
-                dat = *(obj->p)++; obj->len--;
-                info_length = dat & 0x0F;
-
-                dat = *(obj->p)++; obj->len--;
-                info_length <<= 8;
-                info_length |= dat;
-
-                // record es_info
-                if(info_length > INFO_LEN_MAX)
-                {
-                        fprintf(stderr, "PID(0x%04X): ES_info_length(%d) too big!\n",
-                                track->PID, info_length);
-                }
-                track->es_info_len = info_length;
-                for(i = 0; i < info_length; i++)
-                {
-                        dat = *(obj->p)++; obj->len--;
-                        track->es_info[i] = dat;
-                }
-
-                track_type(track);
-                if(track->PID == prog->PCR_PID)
-                {
-                        switch(track->type)
-                        {
-                                case VID_PID: track->type = VID_PCR; break;
-                                case AUD_PID: track->type = AUD_PCR; break;
-                                default:      track->type = UNO_PCR; break;
-                        }
-                }
-                list_add(&(prog->track_list), (NODE *)track, track->PID);
-
-                // add track PID
-                pids->PID = track->PID;
-                pids->cnt = 0;
-                pids->lcnt = 0;
-                pids->prog = prog;
-                pids->track = track;
-                pids->type = track->type;
-                pids->CC = 0;
-                pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE[pids->type].sdes;
-                pids->ldes = PID_TYPE[pids->type].ldes;
-                add_to_pid_list(&(obj->rslt.pid_list), pids); // elementary_PID
-        }
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC3 = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC2 = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC1 = dat;
-
-        dat = *(obj->p)++; obj->len--;
-        psi->CRC0 = dat;
-
-        if(0 != obj->len)
-        {
-                fprintf(stderr, "PSI load length error!\n");
-        }
-
-        return 0;
-}
-
 static ts_pid_t *add_new_pid(obj_t *obj)
 {
         ts_pid_t ts_pid, *pids;
@@ -1712,18 +1722,6 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
         if(NULL != (pids = (ts_pid_t *)list_search(list, the_pids->PID)))
         {
                 // in pid_list already, just update information
-#if 0
-                if(pids->PID != the_pids->PID) DBG(ERR_OTHER);
-                if(pids->prog != the_pids->prog) DBG(ERR_OTHER);
-                if(pids->track != the_pids->track) DBG(ERR_OTHER);
-                if(pids->type != the_pids->type) DBG(ERR_OTHER);
-                if(pids->cnt != the_pids->cnt) DBG(ERR_OTHER);
-                if(pids->lcnt != the_pids->lcnt) DBG(ERR_OTHER);
-                if(pids->CC != the_pids->CC) DBG(ERR_OTHER);
-                if(pids->is_CC_sync != the_pids->is_CC_sync) DBG(ERR_OTHER);
-                if(pids->sdes != the_pids->sdes) DBG(ERR_OTHER);
-                if(pids->ldes != the_pids->ldes) DBG(ERR_OTHER);
-#endif
                 pids->PID = the_pids->PID;
                 pids->prog = the_pids->prog;
                 pids->track = the_pids->track;
@@ -1755,6 +1753,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids->sdes = the_pids->sdes;
                 pids->ldes = the_pids->ldes;
 
+                pids->section_idx = 0; // reset for section data collect
                 list_insert(list, (NODE *)pids, the_pids->PID);
         }
         return pids;

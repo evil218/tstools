@@ -51,6 +51,17 @@ int main(int argc, char *argv[])
                 DBG(ERR_FOPEN_FAILED);
                 return -ERR_FOPEN_FAILED;
         }
+#if 0
+        // TS sync
+        while(1 == fread(bbuf, 1, 1, fd_i))
+        {
+                if(0x47 == bbuf[0])
+                {
+                        fseek(fd_i, -1, SEEK_CUR);
+                        break;
+                }
+        }
+#endif
 
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
