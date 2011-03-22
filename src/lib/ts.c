@@ -358,11 +358,10 @@ static int state_next_pat(obj_t *obj);
 static int state_next_pmt(obj_t *obj);
 static int state_next_pkt(obj_t *obj);
 
-static int dump_TS(obj_t *obj); // for debug
-
 static int parse_TS_head(obj_t *obj); // TS head information
 static int parse_AF(obj_t *obj); // Adaption Fields information
-static int section(obj_t *obj); // collect PSI/SI section and parse them
+static int section(obj_t *obj); // collect PSI/SI section data
+static int parse_table(obj_t *obj);
 static int parse_PSI_head(psi_t *psi, uint8_t *section);
 static int parse_PAT_load(obj_t *obj, uint8_t *section);
 static int parse_PMT_load(obj_t *obj, uint8_t *section);
@@ -378,6 +377,8 @@ static int track_type(ts_track_t *track);
 
 static uint64_t lmt_add(uint64_t t1, uint64_t t2, uint64_t ovf);
 static int64_t lmt_min(uint64_t t1, uint64_t t2, uint64_t ovf);
+
+static int dump_byte(uint8_t *buf, int len); // for debug
 
 //=============================================================================
 // public function definition
@@ -460,7 +461,7 @@ int tsParseTS(int id, void *pkt, int size)
         memcpy(obj->rslt.line, pkt, obj->pkt_size);
         obj->p = obj->rslt.line;
         obj->len = 188; // ignore data after 188 when 204-byte
-        //dump_TS(obj); // for debug
+        //dump_byte(obj->rslt.line, obj->pkt_size);
 
         // calculate address
         if(obj->is_first_pkt)
@@ -516,8 +517,11 @@ static int state_next_pat(obj_t *obj)
                 return -1; // not PAT
         }
 
-        section(obj);
-        obj->state = STATE_NEXT_PMT;
+        // section parse has done in parse_TS_head()!
+        if(1)
+        {
+                obj->state = STATE_NEXT_PMT;
+        }
 
         if(is_all_prog_parsed(obj))
         {
@@ -754,19 +758,6 @@ static int state_next_pkt(obj_t *obj)
         return 0;
 }
 
-static int dump_TS(obj_t *obj)
-{
-        uint32_t i;
-
-        for(i = 0; i < obj->pkt_size; i++)
-        {
-                fprintf(stderr, "%02X ", obj->rslt.line[i]);
-        }
-        fprintf(stderr, "\n");
-
-        return 0;
-}
-
 static int parse_TS_head(obj_t *obj)
 {
         uint8_t dat;
@@ -799,7 +790,7 @@ static int parse_TS_head(obj_t *obj)
                         err->TS_sync_loss++;
                 }
                 fprintf(stderr, "Sync byte error!\n");
-                dump_TS(obj);
+                dump_byte(obj->rslt.line, obj->pkt_size);
         }
         else
         {
@@ -968,53 +959,138 @@ static int parse_AF(obj_t *obj)
 
 static int section(obj_t *obj)
 {
-        uint8_t dat;
+        uint8_t pointer_field;
         ts_t *ts = &(obj->ts);
         psi_t *psi = &(obj->psi);
         ts_pid_t *pids = obj->rslt.pids;
 
-        if(0 == pids->section_idx)
+        //fprintf(stderr, "0x%016llX\n", obj->rslt.addr);
+        //dump_byte(obj->rslt.line, obj->pkt_size);
+        if(1 == ts->payload_unit_start_indicator)
         {
-                if(1 == ts->payload_unit_start_indicator)
+                pointer_field = *(obj->p)++; obj->len--;
+                if(0 != pointer_field)
                 {
-                       // find section head
-                       dat = *(obj->p)++; obj->len--;
-                       obj->p += dat; // pointer_field
-                       obj->len -= dat;
-                       for(; obj->len > 0;)
-                       {
-                               dat = *(obj->p)++; obj->len--;
-                               pids->section[pids->section_idx] = dat;
-                               pids->section_idx++;
-                       }
-                       if(0 == parse_PSI_head(psi, pids->section))
-                       {
-                               switch(psi->table_id)
-                               {
-                                       case 0x00:
-                                               parse_PAT_load(obj, pids->section);
-                                               break;
-                                       case 0x02:
-                                               parse_PMT_load(obj, pids->section);
-                                               break;
-                                       default:
-                                               break;
-                               }
-                       }
+                        if(pointer_field == pids->section_absent)
+                        {
+                                // add pids->section_absent bytes
+                                memcpy(pids->section + pids->section_idx, obj->p, pids->section_absent);
+                                pids->section_idx += pointer_field;
+                                pids->section_absent = 0;
+                                //dump_byte(pids->section, pids->section_idx);
+
+                                parse_table(obj);
+                                obj->p += pointer_field;
+                                obj->len -= pointer_field;
+                        }
+                        else
+                        {
+                                if(-1 != pids->section_absent)
+                                {
+                                        fprintf(stderr, "PSI: pointer_field wrong\n");
+                                }
+                                return -1;
+                        }
+                }
+
+                memcpy(pids->section, obj->p, obj->len);
+                //dump_byte(obj->p, obj->len);
+                if(0 != parse_PSI_head(psi, pids->section))
+                {
+                        pids->section_idx = 0;
+                        pids->section_absent = -1;
                 }
                 else
                 {
-                        // section async, ignore
-                        return 0;
+                        if(3 + psi->section_length <= obj->len)
+                        {
+                                parse_table(obj);
+                                pids->section_idx = 0;
+                                pids->section_absent = -1;
+                        }
+                        else // (3 + psi->section_length > obj->len)
+                        {
+                                pids->section_idx = obj->len;
+                                pids->section_absent = 3 + psi->section_length - obj->len;
+                                //fprintf(stderr, "Table, 0x%02X, need, %d\n",
+                                  //      pids->section[0], pids->section_absent);
+                        }
                 }
         }
+        else // (0 == ts->payload_unit_start_indicator)
+        {
+                if(pids->section_absent > 184)
+                {
+                        // add 184-byte
+                        memcpy(pids->section + pids->section_idx, obj->p, 184);
+                        pids->section_idx += 184;
+                        pids->section_absent -= 184;
+                        //fprintf(stderr, "table, 0x%02X, need, %d\n",
+                          //      pids->section[0], pids->section_absent);
+                }
+                else // (pids->section_absent <= 184)
+                {
+                        // add pids->section_absent bytes
+                        memcpy(pids->section + pids->section_idx, obj->p, pids->section_absent);
+                        parse_table(obj);
+                        pids->section_idx = 0;
+                        pids->section_absent = -1;
+                }
+        }
+        //dump_byte(pids->section, pids->section_idx);
+
+        return 0;
+}
+
+static int parse_table(obj_t *obj)
+{
+        ts_pid_t *pids = obj->rslt.pids;
+        uint8_t *p;
+        uint32_t CRC_32;
+        psi_t *psi = &(obj->psi);
+
+        // get psi head info
+        if(0 != parse_PSI_head(psi, pids->section))
+        {
+                return -1;
+        }
+
+        // CRC check
+        p = pids->section + 3 + psi->section_length - 4;
+        psi->CRC_32   = *p++;
+        psi->CRC_32 <<= 8;
+        psi->CRC_32  |= *p++;
+        psi->CRC_32 <<= 8;
+        psi->CRC_32  |= *p++;
+        psi->CRC_32 <<= 8;
+        psi->CRC_32  |= *p++;
+
+        CRC_32 = CRC_for_TS(pids->section, 3 + psi->section_length - 4, MODE_CRC32);
+        if(CRC_32 != psi->CRC_32)
+        {
+                fprintf(stderr, ", CRC_32 err: wait 0x%08X, meet 0x%08X\n",
+                        CRC_32, psi->CRC_32);
+                return -1;
+        }
+
+        switch(psi->table_id)
+        {
+                case 0x00:
+                        parse_PAT_load(obj, pids->section);
+                        break;
+                case 0x02:
+                        parse_PMT_load(obj, pids->section);
+                        break;
+                default:
+                        break;
+        }
+
         return 0;
 }
 
 static int parse_PSI_head(psi_t *psi, uint8_t *section)
 {
         uint8_t *p;
-        uint32_t CRC_32;
 
         p = section;
         psi->table_id = *p++;
@@ -1031,36 +1107,19 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
         psi->section_number = *p++;
         psi->last_section_number = *p++;
 
-        if(((0 == psi->private_indicator) && (psi->section_length > 1021)) ||
-           ((1 == psi->private_indicator) && (psi->section_length > 4093)))
-        {
-                fprintf(stderr, "section_length(%d) is too long!\n",
-                        psi->section_length);
-                return -1;
-        }
 #if 0
-        fprintf(stderr, "Table(0x%02X), length(%d), section(%d/%d)\n",
+        // for debug only
+        fprintf(stderr, "table, 0x%02X, len %4d, sect, %d/%d\n",
                 psi->table_id,
                 psi->section_length,
                 psi->section_number,
                 psi->last_section_number);
 #endif
 
-        p = section + 3 + psi->section_length - 4;
-        psi->CRC_32   = *p++;
-        psi->CRC_32 <<= 8;
-        psi->CRC_32  |= *p++;
-        psi->CRC_32 <<= 8;
-        psi->CRC_32  |= *p++;
-        psi->CRC_32 <<= 8;
-        psi->CRC_32  |= *p++;
-
-        CRC_32 = CRC_for_TS(section, 3 + psi->section_length - 4, MODE_CRC32);
-        if(CRC_32 != psi->CRC_32)
+        if(((0 == psi->private_indicator) && (psi->section_length > 1021)) ||
+           ((1 == psi->private_indicator) && (psi->section_length > 4093)))
         {
-                fprintf(stderr, "Table(0x%02X), CRC_32 err: wait 0x%08X, meet 0x%08X\n",
-                        psi->table_id,
-                        CRC_32, psi->CRC_32);
+                fprintf(stderr, ", section_length too long!\n");
                 return -1;
         }
 
@@ -1321,7 +1380,7 @@ static int parse_PES_head(obj_t *obj)
                 {
                         fprintf(stderr, "PES packet start code prefix error(0x%06X)!\n",
                                 pes->packet_start_code_prefix);
-                        dump_TS(obj);
+                        dump_byte(obj->rslt.line, obj->pkt_size);
                         return -1;
                 }
 
@@ -1506,7 +1565,7 @@ static int parse_PES_head_detail(obj_t *obj)
         else if(0x01 == pes->PTS_DTS_flags) // '01'
         {
                 fprintf(stderr, "PTS_DTS_flags error!\n");
-                dump_TS(obj);
+                dump_byte(obj->rslt.line, obj->pkt_size);
                 return -1;
         }
         else
@@ -1753,7 +1812,10 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids->sdes = the_pids->sdes;
                 pids->ldes = the_pids->ldes;
 
-                pids->section_idx = 0; // reset for section data collect
+                // reset for section data collect
+                pids->section_idx = 0;
+                pids->section_absent = -1;
+
                 list_insert(list, (NODE *)pids, the_pids->PID);
         }
         return pids;
@@ -1850,6 +1912,19 @@ static int64_t lmt_min(uint64_t t1, uint64_t t2, uint64_t ovf)
         }
 
         return rslt;
+}
+
+static int dump_byte(uint8_t *buf, int len)
+{
+        uint8_t *p = buf;
+
+        for(int i = 0; i < len; i++)
+        {
+                fprintf(stderr, "%02X ", *p++);
+        }
+        fprintf(stderr, "\n");
+
+        return 0;
 }
 
 //=============================================================================
