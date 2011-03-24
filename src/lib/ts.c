@@ -123,7 +123,6 @@ typedef struct _psi_t
         uint8_t section_number;
         uint8_t last_section_number;
 
-        uint32_t CRC_32;
         int has_CRC; // some table do not need CRC_32
         int type; // index of item in PID_TYPE[]
 }
@@ -337,7 +336,7 @@ static const stream_type_t STREAM_TYPE_TABLE[] =
         {0x42, VID_PID, "AVS", "Advanced Video Standard"},
         {0x7F, AUD_PID, "IPMP", "IPMP stream"},
         {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
-        {0xFF, UNO_PID, "", ""} // loop stop condition!
+        {0xFF, UNO_PID, "", ""}, // loop stop condition!
 };
 
 //=============================================================================
@@ -478,6 +477,7 @@ int tsParseTS(int id, void *pkt, int size)
                 obj->rslt.addr += obj->pkt_size;
         }
 
+        //fprintf(stderr, "%llX\n", obj->rslt.addr);
         return parse_TS_head(obj);
 }
 
@@ -1002,7 +1002,7 @@ static int section(obj_t *obj)
                 if(0 != parse_PSI_head(psi, pids->section))
                 {
                         pids->section_idx = 0;
-                        pids->section_absent = -1;
+                        pids->section_absent = 10;
                 }
                 else
                 {
@@ -1010,7 +1010,7 @@ static int section(obj_t *obj)
                         {
                                 parse_table(obj);
                                 pids->section_idx = 0;
-                                pids->section_absent = -1;
+                                pids->section_absent = 10;
                         }
                         else // (3 + psi->section_length > obj->len)
                         {
@@ -1038,7 +1038,7 @@ static int section(obj_t *obj)
                         memcpy(pids->section + pids->section_idx, obj->p, pids->section_absent);
                         parse_table(obj);
                         pids->section_idx = 0;
-                        pids->section_absent = -1;
+                        pids->section_absent = 10;
                 }
         }
         //dump(pids->section, pids->section_idx);
@@ -1050,8 +1050,8 @@ static int parse_table(obj_t *obj)
 {
         ts_pid_t *pids = obj->rslt.pids;
         uint8_t *p;
-        uint32_t CRC_32;
         psi_t *psi = &(obj->psi);
+        ts_error_t *err = &(obj->rslt.err);
 
         // get psi head info
         if(0 != parse_PSI_head(psi, pids->section))
@@ -1059,24 +1059,23 @@ static int parse_table(obj_t *obj)
                 return -1;
         }
 
+        // CRC check
         if(psi->has_CRC)
         {
-                // CRC check
                 p = pids->section + 3 + psi->section_length - 4;
-                psi->CRC_32   = *p++;
-                psi->CRC_32 <<= 8;
-                psi->CRC_32  |= *p++;
-                psi->CRC_32 <<= 8;
-                psi->CRC_32  |= *p++;
-                psi->CRC_32 <<= 8;
-                psi->CRC_32  |= *p++;
+                pids->CRC_32   = *p++;
+                pids->CRC_32 <<= 8;
+                pids->CRC_32  |= *p++;
+                pids->CRC_32 <<= 8;
+                pids->CRC_32  |= *p++;
+                pids->CRC_32 <<= 8;
+                pids->CRC_32  |= *p++;
 
-                CRC_32 = CRC_for_TS(pids->section, 3 + psi->section_length - 4, MODE_CRC32);
-                if(CRC_32 != psi->CRC_32)
+                pids->CRC_32_calc = CRC_for_TS(pids->section, 3 + psi->section_length - 4, MODE_CRC32);
+                if(pids->CRC_32_calc != pids->CRC_32)
                 {
-                        fprintf(stderr, "CRC err: wait 0x%08X, meet 0x%08X\n",
-                                CRC_32, psi->CRC_32);
-                        dump(pids->section, 3 + psi->section_length);
+                        err->CRC_error = 1;
+                        //dump(pids->section, 3 + psi->section_length);
                         return -1;
                 }
         }
@@ -1119,6 +1118,7 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
         table = table_type(psi->table_id);
         psi->has_CRC = table->has_CRC;
         psi->type = table->type;
+
 #if 0
         // for debug only
         fprintf(stderr, "table, 0x%02X, len %4d, sect, %d/%d\n",
@@ -1128,11 +1128,27 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
                 psi->last_section_number);
 #endif
 
-        if(((0 == psi->private_indicator) && (psi->section_length > 1021)) ||
-           ((1 == psi->private_indicator) && (psi->section_length > 4093)))
+        if(0 == psi->private_indicator)
         {
-                fprintf(stderr, ", section_length too long!\n");
-                return -1;
+                // normal section
+                if(psi->section_length > 1021)
+                {
+                        //fprintf(stderr, "normal section, length(%d) overflow!\n",
+                          //      psi->section_length);
+                        psi->section_length = 1021;
+                        return -1;
+                }
+        }
+        else
+        {
+                // private section
+                if(psi->section_length > 4093)
+                {
+                        //fprintf(stderr, "private section, length(%d) overflow!\n",
+                          //      psi->section_length);
+                        psi->section_length = 4093;
+                        return -1;
+                }
         }
 
         return 0;
@@ -1826,7 +1842,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 
                 // reset for section data collect
                 pids->section_idx = 0;
-                pids->section_absent = -1;
+                pids->section_absent = 10;
 
                 list_insert(list, (NODE *)pids, the_pids->PID);
         }

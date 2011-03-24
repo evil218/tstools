@@ -960,7 +960,8 @@ static void show_error(obj_t *obj)
         if(err->CRC_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.2, CRC_error\n");
+                fprintf(stdout, "TR-101-290_2.2, CRC_error(0x%08X! 0x%08X?)\n",
+                        rslt->pids->CRC_32_calc, rslt->pids->CRC_32);
                 err->CRC_error = 0;
         }
         if(err->PCR_error)

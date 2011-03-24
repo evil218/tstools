@@ -162,10 +162,12 @@ typedef struct _ts_pid_t
         const char *sdes; // PID type short description
         const char *ldes; // PID type long description
 
-        // section, only for PID with PSI/SI
+        // only for PID with PSI/SI
         int section_idx; // to index data in section
         int section_absent; // n-byte needed from index
         uint8_t section[4096]; // PSI/SI: <= 1024; private: <= 4096
+        uint32_t CRC_32;
+        uint32_t CRC_32_calc;
 
         // relative pointer
         ts_prog_t *prog; // should be prog0 if does not belong to any program
