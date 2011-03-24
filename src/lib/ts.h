@@ -115,9 +115,9 @@ typedef struct _ts_prog_t
 
         // for STC calc
         uint64_t ADDa; // PCR packet a: packet address
-        uint64_t PCRa; // PCR packet a: PCR value
+        int64_t PCRa; // PCR packet a: PCR value
         uint64_t ADDb; // PCR packet b: packet address
-        uint64_t PCRb; // PCR packet b: PCR value
+        int64_t PCRb; // PCR packet b: PCR value
         int STC_sync; // true: PCRa and PCRb OK, STC can be calc
         uint64_t interval;
 }
@@ -144,8 +144,8 @@ typedef struct _ts_track_t
         uint8_t es_info[INFO_LEN_MAX];
 
         // for PTS/DTS mark
-        uint64_t PTS; // last PTS
-        uint64_t DTS; // last DTS
+        int64_t PTS; // last PTS
+        int64_t DTS; // last DTS
 }
 ts_track_t; // unit of track list
 
@@ -179,7 +179,7 @@ typedef struct _ts_pid_t
         uint32_t cnt; // packet received from last PCR
         uint32_t lcnt; // packet received from PCRa to PCRb
 
-        uint64_t STC; // last STC
+        int64_t STC; // last STC
 }
 ts_pid_t; // unit of pid list
 
@@ -207,20 +207,20 @@ typedef struct _ts_rslt_t
 
         // PMT, PCR, VID and AUD has timestamp according to its PCR
         // other PID has timestamp according to the PCR in the 1st program
-        uint64_t STC; // System Time Clock of this packet
-        uint64_t STC_base;
-        uint16_t STC_ext;
+        int64_t STC; // System Time Clock of this packet
+        int64_t STC_base;
+        int16_t STC_ext;
 
         // for bit-rate statistic
-        uint64_t aim_interval; // appointed interval
-        uint64_t interval; // time passed from last rate calc
+        int64_t aim_interval; // appointed interval
+        int64_t interval; // time passed from last rate calc
         uint64_t sys_cnt; // system packet count
         uint64_t psi_cnt; // psi-si packet count
         uint64_t nul_cnt; // empty packet count
 
         // for rate calc
         int has_rate; // new bit-rate ready
-        uint64_t last_interval; // interval from PCRa to PCRb
+        int64_t last_interval; // interval from PCRa to PCRb
         uint64_t last_sys_cnt; // system packet count from PCRa to PCRb
         uint64_t last_psi_cnt; // psi-si packet count from PCRa to PCRb
         uint64_t last_nul_cnt; // empty packet count from PCRa to PCRb
@@ -230,19 +230,19 @@ typedef struct _ts_rslt_t
         int CC_lost; // lost != 0 means CC wrong
 
         int has_PCR;
-        uint64_t PCR;
-        uint64_t PCR_base;
-        uint16_t PCR_ext;
+        int64_t PCR;
+        int64_t PCR_base;
+        int16_t PCR_ext;
         int64_t PCR_interval;
         int64_t PCR_jitter;
 
         int has_PTS;
-        uint64_t PTS;
+        int64_t PTS;
         int64_t PTS_interval;
         int64_t PTS_minus_STC;
 
         int has_DTS;
-        uint64_t DTS;
+        int64_t DTS;
         int64_t DTS_interval;
         int64_t DTS_minus_STC;
 

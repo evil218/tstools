@@ -124,6 +124,8 @@ typedef struct _psi_t
         uint8_t last_section_number;
 
         uint32_t CRC_32;
+        int has_CRC; // some table do not need CRC_32
+        int type; // index of item in PID_TYPE[]
 }
 psi_t;
 
@@ -146,7 +148,8 @@ typedef struct _table_id_table_t
 {
         uint8_t min; // table ID range
         uint8_t max; // table ID range
-        int    type; // index of item in PID_TYPE[]
+        int has_CRC; // some table do not need CRC_32
+        int type; // index of item in PID_TYPE[]
 }
 table_id_table_t;
 
@@ -273,32 +276,32 @@ static const ts_pid_table_t PID_TABLE[] =
 
 static const table_id_table_t TABLE_ID_TABLE[] =
 {
-        /* 0*/{0x00, 0x00,  PAT_PID},
-        /* 1*/{0x01, 0x01,  CAT_PID},
-        /* 2*/{0x02, 0x02,  PMT_PID},
-        /* 3*/{0x03, 0x03, TSDT_PID},
-        /* 4*/{0x04, 0x3F,  RSV_PID},
-        /* 5*/{0x40, 0x40,  NIT_PID}, // actual network
-        /* 6*/{0x41, 0x41,  NIT_PID}, // other network
-        /* 7*/{0x42, 0x42,  SDT_PID}, // actual transport stream
-        /* 8*/{0x43, 0x45,  RSV_PID},
-        /* 9*/{0x46, 0x46,  SDT_PID}, // other transport stream
-        /*10*/{0x47, 0x49,  RSV_PID},
-        /*11*/{0x4A, 0x4A,  BAT_PID},
-        /*12*/{0x4B, 0x4D,  RSV_PID},
-        /*13*/{0x4E, 0x4E,  EIT_PID}, // actual transport stream,P/F"},
-        /*14*/{0x4F, 0x4F,  EIT_PID}, // other transport stream,P/F"},
-        /*15*/{0x50, 0x5F,  EIT_PID}, // actual transport stream,schedule"},
-        /*16*/{0x60, 0x6F,  EIT_PID}, // other transport stream,schedule"},
-        /*17*/{0x70, 0x70,  TDT_PID},
-        /*18*/{0x71, 0x71,  RST_PID},
-        /*19*/{0x72, 0x72,   ST_PID},
-        /*20*/{0x73, 0x73,  TOT_PID},
-        /*21*/{0x74, 0x7D,  RSV_PID},
-        /*22*/{0x7E, 0x7E,  DIT_PID},
-        /*23*/{0x7F, 0x7F,  SIT_PID},
-        /*24*/{0x80, 0xFE,  USR_PID},
-        /*25*/{0xFF, 0xFF,  RSV_PID}, // loop stop condition!
+        /* 0*/{0x00, 0x00, 1,  PAT_PID},
+        /* 1*/{0x01, 0x01, 1,  CAT_PID},
+        /* 2*/{0x02, 0x02, 1,  PMT_PID},
+        /* 3*/{0x03, 0x03, 1, TSDT_PID},
+        /* 4*/{0x04, 0x3F, 1,  RSV_PID},
+        /* 5*/{0x40, 0x40, 1,  NIT_PID}, // actual network
+        /* 6*/{0x41, 0x41, 1,  NIT_PID}, // other network
+        /* 7*/{0x42, 0x42, 1,  SDT_PID}, // actual transport stream
+        /* 8*/{0x43, 0x45, 1,  RSV_PID},
+        /* 9*/{0x46, 0x46, 1,  SDT_PID}, // other transport stream
+        /*10*/{0x47, 0x49, 1,  RSV_PID},
+        /*11*/{0x4A, 0x4A, 1,  BAT_PID},
+        /*12*/{0x4B, 0x4D, 1,  RSV_PID},
+        /*13*/{0x4E, 0x4E, 1,  EIT_PID}, // actual transport stream, P/F
+        /*14*/{0x4F, 0x4F, 1,  EIT_PID}, // other transport stream, P/F
+        /*15*/{0x50, 0x5F, 1,  EIT_PID}, // actual transport stream, schedule
+        /*16*/{0x60, 0x6F, 1,  EIT_PID}, // other transport stream, schedule
+        /*17*/{0x70, 0x70, 0,  TDT_PID},
+        /*18*/{0x71, 0x71, 0,  RST_PID},
+        /*19*/{0x72, 0x72, 0,   ST_PID},
+        /*20*/{0x73, 0x73, 1,  TOT_PID},
+        /*21*/{0x74, 0x7D, 1,  RSV_PID},
+        /*22*/{0x7E, 0x7E, 0,  DIT_PID},
+        /*23*/{0x7F, 0x7F, 1,  SIT_PID},
+        /*24*/{0x80, 0xFE, 1,  USR_PID},
+        /*25*/{0xFF, 0xFF, 1,  RSV_PID}, // loop stop condition!
 };
 
 static const stream_type_t STREAM_TYPE_TABLE[] =
@@ -373,12 +376,13 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *pids);
 static ts_pid_t *add_new_pid(obj_t *obj);
 static int is_all_prog_parsed(obj_t *obj);
 static int pid_type(uint16_t pid);
+static const table_id_table_t *table_type(uint8_t id);
 static int track_type(ts_track_t *track);
 
-static uint64_t lmt_add(uint64_t t1, uint64_t t2, uint64_t ovf);
-static int64_t lmt_min(uint64_t t1, uint64_t t2, uint64_t ovf);
+static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf);
+static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf);
 
-static int dump_byte(uint8_t *buf, int len); // for debug
+static int dump(uint8_t *buf, int len); // for debug
 
 //=============================================================================
 // public function definition
@@ -461,7 +465,7 @@ int tsParseTS(int id, void *pkt, int size)
         memcpy(obj->rslt.line, pkt, obj->pkt_size);
         obj->p = obj->rslt.line;
         obj->len = 188; // ignore data after 188 when 204-byte
-        //dump_byte(obj->rslt.line, obj->pkt_size);
+        //dump(obj->rslt.line, obj->pkt_size);
 
         // calculate address
         if(obj->is_first_pkt)
@@ -790,7 +794,7 @@ static int parse_TS_head(obj_t *obj)
                         err->TS_sync_loss++;
                 }
                 fprintf(stderr, "Sync byte error!\n");
-                dump_byte(obj->rslt.line, obj->pkt_size);
+                dump(obj->rslt.line, obj->pkt_size);
         }
         else
         {
@@ -965,7 +969,7 @@ static int section(obj_t *obj)
         ts_pid_t *pids = obj->rslt.pids;
 
         //fprintf(stderr, "0x%016llX\n", obj->rslt.addr);
-        //dump_byte(obj->rslt.line, obj->pkt_size);
+        //dump(obj->rslt.line, obj->pkt_size);
         if(1 == ts->payload_unit_start_indicator)
         {
                 pointer_field = *(obj->p)++; obj->len--;
@@ -977,7 +981,7 @@ static int section(obj_t *obj)
                                 memcpy(pids->section + pids->section_idx, obj->p, pids->section_absent);
                                 pids->section_idx += pointer_field;
                                 pids->section_absent = 0;
-                                //dump_byte(pids->section, pids->section_idx);
+                                //dump(pids->section, pids->section_idx);
 
                                 parse_table(obj);
                                 obj->p += pointer_field;
@@ -994,7 +998,7 @@ static int section(obj_t *obj)
                 }
 
                 memcpy(pids->section, obj->p, obj->len);
-                //dump_byte(obj->p, obj->len);
+                //dump(obj->p, obj->len);
                 if(0 != parse_PSI_head(psi, pids->section))
                 {
                         pids->section_idx = 0;
@@ -1037,7 +1041,7 @@ static int section(obj_t *obj)
                         pids->section_absent = -1;
                 }
         }
-        //dump_byte(pids->section, pids->section_idx);
+        //dump(pids->section, pids->section_idx);
 
         return 0;
 }
@@ -1055,22 +1059,26 @@ static int parse_table(obj_t *obj)
                 return -1;
         }
 
-        // CRC check
-        p = pids->section + 3 + psi->section_length - 4;
-        psi->CRC_32   = *p++;
-        psi->CRC_32 <<= 8;
-        psi->CRC_32  |= *p++;
-        psi->CRC_32 <<= 8;
-        psi->CRC_32  |= *p++;
-        psi->CRC_32 <<= 8;
-        psi->CRC_32  |= *p++;
-
-        CRC_32 = CRC_for_TS(pids->section, 3 + psi->section_length - 4, MODE_CRC32);
-        if(CRC_32 != psi->CRC_32)
+        if(psi->has_CRC)
         {
-                fprintf(stderr, ", CRC_32 err: wait 0x%08X, meet 0x%08X\n",
-                        CRC_32, psi->CRC_32);
-                return -1;
+                // CRC check
+                p = pids->section + 3 + psi->section_length - 4;
+                psi->CRC_32   = *p++;
+                psi->CRC_32 <<= 8;
+                psi->CRC_32  |= *p++;
+                psi->CRC_32 <<= 8;
+                psi->CRC_32  |= *p++;
+                psi->CRC_32 <<= 8;
+                psi->CRC_32  |= *p++;
+
+                CRC_32 = CRC_for_TS(pids->section, 3 + psi->section_length - 4, MODE_CRC32);
+                if(CRC_32 != psi->CRC_32)
+                {
+                        fprintf(stderr, "CRC err: wait 0x%08X, meet 0x%08X\n",
+                                CRC_32, psi->CRC_32);
+                        dump(pids->section, 3 + psi->section_length);
+                        return -1;
+                }
         }
 
         switch(psi->table_id)
@@ -1091,6 +1099,7 @@ static int parse_table(obj_t *obj)
 static int parse_PSI_head(psi_t *psi, uint8_t *section)
 {
         uint8_t *p;
+        const table_id_table_t *table;
 
         p = section;
         psi->table_id = *p++;
@@ -1107,6 +1116,9 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
         psi->section_number = *p++;
         psi->last_section_number = *p++;
 
+        table = table_type(psi->table_id);
+        psi->has_CRC = table->has_CRC;
+        psi->type = table->type;
 #if 0
         // for debug only
         fprintf(stderr, "table, 0x%02X, len %4d, sect, %d/%d\n",
@@ -1380,7 +1392,7 @@ static int parse_PES_head(obj_t *obj)
                 {
                         fprintf(stderr, "PES packet start code prefix error(0x%06X)!\n",
                                 pes->packet_start_code_prefix);
-                        dump_byte(obj->rslt.line, obj->pkt_size);
+                        dump(obj->rslt.line, obj->pkt_size);
                         return -1;
                 }
 
@@ -1565,7 +1577,7 @@ static int parse_PES_head_detail(obj_t *obj)
         else if(0x01 == pes->PTS_DTS_flags) // '01'
         {
                 fprintf(stderr, "PTS_DTS_flags error!\n");
-                dump_byte(obj->rslt.line, obj->pkt_size);
+                dump(obj->rslt.line, obj->pkt_size);
                 return -1;
         }
         else
@@ -1850,6 +1862,21 @@ static int pid_type(uint16_t pid)
         return p->type;
 }
 
+static const table_id_table_t *table_type(uint8_t id)
+{
+        const table_id_table_t *p;
+
+        for(p = TABLE_ID_TABLE; p->min != 0xFF; p++)
+        {
+                if(p->min <= id && id <= p->max)
+                {
+                        break;
+                }
+        }
+
+        return p;
+}
+
 static int track_type(ts_track_t *track)
 {
         const stream_type_t *p;
@@ -1869,52 +1896,50 @@ static int track_type(ts_track_t *track)
 }
 
 /* rslt(int) = t1(uint) + t2(uint), t belongs to [0, ovf - 1] */
-static uint64_t lmt_add(uint64_t t1, uint64_t t2, uint64_t ovf)
+static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf)
 {
-        uint64_t rslt;
-
-        if(t1 >= ovf || t2 >= ovf)
+        if(ovf < 0)
         {
-                fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n",
-                        ovf, t1, t2);
+                //fprintf(stderr, "Bad overflow value(%llu)\n", ovf);
+                return 0;
+        }
+        if(t1 < 0 || ovf <= t1 || t2 < 0 || ovf <= t2)
+        {
+                //fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2);
                 return 0;
         }
 
-        rslt = (t1 + t2);
-        rslt -= ((rslt >= ovf) ? ovf : 0);
+        t1 += t2;
+        t1 -= ((t1 >= ovf) ? ovf : 0);
 
-        return rslt;
+        return t1;
 }
 
 /* rslt(int) = t1(uint) - t2(uint), t belongs to [0, ovf - 1] */
-static int64_t lmt_min(uint64_t t1, uint64_t t2, uint64_t ovf)
+static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf)
 {
-        int64_t rslt;
-
-        if(t1 >= ovf || t2 >= ovf)
+        if(ovf < 0)
         {
-                fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n",
-                        ovf, t1, t2);
+                //fprintf(stderr, "Bad overflow value(%llu)\n", ovf);
+                return 0;
+        }
+        if(t1 < 0 || ovf <= t1 || t2 < 0 || ovf <= t2)
+        {
+                //fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2);
                 return 0;
         }
 
         t1 += ((t1 < t2) ? ovf : 0);
         t1 -= t2;
-
         if(t1 >= (ovf >> 1))
         {
-                rslt = (int64_t)(ovf - t1);
-                rslt *= (-1);
-        }
-        else
-        {
-                rslt = t1;
+                t1 -= ovf;
         }
 
-        return rslt;
+        return t1;
 }
 
-static int dump_byte(uint8_t *buf, int len)
+static int dump(uint8_t *buf, int len)
 {
         uint8_t *p = buf;
 

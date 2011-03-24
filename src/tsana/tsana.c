@@ -629,7 +629,7 @@ static void show_pcr(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, "%llu, %llu, %3u, %+7.3f, %+6.3f \n",
+        fprintf(stdout, "%lld, %lld, %3d, %+7.3f, %+6.3f \n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
@@ -848,14 +848,14 @@ static void show_ptsdts(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, "%llu, %+8.3f, %+.3f, ",
+        fprintf(stdout, "%lld, %+8.3f, %+.3f, ",
                 rslt->PTS,
                 (double)(rslt->PTS_interval) / (90), // ms
                 (double)(rslt->PTS_minus_STC) / (90)); // ms
 
         if(rslt->has_DTS)
         {
-                fprintf(stdout, "%llu, %+8.3f, %+.3f, \n",
+                fprintf(stdout, "%lld, %+8.3f, %+.3f, \n",
                         rslt->DTS,
                         (double)(rslt->DTS_interval) / (90), // ms
                         (double)(rslt->DTS_minus_STC) / (90)); // ms
