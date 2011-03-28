@@ -189,7 +189,7 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_PCR:
                                 print_atp_title(obj);
-                                fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(us), \n");
+                                fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(ns), \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PTSDTS:
@@ -629,12 +629,12 @@ static void show_pcr(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, "%lld, %lld, %3d, %+7.3f, %+6.3f \n",
+        fprintf(stdout, "%lld, %lld, %3d, %+7.3f, %+4.0f \n",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
                 (double)(rslt->PCR_interval) / PCR_MS,
-                (double)(rslt->PCR_jitter) / PCR_US);
+                (double)(rslt->PCR_jitter) * 1e3 / PCR_US);
         return;
 }
 
@@ -980,8 +980,8 @@ static void show_error(obj_t *obj)
         if(err->PCR_accuracy_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.4, PCR_accuracy_error(%+6.3f ms)\n",
-                        (double)(rslt->PCR_jitter) / PCR_US);
+                fprintf(stdout, "TR-101-290_2.4, PCR_accuracy_error(%+4.0f ns)\n",
+                        (double)(rslt->PCR_jitter) * 1e3 / PCR_US);
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error)

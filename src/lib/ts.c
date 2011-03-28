@@ -116,7 +116,7 @@ typedef struct _psi_t
         uint8_t private_indicator; // 1-bit
         uint8_t reserved0; // 2-bit
         uint16_t section_length; // 12-bit
-        uint16_t index; // transport_stream_id or program_number
+        uint16_t table_id_extension; // transport_stream_id or program_number
         uint8_t reserved1; // 2-bit
         uint8_t version_number; // 5-bit
         uint8_t current_next_indicator; // 1-bit
@@ -968,80 +968,59 @@ static int section(obj_t *obj)
         psi_t *psi = &(obj->psi);
         ts_pid_t *pids = obj->rslt.pids;
 
-        //fprintf(stderr, "0x%016llX\n", obj->rslt.addr);
-        //dump(obj->rslt.line, obj->pkt_size);
-        if(1 == ts->payload_unit_start_indicator)
+        if(0 == pids->section_idx)
         {
-                pointer_field = *(obj->p)++; obj->len--;
-                if(0 != pointer_field)
+                // waiting for section head
+                if(1 == ts->payload_unit_start_indicator)
                 {
-                        if(pointer_field == pids->section_absent)
-                        {
-                                // add pids->section_absent bytes
-                                memcpy(pids->section + pids->section_idx, obj->p, pids->section_absent);
-                                pids->section_idx += pointer_field;
-                                pids->section_absent = 0;
-                                //dump(pids->section, pids->section_idx);
-
-                                parse_table(obj);
-                                obj->p += pointer_field;
-                                obj->len -= pointer_field;
-                        }
-                        else
-                        {
-                                if(-1 != pids->section_absent)
-                                {
-                                        fprintf(stderr, "PSI: pointer_field wrong\n");
-                                }
-                                return -1;
-                        }
+                        pointer_field = *(obj->p)++; obj->len--;
+                        obj->p += pointer_field;
+                        obj->len -= pointer_field;
+                        memcpy(pids->section, obj->p, obj->len);
+                        pids->section_idx = obj->len;
                 }
-
-                memcpy(pids->section, obj->p, obj->len);
-                //dump(obj->p, obj->len);
-                if(0 != parse_PSI_head(psi, pids->section))
+                else // (0 == ts->payload_unit_start_indicator)
                 {
-                        pids->section_idx = 0;
-                        pids->section_absent = 10;
-                }
-                else
-                {
-                        if(3 + psi->section_length <= obj->len)
-                        {
-                                parse_table(obj);
-                                pids->section_idx = 0;
-                                pids->section_absent = 10;
-                        }
-                        else // (3 + psi->section_length > obj->len)
-                        {
-                                pids->section_idx = obj->len;
-                                pids->section_absent = 3 + psi->section_length - obj->len;
-                                //fprintf(stderr, "Table, 0x%02X, need, %d\n",
-                                  //      pids->section[0], pids->section_absent);
-                        }
+                        // section async, ignore this packet!
+                        //dump(obj->p, obj->len);
                 }
         }
-        else // (0 == ts->payload_unit_start_indicator)
+        else // (0 != pids->section_idx)
         {
-                if(pids->section_absent > 184)
+                // collect section data
+                if(1 == ts->payload_unit_start_indicator)
                 {
-                        // add 184-byte
+                        pointer_field = *(obj->p)++; obj->len--;
+                        memcpy(pids->section + pids->section_idx, obj->p, pointer_field);
+                        pids->section_idx += pointer_field;
+                        parse_table(obj);
+                        obj->p += pointer_field;
+                        obj->len -= pointer_field;
+                        memcpy(pids->section, obj->p, obj->len);
+                        pids->section_idx = obj->len;
+                }
+                else // (0 == ts->payload_unit_start_indicator)
+                {
                         memcpy(pids->section + pids->section_idx, obj->p, 184);
                         pids->section_idx += 184;
-                        pids->section_absent -= 184;
-                        //fprintf(stderr, "table, 0x%02X, need, %d\n",
-                          //      pids->section[0], pids->section_absent);
-                }
-                else // (pids->section_absent <= 184)
-                {
-                        // add pids->section_absent bytes
-                        memcpy(pids->section + pids->section_idx, obj->p, pids->section_absent);
-                        parse_table(obj);
-                        pids->section_idx = 0;
-                        pids->section_absent = 10;
                 }
         }
-        //dump(pids->section, pids->section_idx);
+
+        if(pids->section_idx >= 8)
+        {
+                // PSI head OK
+                if(0 != parse_PSI_head(psi, pids->section))
+                {
+                        return -1;
+                }
+
+                if(pids->section_idx >= (3 + psi->section_length))
+                {
+                        // section data enough
+                        parse_table(obj);
+                        pids->section_idx = 0;
+                }
+        }
 
         return 0;
 }
@@ -1053,6 +1032,7 @@ static int parse_table(obj_t *obj)
         psi_t *psi = &(obj->psi);
         ts_error_t *err = &(obj->rslt.err);
 
+        //dump(pids->section, pids->section_idx);
         // get psi head info
         if(0 != parse_PSI_head(psi, pids->section))
         {
@@ -1107,17 +1087,33 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
         psi->section_length   = *p++ & 0x0F;
         psi->section_length <<= 8;
         psi->section_length  |= *p++;
-        psi->index   = *p++;
-        psi->index <<= 8;
-        psi->index  |= *p++;
-        psi->version_number = (*p & 0x3E) >> 1;
-        psi->current_next_indicator = *p++ & BIT(0);
-        psi->section_number = *p++;
-        psi->last_section_number = *p++;
+        if(1 == psi->sectin_syntax_indicator)
+        {
+                // normal section syntax
+                psi->table_id_extension   = *p++;
+                psi->table_id_extension <<= 8;
+                psi->table_id_extension  |= *p++;
+                psi->version_number = (*p & 0x3E) >> 1;
+                psi->current_next_indicator = *p++ & BIT(0);
+                psi->section_number = *p++;
+                psi->last_section_number = *p++;
 
-        table = table_type(psi->table_id);
-        psi->has_CRC = table->has_CRC;
-        psi->type = table->type;
+                table = table_type(psi->table_id);
+                psi->has_CRC = table->has_CRC;
+                psi->type = table->type;
+        }
+        else
+        {
+                // abnormal section syntax
+                psi->table_id_extension = 0;
+                psi->version_number = 0;
+                psi->current_next_indicator = 0;
+                psi->section_number = 0;
+                psi->last_section_number = 0;
+
+                psi->has_CRC = 0;
+                psi->type = USR_PID;
+        }
 
 #if 0
         // for debug only
@@ -1133,8 +1129,8 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
                 // normal section
                 if(psi->section_length > 1021)
                 {
-                        //fprintf(stderr, "normal section, length(%d) overflow!\n",
-                          //      psi->section_length);
+                        fprintf(stderr, "normal section, length(%d) overflow!\n",
+                                psi->section_length);
                         psi->section_length = 1021;
                         return -1;
                 }
@@ -1144,8 +1140,8 @@ static int parse_PSI_head(psi_t *psi, uint8_t *section)
                 // private section
                 if(psi->section_length > 4093)
                 {
-                        //fprintf(stderr, "private section, length(%d) overflow!\n",
-                          //      psi->section_length);
+                        fprintf(stderr, "private section, length(%d) overflow!\n",
+                                psi->section_length);
                         psi->section_length = 4093;
                         return -1;
                 }
@@ -1207,28 +1203,22 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 dat = *p++; len--;
                 prog->PMT_PID <<= 8;
                 prog->PMT_PID |= dat;
-
                 pids->PID = prog->PMT_PID;
-                pids->type = pid_type(pids->PID);
-                pids->cnt = 0;
-                pids->lcnt = 0;
-                pids->prog = prog;
-                pids->track = NULL;
-                pids->CC = 0;
-                pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE[pids->type].sdes;
-                pids->ldes = PID_TYPE[pids->type].ldes;
 
                 if(0 == prog->program_number)
                 {
                         // network PID, not a program
+                        pids->type = NIT_PID;
+
+                        if(0x0010 != pids->PID)
+                        {
+                                fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", pids->PID);
+                        }
                         free(prog);
                 }
                 else
                 {
                         pids->type = PMT_PID;
-                        pids->sdes = PID_TYPE[pids->type].sdes;
-                        pids->ldes = PID_TYPE[pids->type].ldes;
 
                         prog->ADDa = 0;
                         prog->PCRa = STC_OVF;
@@ -1238,7 +1228,15 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         list_insert(&(rslt->prog_list), (NODE *)prog, prog->program_number);
                 }
 
-                add_to_pid_list(&(rslt->pid_list), pids); // PMT_PID
+                pids->cnt = 0;
+                pids->lcnt = 0;
+                pids->prog = prog;
+                pids->track = NULL;
+                pids->CC = 0;
+                pids->is_CC_sync = 0;
+                pids->sdes = PID_TYPE[pids->type].sdes;
+                pids->ldes = PID_TYPE[pids->type].ldes;
+                add_to_pid_list(&(rslt->pid_list), pids); // NIT or PMT PID
         }
 
         return 0;
@@ -1254,7 +1252,8 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
         ts_prog_t *prog;
         ts_track_t *track;
 
-        prog = (ts_prog_t *)list_search(&(obj->rslt.prog_list), psi->index);
+        // in PMT, table_id_extension is program_number
+        prog = (ts_prog_t *)list_search(&(obj->rslt.prog_list), psi->table_id_extension);
         if((NULL == prog) || (prog->is_parsed))
         {
                 return -1; // parsed program, ignore
