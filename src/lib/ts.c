@@ -1051,7 +1051,9 @@ static int parse_table(obj_t *obj)
                 pids->CRC_32 <<= 8;
                 pids->CRC_32  |= *p++;
 
-                pids->CRC_32_calc = CRC_for_TS(pids->section, 3 + psi->section_length - 4, MODE_CRC32);
+                pids->CRC_32_calc = CRC_for_TS(pids->section, 3 + psi->section_length - 4, 32);
+                //pids->CRC_32_calc = CRC(pids->section, 3 + psi->section_length - 4, 32);
+                //pids->CRC_32_calc = crc32(pids->section, 3 + psi->section_length - 4);
                 if(pids->CRC_32_calc != pids->CRC_32)
                 {
                         err->CRC_error = 1;

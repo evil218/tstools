@@ -12,24 +12,14 @@
 extern "C" {
 #endif
 
-//=============================================================================
-// Variables definition:
-//=============================================================================
-enum
-{
-        MODE_CRC32,
-        MODE_CRC16,
-        MODE_CRC8
-};
-
 /*============================================================================
  * Public Function Declaration
  ===========================================================================*/
 void crc_init();
 uint16_t crc16(void *buf, size_t size);
 uint32_t crc32(void *buf, size_t size);
-uint32_t CRC(void *buf, size_t size, int mode);
-uint32_t CRC_for_TS(void *buf, size_t size, int mode);
+uint32_t CRC(void *buf, size_t size, int mode); // mode: 8|16|32
+uint32_t CRC_for_TS(void *buf, size_t size, int mode); // mode: 8|16|32
 
 #ifdef __cplusplus
 }
