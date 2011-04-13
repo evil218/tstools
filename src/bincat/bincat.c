@@ -19,6 +19,7 @@ static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; // data number per line
 static char white_space = ' ';
+static int is_sync = 1;
 static int show_address = 0;
 static int dec_address = 0; // default: hex address
 
@@ -51,17 +52,19 @@ int main(int argc, char *argv[])
                 DBG(ERR_FOPEN_FAILED);
                 return -ERR_FOPEN_FAILED;
         }
-#if 0
-        // TS sync
-        while(1 == fread(bbuf, 1, 1, fd_i))
+
+        if(is_sync)
         {
-                if(0x47 == bbuf[0])
+                // TS sync
+                while(1 == fread(bbuf, 1, 1, fd_i))
                 {
-                        fseek(fd_i, -1, SEEK_CUR);
-                        break;
+                        if(0x47 == bbuf[0])
+                        {
+                                fseek(fd_i, -1, SEEK_CUR);
+                                break;
+                        }
                 }
         }
-#endif
 
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
@@ -114,6 +117,12 @@ static int deal_with_parameter(int argc, char *argv[])
                                                 "bad variable for '-n': %d, use %d instead!\n",
                                                 dat, npline);
                                 }
+                        }
+                        else if(0 == strcmp(argv[i], "-n") ||
+                                0 == strcmp(argv[i], "--no-sync")
+                        )
+                        {
+                                is_sync = 0;
                         }
                         else if(0 == strcmp(argv[i], "-a") ||
                                 0 == strcmp(argv[i], "--addr")
@@ -171,6 +180,7 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
+        puts(" -n, --no-sync            do not sync at first, default: sync with 0x47");
         puts(" -a, --addr               show data address at line head, default: do NOT show it");
         puts(" -d, --decaddr            dec address format, default: hex");
         puts(" -s, --seperate <,>       white space, any char except [0-9A-Fa-f], default: ' '");

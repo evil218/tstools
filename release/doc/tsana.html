@@ -3,7 +3,7 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: January 2011<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: April 2011<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
@@ -24,18 +24,12 @@ tsana - manual page for tsana 1.0.0
 <H2>OPTIONS</H2>
 
 <DL COMPACT>
-<DT><B>-pid-list</B><DD>
+<DT><B>-list</B><DD>
 show PID list information, default option
-<DT><B>-psi-tree</B><DD>
+<DT><B>-psi</B><DD>
 show PSI tree information
 <DT><B>-outpsi</B><DD>
 output PSI packet
-<DT><B>-pid</B> &lt;pid&gt;<DD>
-set cared &lt;pid&gt;, default: ANY PID
-<DT><B>-prog</B> &lt;prog&gt;<DD>
-set cared &lt;prog&gt;, default: ANY program
-<DT><B>-interval</B> &lt;iv&gt;<DD>
-set cared &lt;iv&gt;(ms) for bit-rate calculate, default: 1000
 <DT><B>-pcr</B><DD>
 output PCR information of cared &lt;pid&gt;
 <DT><B>-sys-rate</B><DD>
@@ -44,7 +38,7 @@ output system bit-rate
 output psi/si bit-rate
 <DT><B>-prog-rate</B><DD>
 output bit-rate of cared &lt;prog&gt;
-<DT><B>-ptsdts</B><DD>
+<DT><B>-pts</B><DD>
 output PTS and DTS information of cared &lt;pid&gt;
 <DT><B>-pes</B><DD>
 output PES data of cared &lt;pid&gt;
@@ -52,8 +46,20 @@ output PES data of cared &lt;pid&gt;
 output ES data of cared &lt;pid&gt;
 <DT><B>-err</B><DD>
 output all errors found
+<DT><B>-dump</B><DD>
+dump cared packet
 <DT><B>-mono</B><DD>
 disable colour effect, default: use colour to help read
+<DT><B>-start</B> &lt;x&gt;<DD>
+analyse from packet(x), default: 0, first packet
+<DT><B>-count</B> &lt;n&gt;<DD>
+analyse n-packet then stop, default: 0, no stop
+<DT><B>-pid</B> &lt;pid&gt;<DD>
+set cared &lt;pid&gt;, default: ANY PID
+<DT><B>-prog</B> &lt;prog&gt;<DD>
+set cared &lt;prog&gt;, default: ANY program
+<DT><B>-interval</B> &lt;iv&gt;<DD>
+set cared &lt;iv&gt;(ms) for bit-rate calculate, default: 1000
 <DT><B>-h</B>, <B>--help</B><DD>
 display this information
 <DT><B>-v</B>, <B>--version</B><DD>
@@ -123,6 +129,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 10:17:12 GMT, January 12, 2011
+Time: 03:52:41 GMT, April 13, 2011
 </BODY>
 </HTML>

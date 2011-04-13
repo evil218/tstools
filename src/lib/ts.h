@@ -164,7 +164,6 @@ typedef struct _ts_pid_t
 
         // only for PID with PSI/SI
         int section_idx; // to index data in section
-        int section_absent; // n-byte needed from index
         uint8_t section[4416]; // (184*24=4416), PSI/SI|private <= 1024|4096
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
@@ -199,7 +198,8 @@ typedef struct _ts_rslt_t
         ts_prog_t *prog0; // first program in this stream
 
         // information about current packet
-        uint64_t addr; // address of this packet
+        uint64_t cnt; // count of this packet, start from 0
+        uint64_t addr; // address of this packet, cnt * pkt_size
         uint8_t line[256]; // current TS packet, 188-byte or 204-byte
 
         uint16_t concerned_pid; // used for PSI parsing

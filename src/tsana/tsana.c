@@ -35,10 +35,14 @@ typedef struct
         int is_outpsi; // output txt psi packet to stdout
         int is_prepsi; // get psi information from file first
         int is_mono; // use colour when print
+        int is_dump; // output packet directly
+        uint64_t aim_start; // ignore some packets fisrt, default: 0(no ignore)
+        uint64_t aim_count; // stop after analyse some packets, default: 0(no stop)
         uint16_t aim_pid;
         uint16_t aim_prog;
         uint64_t aim_interval; // for rate calc
 
+        uint64_t cnt; // packet analysed
         uint32_t ts_size;
         uint8_t bbuf[PKT_BBUF];
         char tbuf[PKT_TBUF];
@@ -99,6 +103,7 @@ static void show_version();
 
 static int get_one_pkt(obj_t *obj);
 
+static void show_pkt(obj_t *obj);
 static void show_pid_list(obj_t *obj);
 static void show_prog(LIST *list);
 static void show_track(LIST *list, uint16_t pcr_pid);
@@ -137,6 +142,11 @@ int main(int argc, char *argv[])
                 {
                         break;
                 }
+                if(rslt->cnt < obj->aim_start)
+                {
+                        continue;
+                }
+
                 tsParseOther(obj->ts_id);
                 switch(obj->state)
                 {
@@ -153,9 +163,19 @@ int main(int argc, char *argv[])
                                 obj->state = STATE_EXIT;
                                 break;
                 }
+
+                if(obj->is_dump)
+                {
+                        show_pkt(obj);
+                }
+                obj->cnt++;
+                if((0 != obj->aim_count) && (obj->cnt >= obj->aim_count))
+                {
+                        break;
+                }
         }
 
-        if(STATE_PARSE_PSI == obj->state)
+        if(!(obj->is_dump) && (STATE_PARSE_PSI == obj->state))
         {
                 fprintf(stderr, "PSI parsing unfinished!\n");
                 //show_pids(rslt->pid_list);
@@ -224,7 +244,10 @@ static void state_parse_each(obj_t *obj)
         switch(obj->mode)
         {
                 case MODE_PID:
-                        show_pid_list(obj);
+                        if(!(obj->is_dump))
+                        {
+                                show_pid_list(obj);
+                        }
                         break;
                 case MODE_PCR:
                         show_pcr(obj);
@@ -272,9 +295,14 @@ static obj_t *create(int argc, char *argv[])
 
         obj->mode = MODE_PID;
         obj->state = STATE_PARSE_PSI;
+
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
         obj->is_mono = 0;
+        obj->is_dump = 0;
+        obj->cnt = 0;
+        obj->aim_start = 0;
+        obj->aim_count = 0;
         obj->aim_pid = ANY_PID;
         obj->aim_prog = ANY_PROG;
         obj->aim_interval = 1000 * PCR_MS;
@@ -283,11 +311,11 @@ static obj_t *create(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(0 == strcmp(argv[i], "-pid-list"))
+                        if(0 == strcmp(argv[i], "-list"))
                         {
                                 obj->mode = MODE_PID;
                         }
-                        else if(0 == strcmp(argv[i], "-psi-tree"))
+                        else if(0 == strcmp(argv[i], "-psi"))
                         {
                                 obj->mode = MODE_PSI;
                         }
@@ -295,6 +323,10 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->is_outpsi = 1;
                                 obj->mode = MODE_EXIT;
+                        }
+                        else if(0 == strcmp(argv[i], "-dump"))
+                        {
+                                obj->is_dump = 1;
                         }
                         else if(0 == strcmp(argv[i], "-prepsi"))
                         {
@@ -323,6 +355,32 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-err"))
                         {
                                 obj->mode = MODE_ERROR;
+                        }
+                        else if(0 == strcmp(argv[i], "-start"))
+                        {
+                                int start;
+
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-start'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &start);
+                                obj->aim_start = start;
+                        }
+                        else if(0 == strcmp(argv[i], "-count"))
+                        {
+                                int count;
+
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-count'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &count);
+                                obj->aim_count = count;
                         }
                         else if(0 == strcmp(argv[i], "-pid"))
                         {
@@ -392,7 +450,7 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->mode = MODE_ES;
                         }
-                        else if(0 == strcmp(argv[i], "-ptsdts"))
+                        else if(0 == strcmp(argv[i], "-pts"))
                         {
                                 obj->mode = MODE_PTSDTS;
                         }
@@ -450,21 +508,25 @@ static void show_help()
         puts("Usage: tsana [OPTION]...");
         puts("");
         puts("Options:");
-        puts(" -pid-list        show PID list information, default option");
-        puts(" -psi-tree        show PSI tree information");
+        puts(" -list            show PID list information, default option");
+        puts(" -psi             show PSI tree information");
         puts(" -outpsi          output PSI packet");
-        puts(" -pid <pid>       set cared <pid>, default: ANY PID");
-        puts(" -prog <prog>     set cared <prog>, default: ANY program");
-        puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
         puts(" -pcr             output PCR information of cared <pid>");
         puts(" -sys-rate        output system bit-rate");
         puts(" -psi-rate        output psi/si bit-rate");
         puts(" -prog-rate       output bit-rate of cared <prog>");
-        puts(" -ptsdts          output PTS and DTS information of cared <pid>");
+        puts(" -pts             output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
         puts(" -err             output all errors found");
+        puts(" -dump            dump cared packet");
         puts(" -mono            disable colour effect, default: use colour to help read");
+        puts("");
+        puts(" -start <x>       analyse from packet(x), default: 0, first packet");
+        puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
+        puts(" -pid <pid>       set cared <pid>, default: ANY PID");
+        puts(" -prog <prog>     set cared <prog>, default: ANY program");
+        puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
 #endif
@@ -513,6 +575,17 @@ static int get_one_pkt(obj_t *obj)
 
         obj->ts_size = size;
         return GOT_RIGHT_PKT;
+}
+
+static void show_pkt(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        {
+                return;
+        }
+        fprintf(stdout, "%s", obj->tbuf);
 }
 
 static void show_pid_list(obj_t *obj)

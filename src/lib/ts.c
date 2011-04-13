@@ -405,8 +405,9 @@ int tsCreate(ts_rslt_t **rslt)
         obj->is_first_pkt = 1;
         obj->pkt_size = 188; // modified in each tsParseTS()
         obj->state = STATE_NEXT_PAT;
-        obj->is_pes_align = 1; // PES align(0: need; 1: dot't need)
+        obj->is_pes_align = 0; // PES align(0: need; 1: dot't need)
 
+        (*rslt)->cnt = 0;
         (*rslt)->addr = 0;
         (*rslt)->CC_lost = 0;
         (*rslt)->is_psi_parsed = 0;
@@ -470,10 +471,12 @@ int tsParseTS(int id, void *pkt, int size)
         if(obj->is_first_pkt)
         {
                 obj->is_first_pkt = 0;
+                obj->rslt.cnt = 0;
                 obj->rslt.addr = 0;
         }
         else
         {
+                obj->rslt.cnt++;
                 obj->rslt.addr += obj->pkt_size;
         }
 
@@ -1840,10 +1843,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids->is_CC_sync = the_pids->is_CC_sync;
                 pids->sdes = the_pids->sdes;
                 pids->ldes = the_pids->ldes;
-
-                // reset for section data collect
-                pids->section_idx = 0;
-                pids->section_absent = 10;
+                pids->section_idx = 0; // wait to sync with section head
 
                 list_insert(list, (NODE *)pids, the_pids->PID);
         }
