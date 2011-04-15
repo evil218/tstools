@@ -105,7 +105,7 @@ static int get_one_pkt(obj_t *obj);
 
 static void show_pkt(obj_t *obj);
 static void show_pid_list(obj_t *obj);
-static void show_prog(LIST *list);
+static void show_prog(obj_t *obj);
 static void show_track(LIST *list, uint16_t pcr_pid);
 
 static void show_pcr(obj_t *obj);
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
         {
                 fprintf(stderr, "PSI parsing unfinished!\n");
                 //show_pids(rslt->pid_list);
-                show_prog(&(rslt->prog_list));
+                show_prog(obj);
         }
 
         delete(obj);
@@ -204,7 +204,7 @@ static void state_parse_psi(obj_t *obj)
                 switch(obj->mode)
                 {
                         case MODE_PSI:
-                                show_prog(&(obj->rslt->prog_list));
+                                show_prog(obj);
                                 obj->state = STATE_EXIT;
                                 break;
                         case MODE_PCR:
@@ -219,7 +219,7 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_ERROR:
                                 print_atp_title(obj);
-                                fprintf(stdout, "level, detail, \n");
+                                fprintf(stdout, "TR-101-290, detail, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PID:
@@ -623,29 +623,32 @@ static void show_pid_list(obj_t *obj)
         return;
 }
 
-static void show_prog(LIST *list)
+static void show_prog(obj_t *obj)
 {
-        uint16_t i;
-        NODE *node;
-        ts_prog_t *prog;
+        ts_rslt_t *rslt = obj->rslt;
+        LIST *list = &(rslt->prog_list);
 
-        for(node = list->head; node; node = node->next)
+        fprintf(stdout, "transport_stream: " FYELLOW "%d" NONE "(0x%04X)\n",
+                rslt->transport_stream_id,
+                rslt->transport_stream_id);
+
+        for(NODE *node = list->head; node; node = node->next)
         {
-                prog = (ts_prog_t *)node;
-                fprintf(stdout, "+ program " FYELLOW "%d" NONE "(0x%04X)"
+                ts_prog_t *prog = (ts_prog_t *)node;
+                fprintf(stdout, "    program " FYELLOW "%d" NONE "(0x%04X)"
                         ", PMT_PID = " FYELLOW "0x%04X" NONE
                         ", PCR_PID = " FYELLOW "0x%04X" NONE "\n",
                         prog->program_number,
                         prog->program_number,
                         prog->PMT_PID,
                         prog->PCR_PID);
-                fprintf(stdout, "    program_info:" FYELLOW);
-                for(i = 0; i < prog->program_info_len; i++)
+                fprintf(stdout, "        program_info:" FYELLOW);
+                for(int i = 0; i < prog->program_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
                         {
                                 fprintf(stdout, "\n");
-                                fprintf(stdout, "        ");
+                                fprintf(stdout, "            ");
                         }
                         fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
@@ -664,22 +667,22 @@ static void show_track(LIST *list, uint16_t pcr_pid)
         for(node = list->head; node; node = node->next)
         {
                 track = (ts_track_t *)node;
-                fprintf(stdout, "    track " FYELLOW "0x%04X" NONE
+                fprintf(stdout, "        track " FYELLOW "0x%04X" NONE
                         ", stream_type = " FYELLOW "0x%02X" NONE
                         FRED "%s" NONE "\n",
                         track->PID,
                         track->stream_type,
                         (track->PID == pcr_pid) ? " with PCR" : "");
-                fprintf(stdout, "        type: %s, %s\n",
+                fprintf(stdout, "            type: %s, %s\n",
                         track->sdes,
                         track->ldes);
-                fprintf(stdout, "        ES_info:" FYELLOW);
+                fprintf(stdout, "            ES_info:" FYELLOW);
                 for(i = 0; i < track->es_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
                         {
                                 fprintf(stdout, "\n");
-                                fprintf(stdout, "            ");
+                                fprintf(stdout, "                ");
                         }
                         fprintf(stdout, "%02X ", track->es_info[i]);
                 }
@@ -986,7 +989,7 @@ static void show_error(obj_t *obj)
         if(err->TS_sync_loss)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_1.1, TS_sync_loss\n");
+                fprintf(stdout, "1.1, TS_sync_loss\n");
                 if(err->Sync_byte_error > 10)
                 {
                         fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
@@ -997,30 +1000,30 @@ static void show_error(obj_t *obj)
         if(err->Sync_byte_error == 1)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_1.2, Sync_byte_error\n");
+                fprintf(stdout, "1.2, Sync_byte_error\n");
         }
         if(err->PAT_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_1.3, PAT_error\n");
+                fprintf(stdout, "1.3, PAT_error\n");
                 err->PAT_error = 0;
         }
         if(err->Continuity_count_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_1.4, Continuity_count_error(%X-%X=%2u)\n",
+                fprintf(stdout, "1.4, Continuity_count_error(%X-%X=%2u)\n",
                         rslt->CC_find, rslt->CC_wait, rslt->CC_lost);
         }
         if(err->PMT_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_1.5, PMT_error\n");
+                fprintf(stdout, "1.5, PMT_error\n");
                 err->PMT_error = 0;
         }
         if(err->PID_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_1.6, PID_error\n");
+                fprintf(stdout, "1.6, PID_error\n");
                 err->PID_error = 0;
         }
 
@@ -1028,45 +1031,45 @@ static void show_error(obj_t *obj)
         if(err->Transport_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.1, Transport_error\n");
+                fprintf(stdout, "2.1, Transport_error\n");
         }
         if(err->CRC_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.2, CRC_error(0x%08X! 0x%08X?)\n",
+                fprintf(stdout, "2.2, CRC_error(0x%08X! 0x%08X?)\n",
                         rslt->pids->CRC_32_calc, rslt->pids->CRC_32);
                 err->CRC_error = 0;
         }
         if(err->PCR_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.3, PCR_error\n");
+                fprintf(stdout, "2.3, PCR_error\n");
                 err->PCR_error = 0;
         }
         if(err->PCR_repetition_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.3, PCR_repetition_error(%+7.3f ms)\n",
+                fprintf(stdout, "2.3, PCR_repetition_error(%+7.3f ms)\n",
                         (double)(rslt->PCR_interval) / PCR_MS);
                 err->PCR_repetition_error = 0;
         }
         if(err->PCR_accuracy_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.4, PCR_accuracy_error(%+4.0f ns)\n",
+                fprintf(stdout, "2.4, PCR_accuracy_error(%+4.0f ns)\n",
                         (double)(rslt->PCR_jitter) * 1e3 / PCR_US);
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.5, PTS_error\n");
+                fprintf(stdout, "2.5, PTS_error\n");
                 err->PTS_error = 0;
         }
         if(err->CAT_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "TR-101-290_2.6, CAT_error\n");
+                fprintf(stdout, "2.6, CAT_error\n");
                 err->CAT_error = 0;
         }
 

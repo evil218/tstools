@@ -1165,6 +1165,9 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
         ts_prog_t *prog;
         ts_rslt_t *rslt = &(obj->rslt);
 
+        // in PAT, table_id_extension is transport_stream_id
+        rslt->transport_stream_id = psi->table_id_extension;
+
         while(len > 4)
         {
                 // add program

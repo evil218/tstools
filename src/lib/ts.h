@@ -190,6 +190,7 @@ typedef struct _ts_rslt_t
         ts_error_t err;
 
         // PSI/SI and other TS information
+        uint16_t transport_stream_id;
         int is_psi_parsed;
         int is_psi_si;
         LIST table; // PSI/SI table list except PMT
