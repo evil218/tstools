@@ -1847,6 +1847,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids->sdes = the_pids->sdes;
                 pids->ldes = the_pids->ldes;
                 pids->section_idx = 0; // wait to sync with section head
+                pids->fd = NULL;
 
                 list_insert(list, (NODE *)pids, the_pids->PID);
         }

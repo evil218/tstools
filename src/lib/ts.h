@@ -181,6 +181,9 @@ typedef struct _ts_pid_t
         uint32_t lcnt; // packet received from PCRa to PCRb
 
         int64_t STC; // last STC
+
+        // file for ES dump
+        FILE *fd;
 }
 ts_pid_t; // unit of pid list
 

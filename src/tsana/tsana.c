@@ -66,6 +66,7 @@ enum
         MODE_PROG_RATE,
         MODE_PES,
         MODE_ES,
+        MODE_ALLES,
         MODE_ERROR,
         MODE_EXIT
 };
@@ -115,6 +116,7 @@ static void show_prog_rate(obj_t *obj);
 static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
 static void show_es(obj_t *obj);
+static void all_es(obj_t *obj);
 static void show_error(obj_t *obj);
 
 static void print_atp_title(obj_t *obj); // atp: address_time_PID
@@ -228,6 +230,7 @@ static void state_parse_psi(obj_t *obj)
                         case MODE_PROG_RATE:
                         case MODE_PES:
                         case MODE_ES:
+                        case MODE_ALLES:
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_EXIT:
@@ -269,6 +272,9 @@ static void state_parse_each(obj_t *obj)
                         break;
                 case MODE_ES:
                         show_es(obj);
+                        break;
+                case MODE_ALLES:
+                        all_es(obj);
                         break;
                 case MODE_ERROR:
                         show_error(obj);
@@ -450,6 +456,10 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->mode = MODE_ES;
                         }
+                        else if(0 == strcmp(argv[i], "-alles"))
+                        {
+                                obj->mode = MODE_ALLES;
+                        }
                         else if(0 == strcmp(argv[i], "-pts"))
                         {
                                 obj->mode = MODE_PTSDTS;
@@ -518,6 +528,7 @@ static void show_help()
         puts(" -pts             output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
+        puts(" -alles           write ES data into different file by PID");
         puts(" -err             output all errors found");
         puts(" -dump            dump cared packet");
         puts(" -mono            disable colour effect, default: use colour to help read");
@@ -972,6 +983,39 @@ static void show_es(obj_t *obj)
                 b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len, ' ');
                 puts(obj->tbuf);
         }
+        return;
+}
+
+static void all_es(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(0 == rslt->ES_len)
+        {
+                return;
+        }
+
+        if(NULL == rslt->pids)
+        {
+                fprintf(stderr, "Bad pids point!\n");
+                return;
+        }
+
+        if(NULL == rslt->pids->fd)
+        {
+                char name[100];
+
+                sprintf(name, "%04X.es", rslt->pids->PID);
+                fprintf(stdout, "open file %s\n", name);
+                rslt->pids->fd = fopen(name, "wb");
+        }
+        if(NULL == rslt->pids->fd)
+        {
+                DBG(ERR_FOPEN_FAILED);
+                return;
+        }
+
+        fwrite(rslt->ES_buf, rslt->ES_len, 1, rslt->pids->fd);
         return;
 }
 
