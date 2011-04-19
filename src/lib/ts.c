@@ -367,6 +367,7 @@ static int parse_table(obj_t *obj);
 static int parse_PSI_head(psi_t *psi, uint8_t *section);
 static int parse_PAT_load(obj_t *obj, uint8_t *section);
 static int parse_PMT_load(obj_t *obj, uint8_t *section);
+static int parse_SDT_load(obj_t *obj, uint8_t *section);
 static int parse_PES_head(obj_t *obj); // PES layer information
 static int parse_PES_head_switch(obj_t *obj);
 static int parse_PES_head_detail(obj_t *obj);
@@ -1178,6 +1179,9 @@ static int parse_table(obj_t *obj)
                 case 0x02:
                         parse_PMT_load(obj, pids->section);
                         break;
+                case 0x42:
+                        parse_SDT_load(obj, pids->section);
+                        break;
                 default:
                         break;
         }
@@ -1300,16 +1304,6 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         }
                 }
 
-                // PMT table
-                prog->is_parsed = 0;
-                prog->table.table_id = 0x02;
-                prog->table.version_number = 0xFF; // never reached version
-                prog->table.last_section_number = 0; // no use
-                list_init(&(prog->table.section_list));
-
-                // track list
-                list_init(&(prog->track_list));
-
                 dat = *p++; len--;
                 prog->program_number = dat;
 
@@ -1340,11 +1334,29 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 {
                         pids->type = PMT_PID;
 
+                        // PMT table
+                        prog->is_parsed = 0;
+                        prog->table.table_id = 0x02;
+                        prog->table.version_number = 0xFF; // never reached version
+                        prog->table.last_section_number = 0; // no use
+                        list_init(&(prog->table.section_list));
+
+                        // track list
+                        list_init(&(prog->track_list));
+
+                        // for time
                         prog->ADDa = 0;
                         prog->PCRa = STC_OVF;
                         prog->ADDb = 0;
                         prog->PCRb = STC_OVF;
                         prog->STC_sync = 0;
+
+                        // SDT info
+                        prog->server_name_len = 0;
+                        prog->server_name[0] = '\0';
+                        prog->server_provider_len = 0;
+                        prog->server_provider[0] = '\0';
+
                         list_insert(&(rslt->prog_list), (NODE *)prog, prog->program_number);
                 }
 
@@ -1486,6 +1498,86 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
                 pids->sdes = PID_TYPE[pids->type].sdes;
                 pids->ldes = PID_TYPE[pids->type].ldes;
                 add_to_pid_list(&(obj->rslt.pid_list), pids); // elementary_PID
+        }
+
+        return 0;
+}
+
+static int parse_SDT_load(obj_t *obj, uint8_t *section)
+{
+        uint8_t dat;
+        uint8_t *p = section + 8;
+        psi_t *psi = &(obj->psi);
+        int len = psi->section_length - 5;
+        ts_rslt_t *rslt = &(obj->rslt);
+        uint16_t original_network_id;
+
+        // in SDT, table_id_extension is transport_stream_id
+        if(psi->table_id_extension != rslt->transport_stream_id)
+        {
+                fprintf(stderr, "table_id_extension(%d) != transport_stream_id(%d)\n",
+                        psi->table_id_extension,
+                        rslt->transport_stream_id);
+                return -1; // bad SDT table, ignore
+        }
+
+        dat = *p++; len--;
+        original_network_id = dat;
+
+        dat = *p++; len--;
+        original_network_id <<= 8;
+        original_network_id |= dat;
+        if(original_network_id != rslt->transport_stream_id)
+        {
+#if 0
+                fprintf(stderr, "original_network_id(%d) != transport_stream_id(%d)\n",
+                        original_network_id,
+                        rslt->transport_stream_id);
+                return -1; // bad SDT table, ignore
+#endif
+        }
+
+        dat = *p++; len--; // reserved_future_use
+
+        while(len > 4)
+        {
+                uint16_t service_id;
+                uint8_t EIT_schedule_flag; // 1-bit
+                uint8_t EIT_present_following_flag; // 1-bit
+                uint8_t running_status; // 3-bit
+                uint8_t free_CA_mode; // 1-bit
+                uint16_t descriptors_loop_length; // 12-bit
+
+                dat = *p++; len--;
+                service_id = dat;
+
+                dat = *p++; len--;
+                service_id <<= 8;
+                service_id |= dat;
+
+                dat = *p++; len--;
+                EIT_schedule_flag = (dat & BIT(1)) >> 1;
+                EIT_present_following_flag = (dat & BIT(0)) >> 0;
+
+                dat = *p++; len--;
+                running_status = (dat & 0xE0) >> 5;
+                free_CA_mode = (dat & BIT(4)) >> 4;
+                descriptors_loop_length = (dat & 0x0F);
+
+                dat = *p++; len--;
+                descriptors_loop_length <<= 8;
+                descriptors_loop_length |= dat;
+#if 0
+                while(len > 4)
+                {
+                        dat = *p++; len--;
+                        fprintf(stderr, "descriptor %02X, ", dat);
+                        dat = *p++; len--;
+                        fprintf(stderr, "length %02X; ", dat);
+                        p += dat; len -= dat;
+                }
+                fprintf(stderr, "\n");
+#endif
         }
 
         return 0;

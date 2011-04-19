@@ -653,6 +653,28 @@ static void show_prog(obj_t *obj)
                         prog->program_number,
                         prog->PMT_PID,
                         prog->PCR_PID);
+
+                // server_name
+                fprintf(stdout, "        server_name    : " FYELLOW "%s" NONE "\n",
+                        prog->server_name);
+                fprintf(stdout, "                       : " FYELLOW);
+                for(int i = 0; i < prog->server_name_len; i++)
+                {
+                        fprintf(stdout, "%02X ", prog->server_name[i]);
+                }
+                fprintf(stdout, NONE "\n");
+
+                // server_provider
+                fprintf(stdout, "        server_provider: " FYELLOW "%s" NONE "\n",
+                        prog->server_provider);
+                fprintf(stdout, "                       : " FYELLOW);
+                for(int i = 0; i < prog->server_provider_len; i++)
+                {
+                        fprintf(stdout, "%02X ", prog->server_provider[i]);
+                }
+                fprintf(stdout, NONE "\n");
+
+                // program_info
                 fprintf(stdout, "        program_info:" FYELLOW);
                 for(int i = 0; i < prog->program_info_len; i++)
                 {
@@ -664,6 +686,8 @@ static void show_prog(obj_t *obj)
                         fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
                 fprintf(stdout, NONE "\n");
+
+                // track
                 show_track(&(prog->track_list), prog->PCR_PID);
         }
         return;
