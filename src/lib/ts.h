@@ -72,7 +72,8 @@ typedef struct _ts_section_t
         uint32_t key; // copy section_number as key
 
         uint8_t section_number;
-        uint8_t data[1024];
+        uint16_t section_length;
+        uint8_t data[4096];
 }
 ts_section_t; // unit of section list
 
@@ -83,8 +84,10 @@ typedef struct _ts_table_t
         NODE *prev;
         uint32_t key; // copy table_id as key
 
-        uint8_t table_id;
-        LIST section; // ts_section_t
+        uint8_t table_id; // 0x00~0xFF except 0x02
+        uint8_t version_number;
+        uint8_t last_section_number;
+        LIST section_list; // ts_section_t
 }
 ts_table_t; // unit of PSI/SI table list
 
@@ -95,9 +98,11 @@ typedef struct _ts_prog_t
         NODE *prev;
         uint32_t key; // copy program_number as key
 
-        // program information
+        // PMT section, 
         int is_parsed;
-        LIST section; // PMT section list
+        ts_table_t table; // table_id = 0x02
+
+        // program information
         uint16_t PMT_PID; // 13-bit
         uint16_t PCR_PID; // 13-bit
         uint16_t program_number;
@@ -111,7 +116,7 @@ typedef struct _ts_prog_t
         uint8_t server_provider[SERVER_STR_MAX];
 
         // tracks
-        LIST track_list;
+        LIST track_list; // ts_track_t, track list of this program
 
         // for STC calc
         uint64_t ADDa; // PCR packet a: packet address
@@ -192,13 +197,15 @@ typedef struct _ts_rslt_t
         // error
         ts_error_t err;
 
-        // PSI/SI and other TS information
-        uint16_t transport_stream_id;
+        // PSI/SI table
         int is_psi_parsed;
         int is_psi_si;
-        LIST table; // PSI/SI table list except PMT
-        LIST prog_list;
-        LIST pid_list;
+        LIST table_list; // ts_table_t, PSI/SI table except PMT
+
+        // TS information
+        uint16_t transport_stream_id;
+        LIST prog_list; // ts_prog_t, program list
+        LIST pid_list; // ts_pid_t, pid list
         ts_prog_t *prog0; // first program in this stream
 
         // information about current packet

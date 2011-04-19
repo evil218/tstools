@@ -399,6 +399,7 @@ int tsCreate(ts_rslt_t **rslt)
         }
 
         *rslt = &(obj->rslt);
+        list_init(&((*rslt)->table_list));
         list_init(&((*rslt)->prog_list));
         list_init(&((*rslt)->pid_list));
 
@@ -518,6 +519,9 @@ int tsParseOther(int id)
 static int state_next_pat(obj_t *obj)
 {
         ts_t *ts = &(obj->ts);
+        LIST *table_list = &(obj->rslt.table_list);
+        ts_table_t *table;
+        uint8_t section_number;
 
         if(0x0000 != ts->PID)
         {
@@ -525,8 +529,29 @@ static int state_next_pat(obj_t *obj)
         }
 
         // section parse has done in parse_TS_head()!
-        if(1)
+        if(NULL == (table = (ts_table_t *)list_search(table_list, 0x00)))
         {
+                return -1;
+        }
+        else
+        {
+                section_number = 0;
+                for(NODE *node = table->section_list.head; node; node = node->next)
+                {
+                        ts_section_t *section = (ts_section_t *)node;
+
+                        if(section_number > table->last_section_number)
+                        {
+                                return -1;
+                        }
+                        if(section_number != section->section_number)
+                        {
+                                return -1;
+                        }
+                        section_number++;
+                }
+
+                // all PAT section parsed
                 obj->state = STATE_NEXT_PMT;
         }
 
@@ -1030,12 +1055,14 @@ static int section(obj_t *obj)
 
 static int parse_table(obj_t *obj)
 {
+        ts_table_t *table;
+        LIST *section_list;
+        ts_section_t *section;
         ts_pid_t *pids = obj->rslt.pids;
         uint8_t *p;
         psi_t *psi = &(obj->psi);
         ts_error_t *err = &(obj->rslt.err);
 
-        //dump(pids->section, pids->section_idx);
         // get psi head info
         if(0 != parse_PSI_head(psi, pids->section))
         {
@@ -1065,6 +1092,84 @@ static int parse_table(obj_t *obj)
                 }
         }
 
+        // get "table" and "section_list" pointer
+        if(0x02 == psi->table_id) // PMT section
+        {
+                if(NULL == pids->prog)
+                {
+                        DBG(ERR_OTHER);
+                        return -1;
+                }
+                table = &(pids->prog->table);
+        }
+        else // other section
+        {
+                LIST *table_list = &(obj->rslt.table_list);
+
+                if(NULL == (table = (ts_table_t *)list_search(table_list, psi->table_id)))
+                {
+                        // add table
+                        table = (ts_table_t *)malloc(sizeof(ts_table_t));
+                        if(NULL == table)
+                        {
+                                DBG(ERR_MALLOC_FAILED);
+                                return -ERR_MALLOC_FAILED;
+                        }
+
+                        table->table_id = psi->table_id;
+                        table->version_number = psi->version_number;
+                        table->last_section_number = psi->last_section_number;
+                        list_init(&(table->section_list));
+                        list_insert(table_list, (NODE *)table, psi->table_id);
+                        //fprintf(stderr, "init table %02X(version %02X)\n",
+                        //        psi->table_id,
+                        //        psi->version_number);
+                }
+        }
+        section_list = &(table->section_list);
+
+        // new table version?
+        if(table->version_number != psi->version_number)
+        {
+                // clear section_list and update table parameter
+                //fprintf(stderr, "init table %02X(%02X != %02X)\n",
+                //        psi->table_id,
+                //        table->version_number,
+                //        psi->version_number);
+                table->version_number = psi->version_number;
+                table->last_section_number = psi->last_section_number;
+                list_free(section_list);
+        }
+
+        // get "section" pointer
+        if(NULL == (section = (ts_section_t *)list_search(section_list, psi->section_number)))
+        {
+                // add section
+                section = (ts_section_t *)malloc(sizeof(ts_section_t));
+                if(NULL == section)
+                {
+                        DBG(ERR_MALLOC_FAILED);
+                        return -ERR_MALLOC_FAILED;
+                }
+
+                section->section_number = psi->section_number;
+                section->section_length = psi->section_length;
+                memcpy(section->data, pids->section, 3 + psi->section_length);
+                list_insert(section_list, (NODE *)section, psi->section_number);
+                //fprintf(stderr, "insert section %02X/%02X(table %02X)\n",
+                //        psi->section_number,
+                //        psi->last_section_number,
+                //        psi->table_id);
+        }
+        else
+        {
+                //fprintf(stderr, "has section %02X/%02X(table %02X)\n",
+                //        psi->section_number,
+                //        psi->last_section_number,
+                //        psi->table_id);
+        }
+
+        // parse
         switch(psi->table_id)
         {
                 case 0x00:
@@ -1195,8 +1300,15 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         }
                 }
 
-                list_init(&(prog->track_list));
+                // PMT table
                 prog->is_parsed = 0;
+                prog->table.table_id = 0x02;
+                prog->table.version_number = 0xFF; // never reached version
+                prog->table.last_section_number = 0; // no use
+                list_init(&(prog->table.section_list));
+
+                // track list
+                list_init(&(prog->track_list));
 
                 dat = *p++; len--;
                 prog->program_number = dat;
@@ -1856,13 +1968,32 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 
 static int is_all_prog_parsed(obj_t *obj)
 {
-        for(NODE *node = obj->rslt.prog_list.head; node; node = node->next)
+        uint8_t section_number;
+
+        for(NODE *prog_node = obj->rslt.prog_list.head; prog_node; prog_node = prog_node->next)
         {
-                ts_prog_t *prog = (ts_prog_t *)node;
-                if(0 == prog->is_parsed)
+                ts_prog_t *prog = (ts_prog_t *)prog_node;
+                ts_table_t *table = &(prog->table);
+
+                if(0xFF == table->version_number)
                 {
-                        obj->rslt.concerned_pid = prog->PMT_PID;
                         return 0;
+                }
+
+                section_number = 0;
+                for(NODE *node = table->section_list.head; node; node = node->next)
+                {
+                        ts_section_t *section = (ts_section_t *)node;
+
+                        if(section_number > table->last_section_number)
+                        {
+                                return 0;
+                        }
+                        if(section_number != section->section_number)
+                        {
+                                return 0;
+                        }
+                        section_number++;
                 }
         }
         return 1;
