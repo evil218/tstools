@@ -1287,23 +1287,6 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         return -ERR_MALLOC_FAILED;
                 }
 
-                // record first prog for bitrate calc
-                if(NULL == rslt->prog0)
-                {
-                        rslt->prog0 = prog;
-
-                        // traverse pid_list
-                        // if it des not belong to any program, use prog0
-                        for(NODE *node = rslt->pid_list.head; node; node = node->next)
-                        {
-                                ts_pid_t *pid_item = (ts_pid_t *)node;
-                                if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
-                                {
-                                        pid_item->prog = rslt->prog0;
-                                }
-                        }
-                }
-
                 dat = *p++; len--;
                 prog->program_number = dat;
 
@@ -1333,6 +1316,23 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 else
                 {
                         pids->type = PMT_PID;
+
+                        // record first prog for bitrate calc
+                        if(NULL == rslt->prog0)
+                        {
+                                rslt->prog0 = prog;
+
+                                // traverse pid_list
+                                // if it des not belong to any program, use prog0
+                                for(NODE *node = rslt->pid_list.head; node; node = node->next)
+                                {
+                                        ts_pid_t *pid_item = (ts_pid_t *)node;
+                                        if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
+                                        {
+                                                pid_item->prog = rslt->prog0;
+                                        }
+                                }
+                        }
 
                         // PMT table
                         prog->is_parsed = 0;
@@ -1568,13 +1568,13 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= dat;
 #if 0
-                while(len > 4)
+                while(descriptors_loop_length > 0)
                 {
-                        dat = *p++; len--;
+                        dat = *p++; len--; descriptors_loop_length--;
                         fprintf(stderr, "descriptor %02X, ", dat);
-                        dat = *p++; len--;
-                        fprintf(stderr, "length %02X; ", dat);
-                        p += dat; len -= dat;
+                        dat = *p++; len--; descriptors_loop_length--;
+                        fprintf(stderr, "length %d; ", dat);
+                        p += dat; len -= dat; descriptors_loop_length -= dat;
                 }
                 fprintf(stderr, "\n");
 #endif

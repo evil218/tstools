@@ -105,7 +105,7 @@ static void show_version();
 static int get_one_pkt(obj_t *obj);
 
 static void show_pkt(obj_t *obj);
-static void show_pid_list(obj_t *obj);
+static void show_pids(obj_t *obj);
 static void show_prog(obj_t *obj);
 static void show_track(LIST *list, uint16_t pcr_pid);
 
@@ -180,8 +180,14 @@ int main(int argc, char *argv[])
         if(!(obj->is_dump) && (STATE_PARSE_PSI == obj->state))
         {
                 fprintf(stderr, "PSI parsing unfinished!\n");
-                //show_pids(rslt->pid_list);
-                show_prog(obj);
+                if(MODE_PSI == obj->mode)
+                {
+                        show_prog(obj);
+                }
+                else
+                {
+                        show_pids(obj);
+                }
         }
 
         delete(obj);
@@ -205,10 +211,6 @@ static void state_parse_psi(obj_t *obj)
         {
                 switch(obj->mode)
                 {
-                        case MODE_PSI:
-                                show_prog(obj);
-                                obj->state = STATE_EXIT;
-                                break;
                         case MODE_PCR:
                                 print_atp_title(obj);
                                 fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(ns), \n");
@@ -225,6 +227,7 @@ static void state_parse_psi(obj_t *obj)
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PID:
+                        case MODE_PSI:
                         case MODE_SYS_RATE:
                         case MODE_PSI_RATE:
                         case MODE_PROG_RATE:
@@ -249,7 +252,13 @@ static void state_parse_each(obj_t *obj)
                 case MODE_PID:
                         if(!(obj->is_dump))
                         {
-                                show_pid_list(obj);
+                                show_pids(obj);
+                        }
+                        break;
+                case MODE_PSI:
+                        if(!(obj->is_dump))
+                        {
+                                show_prog(obj);
                         }
                         break;
                 case MODE_PCR:
@@ -428,7 +437,7 @@ static obj_t *create(int argc, char *argv[])
                                                 dat);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-interval"))
+                        else if(0 == strcmp(argv[i], "-iv"))
                         {
                                 i++;
                                 if(i >= argc)
@@ -535,9 +544,9 @@ static void show_help()
         puts("");
         puts(" -start <x>       analyse from packet(x), default: 0, first packet");
         puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
-        puts(" -pid <pid>       set cared <pid>, default: ANY PID");
-        puts(" -prog <prog>     set cared <prog>, default: ANY program");
-        puts(" -interval <iv>   set cared <iv>(ms) for bit-rate calculate, default: 1000");
+        puts(" -pid <pid>       set cared PID, default: ANY PID");
+        puts(" -prog <prog>     set cared prog, default: ANY program");
+        puts(" -iv <iv>         set cared interval(1ms-10,000ms), default: 1000ms");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
 #endif
@@ -599,7 +608,7 @@ static void show_pkt(obj_t *obj)
         fprintf(stdout, "%s", obj->tbuf);
 }
 
-static void show_pid_list(obj_t *obj)
+static void show_pids(obj_t *obj)
 {
         NODE *node;
         ts_pid_t *pids;
@@ -609,13 +618,12 @@ static void show_pid_list(obj_t *obj)
         char *fmt_color = FYELLOW "0x%04X, %s, %s" NONE "\n";
         char *fmt_mono  =         "0x%04X, %s, %s"      "\n";
 
-        if(!(rslt->is_psi_parsed))
+        if(!(rslt->has_rate))
         {
                 return;
         }
 
         fprintf(stdout, "  PID , abbr, detail\n");
-
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
@@ -638,6 +646,11 @@ static void show_prog(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
         LIST *list = &(rslt->prog_list);
+
+        if(!(rslt->has_rate))
+        {
+                return;
+        }
 
         fprintf(stdout, "transport_stream: " FYELLOW "%d" NONE "(0x%04X)\n",
                 rslt->transport_stream_id,
@@ -690,6 +703,8 @@ static void show_prog(obj_t *obj)
                 // track
                 show_track(&(prog->track_list), prog->PCR_PID);
         }
+
+        obj->state = STATE_EXIT;
         return;
 }
 
