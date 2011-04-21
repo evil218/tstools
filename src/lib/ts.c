@@ -109,25 +109,6 @@ typedef struct _pes_t
 }
 pes_t;
 
-typedef struct _psi_t
-{
-        uint8_t table_id; // TABLE_ID_TABLE
-        uint8_t sectin_syntax_indicator; // 1-bit
-        uint8_t private_indicator; // 1-bit
-        uint8_t reserved0; // 2-bit
-        uint16_t section_length; // 12-bit
-        uint16_t table_id_extension; // transport_stream_id or program_number
-        uint8_t reserved1; // 2-bit
-        uint8_t version_number; // 5-bit
-        uint8_t current_next_indicator; // 1-bit
-        uint8_t section_number;
-        uint8_t last_section_number;
-
-        int has_CRC; // some table do not need CRC_32
-        int type; // index of item in PID_TYPE[]
-}
-psi_t;
-
 typedef struct _pid_type_table_t
 {
         char *sdes; // short description
@@ -171,7 +152,6 @@ typedef struct _obj_t
         ts_t ts;
         af_t af;
         pes_t pes;
-        psi_t psi;
 
         uint32_t pkt_size; // 188 or 204
         int state;
@@ -364,7 +344,7 @@ static int parse_TS_head(obj_t *obj); // TS head information
 static int parse_AF(obj_t *obj); // Adaption Fields information
 static int section(obj_t *obj); // collect PSI/SI section data
 static int parse_table(obj_t *obj);
-static int parse_PSI_head(psi_t *psi, uint8_t *section);
+static int parse_PSI_head(ts_psi_t *psi, uint8_t *section);
 static int parse_PAT_load(obj_t *obj, uint8_t *section);
 static int parse_PMT_load(obj_t *obj, uint8_t *section);
 static int parse_SDT_load(obj_t *obj, uint8_t *section);
@@ -801,6 +781,7 @@ static int parse_TS_head(obj_t *obj)
 
         // init rslt
         rslt->is_psi_si = 0;
+        rslt->has_section = 0;
         rslt->pids = NULL;
         rslt->STC = 0;
         rslt->STC_base = 0;
@@ -878,7 +859,7 @@ static int parse_TS_head(obj_t *obj)
         rslt->pids->cnt++;
         rslt->sys_cnt++;
         rslt->nul_cnt += ((0x1FFF == ts->PID) ? 1 : 0);
-        if(ts->PID < 0x0020)
+        if((ts->PID < 0x0020)) // || (PMT_PID == rslt->pids->type))
         {
                 // PSI/SI packet
                 rslt->psi_cnt++;
@@ -994,9 +975,10 @@ static int section(obj_t *obj)
 {
         uint8_t pointer_field;
         ts_t *ts = &(obj->ts);
-        psi_t *psi = &(obj->psi);
+        ts_psi_t *psi = &(obj->rslt.psi);
         ts_pid_t *pids = obj->rslt.pids;
 
+        // FIXME: if data after CRC_32 is NOT 0xFF, it's another section!
         if(0 == pids->section_idx)
         {
                 // waiting for section head
@@ -1056,13 +1038,15 @@ static int section(obj_t *obj)
 
 static int parse_table(obj_t *obj)
 {
+        uint8_t *p;
         ts_table_t *table;
         LIST *section_list;
         ts_section_t *section;
-        ts_pid_t *pids = obj->rslt.pids;
-        uint8_t *p;
-        psi_t *psi = &(obj->psi);
-        ts_error_t *err = &(obj->rslt.err);
+        ts_rslt_t *rslt = &(obj->rslt);
+        ts_pid_t *pids = rslt->pids;
+        ts_psi_t *psi = &(rslt->psi);
+        ts_error_t *err = &(rslt->err);
+        int is_new_version = 0;
 
         // get psi head info
         if(0 != parse_PSI_head(psi, pids->section))
@@ -1122,9 +1106,6 @@ static int parse_table(obj_t *obj)
                         table->last_section_number = psi->last_section_number;
                         list_init(&(table->section_list));
                         list_insert(table_list, (NODE *)table, psi->table_id);
-                        //fprintf(stderr, "init table %02X(version %02X)\n",
-                        //        psi->table_id,
-                        //        psi->version_number);
                 }
         }
         section_list = &(table->section_list);
@@ -1133,13 +1114,10 @@ static int parse_table(obj_t *obj)
         if(table->version_number != psi->version_number)
         {
                 // clear section_list and update table parameter
-                //fprintf(stderr, "init table %02X(%02X != %02X)\n",
-                //        psi->table_id,
-                //        table->version_number,
-                //        psi->version_number);
                 table->version_number = psi->version_number;
                 table->last_section_number = psi->last_section_number;
                 list_free(section_list);
+                is_new_version = 1;
         }
 
         // get "section" pointer
@@ -1157,10 +1135,6 @@ static int parse_table(obj_t *obj)
                 section->section_length = psi->section_length;
                 memcpy(section->data, pids->section, 3 + psi->section_length);
                 list_insert(section_list, (NODE *)section, psi->section_number);
-                //fprintf(stderr, "insert section %02X/%02X(table %02X)\n",
-                //        psi->section_number,
-                //        psi->last_section_number,
-                //        psi->table_id);
         }
         else
         {
@@ -1171,6 +1145,7 @@ static int parse_table(obj_t *obj)
         }
 
         // parse
+        rslt->has_section = 1;
         switch(psi->table_id)
         {
                 case 0x00:
@@ -1189,19 +1164,19 @@ static int parse_table(obj_t *obj)
         return 0;
 }
 
-static int parse_PSI_head(psi_t *psi, uint8_t *section)
+static int parse_PSI_head(ts_psi_t *psi, uint8_t *section)
 {
         uint8_t *p;
         const table_id_table_t *table;
 
         p = section;
         psi->table_id = *p++;
-        psi->sectin_syntax_indicator = (*p & BIT(7)) >> 7;
+        psi->section_syntax_indicator = (*p & BIT(7)) >> 7;
         psi->private_indicator = (*p & BIT(6)) >> 6;
         psi->section_length   = *p++ & 0x0F;
         psi->section_length <<= 8;
         psi->section_length  |= *p++;
-        if(1 == psi->sectin_syntax_indicator)
+        if(1 == psi->section_syntax_indicator)
         {
                 // normal section syntax
                 psi->table_id_extension   = *p++;
@@ -1268,7 +1243,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
 {
         uint8_t dat;
         uint8_t *p = section + 8;
-        psi_t *psi = &(obj->psi);
+        ts_psi_t *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
         ts_pid_t ts_pid, *pids = &ts_pid;
         ts_prog_t *prog;
@@ -1378,7 +1353,7 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
 {
         uint8_t dat;
         uint8_t *p = section + 8;
-        psi_t *psi = &(obj->psi);
+        ts_psi_t *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
         ts_pid_t ts_pid, *pids = &ts_pid;
         ts_prog_t *prog;
@@ -1507,7 +1482,7 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
 {
         uint8_t dat;
         uint8_t *p = section + 8;
-        psi_t *psi = &(obj->psi);
+        ts_psi_t *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
         ts_rslt_t *rslt = &(obj->rslt);
         uint16_t original_network_id;

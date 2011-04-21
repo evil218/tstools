@@ -64,6 +64,25 @@ typedef struct _ts_error_t
 }
 ts_error_t; // TR 101 290 V1.2.1 2001-05
 
+typedef struct _ts_psi_t
+{
+        uint8_t table_id; // TABLE_ID_TABLE
+        uint8_t section_syntax_indicator; // 1-bit
+        uint8_t private_indicator; // 1-bit
+        uint8_t reserved0; // 2-bit
+        uint16_t section_length; // 12-bit
+        uint16_t table_id_extension; // transport_stream_id or program_number
+        uint8_t reserved1; // 2-bit
+        uint8_t version_number; // 5-bit
+        uint8_t current_next_indicator; // 1-bit
+        uint8_t section_number;
+        uint8_t last_section_number;
+
+        int has_CRC; // some table do not need CRC_32
+        int type; // index of item in PID_TYPE[]
+}
+ts_psi_t;
+
 typedef struct _ts_section_t
 {
         // for list
@@ -198,8 +217,10 @@ typedef struct _ts_rslt_t
         ts_error_t err;
 
         // PSI/SI table
+        ts_psi_t psi;
         int is_psi_parsed;
         int is_psi_si;
+        int has_section;
         LIST table_list; // ts_table_t, PSI/SI table except PMT
 
         // TS information

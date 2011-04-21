@@ -120,6 +120,7 @@ void list_insert(LIST *list, NODE *node, uint32_t key)
                 if(x->key == key)
                 {
                         // find a node with the same key in list
+                        free(node);
                         //fprintf(stderr, "node in list already, ignore!\n");
                         return;
                 }

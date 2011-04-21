@@ -19,6 +19,7 @@
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
 
 #define ANY_PID                         0x2000 // any PID of [0x0000,0x1FFF]
+#define ANY_TABLE                       0xFF // any table_id of [0x00,0xFE]
 #define ANY_PROG                        0x0000 // any prog of [0x0001,0xFFFF]
 
 #define PCR_US                          (27) // 27 clk means 1(us)
@@ -39,6 +40,7 @@ typedef struct
         uint64_t aim_start; // ignore some packets fisrt, default: 0(no ignore)
         uint64_t aim_count; // stop after analyse some packets, default: 0(no stop)
         uint16_t aim_pid;
+        uint8_t aim_table;
         uint16_t aim_prog;
         uint64_t aim_interval; // for rate calc
 
@@ -59,6 +61,8 @@ enum
 {
         MODE_PID,
         MODE_PSI,
+        MODE_SEC,
+        MODE_SI,
         MODE_PCR,
         MODE_PTSDTS,
         MODE_SYS_RATE,
@@ -109,6 +113,8 @@ static void show_pids(obj_t *obj);
 static void show_prog(obj_t *obj);
 static void show_track(LIST *list, uint16_t pcr_pid);
 
+static void show_sec(obj_t *obj);
+static void show_si(obj_t *obj);
 static void show_pcr(obj_t *obj);
 static void show_sys_rate(obj_t *obj);
 static void show_psi_rate(obj_t *obj);
@@ -211,6 +217,16 @@ static void state_parse_psi(obj_t *obj)
         {
                 switch(obj->mode)
                 {
+                        case MODE_SEC:
+                                print_atp_title(obj);
+                                fprintf(stdout, "section\n");
+                                obj->state = STATE_PARSE_EACH;
+                                break;
+                        case MODE_SI:
+                                print_atp_title(obj);
+                                fprintf(stdout, "id, \n");
+                                obj->state = STATE_PARSE_EACH;
+                                break;
                         case MODE_PCR:
                                 print_atp_title(obj);
                                 fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(ns), \n");
@@ -260,6 +276,12 @@ static void state_parse_each(obj_t *obj)
                         {
                                 show_prog(obj);
                         }
+                        break;
+                case MODE_SEC:
+                        show_sec(obj);
+                        break;
+                case MODE_SI:
+                        show_si(obj);
                         break;
                 case MODE_PCR:
                         show_pcr(obj);
@@ -319,6 +341,7 @@ static obj_t *create(int argc, char *argv[])
         obj->aim_start = 0;
         obj->aim_count = 0;
         obj->aim_pid = ANY_PID;
+        obj->aim_table = ANY_TABLE;
         obj->aim_prog = ANY_PROG;
         obj->aim_interval = 1000 * PCR_MS;
 
@@ -333,6 +356,14 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-psi"))
                         {
                                 obj->mode = MODE_PSI;
+                        }
+                        else if(0 == strcmp(argv[i], "-sec"))
+                        {
+                                obj->mode = MODE_SEC;
+                        }
+                        else if(0 == strcmp(argv[i], "-si"))
+                        {
+                                obj->mode = MODE_SI;
                         }
                         else if(0 == strcmp(argv[i], "-outpsi"))
                         {
@@ -414,6 +445,26 @@ static obj_t *create(int argc, char *argv[])
                                 {
                                         fprintf(stderr,
                                                 "bad variable for '-pid': 0x%04X, ignore!\n",
+                                                dat);
+                                }
+                        }
+                        else if(0 == strcmp(argv[i], "-table"))
+                        {
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-table'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &dat);
+                                if(0x00 <= dat && dat <= 0xFE)
+                                {
+                                        obj->aim_table = (uint8_t)dat;
+                                }
+                                else
+                                {
+                                        fprintf(stderr,
+                                                "bad variable for '-table': 0x%02X, ignore!\n",
                                                 dat);
                                 }
                         }
@@ -529,6 +580,8 @@ static void show_help()
         puts("Options:");
         puts(" -list            show PID list information, default option");
         puts(" -psi             show PSI tree information");
+        puts(" -sec             show SI section data of cared <table>");
+        puts(" -si              show SI section information of cared <table>");
         puts(" -outpsi          output PSI packet");
         puts(" -pcr             output PCR information of cared <pid>");
         puts(" -sys-rate        output system bit-rate");
@@ -544,8 +597,9 @@ static void show_help()
         puts("");
         puts(" -start <x>       analyse from packet(x), default: 0, first packet");
         puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
-        puts(" -pid <pid>       set cared PID, default: ANY PID");
-        puts(" -prog <prog>     set cared prog, default: ANY program");
+        puts(" -pid <pid>       set cared PID, default: any PID");
+        puts(" -table <id>      set cared table, default: any table");
+        puts(" -prog <prog>     set cared prog, default: any program");
         puts(" -iv <iv>         set cared interval(1ms-10,000ms), default: 1000ms");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
@@ -565,7 +619,7 @@ static void show_version()
 {
         puts("tsana 1.0.0");
         puts("");
-        puts("Copyright (C) 2009,2010 ZHOU Cheng.");
+        puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
         puts("A PARTICULAR PURPOSE.");
@@ -738,6 +792,54 @@ static void show_track(LIST *list, uint16_t pcr_pid)
                 }
                 fprintf(stdout, NONE "\n");
         }
+        return;
+}
+
+static void show_sec(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        ts_psi_t *psi = &(rslt->psi);
+        ts_pid_t *pid = rslt->pids;
+
+        if(!(rslt->has_section))
+        {
+                return;
+        }
+        if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
+        {
+                return;
+        }
+
+        print_atp_value(obj);
+        for(int i = 0; i < psi->section_length + 3; i++)
+        {
+                fprintf(stdout, "%02X ", pid->section[i]);
+        }
+        fprintf(stdout, "\n");
+        return;
+}
+
+static void show_si(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        ts_psi_t *psi = &(rslt->psi);
+        //ts_pid_t *pid = rslt->pids;
+
+        if(!(rslt->has_section))
+        {
+                return;
+        }
+        if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
+        {
+                return;
+        }
+
+        print_atp_value(obj);
+        for(int i = 0; i < psi->section_length + 3; i++)
+        {
+                //fprintf(stdout, "info ");
+        }
+        fprintf(stdout, "end\n");
         return;
 }
 
@@ -1167,7 +1269,7 @@ static void print_atp_title(obj_t *obj)
         if(obj->is_mono)
         {
                 fprintf(stdout,
-                        "yyyy-mm-dd hh:mm:ss"
+                        "hh:mm:ss"
                         ", "
                         "address"
                         ", address, STC, STC_base, "
@@ -1177,7 +1279,7 @@ static void print_atp_title(obj_t *obj)
         else
         {
                 fprintf(stdout,
-                        FYELLOW "yyyy-mm-dd hh:mm:ss" NONE
+                        FYELLOW "hh:mm:ss" NONE
                         ", "
                         FYELLOW "address" NONE
                         ", address, STC, STC_base, "
@@ -1198,7 +1300,7 @@ static void print_atp_value(obj_t *obj)
 
         time(&tp);
         lt = localtime(&tp);
-        strftime(stime, 32, "%Y-%m-%d %H:%M:%S", lt);
+        strftime(stime, 32, "%H:%M:%S", lt);
 
         if(obj->is_mono)
         {
