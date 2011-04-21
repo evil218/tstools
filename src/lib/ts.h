@@ -128,11 +128,11 @@ typedef struct _ts_prog_t
         int program_info_len;
         uint8_t program_info[INFO_LEN_MAX];
 
-        // server information
-        int server_name_len;
-        uint8_t server_name[SERVER_STR_MAX];
-        int server_provider_len;
-        uint8_t server_provider[SERVER_STR_MAX];
+        // service information
+        uint8_t service_name_len;
+        uint8_t service_name[SERVER_STR_MAX];
+        uint8_t service_provider_len;
+        uint8_t service_provider[SERVER_STR_MAX];
 
         // tracks
         LIST track_list; // ts_track_t, track list of this program

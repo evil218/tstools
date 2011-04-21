@@ -1327,10 +1327,10 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         prog->STC_sync = 0;
 
                         // SDT info
-                        prog->server_name_len = 0;
-                        prog->server_name[0] = '\0';
-                        prog->server_provider_len = 0;
-                        prog->server_provider[0] = '\0';
+                        prog->service_name_len = 0;
+                        prog->service_name[0] = '\0';
+                        prog->service_provider_len = 0;
+                        prog->service_provider[0] = '\0';
 
                         list_insert(&(rslt->prog_list), (NODE *)prog, prog->program_number);
                 }
@@ -1516,6 +1516,8 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
 
         while(len > 4)
         {
+                ts_prog_t *prog;
+
                 uint16_t service_id;
                 uint8_t EIT_schedule_flag; // 1-bit
                 uint8_t EIT_present_following_flag; // 1-bit
@@ -1529,6 +1531,7 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
                 dat = *p++; len--;
                 service_id <<= 8;
                 service_id |= dat;
+                prog = (ts_prog_t *)list_search(&(rslt->prog_list), service_id);
 
                 dat = *p++; len--;
                 EIT_schedule_flag = (dat & BIT(1)) >> 1;
@@ -1542,17 +1545,31 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
                 dat = *p++; len--;
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= dat;
-#if 0
+
                 while(descriptors_loop_length > 0)
                 {
-                        dat = *p++; len--; descriptors_loop_length--;
-                        fprintf(stderr, "descriptor %02X, ", dat);
-                        dat = *p++; len--; descriptors_loop_length--;
-                        fprintf(stderr, "length %d; ", dat);
-                        p += dat; len -= dat; descriptors_loop_length -= dat;
+                        uint8_t tag;
+                        uint8_t length;
+
+                        tag = *p++; len--; descriptors_loop_length--;
+                        length = *p++; len--; descriptors_loop_length--;
+                        if(0x48 == tag && prog) // service_descriptor
+                        {
+                                uint8_t *pt = p;
+                                uint8_t type;
+
+                                type = *pt++; // ignore
+                                prog->service_provider_len = *pt++;
+                                memcpy(prog->service_provider, pt, prog->service_provider_len);
+                                prog->service_provider[prog->service_provider_len] = '\0';
+
+                                pt += prog->service_provider_len; // pass provider
+                                prog->service_name_len = *pt++;
+                                memcpy(prog->service_name, pt, prog->service_name_len);
+                                prog->service_name[prog->service_name_len] = '\0';
+                        }
+                        p += length; len -= length; descriptors_loop_length -= length;
                 }
-                fprintf(stderr, "\n");
-#endif
         }
 
         return 0;

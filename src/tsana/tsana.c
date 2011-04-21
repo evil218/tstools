@@ -538,6 +538,11 @@ static obj_t *create(int argc, char *argv[])
                                 show_version();
                                 exit(EXIT_SUCCESS);
                         }
+                        else if(0 == strcmp(argv[i], "-sex"))
+                        {
+                                fprintf(stderr, "SEX? Try to use a Decoder instead of me!\n");
+                                exit(EXIT_FAILURE);
+                        }
                         else
                         {
                                 fprintf(stderr, "wrong parameter: '%s'\n", argv[i]);
@@ -721,25 +726,23 @@ static void show_prog(obj_t *obj)
                         prog->PMT_PID,
                         prog->PCR_PID);
 
-                // server_name
-                fprintf(stdout, "        server_name    : " FYELLOW "%s" NONE "\n",
-                        prog->server_name);
-                fprintf(stdout, "                       : " FYELLOW);
-                for(int i = 0; i < prog->server_name_len; i++)
+                // service_provider
+                fprintf(stdout, "        service_provider: " FYELLOW "%s" NONE "( ",
+                        prog->service_provider);
+                for(int i = 0; i < prog->service_provider_len; i++)
                 {
-                        fprintf(stdout, "%02X ", prog->server_name[i]);
+                        fprintf(stdout, "%02X ", prog->service_provider[i]);
                 }
-                fprintf(stdout, NONE "\n");
+                fprintf(stdout, ")\n");
 
-                // server_provider
-                fprintf(stdout, "        server_provider: " FYELLOW "%s" NONE "\n",
-                        prog->server_provider);
-                fprintf(stdout, "                       : " FYELLOW);
-                for(int i = 0; i < prog->server_provider_len; i++)
+                // service_name
+                fprintf(stdout, "        service_name    : " FYELLOW "%s" NONE "( ",
+                        prog->service_name);
+                for(int i = 0; i < prog->service_name_len; i++)
                 {
-                        fprintf(stdout, "%02X ", prog->server_provider[i]);
+                        fprintf(stdout, "%02X ", prog->service_name[i]);
                 }
-                fprintf(stdout, NONE "\n");
+                fprintf(stdout, ")\n");
 
                 // program_info
                 fprintf(stdout, "        program_info:" FYELLOW);
@@ -839,7 +842,7 @@ static void show_si(obj_t *obj)
         {
                 //fprintf(stdout, "info ");
         }
-        fprintf(stdout, "end\n");
+        fprintf(stdout, "T.B.D.\n");
         return;
 }
 
