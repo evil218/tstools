@@ -673,9 +673,8 @@ static void show_pids(obj_t *obj)
         ts_pid_t *pids;
         ts_rslt_t *rslt = obj->rslt;
         LIST *list = &(rslt->pid_list);
-        char *fmt;
-        char *fmt_color = FYELLOW "0x%04X, %s, %s" NONE "\n";
-        char *fmt_mono  =         "0x%04X, %s, %s"      "\n";
+        char *yellow_on;
+        char *color_off;
 
         if(!(rslt->has_rate))
         {
@@ -686,15 +685,19 @@ static void show_pids(obj_t *obj)
         for(node = list->head; node; node = node->next)
         {
                 pids = (ts_pid_t *)node;
-                fmt = fmt_mono;
+                yellow_on = "";
+                color_off = "";
                 if((NULL != pids->track) && !(obj->is_mono))
                 {
-                        fmt = fmt_color;
+                        yellow_on = FYELLOW;
+                        color_off = NONE;
                 }
-                fprintf(stdout, fmt,
+                fprintf(stdout, "%s0x%04X, %s, %s%s\n",
+                        yellow_on,
                         pids->PID,
                         pids->sdes,
-                        pids->ldes);
+                        pids->ldes,
+                        color_off);
         }
         obj->state = STATE_EXIT;
 
@@ -705,30 +708,38 @@ static void show_prog(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
         LIST *list = &(rslt->prog_list);
+        char *yellow_on = "";
+        char *color_off = "";
 
         if(!(rslt->has_rate))
         {
                 return;
         }
 
-        fprintf(stdout, "transport_stream: " FYELLOW "%d" NONE "(0x%04X)\n",
-                rslt->transport_stream_id,
+        if(!(obj->is_mono))
+        {
+                yellow_on = FYELLOW;
+                color_off = NONE;
+        }
+
+        fprintf(stdout, "transport_stream: %s%d%s(0x%04X)\n",
+                yellow_on, rslt->transport_stream_id, color_off,
                 rslt->transport_stream_id);
 
         for(NODE *node = list->head; node; node = node->next)
         {
                 ts_prog_t *prog = (ts_prog_t *)node;
-                fprintf(stdout, "    program " FYELLOW "%d" NONE "(0x%04X)"
-                        ", PMT_PID = " FYELLOW "0x%04X" NONE
-                        ", PCR_PID = " FYELLOW "0x%04X" NONE "\n",
+                fprintf(stdout, "    program %s%d%s(0x%04X)"
+                        ", PMT_PID = %s0x%04X%s"
+                        ", PCR_PID = %s0x%04X%s\n",
+                        yellow_on, prog->program_number, color_off,
                         prog->program_number,
-                        prog->program_number,
-                        prog->PMT_PID,
-                        prog->PCR_PID);
+                        yellow_on, prog->PMT_PID, color_off,
+                        yellow_on, prog->PCR_PID, color_off);
 
                 // service_provider
-                fprintf(stdout, "        service_provider: " FYELLOW "%s" NONE "( ",
-                        prog->service_provider);
+                fprintf(stdout, "        service_provider: %s\"%s\"%s( ",
+                        yellow_on, prog->service_provider, color_off);
                 for(int i = 0; i < prog->service_provider_len; i++)
                 {
                         fprintf(stdout, "%02X ", prog->service_provider[i]);
@@ -736,8 +747,8 @@ static void show_prog(obj_t *obj)
                 fprintf(stdout, ")\n");
 
                 // service_name
-                fprintf(stdout, "        service_name    : " FYELLOW "%s" NONE "( ",
-                        prog->service_name);
+                fprintf(stdout, "        service_name    : %s\"%s\"%s( ",
+                        yellow_on, prog->service_name, color_off);
                 for(int i = 0; i < prog->service_name_len; i++)
                 {
                         fprintf(stdout, "%02X ", prog->service_name[i]);
@@ -745,7 +756,7 @@ static void show_prog(obj_t *obj)
                 fprintf(stdout, ")\n");
 
                 // program_info
-                fprintf(stdout, "        program_info:" FYELLOW);
+                fprintf(stdout, "        program_info:%s", yellow_on);
                 for(int i = 0; i < prog->program_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
@@ -755,7 +766,7 @@ static void show_prog(obj_t *obj)
                         }
                         fprintf(stdout, "%02X ", prog->program_info[i]);
                 }
-                fprintf(stdout, NONE "\n");
+                fprintf(stdout, "%s\n", color_off);
 
                 // track
                 show_track(&(prog->track_list), prog->PCR_PID);
@@ -770,20 +781,30 @@ static void show_track(LIST *list, uint16_t pcr_pid)
         uint16_t i;
         NODE *node;
         ts_track_t *track;
+        char *red_on = "";
+        char *yellow_on = "";
+        char *color_off = "";
+
+        if(!(obj->is_mono))
+        {
+                red_on = FRED;
+                yellow_on = FYELLOW;
+                color_off = NONE;
+        }
 
         for(node = list->head; node; node = node->next)
         {
                 track = (ts_track_t *)node;
-                fprintf(stdout, "        track " FYELLOW "0x%04X" NONE
-                        ", stream_type = " FYELLOW "0x%02X" NONE
-                        FRED "%s" NONE "\n",
-                        track->PID,
-                        track->stream_type,
-                        (track->PID == pcr_pid) ? " with PCR" : "");
+                fprintf(stdout, "        track %s0x%04X%s"
+                        ", stream_type = %s0x%02X%s"
+                        "%s%s%s\n",
+                        yellow_on, track->PID, color_off,
+                        yellow_on, track->stream_type, color_off,
+                        red_on, ((track->PID == pcr_pid) ? " with PCR" : ""), color_off);
                 fprintf(stdout, "            type: %s, %s\n",
                         track->sdes,
                         track->ldes);
-                fprintf(stdout, "            ES_info:" FYELLOW);
+                fprintf(stdout, "            ES_info:%s", yellow_on);
                 for(i = 0; i < track->es_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
@@ -793,7 +814,7 @@ static void show_track(LIST *list, uint16_t pcr_pid)
                         }
                         fprintf(stdout, "%02X ", track->es_info[i]);
                 }
-                fprintf(stdout, NONE "\n");
+                fprintf(stdout, "%s\n", color_off);
         }
         return;
 }
@@ -874,53 +895,30 @@ static void show_sys_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         NODE *node;
         ts_pid_t *pid_item;
+        char *yellow_on = "";
+        char *color_off = "";
 
         if(!(rslt->has_rate))
         {
                 return;
         }
 
-        if(obj->is_mono)
+        if(!(obj->is_mono))
         {
-                fprintf(stdout,
-                        "0x%llX"
-                        ", "
-                        "0x%04X"
-                        ", ",
-                        rslt->addr,
-                        rslt->pid);
-        }
-        else
-        {
-                fprintf(stdout,
-                        FYELLOW "0x%llX" NONE
-                        ", "
-                        FYELLOW "0x%04X" NONE
-                        ", ",
-                        rslt->addr,
-                        rslt->pid);
+                yellow_on = FYELLOW;
+                color_off = NONE;
         }
 
-        if(obj->is_mono)
-        {
-                fprintf(stdout,
-                        "sys" ", %9.6f, "
-                        "psi-si" ", %9.6f, "
-                        "empty" ", %9.6f, ",
-                        rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                        rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                        rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
-        }
-        else
-        {
-                fprintf(stdout,
-                        FYELLOW "sys" NONE ", %9.6f, "
-                        FYELLOW "psi-si" NONE ", %9.6f, "
-                        FYELLOW "empty" NONE ", %9.6f, ",
-                        rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                        rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                        rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
-        }
+        fprintf(stdout,
+                "%s0x%llX%s, %s0x%04X%s, ",
+                yellow_on, rslt->addr, color_off,
+                yellow_on, rslt->pid, color_off);
+
+        fprintf(stdout,
+                "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, ",
+                yellow_on, color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                yellow_on, color_off, rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 #if 1
         // traverse pid_list
         // if it belongs to this program, output its bitrate
@@ -931,18 +929,9 @@ static void show_sys_rate(obj_t *obj)
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
 #if 0
-                        if(obj->is_mono)
-                        {
-                                fprintf(stdout, "0x%04X" ", %9.6f, ",
-                                        pid_item->PID,
-                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                        }
-                        else
-                        {
-                                fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
-                                        pid_item->PID,
-                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                        }
+                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                                yellow_on, pid_item->PID, color_off,
+                                pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
 #endif
                 }
         }
@@ -956,32 +945,25 @@ static void show_psi_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         NODE *node;
         ts_pid_t *pid_item;
+        char *yellow_on = "";
+        char *color_off = "";
 
         if(!(rslt->has_rate))
         {
                 return;
         }
 
-        if(obj->is_mono)
+        if(!(obj->is_mono))
         {
-                fprintf(stdout,
-                        "0x%llX"
-                        ", "
-                        "0x%04X"
-                        ", ",
-                        rslt->addr,
-                        rslt->pid);
+                yellow_on = FYELLOW;
+                color_off = NONE;
         }
-        else
-        {
-                fprintf(stdout,
-                        FYELLOW "0x%llX" NONE
-                        ", "
-                        FYELLOW "0x%04X" NONE
-                        ", ",
-                        rslt->addr,
-                        rslt->pid);
-        }
+
+        fprintf(stdout,
+                "%s0x%llX%s, %s0x%04X%s, ",
+                yellow_on, rslt->addr, color_off,
+                yellow_on, rslt->pid, color_off);
+
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list.head; node; node = node->next)
@@ -990,18 +972,9 @@ static void show_psi_rate(obj_t *obj)
                 if(ANY_PROG == obj->aim_prog ||
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
-                        if(obj->is_mono)
-                        {
-                                fprintf(stdout, "0x%04X" ", %9.6f, ",
-                                        pid_item->PID,
-                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                        }
-                        else
-                        {
-                                fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
-                                        pid_item->PID,
-                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                        }
+                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                                yellow_on, pid_item->PID, color_off,
+                                pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                 }
         }
         fprintf(stdout, "\n");
@@ -1013,32 +986,25 @@ static void show_prog_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         NODE *node;
         ts_pid_t *pid_item;
+        char *yellow_on = "";
+        char *color_off = "";
 
         if(!(rslt->has_rate))
         {
                 return;
         }
 
-        if(obj->is_mono)
+        if(!(obj->is_mono))
         {
-                fprintf(stdout,
-                        "0x%llX"
-                        ", "
-                        "0x%04X"
-                        ", ",
-                        rslt->addr,
-                        rslt->pid);
+                yellow_on = FYELLOW;
+                color_off = NONE;
         }
-        else
-        {
-                fprintf(stdout,
-                        FYELLOW "0x%llX" NONE
-                        ", "
-                        FYELLOW "0x%04X" NONE
-                        ", ",
-                        rslt->addr,
-                        rslt->pid);
-        }
+
+        fprintf(stdout,
+                "%s0x%llX%s, %s0x%04X%s, ",
+                yellow_on, rslt->addr, color_off,
+                yellow_on, rslt->pid, color_off);
+
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list.head; node; node = node->next)
@@ -1047,18 +1013,9 @@ static void show_prog_rate(obj_t *obj)
                 if(ANY_PROG == obj->aim_prog ||
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
-                        if(obj->is_mono)
-                        {
-                                fprintf(stdout, "0x%04X" ", %9.6f, ",
-                                        pid_item->PID,
-                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                        }
-                        else
-                        {
-                                fprintf(stdout, FYELLOW "0x%04X" NONE ", %9.6f, ",
-                                        pid_item->PID,
-                                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                        }
+                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                                yellow_on, pid_item->PID, color_off,
+                                pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                 }
         }
         fprintf(stdout, "\n");
@@ -1269,26 +1226,20 @@ static void show_error(obj_t *obj)
 
 static void print_atp_title(obj_t *obj)
 {
-        if(obj->is_mono)
+        char *yellow_on = "";
+        char *color_off = "";
+
+        if(!(obj->is_mono))
         {
-                fprintf(stdout,
-                        "hh:mm:ss"
-                        ", "
-                        "address"
-                        ", address, STC, STC_base, "
-                        "PID"
-                        ", ");
+                yellow_on = FYELLOW;
+                color_off = NONE;
         }
-        else
-        {
-                fprintf(stdout,
-                        FYELLOW "hh:mm:ss" NONE
-                        ", "
-                        FYELLOW "address" NONE
-                        ", address, STC, STC_base, "
-                        FYELLOW "PID" NONE
-                        ", ");
-        }
+
+        fprintf(stdout,
+                "%shh:mm:ss%s, %saddress%s, address, STC, STC_base, %sPID%s, ",
+                yellow_on, color_off,
+                yellow_on, color_off,
+                yellow_on, color_off);
         return;
 }
 
@@ -1298,6 +1249,8 @@ static void print_atp_value(obj_t *obj)
         time_t tp;
         struct tm *lt; // local time
         char stime[32];
+        char *yellow_on = "";
+        char *color_off = "";
 
         rslt = obj->rslt;
 
@@ -1305,34 +1258,18 @@ static void print_atp_value(obj_t *obj)
         lt = localtime(&tp);
         strftime(stime, 32, "%H:%M:%S", lt);
 
-        if(obj->is_mono)
+        if(!(obj->is_mono))
         {
-                fprintf(stdout,
-                        "%s"
-                        ", "
-                        "0x%llX"
-                        ", %lld, %llu, %llu, "
-                        "0x%04X"
-                        ", ",
-                        stime,
-                        rslt->addr, rslt->addr,
-                        rslt->STC, rslt->STC_base,
-                        rslt->pid);
+                yellow_on = FYELLOW;
+                color_off = NONE;
         }
-        else
-        {
-                fprintf(stdout,
-                        FYELLOW "%s" NONE
-                        ", "
-                        FYELLOW "0x%llX" NONE
-                        ", %lld, %llu, %llu, "
-                        FYELLOW "0x%04X" NONE
-                        ", ",
-                        stime,
-                        rslt->addr, rslt->addr,
-                        rslt->STC, rslt->STC_base,
-                        rslt->pid);
-        }
+
+        fprintf(stdout,
+                "%s%s%s, %s0x%llX%s, %lld, %llu, %llu, %s0x%04X%s, ",
+                yellow_on, stime, color_off,
+                yellow_on, rslt->addr, color_off, rslt->addr,
+                rslt->STC, rslt->STC_base,
+                yellow_on, rslt->pid, color_off);
         return;
 }
 
