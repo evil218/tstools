@@ -22,6 +22,9 @@ static char white_space = ' ';
 static int is_sync = 1;
 static int show_address = 0;
 static int dec_address = 0; // default: hex address
+//static uint64_t file_size = 0;
+static int aim_start = 0; // first byte
+static int aim_stop = 0; // last byte
 
 //=============================================================================
 // Sub-function declare:
@@ -29,6 +32,7 @@ static int dec_address = 0; // default: hex address
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
 static void show_version();
+static void ts_sync();
 
 //=============================================================================
 // The main function:
@@ -53,17 +57,15 @@ int main(int argc, char *argv[])
                 return -ERR_FOPEN_FAILED;
         }
 
+#if 0
+        fseek( fd_i, 0, SEEK_END );
+        file_size = ftello(fd_i);
+        fprintf(stderr, "size: %lld\n", file_size);
+        fseek( fd_i, 0, SEEK_SET );
+#endif
         if(is_sync)
         {
-                // TS sync
-                while(1 == fread(bbuf, 1, 1, fd_i))
-                {
-                        if(0x47 == bbuf[0])
-                        {
-                                fseek(fd_i, -1, SEEK_CUR);
-                                break;
-                        }
-                }
+                ts_sync();
         }
 
         while(1 == fread(bbuf, npline, 1, fd_i))
@@ -136,6 +138,32 @@ static int deal_with_parameter(int argc, char *argv[])
                         {
                                 dec_address = 1;
                         }
+                        else if(0 == strcmp(argv[i], "-start"))
+                        {
+                                int start;
+
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-start'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &start);
+                                aim_start = start;
+                        }
+                        else if(0 == strcmp(argv[i], "-stop"))
+                        {
+                                int stop;
+
+                                i++;
+                                if(i >= argc)
+                                {
+                                        fprintf(stderr, "no parameter for '-stop'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &stop);
+                                aim_stop = stop;
+                        }
                         else if(0 == strcmp(argv[i], "-s") ||
                                 0 == strcmp(argv[i], "--space")
                         )
@@ -183,6 +211,8 @@ static void show_help()
         puts(" -n, --no-sync            do not sync at first, default: sync with 0x47");
         puts(" -a, --addr               show data address at line head, default: do NOT show it");
         puts(" -d, --decaddr            dec address format, default: hex");
+        puts(" -start <a>               cat from a%(file length), default: 0, first byte");
+        puts(" -stop <b>                cat to b%(file length), default: 0, last byte");
         puts(" -s, --seperate <,>       white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -w, --width <w>          w-byte per line, [1,10922], default: 188");
         puts(" -h, --help               display this information");
@@ -205,6 +235,119 @@ static void show_version()
         puts("A PARTICULAR PURPOSE.");
         puts("");
         puts("Written by ZHOU Cheng.");
+        return;
+}
+
+enum
+{
+        STATE_SYNC2_204,
+        STATE_SYNC2_188,
+        STATE_SYNC1_204,
+        STATE_SYNC1_188,
+        STATE_SYNC0,
+        STATE_EXIT
+};
+
+// for TS data: use "state machine" to determine sync position and packet size
+// continuous 3-sync_byte means TS sync
+static void ts_sync()
+{
+        uint8_t dat;
+        int state = STATE_SYNC0;
+
+        while(STATE_EXIT != state)
+        {
+                switch(state)
+                {
+                        case STATE_SYNC0:
+                                if(1 != fread(&dat, 1, 1, fd_i))
+                                {
+                                        return;
+                                }
+                                if(0x47 == dat)
+                                {
+                                        fseek(fd_i, +187, SEEK_CUR);
+                                        state = STATE_SYNC1_188;
+                                }
+                                else
+                                {
+                                        // STATE_SYNC0
+                                }
+                                break;
+                        case STATE_SYNC1_188:
+                                if(1 != fread(&dat, 1, 1, fd_i))
+                                {
+                                        return;
+                                }
+                                if(0x47 == dat)
+                                {
+                                        fseek(fd_i, +187, SEEK_CUR);
+                                        state = STATE_SYNC2_188;
+                                }
+                                else
+                                {
+                                        fseek(fd_i, +15, SEEK_CUR);
+                                        state = STATE_SYNC1_204;
+                                }
+                                break;
+                        case STATE_SYNC1_204:
+                                if(1 != fread(&dat, 1, 1, fd_i))
+                                {
+                                        return;
+                                }
+                                if(0x47 == dat)
+                                {
+                                        fseek(fd_i, +203, SEEK_CUR);
+                                        state = STATE_SYNC2_204;
+                                }
+                                else
+                                {
+                                        fseek(fd_i, -204, SEEK_CUR);
+                                        state = STATE_SYNC0;
+                                }
+                                break;
+                        case STATE_SYNC2_188:
+                                if(1 != fread(&dat, 1, 1, fd_i))
+                                {
+                                        return;
+                                }
+                                if(0x47 == dat)
+                                {
+                                        //fprintf(stderr, "sync with 188\n");
+                                        fseek(fd_i, -377, SEEK_CUR);
+                                        npline = 188;
+                                        state = STATE_EXIT;
+                                }
+                                else
+                                {
+                                        fseek(fd_i, -376, SEEK_CUR);
+                                        state = STATE_SYNC0;
+                                }
+                                break;
+                        case STATE_SYNC2_204:
+                                if(1 != fread(&dat, 1, 1, fd_i))
+                                {
+                                        return;
+                                }
+                                if(0x47 == dat)
+                                {
+                                        //fprintf(stderr, "sync with 204\n");
+                                        fseek(fd_i, -409, SEEK_CUR);
+                                        npline = 204;
+                                        state = STATE_EXIT;
+                                }
+                                else
+                                {
+                                        fseek(fd_i, -408, SEEK_CUR);
+                                        state = STATE_SYNC0;
+                                }
+                                break;
+                        default:
+                                // error
+                                state = STATE_EXIT;
+                                break;
+                }
+        }
         return;
 }
 

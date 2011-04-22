@@ -1249,6 +1249,12 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
         ts_prog_t *prog;
         ts_rslt_t *rslt = &(obj->rslt);
 
+        // to avoid stack overflow, FIXME
+        if(0 != list_cnt(&(rslt->prog_list)))
+        {
+                return 0;
+        }
+
         // in PAT, table_id_extension is transport_stream_id
         rslt->transport_stream_id = psi->table_id_extension;
 
