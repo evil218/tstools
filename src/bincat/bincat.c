@@ -32,7 +32,7 @@ static int aim_stop = 0; // last byte
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
 static void show_version();
-static void ts_sync();
+static int ts_sync();
 
 //=============================================================================
 // The main function:
@@ -63,9 +63,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "size: %lld\n", file_size);
         fseek( fd_i, 0, SEEK_SET );
 #endif
-        if(is_sync)
+        if(is_sync && (0 != ts_sync()))
         {
-                ts_sync();
+                fprintf(stderr, "EOF, but TS sync failed!\n");
+                return -1;
         }
 
         while(1 == fread(bbuf, npline, 1, fd_i))
@@ -229,7 +230,7 @@ static void show_version()
 {
         puts("bincat 1.0.0");
         puts("");
-        puts("Copyright (C) 2009,2010 ZHOU Cheng.");
+        puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
         puts("A PARTICULAR PURPOSE.");
@@ -249,8 +250,8 @@ enum
 };
 
 // for TS data: use "state machine" to determine sync position and packet size
-// continuous 3-sync_byte means TS sync
-static void ts_sync()
+// continuous 3-sync means TS sync
+static int ts_sync()
 {
         uint8_t dat;
         int state = STATE_SYNC0;
@@ -262,7 +263,7 @@ static void ts_sync()
                         case STATE_SYNC0:
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
-                                        return;
+                                        return -1;
                                 }
                                 if(0x47 == dat)
                                 {
@@ -277,7 +278,7 @@ static void ts_sync()
                         case STATE_SYNC1_188:
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
-                                        return;
+                                        return -1;
                                 }
                                 if(0x47 == dat)
                                 {
@@ -293,7 +294,7 @@ static void ts_sync()
                         case STATE_SYNC1_204:
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
-                                        return;
+                                        return -1;
                                 }
                                 if(0x47 == dat)
                                 {
@@ -309,7 +310,7 @@ static void ts_sync()
                         case STATE_SYNC2_188:
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
-                                        return;
+                                        return -1;
                                 }
                                 if(0x47 == dat)
                                 {
@@ -327,7 +328,7 @@ static void ts_sync()
                         case STATE_SYNC2_204:
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
-                                        return;
+                                        return -1;
                                 }
                                 if(0x47 == dat)
                                 {
@@ -343,12 +344,11 @@ static void ts_sync()
                                 }
                                 break;
                         default:
-                                // error
-                                state = STATE_EXIT;
-                                break;
+                                fprintf(stderr, "bad state!\n");
+                                return -1;
                 }
         }
-        return;
+        return 0;
 }
 
 //=============================================================================

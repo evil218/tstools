@@ -138,7 +138,7 @@ static void show_version()
 {
         puts("ipcat 1.0.0");
         puts("");
-        puts("Copyright (C) 2009,2010 ZHOU Cheng.");
+        puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
         puts("A PARTICULAR PURPOSE.");
