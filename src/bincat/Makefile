@@ -1,3 +1,3 @@
-NAME=bincat
+NAME=catbin
 
 include ../common.mak

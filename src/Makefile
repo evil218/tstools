@@ -1,4 +1,4 @@
-DIRS = lib bincat ipcat tsana tobin toip
+DIRS = lib catbin catip tsana tobin toip
 
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory

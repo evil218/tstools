@@ -108,9 +108,9 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'toip' read from stdin, translate 'XY ' to 0xXY, send to file.");
+        puts("'toip' read from stdin, translate 'XY ' to 0xXY, send as UDP packet.");
         puts("");
-        puts("Usage: toip [OPTION] file [OPTION]");
+        puts("Usage: toip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -118,7 +118,8 @@ static void show_help()
         puts(" -v, --version    print my version, then exit");
         puts("");
         puts("Examples:");
-        puts("  toip xxx.ts");
+        puts("  toip udp://@:1234");
+        puts("  toip udp://@224.165.54.210:1234");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;

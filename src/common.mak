@@ -1,6 +1,8 @@
 # =============================================================================
 # definition
 # =============================================================================
+CFLAGS = -Wall -W -Werror
+CFLAGS += -std=c99
 
 # -------------------------------------------------------------------
 # windows or linux
@@ -13,7 +15,9 @@ POSTFIX = .a
 else
 POSTFIX = .exe
 endif
-INSTALL_DIR = /cygdrive/c/windows/system32
+INSTALL_DIR = /usr/local/bin
+#INSTALL_DIR = /cygdrive/c/windows/system32
+#CFLAGS += -mno-cygwin
 
 else # neq ($(TERM),cygwin)
 
@@ -31,9 +35,6 @@ endif # ($(TERM),cygwin)
 # debug or release
 # -------------------------------------------------------------------
 BUILD_TYPE = release
-
-CFLAGS = -Wall -W -Werror
-CFLAGS += -std=c99
 
 ifeq ($(BUILD_TYPE), release)
 	CFLAGS += -O2

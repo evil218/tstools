@@ -1,3 +1,3 @@
-NAME=ipcat
+NAME=catip
 
 include ../common.mak
