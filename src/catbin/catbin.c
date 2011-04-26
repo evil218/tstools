@@ -1,8 +1,8 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
-// Name: bincat.c
+// Name: catbin.c
 // Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o bincat bincat.c
+// To build: gcc -std=c99 -o catbin catbin.c
 // Copyright (C) 2008 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
@@ -203,9 +203,9 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'bincat' read binary file, translate 0xXX to 'XY ' format, then send to stdout.");
+        puts("'catbin' read binary file, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
-        puts("Usage: bincat [OPTION] file [OPTION]");
+        puts("Usage: catbin [OPTION] file [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -220,7 +220,7 @@ static void show_help()
         puts(" -v, --version            display my version");
         puts("");
         puts("Examples:");
-        puts("  bincat xxx.ts");
+        puts("  catbin xxx.ts");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
@@ -228,7 +228,7 @@ static void show_help()
 
 static void show_version()
 {
-        puts("bincat 1.0.0");
+        puts("catbin 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");

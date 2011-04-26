@@ -1,8 +1,8 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 //=============================================================================
-// Name: ipcat.c
+// Name: catip.c
 // Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o ipcat ipcat.c
+// To build: gcc -std=c99 -o catip catip.c
 // Copyright (C) 2008 by ZHOU Cheng. All right reserved.
 //=============================================================================
 #include <stdio.h>
@@ -116,9 +116,9 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'ipcat' read TS over IP, translate 0xXX to 'XY ' format, then send to stdout.");
+        puts("'catip' read TS over IP, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
-        puts("Usage: ipcat [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
+        puts("Usage: catip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -127,8 +127,8 @@ static void show_help()
         puts(" -v, --version    print my version, then exit");
         puts("");
         puts("Examples:");
-        puts("  ipcat udp://@:1234");
-        puts("  ipcat udp://@224.165.54.210:1234");
+        puts("  catip udp://@:1234");
+        puts("  catip udp://@224.165.54.210:1234");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
@@ -136,7 +136,7 @@ static void show_help()
 
 static void show_version()
 {
-        puts("ipcat 1.0.0");
+        puts("catip 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
