@@ -2,4 +2,4 @@
 @set SOURCE=udp://@:1234
 
 @echo check CC of %SOURCE%
-ipcat %SOURCE% | tsana -time -cc
+catip %SOURCE% | tsana -time -cc

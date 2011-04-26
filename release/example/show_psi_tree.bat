@@ -1,2 +1,2 @@
-bincat %1 | tsana -psi-tree
+catbin %1 | tsana -psi
 pause

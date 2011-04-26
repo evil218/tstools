@@ -1,2 +1,2 @@
-bincat %1 | tsana -pid-list
+catbin %1 | tsana -list
 pause
