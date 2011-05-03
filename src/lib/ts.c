@@ -285,36 +285,36 @@ static const table_id_table_t TABLE_ID_TABLE[] =
 
 static const stream_type_t STREAM_TYPE_TABLE[] =
 {
-        {0x00, UNO_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
+        {0x00, RSV_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
         {0x01, VID_PID, "MPEG-1", "ISO/IEC 11172-2 Video"},
         {0x02, VID_PID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
         {0x03, AUD_PID, "MPEG-1", "ISO/IEC 11172-3 Audio"},
         {0x04, AUD_PID, "MPEG-2", "ISO/IEC 13818-3 Audio"},
-        {0x05, AUD_PID, "MPEG-2", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
-        {0x06, AUD_PID, "AC3", "Dolby Digital DVB"},
-        {0x07, AUD_PID, "MHEG", "ISO/IEC 13522 MHEG"},
-        {0x08, AUD_PID, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
-        {0x09, AUD_PID, "H.222.1", "ITU-T Rec.H.222.1"},
-        {0x0A, AUD_PID, "MPEG2 type A", "ISO/IEC 13818-6 type A"},
-        {0x0B, AUD_PID, "MPEG2 type B", "ISO/IEC 13818-6 type B"},
-        {0x0C, AUD_PID, "MPEG2 type C", "ISO/IEC 13818-6 type C"},
-        {0x0D, AUD_PID, "MPEG2 type D", "ISO/IEC 13818-6 type D"},
-        {0x0E, AUD_PID, "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"},
+        {0x05, USR_PID, "MPEG-2", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
+        {0x06, AUD_PID, "TT|AC3", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB"},
+        {0x07, USR_PID, "MHEG", "ISO/IEC 13522 MHEG"},
+        {0x08, USR_PID, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
+        {0x09, USR_PID, "H.222.1", "ITU-T Rec.H.222.1"},
+        {0x0A, USR_PID, "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"},
+        {0x0B, USR_PID, "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"},
+        {0x0C, USR_PID, "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"},
+        {0x0D, USR_PID, "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"},
+        {0x0E, USR_PID, "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"},
         {0x0F, AUD_PID, "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"},
         {0x10, VID_PID, "MPEG-4", "ISO/IEC 14496-2 Visual"},
         {0x11, AUD_PID, "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"},
         {0x12, AUD_PID, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"},
         {0x13, AUD_PID, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"},
-        {0x14, AUD_PID, "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"},
-        {0x15, AUD_PID, "MPEG-2", "Metadata carried in PES packets"},
-        {0x16, AUD_PID, "MPEG-2", "Metadata carried in metadata_sections"},
-        {0x17, AUD_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"},
-        {0x18, AUD_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"},
-        {0x19, AUD_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"},
-        {0x1A, AUD_PID, "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"},
+        {0x14, USR_PID, "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"},
+        {0x15, USR_PID, "MPEG-2", "Metadata carried in PES packets"},
+        {0x16, USR_PID, "MPEG-2", "Metadata carried in metadata_sections"},
+        {0x17, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"},
+        {0x18, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"},
+        {0x19, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"},
+        {0x1A, USR_PID, "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"},
         {0x1B, VID_PID, "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"},
         {0x42, VID_PID, "AVS", "Advanced Video Standard"},
-        {0x7F, AUD_PID, "IPMP", "IPMP stream"},
+        {0x7F, USR_PID, "IPMP", "IPMP stream"},
         {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
         {0xFF, UNO_PID, "", ""}, // loop stop condition!
 };
@@ -1615,7 +1615,7 @@ static int parse_PES_head(obj_t *obj)
 
                 if(0x000001 != pes->packet_start_code_prefix)
                 {
-                        fprintf(stderr, "PES packet start code prefix error(0x%06X)!\n",
+                        fprintf(stderr, "PES packet start code prefix(0x%06X) NOT 0x000001!\n",
                                 pes->packet_start_code_prefix);
                         dump(obj->rslt.line, obj->pkt_size);
                         return -1;
@@ -1647,39 +1647,34 @@ static int parse_PES_head(obj_t *obj)
 
 static int parse_PES_head_switch(obj_t *obj)
 {
-        int i;
-        uint8_t dat;
         pes_t *pes = &(obj->pes);
 
-        if(0xBE == pes->stream_id) // padding_stream
+        switch(pes->stream_id)
         {
-                // subsequent pes->PES_packet_length data is padding_byte, pass
-                if(pes->PES_packet_length > obj->len)
-                {
-                        fprintf(stderr, "PES_packet_length(%d) for padding_stream is too large!\n",
-                                pes->PES_packet_length);
-                        return -1;
-                }
-                for(i = pes->PES_packet_length; i > 0; i--)
-                {
-                        dat = *(obj->p)++; obj->len--;
-                }
-        }
-        else if(0xBC == pes->stream_id || // program_stream_map
-                0xBF == pes->stream_id || // private_stream_2
-                0xF0 == pes->stream_id || // ECM
-                0xF1 == pes->stream_id || // EMM
-                0xFF == pes->stream_id || // program_stream_directory
-                0xF2 == pes->stream_id || // DSMCC_stream
-                0xF8 == pes->stream_id    // ITU-T Rec. H.222.1 type E stream
-        )
-        {
-                // pes->PES_packet_length data in pes->buf is PES_packet_data_byte
-                // record after return
-        }
-        else
-        {
-                parse_PES_head_detail(obj);
+                case 0xBE: // padding_stream
+                        // subsequent pes->PES_packet_length data is padding_byte, pass
+                        if(pes->PES_packet_length > obj->len)
+                        {
+                                fprintf(stderr, "PES_packet_length(%d) for padding_stream is too large!\n",
+                                        pes->PES_packet_length);
+                                return -1;
+                        }
+                        obj->p += pes->PES_packet_length;
+                        obj->len -= pes->PES_packet_length;
+                        break;
+                case 0xBC: // program_stream_map
+                case 0xBF: // private_stream_2
+                case 0xF0: // ECM
+                case 0xF1: // EMM
+                case 0xFF: // program_stream_directory
+                case 0xF2: // DSMCC_stream
+                case 0xF8: // ITU-T Rec. H.222.1 type E stream
+                        // pes->PES_packet_length data in pes->buf is PES_packet_data_byte
+                        // record after return
+                        break;
+                default:
+                        parse_PES_head_detail(obj);
+                        break;
         }
 
         return 0;

@@ -909,11 +909,7 @@ static void show_sys_rate(obj_t *obj)
                 color_off = NONE;
         }
 
-        fprintf(stdout,
-                "%s0x%llX%s, %s0x%04X%s, ",
-                yellow_on, rslt->addr, color_off,
-                yellow_on, rslt->pid, color_off);
-
+        print_atp_value(obj);
         fprintf(stdout,
                 "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, ",
                 yellow_on, color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
@@ -959,11 +955,7 @@ static void show_psi_rate(obj_t *obj)
                 color_off = NONE;
         }
 
-        fprintf(stdout,
-                "%s0x%llX%s, %s0x%04X%s, ",
-                yellow_on, rslt->addr, color_off,
-                yellow_on, rslt->pid, color_off);
-
+        print_atp_value(obj);
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list.head; node; node = node->next)
@@ -1000,11 +992,7 @@ static void show_prog_rate(obj_t *obj)
                 color_off = NONE;
         }
 
-        fprintf(stdout,
-                "%s0x%llX%s, %s0x%04X%s, ",
-                yellow_on, rslt->addr, color_off,
-                yellow_on, rslt->pid, color_off);
-
+        print_atp_value(obj);
         // traverse pid_list
         // if it belongs to this program, output its bitrate
         for(node = rslt->pid_list.head; node; node = node->next)
@@ -1043,14 +1031,15 @@ static void show_ptsdts(obj_t *obj)
 
         if(rslt->has_DTS)
         {
-                fprintf(stdout, "%lld, %+8.3f, %+.3f, \n",
+                fprintf(stdout, "%lld, %+8.3f, %+.3f,\n",
                         rslt->DTS,
                         (double)(rslt->DTS_interval) / (90), // ms
                         (double)(rslt->DTS_minus_STC) / (90)); // ms
         }
         else
         {
-                fprintf(stdout, ", , , \n");
+                fprintf(stdout, "%lld,         ,         ,\n",
+                        rslt->PTS);
         }
         return;
 }
