@@ -17,42 +17,28 @@ static const char *errmsg[] =
         "sth. must be wrong",
         "time out",
         "IIC raise SCK failed",
-        "no acknowledgement",
+        "no ACK",
         "bad ID",
         "bad command",
         "bad argument",
+        "bad case entry",
         "malloc failed",
         "fopen failed",
         "end of file",
         "verify failed",
-        "subfunction failed",
-        "wrong error number" // last string
+        "^^^^", // subfunction failed
+        "wrong errno" // should be the last one
 };
-
-/*============================================================================
- * Private Functions Declaration
- ===========================================================================*/
-static int errno = 0;
 
 /*============================================================================
  * Public Functions Definition
  ===========================================================================*/
-void save_err(int err)
+void show_err(const char *file, int line, int err)
 {
-        errno = err;
+        err = (err > ERR_WRONG_ERRNO) ? ERR_WRONG_ERRNO : err;
+        fprintf(stderr, "\"%s\", line %d: %s, ", file, line, errmsg[err]);
         return;
 }
-
-void show_err(char *file, int line, int err)
-{
-        err = (err > ERR_MAX_ERRNO) ? ERR_MAX_ERRNO : err;
-        fprintf(stderr, "\"%s\", line %d: %s\r\n", file, line, errmsg[err]);
-        return;
-}
-
-/*============================================================================
- * Private Functions Definition
- ===========================================================================*/
 
 /*****************************************************************************
  * End

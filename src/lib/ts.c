@@ -375,7 +375,7 @@ int tsCreate(ts_rslt_t **rslt)
         obj = (obj_t *)malloc(sizeof(obj_t));
         if(NULL == obj)
         {
-                DBG(ERR_MALLOC_FAILED);
+                DBG(ERR_MALLOC_FAILED, " ");
                 return (int)NULL;
         }
 
@@ -411,7 +411,7 @@ int tsDelete(int id)
         obj = (obj_t *)id;
         if(NULL == obj)
         {
-                DBG(ERR_BAD_ID);
+                DBG(ERR_BAD_ID, " ");
                 return -ERR_BAD_ID;
         }
         else
@@ -439,7 +439,7 @@ int tsParseTS(int id, void *pkt, int size)
         obj = (obj_t *)id;
         if(NULL == obj)
         {
-                DBG(ERR_BAD_ID);
+                DBG(ERR_BAD_ID, " ");
                 return -ERR_BAD_ID;
         }
 
@@ -473,7 +473,7 @@ int tsParseOther(int id)
         obj = (obj_t *)id;
         if(NULL == obj)
         {
-                DBG(ERR_BAD_ID);
+                DBG(ERR_BAD_ID, " ");
                 return -ERR_BAD_ID;
         }
 
@@ -803,7 +803,7 @@ static int parse_TS_head(obj_t *obj)
                 {
                         err->TS_sync_loss++;
                 }
-                fprintf(stderr, "Sync byte error!\n");
+                fprintf(stderr, "sync_byte(0x%02X) error!\n", ts->sync_byte);
                 dump(obj->rslt.line, obj->pkt_size);
         }
         else
@@ -1082,7 +1082,7 @@ static int parse_table(obj_t *obj)
         {
                 if(NULL == pids->prog)
                 {
-                        DBG(ERR_OTHER);
+                        DBG(ERR_OTHER, " ");
                         return -1;
                 }
                 table = &(pids->prog->table);
@@ -1097,7 +1097,7 @@ static int parse_table(obj_t *obj)
                         table = (ts_table_t *)malloc(sizeof(ts_table_t));
                         if(NULL == table)
                         {
-                                DBG(ERR_MALLOC_FAILED);
+                                DBG(ERR_MALLOC_FAILED, " ");
                                 return -ERR_MALLOC_FAILED;
                         }
 
@@ -1127,7 +1127,7 @@ static int parse_table(obj_t *obj)
                 section = (ts_section_t *)malloc(sizeof(ts_section_t));
                 if(NULL == section)
                 {
-                        DBG(ERR_MALLOC_FAILED);
+                        DBG(ERR_MALLOC_FAILED, " ");
                         return -ERR_MALLOC_FAILED;
                 }
 
@@ -1264,7 +1264,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 prog = (ts_prog_t *)malloc(sizeof(ts_prog_t));
                 if(NULL == prog)
                 {
-                        DBG(ERR_MALLOC_FAILED);
+                        DBG(ERR_MALLOC_FAILED, " ");
                         return -ERR_MALLOC_FAILED;
                 }
 
@@ -2029,7 +2029,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
                 if(NULL == pids)
                 {
-                        DBG(ERR_MALLOC_FAILED);
+                        DBG(ERR_MALLOC_FAILED, " ");
                         return NULL;
                 }
 

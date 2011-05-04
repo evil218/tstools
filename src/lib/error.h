@@ -8,9 +8,9 @@
 #define _ERROR_H
 
 /*============================================================================
- * Error Number Declaration
+ * enum Declaration
  ===========================================================================*/
-enum
+enum error_number
 {
         ERR_NO_ERROR = 0,
         ERR_OTHER = 1,
@@ -20,31 +20,31 @@ enum
         ERR_BAD_ID,
         ERR_BAD_CMD,
         ERR_BAD_ARG,
+        ERR_BAD_CASE,
         ERR_MALLOC_FAILED,
         ERR_FOPEN_FAILED,
         ERR_EOF,
         ERR_VERIFY_FAILED,
         ERR_SUBFUXN_FAILED,
-        ERR_MAX_ERRNO                   // for count ERR number only
+        ERR_WRONG_ERRNO // should be the last enum!
 };
 
 /*============================================================================
  * Error Micro Declaration
  ===========================================================================*/
-#define DBG(err)                                                        \
-        do                                                              \
-{                                                                       \
-        save_err((err));                                                \
-        show_err(__FILE__, __LINE__, (err));                            \
+#define DBG(err, ...)                                                       \
+        do                                                                  \
+{                                                                           \
+        show_err(__FILE__, __LINE__, (err));                                \
+        fprintf(stderr, __VA_ARGS__);                                       \
 }while(0)
 
 /*============================================================================
  * Public Functions Declaration
  ===========================================================================*/
-void save_err(int err);
-void show_err(char *file, int line, int err);
+void show_err(const char *file, int line, int err);
 
-#endif
+#endif // _ERROR_H
 
 /*****************************************************************************
  * End

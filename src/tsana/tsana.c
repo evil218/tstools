@@ -68,6 +68,7 @@ enum
         MODE_SYS_RATE,
         MODE_PSI_RATE,
         MODE_PROG_RATE,
+        MODE_RATE,
         MODE_PES,
         MODE_ES,
         MODE_ALLES,
@@ -119,6 +120,7 @@ static void show_pcr(obj_t *obj);
 static void show_sys_rate(obj_t *obj);
 static void show_psi_rate(obj_t *obj);
 static void show_prog_rate(obj_t *obj);
+static void show_rate(obj_t *obj);
 static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
 static void show_es(obj_t *obj);
@@ -247,6 +249,7 @@ static void state_parse_psi(obj_t *obj)
                         case MODE_SYS_RATE:
                         case MODE_PSI_RATE:
                         case MODE_PROG_RATE:
+                        case MODE_RATE:
                         case MODE_PES:
                         case MODE_ES:
                         case MODE_ALLES:
@@ -295,6 +298,9 @@ static void state_parse_each(obj_t *obj)
                 case MODE_PROG_RATE:
                         show_prog_rate(obj);
                         break;
+                case MODE_RATE:
+                        show_rate(obj);
+                        break;
                 case MODE_PTSDTS:
                         show_ptsdts(obj);
                         break;
@@ -326,7 +332,7 @@ static obj_t *create(int argc, char *argv[])
         obj = (obj_t *)malloc(sizeof(obj_t));
         if(NULL == obj)
         {
-                DBG(ERR_MALLOC_FAILED);
+                DBG(ERR_MALLOC_FAILED, " ");
                 return NULL;
         }
 
@@ -397,6 +403,10 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-prog-rate"))
                         {
                                 obj->mode = MODE_PROG_RATE;
+                        }
+                        else if(0 == strcmp(argv[i], "-rate"))
+                        {
+                                obj->mode = MODE_RATE;
                         }
                         else if(0 == strcmp(argv[i], "-err"))
                         {
@@ -592,6 +602,7 @@ static void show_help()
         puts(" -sys-rate        output system bit-rate");
         puts(" -psi-rate        output psi/si bit-rate");
         puts(" -prog-rate       output bit-rate of cared <prog>");
+        puts(" -rate            output bit-rate of all PID");
         puts(" -pts             output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
@@ -636,7 +647,6 @@ static void show_version()
 static int get_one_pkt(obj_t *obj)
 {
         char *rslt;
-        int size;
 
         rslt = fgets(obj->tbuf, PKT_TBUF, stdin);
         if(NULL == rslt)
@@ -645,14 +655,7 @@ static int get_one_pkt(obj_t *obj)
         }
         //puts(obj->tbuf);
 
-        size = t2b(obj->bbuf, obj->tbuf);
-        if((size != 188) && (size != 204))
-        {
-                fprintf(stderr, "Bad packet size:%d\n%s\n", size, obj->tbuf);
-                return GOT_WRONG_PKT;
-        }
-
-        obj->ts_size = size;
+        obj->ts_size = t2b(obj->bbuf, obj->tbuf);
         return GOT_RIGHT_PKT;
 }
 
@@ -893,8 +896,6 @@ static void show_pcr(obj_t *obj)
 static void show_sys_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        NODE *node;
-        ts_pid_t *pid_item;
         char *yellow_on = "";
         char *color_off = "";
 
@@ -910,37 +911,16 @@ static void show_sys_rate(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout,
-                "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, ",
+        fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, \n",
                 yellow_on, color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 yellow_on, color_off, rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
-#if 1
-        // traverse pid_list
-        // if it belongs to this program, output its bitrate
-        for(node = rslt->pid_list.head; node; node = node->next)
-        {
-                pid_item = (ts_pid_t *)node;
-                if(ANY_PROG == obj->aim_prog ||
-                   (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
-                {
-#if 0
-                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                                yellow_on, pid_item->PID, color_off,
-                                pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-#endif
-                }
-        }
-#endif
-        fprintf(stdout, "\n");
         return;
 }
 
 static void show_psi_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        NODE *node;
-        ts_pid_t *pid_item;
         char *yellow_on = "";
         char *color_off = "";
 
@@ -956,13 +936,15 @@ static void show_psi_rate(obj_t *obj)
         }
 
         print_atp_value(obj);
+        fprintf(stdout, "%spsi-si%s, %9.6f, ",
+                yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+
         // traverse pid_list
-        // if it belongs to this program, output its bitrate
-        for(node = rslt->pid_list.head; node; node = node->next)
+        // if it is PSI/SI PID, output its bitrate
+        for(NODE *node = rslt->pid_list.head; node; node = node->next)
         {
-                pid_item = (ts_pid_t *)node;
-                if(ANY_PROG == obj->aim_prog ||
-                   (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
+                ts_pid_t *pid_item = (ts_pid_t *)node;
+                if(pid_item->PID < 0x0020)
                 {
                         fprintf(stdout, "%s0x%04X%s, %9.6f, ",
                                 yellow_on, pid_item->PID, color_off,
@@ -976,8 +958,6 @@ static void show_psi_rate(obj_t *obj)
 static void show_prog_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        NODE *node;
-        ts_pid_t *pid_item;
         char *yellow_on = "";
         char *color_off = "";
 
@@ -995,9 +975,13 @@ static void show_prog_rate(obj_t *obj)
         print_atp_value(obj);
         // traverse pid_list
         // if it belongs to this program, output its bitrate
-        for(node = rslt->pid_list.head; node; node = node->next)
+        for(NODE *node = rslt->pid_list.head; node; node = node->next)
         {
-                pid_item = (ts_pid_t *)node;
+                ts_pid_t *pid_item = (ts_pid_t *)node;
+                if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID)
+                {
+                        continue;
+                }
                 if(ANY_PROG == obj->aim_prog ||
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
@@ -1005,6 +989,36 @@ static void show_prog_rate(obj_t *obj)
                                 yellow_on, pid_item->PID, color_off,
                                 pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                 }
+        }
+        fprintf(stdout, "\n");
+        return;
+}
+
+static void show_rate(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        char *yellow_on = "";
+        char *color_off = "";
+
+        if(!(rslt->has_rate))
+        {
+                return;
+        }
+
+        if(!(obj->is_mono))
+        {
+                yellow_on = FYELLOW;
+                color_off = NONE;
+        }
+
+        print_atp_value(obj);
+        // traverse pid_list, output its bitrate
+        for(NODE *node = rslt->pid_list.head; node; node = node->next)
+        {
+                ts_pid_t *pid_item = (ts_pid_t *)node;
+                fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                        yellow_on, pid_item->PID, color_off,
+                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
         }
         fprintf(stdout, "\n");
         return;
@@ -1101,7 +1115,7 @@ static void all_es(obj_t *obj)
         }
         if(NULL == rslt->pids->fd)
         {
-                DBG(ERR_FOPEN_FAILED);
+                DBG(ERR_FOPEN_FAILED, " ");
                 return;
         }
 

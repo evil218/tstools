@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         fd_i = url_open(file_i, "rb");
         if(NULL == fd_i)
         {
-                DBG(ERR_FOPEN_FAILED);
+                DBG(ERR_FOPEN_FAILED, " ");
                 return -ERR_FOPEN_FAILED;
         }
 
@@ -101,7 +101,7 @@ static int deal_with_parameter(int argc, char *argv[])
                         else
                         {
                                 fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                                DBG(ERR_BAD_ARG);
+                                DBG(ERR_BAD_ARG, " ");
                                 return -ERR_BAD_ARG;
                         }
                 }

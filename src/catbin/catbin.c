@@ -12,6 +12,13 @@
 #include "error.h"
 #include "if.h"
 
+enum
+{
+        FILE_MTS,
+        FILE_TS,
+        FILE_BIN
+};
+
 //=============================================================================
 // Variables definition:
 //=============================================================================
@@ -19,7 +26,7 @@ static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; // data number per line
 static char white_space = ' ';
-static int is_sync = 1;
+static int file_type = FILE_BIN;
 static int show_address = 0;
 static int dec_address = 0; // default: hex address
 //static uint64_t file_size = 0;
@@ -53,20 +60,26 @@ int main(int argc, char *argv[])
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i)
         {
-                DBG(ERR_FOPEN_FAILED);
+                fprintf(stderr, "%s ", file_i);
+                DBG(ERR_FOPEN_FAILED, " ");
                 return -ERR_FOPEN_FAILED;
         }
 
-#if 0
-        fseek( fd_i, 0, SEEK_END );
-        file_size = ftello(fd_i);
-        fprintf(stderr, "size: %lld\n", file_size);
-        fseek( fd_i, 0, SEEK_SET );
-#endif
-        if(is_sync && (0 != ts_sync()))
+        switch(file_type)
         {
-                fprintf(stderr, "EOF, but TS sync failed!\n");
-                return -1;
+                case FILE_TS:
+                        if(0 != ts_sync())
+                        {
+                                fprintf(stderr, "EOF, but TS sync failed!\n");
+                                return -1;
+                        }
+                        break;
+                case FILE_MTS:
+                        fseek(fd_i, +4, SEEK_CUR);
+                        npline = 192;
+                        break;
+                default: // FILE_BIN
+                        break;
         }
 
         while(1 == fread(bbuf, npline, 1, fd_i))
@@ -121,11 +134,17 @@ static int deal_with_parameter(int argc, char *argv[])
                                                 dat, npline);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-n") ||
-                                0 == strcmp(argv[i], "--no-sync")
-                        )
+                        else if(0 == strcmp(argv[i], "-bin"))
                         {
-                                is_sync = 0;
+                                file_type = FILE_BIN;
+                        }
+                        else if(0 == strcmp(argv[i], "-ts"))
+                        {
+                                file_type = FILE_TS;
+                        }
+                        else if(0 == strcmp(argv[i], "-mts"))
+                        {
+                                file_type = FILE_MTS;
                         }
                         else if(0 == strcmp(argv[i], "-a") ||
                                 0 == strcmp(argv[i], "--addr")
@@ -188,7 +207,7 @@ static int deal_with_parameter(int argc, char *argv[])
                         else
                         {
                                 fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                                DBG(ERR_BAD_ARG);
+                                DBG(ERR_BAD_ARG, " ");
                                 return -ERR_BAD_ARG;
                         }
                 }
@@ -209,11 +228,15 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -n, --no-sync            do not sync at first, default: sync with 0x47");
+        puts(" -bin                     treat as common binary file, default");
+        puts(" -ts                      treat as TS file, sync and guess packet length at first");
+        puts(" -mts                     treat as MTS file, sync and guess packet length at first");
         puts(" -a, --addr               show data address at line head, default: do NOT show it");
         puts(" -d, --decaddr            dec address format, default: hex");
+#if 0
         puts(" -start <a>               cat from a%(file length), default: 0, first byte");
         puts(" -stop <b>                cat to b%(file length), default: 0, last byte");
+#endif
         puts(" -s, --seperate <,>       white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -w, --width <w>          w-byte per line, [1,10922], default: 188");
         puts(" -h, --help               display this information");
