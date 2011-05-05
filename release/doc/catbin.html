@@ -3,7 +3,7 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of CATBIN</TITLE>
 </HEAD><BODY>
 <H1>CATBIN</H1>
-Section: User Commands (1)<BR>Updated: April 2011<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: May 2011<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
@@ -25,16 +25,16 @@ catbin - manual page for catbin 1.0.0
 
 <P>
 <DL COMPACT>
-<DT><B>-n</B>, <B>--no-sync</B><DD>
-do not sync at first, default: sync with 0x47
+<DT><B>-bin</B><DD>
+treat as common binary file, default
+<DT><B>-ts</B><DD>
+treat as TS file, sync and guess packet length at first
+<DT><B>-mts</B><DD>
+treat as MTS file, sync and guess packet length at first
 <DT><B>-a</B>, <B>--addr</B><DD>
 show data address at line head, default: do NOT show it
 <DT><B>-d</B>, <B>--decaddr</B><DD>
 dec address format, default: hex
-<DT><B>-start</B> &lt;a&gt;<DD>
-cat from a%(file length), default: 0, first byte
-<DT><B>-stop</B> &lt;b&gt;<DD>
-cat to b%(file length), default: 0, last byte
 <DT><B>-s</B>, <B>--seperate</B> &lt;,&gt;<DD>
 white space, any char except [0-9A-Fa-f], default: ' '
 <DT><B>-w</B>, <B>--width</B> &lt;w&gt;<DD>
@@ -108,6 +108,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 03:33:06 GMT, April 26, 2011
+Time: 09:02:59 GMT, May 05, 2011
 </BODY>
 </HTML>

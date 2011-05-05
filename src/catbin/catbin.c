@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
         if(NULL == fd_i)
         {
                 fprintf(stderr, "%s ", file_i);
-                DBG(ERR_FOPEN_FAILED, " ");
+                DBG(ERR_FOPEN_FAILED, "\n");
                 return -ERR_FOPEN_FAILED;
         }
 
@@ -207,7 +207,7 @@ static int deal_with_parameter(int argc, char *argv[])
                         else
                         {
                                 fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                                DBG(ERR_BAD_ARG, " ");
+                                DBG(ERR_BAD_ARG, "\n");
                                 return -ERR_BAD_ARG;
                         }
                 }

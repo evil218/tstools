@@ -290,7 +290,7 @@ static const stream_type_t STREAM_TYPE_TABLE[] =
         {0x02, VID_PID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
         {0x03, AUD_PID, "MPEG-1", "ISO/IEC 11172-3 Audio"},
         {0x04, AUD_PID, "MPEG-2", "ISO/IEC 13818-3 Audio"},
-        {0x05, USR_PID, "MPEG-2", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
+        {0x05, USR_PID, "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
         {0x06, AUD_PID, "TT|AC3", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB"},
         {0x07, USR_PID, "MHEG", "ISO/IEC 13522 MHEG"},
         {0x08, USR_PID, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
@@ -375,7 +375,7 @@ int tsCreate(ts_rslt_t **rslt)
         obj = (obj_t *)malloc(sizeof(obj_t));
         if(NULL == obj)
         {
-                DBG(ERR_MALLOC_FAILED, " ");
+                DBG(ERR_MALLOC_FAILED, "\n");
                 return (int)NULL;
         }
 
@@ -411,7 +411,7 @@ int tsDelete(int id)
         obj = (obj_t *)id;
         if(NULL == obj)
         {
-                DBG(ERR_BAD_ID, " ");
+                DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
         }
         else
@@ -439,7 +439,7 @@ int tsParseTS(int id, void *pkt, int size)
         obj = (obj_t *)id;
         if(NULL == obj)
         {
-                DBG(ERR_BAD_ID, " ");
+                DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
         }
 
@@ -473,7 +473,7 @@ int tsParseOther(int id)
         obj = (obj_t *)id;
         if(NULL == obj)
         {
-                DBG(ERR_BAD_ID, " ");
+                DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
         }
 
@@ -713,7 +713,7 @@ static int state_next_pkt(obj_t *obj)
                         }
 
                         // the packet that use PCR of first program
-                        if(prog == rslt->prog0)
+                        if(prog->PCR_PID == rslt->prog0->PCR_PID)
                         {
                                 rslt->interval += lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
                                 if(rslt->interval >= rslt->aim_interval)
@@ -1082,7 +1082,7 @@ static int parse_table(obj_t *obj)
         {
                 if(NULL == pids->prog)
                 {
-                        DBG(ERR_OTHER, " ");
+                        DBG(ERR_OTHER, "\n");
                         return -1;
                 }
                 table = &(pids->prog->table);
@@ -1097,7 +1097,7 @@ static int parse_table(obj_t *obj)
                         table = (ts_table_t *)malloc(sizeof(ts_table_t));
                         if(NULL == table)
                         {
-                                DBG(ERR_MALLOC_FAILED, " ");
+                                DBG(ERR_MALLOC_FAILED, "\n");
                                 return -ERR_MALLOC_FAILED;
                         }
 
@@ -1127,7 +1127,7 @@ static int parse_table(obj_t *obj)
                 section = (ts_section_t *)malloc(sizeof(ts_section_t));
                 if(NULL == section)
                 {
-                        DBG(ERR_MALLOC_FAILED, " ");
+                        DBG(ERR_MALLOC_FAILED, "\n");
                         return -ERR_MALLOC_FAILED;
                 }
 
@@ -1264,7 +1264,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 prog = (ts_prog_t *)malloc(sizeof(ts_prog_t));
                 if(NULL == prog)
                 {
-                        DBG(ERR_MALLOC_FAILED, " ");
+                        DBG(ERR_MALLOC_FAILED, "\n");
                         return -ERR_MALLOC_FAILED;
                 }
 
@@ -2029,7 +2029,7 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
                 pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
                 if(NULL == pids)
                 {
-                        DBG(ERR_MALLOC_FAILED, " ");
+                        DBG(ERR_MALLOC_FAILED, "\n");
                         return NULL;
                 }
 

@@ -59,7 +59,7 @@ obj_t;
 //=============================================================================
 enum
 {
-        MODE_PID,
+        MODE_LST,
         MODE_PSI,
         MODE_SEC,
         MODE_SI,
@@ -110,7 +110,7 @@ static void show_version();
 static int get_one_pkt(obj_t *obj);
 
 static void show_pkt(obj_t *obj);
-static void show_pids(obj_t *obj);
+static void show_list(obj_t *obj);
 static void show_prog(obj_t *obj);
 static void show_track(LIST *list, uint16_t pcr_pid);
 
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                        show_pids(obj);
+                        show_list(obj);
                 }
         }
 
@@ -244,7 +244,7 @@ static void state_parse_psi(obj_t *obj)
                                 fprintf(stdout, "TR-101-290, detail, \n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
-                        case MODE_PID:
+                        case MODE_LST:
                         case MODE_PSI:
                         case MODE_SYS_RATE:
                         case MODE_PSI_RATE:
@@ -268,10 +268,10 @@ static void state_parse_each(obj_t *obj)
 {
         switch(obj->mode)
         {
-                case MODE_PID:
+                case MODE_LST:
                         if(!(obj->is_dump))
                         {
-                                show_pids(obj);
+                                show_list(obj);
                         }
                         break;
                 case MODE_PSI:
@@ -332,11 +332,11 @@ static obj_t *create(int argc, char *argv[])
         obj = (obj_t *)malloc(sizeof(obj_t));
         if(NULL == obj)
         {
-                DBG(ERR_MALLOC_FAILED, " ");
+                DBG(ERR_MALLOC_FAILED, "\n");
                 return NULL;
         }
 
-        obj->mode = MODE_PID;
+        obj->mode = MODE_LST;
         obj->state = STATE_PARSE_PSI;
 
         obj->is_outpsi = 0;
@@ -355,9 +355,9 @@ static obj_t *create(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(0 == strcmp(argv[i], "-list"))
+                        if(0 == strcmp(argv[i], "-lst"))
                         {
-                                obj->mode = MODE_PID;
+                                obj->mode = MODE_LST;
                         }
                         else if(0 == strcmp(argv[i], "-psi"))
                         {
@@ -593,7 +593,7 @@ static void show_help()
         puts("Usage: tsana [OPTION]...");
         puts("");
         puts("Options:");
-        puts(" -list            show PID list information, default option");
+        puts(" -lst             show PID list information, default option");
         puts(" -psi             show PSI tree information");
         puts(" -sec             show SI section data of cared <table>");
         puts(" -si              show SI section information of cared <table>");
@@ -670,7 +670,7 @@ static void show_pkt(obj_t *obj)
         fprintf(stdout, "%s", obj->tbuf);
 }
 
-static void show_pids(obj_t *obj)
+static void show_list(obj_t *obj)
 {
         NODE *node;
         ts_pid_t *pids;
@@ -1115,7 +1115,7 @@ static void all_es(obj_t *obj)
         }
         if(NULL == rslt->pids->fd)
         {
-                DBG(ERR_FOPEN_FAILED, " ");
+                DBG(ERR_FOPEN_FAILED, "\n");
                 return;
         }
 
