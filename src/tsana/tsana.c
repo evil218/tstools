@@ -1148,30 +1148,42 @@ static void show_error(obj_t *obj)
         if(err->Sync_byte_error == 1)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "1.2, Sync_byte_error\n");
+                fprintf(stdout, "1.2 , Sync_byte_error\n");
         }
         if(err->PAT_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "1.3, PAT_error\n");
+                fprintf(stdout, "1.3 , PAT_error\n");
                 err->PAT_error = 0;
+        }
+        if(err->PAT_error_2)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "1.3a, PAT_error_2\n");
+                err->PAT_error_2 = 0;
         }
         if(err->Continuity_count_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "1.4, Continuity_count_error(%X-%X=%2u)\n",
+                fprintf(stdout, "1.4 , Continuity_count_error(%X-%X=%2u)\n",
                         rslt->CC_find, rslt->CC_wait, rslt->CC_lost);
         }
         if(err->PMT_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "1.5, PMT_error\n");
+                fprintf(stdout, "1.5 , PMT_error\n");
                 err->PMT_error = 0;
+        }
+        if(err->PMT_error_2)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "1.5a, PMT_error_2\n");
+                err->PMT_error_2 = 0;
         }
         if(err->PID_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "1.6, PID_error\n");
+                fprintf(stdout, "1.6 , PID_error\n");
                 err->PID_error = 0;
         }
 
@@ -1179,45 +1191,47 @@ static void show_error(obj_t *obj)
         if(err->Transport_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "2.1, Transport_error\n");
+                fprintf(stdout, "2.1 , Transport_error\n");
+                err->Transport_error = 0;
         }
         if(err->CRC_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "2.2, CRC_error(0x%08X! 0x%08X?)\n",
+                fprintf(stdout, "2.2 , CRC_error(0x%08X! 0x%08X?)\n",
                         rslt->pids->CRC_32_calc, rslt->pids->CRC_32);
                 err->CRC_error = 0;
-        }
-        if(err->PCR_error)
-        {
-                print_atp_value(obj);
-                fprintf(stdout, "2.3, PCR_error\n");
-                err->PCR_error = 0;
         }
         if(err->PCR_repetition_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "2.3, PCR_repetition_error(%+7.3f ms)\n",
+                fprintf(stdout, "2.3a, PCR_repetition_error(%+7.3f ms)\n",
                         (double)(rslt->PCR_interval) / PCR_MS);
                 err->PCR_repetition_error = 0;
+        }
+        if(err->PCR_discontinuity_indicator_error)
+        {
+                print_atp_value(obj);
+                fprintf(stdout, "2.3b, PCR_discontinuity_indicator_error(%+7.3f ms)\n",
+                        (double)(rslt->PCR_continuity) / PCR_MS);
+                err->PCR_discontinuity_indicator_error = 0;
         }
         if(err->PCR_accuracy_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "2.4, PCR_accuracy_error(%+4.0f ns)\n",
+                fprintf(stdout, "2.4 , PCR_accuracy_error(%+4.0f ns)\n",
                         (double)(rslt->PCR_jitter) * 1e3 / PCR_US);
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "2.5, PTS_error\n");
+                fprintf(stdout, "2.5 , PTS_error\n");
                 err->PTS_error = 0;
         }
         if(err->CAT_error)
         {
                 print_atp_value(obj);
-                fprintf(stdout, "2.6, CAT_error\n");
+                fprintf(stdout, "2.6 , CAT_error\n");
                 err->CAT_error = 0;
         }
 

@@ -26,16 +26,16 @@ typedef struct _ts_error_t
         int TS_sync_loss; // 1.1
         int Sync_byte_error; // 1.2
         int PAT_error; // 1.3
-        int PAT_error_2; // 1.3.a
+        int PAT_error_2; // 1.3a
         int Continuity_count_error; // 1.4
         int PMT_error; // 1.5
-        int PMT_error_2; // 1.5.a
+        int PMT_error_2; // 1.5a
         int PID_error; // 1.6
 
         // Second priority: recommended for continuous or periodic monitoring
         int Transport_error; // 2.1
         int CRC_error; // 2.2
-        int PCR_error; // 2.3
+        // int PCR_error; 2.3 == (2.3a | 2.3b), invalid for new implementations!
         int PCR_repetition_error; // 2.3a
         int PCR_discontinuity_indicator_error; // 2.3b
         int PCR_accuracy_error; // 2.4
@@ -44,19 +44,19 @@ typedef struct _ts_error_t
 
         // Third priority: application dependant monitoring
         int NIT_error; // 3.1
-        int NIT_actual_error; // 3.1.a
-        int NIT_other_error; // 3.1.b
+        int NIT_actual_error; // 3.1a
+        int NIT_other_error; // 3.1b
         int SI_repetition_error; // 3.2
         int Buffer_error; // 3.3
         int Unreferenced_PID; // 3.4
-        int Unreferenced_PID_2; // 3.4.a
+        int Unreferenced_PID_2; // 3.4a
         int SDT_error; // 3.5
-        int SDT_actual_error; // 3.5.a
-        int SDT_other_error; // 3.5.b
+        int SDT_actual_error; // 3.5a
+        int SDT_other_error; // 3.5b
         int EIT_error; // 3.6
-        int EIT_actual_error; // 3.6.a
-        int EIT_other_error; // 3.6.b
-        int EIT_PF_error; // 3.6.c
+        int EIT_actual_error; // 3.6a
+        int EIT_other_error; // 3.6b
+        int EIT_PF_error; // 3.6c
         int RST_error; // 3.7
         int TDT_error; // 3.8
         int Empty_buffer_error; // 3.9
@@ -78,7 +78,7 @@ typedef struct _ts_psi_t
         uint8_t section_number;
         uint8_t last_section_number;
 
-        int has_CRC; // some table do not need CRC_32
+        int check_CRC; // some table do not need to check CRC_32
         int type; // index of item in PID_TYPE[]
 }
 ts_psi_t;
@@ -267,7 +267,8 @@ typedef struct _ts_rslt_t
         int64_t PCR;
         int64_t PCR_base;
         int16_t PCR_ext;
-        int64_t PCR_interval;
+        int64_t PCR_interval; // PCR packet arrive time interval
+        int64_t PCR_continuity; // PCR value interval
         int64_t PCR_jitter;
 
         int has_PTS;

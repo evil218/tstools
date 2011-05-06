@@ -128,7 +128,7 @@ typedef struct _table_id_table_t
 {
         uint8_t min; // table ID range
         uint8_t max; // table ID range
-        int has_CRC; // some table do not need CRC_32
+        int check_CRC; // some table do not need to check CRC_32
         int type; // index of item in PID_TYPE[]
 }
 table_id_table_t;
@@ -258,16 +258,16 @@ static const table_id_table_t TABLE_ID_TABLE[] =
         /* 0*/{0x00, 0x00, 1,  PAT_PID},
         /* 1*/{0x01, 0x01, 1,  CAT_PID},
         /* 2*/{0x02, 0x02, 1,  PMT_PID},
-        /* 3*/{0x03, 0x03, 1, TSDT_PID},
-        /* 4*/{0x04, 0x3F, 1,  RSV_PID},
+        /* 3*/{0x03, 0x03, 0, TSDT_PID},
+        /* 4*/{0x04, 0x3F, 0,  RSV_PID},
         /* 5*/{0x40, 0x40, 1,  NIT_PID}, // actual network
         /* 6*/{0x41, 0x41, 1,  NIT_PID}, // other network
         /* 7*/{0x42, 0x42, 1,  SDT_PID}, // actual transport stream
-        /* 8*/{0x43, 0x45, 1,  RSV_PID},
+        /* 8*/{0x43, 0x45, 0,  RSV_PID},
         /* 9*/{0x46, 0x46, 1,  SDT_PID}, // other transport stream
-        /*10*/{0x47, 0x49, 1,  RSV_PID},
+        /*10*/{0x47, 0x49, 0,  RSV_PID},
         /*11*/{0x4A, 0x4A, 1,  BAT_PID},
-        /*12*/{0x4B, 0x4D, 1,  RSV_PID},
+        /*12*/{0x4B, 0x4D, 0,  RSV_PID},
         /*13*/{0x4E, 0x4E, 1,  EIT_PID}, // actual transport stream, P/F
         /*14*/{0x4F, 0x4F, 1,  EIT_PID}, // other transport stream, P/F
         /*15*/{0x50, 0x5F, 1,  EIT_PID}, // actual transport stream, schedule
@@ -276,11 +276,11 @@ static const table_id_table_t TABLE_ID_TABLE[] =
         /*18*/{0x71, 0x71, 0,  RST_PID},
         /*19*/{0x72, 0x72, 0,   ST_PID},
         /*20*/{0x73, 0x73, 1,  TOT_PID},
-        /*21*/{0x74, 0x7D, 1,  RSV_PID},
+        /*21*/{0x74, 0x7D, 0,  RSV_PID},
         /*22*/{0x7E, 0x7E, 0,  DIT_PID},
-        /*23*/{0x7F, 0x7F, 1,  SIT_PID},
-        /*24*/{0x80, 0xFE, 1,  USR_PID},
-        /*25*/{0xFF, 0xFF, 1,  RSV_PID}, // loop stop condition!
+        /*23*/{0x7F, 0x7F, 0,  SIT_PID},
+        /*24*/{0x80, 0xFE, 0,  USR_PID},
+        /*25*/{0xFF, 0xFF, 0,  RSV_PID}, // loop stop condition!
 };
 
 static const stream_type_t STREAM_TYPE_TABLE[] =
@@ -659,13 +659,22 @@ static int state_next_pkt(obj_t *obj)
 
                 if(prog)
                 {
-                        // PCR_interval, use rslt->STC or rslt->PCR?
+                        // PCR_interval (PCR packet arrive time interval)
                         rslt->PCR_interval = lmt_min(rslt->STC, prog->PCRb, STC_OVF);
                         if((prog->STC_sync) &&
                            !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * STC_MS))
                         {
                                 // !(0 < interval < +40ms)
                                 err->PCR_repetition_error = 1;
+                        }
+
+                        // PCR_continuity (PCR value interval)
+                        rslt->PCR_continuity = lmt_min(rslt->PCR, prog->PCRb, STC_OVF);
+                        if((prog->STC_sync) && !(af->discontinuity_indicator) &&
+                           !(0 < rslt->PCR_continuity && rslt->PCR_continuity <= 100 * STC_MS))
+                        {
+                                // !(0 < continuity < +100ms)
+                                err->PCR_discontinuity_indicator_error = 1;
                         }
 
                         // PCR_jitter
@@ -1055,7 +1064,7 @@ static int parse_table(obj_t *obj)
         }
 
         // CRC check
-        if(psi->has_CRC)
+        if(psi->check_CRC)
         {
                 p = pids->section + 3 + psi->section_length - 4;
                 pids->CRC_32   = *p++;
@@ -1188,7 +1197,7 @@ static int parse_PSI_head(ts_psi_t *psi, uint8_t *section)
                 psi->last_section_number = *p++;
 
                 table = table_type(psi->table_id);
-                psi->has_CRC = table->has_CRC;
+                psi->check_CRC = table->check_CRC;
                 psi->type = table->type;
         }
         else
@@ -1200,7 +1209,7 @@ static int parse_PSI_head(ts_psi_t *psi, uint8_t *section)
                 psi->section_number = 0;
                 psi->last_section_number = 0;
 
-                psi->has_CRC = 0;
+                psi->check_CRC = 0;
                 psi->type = USR_PID;
         }
 
