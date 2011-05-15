@@ -130,6 +130,9 @@ static void show_error(obj_t *obj);
 static void print_atp_title(obj_t *obj); // atp: address_time_PID
 static void print_atp_value(obj_t *obj); // atp: address_time_PID
 
+static void table_info_42(obj_t *obj);
+static void table_info_70(obj_t *obj);
+
 //=============================================================================
 // the main function
 //=============================================================================
@@ -824,6 +827,7 @@ static void show_track(LIST *list, uint16_t pcr_pid)
 
 static void show_sec(obj_t *obj)
 {
+        int i;
         ts_rslt_t *rslt = obj->rslt;
         ts_psi_t *psi = &(rslt->psi);
         ts_pid_t *pid = rslt->pids;
@@ -838,7 +842,16 @@ static void show_sec(obj_t *obj)
         }
 
         print_atp_value(obj);
-        for(int i = 0; i < psi->section_length + 3; i++)
+
+        // table_head
+        for(i = 0; i < 7; i++)
+        {
+                fprintf(stdout, "%02X ", pid->section[i]);
+        }
+        fprintf(stdout, "%02X, ", pid->section[i++]);
+
+        // table_body
+        for(; i < psi->section_length + 3; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
@@ -848,9 +861,10 @@ static void show_sec(obj_t *obj)
 
 static void show_si(obj_t *obj)
 {
+        int i;
         ts_rslt_t *rslt = obj->rslt;
         ts_psi_t *psi = &(rslt->psi);
-        //ts_pid_t *pid = rslt->pids;
+        ts_pid_t *pid = rslt->pids;
 
         if(!(rslt->has_section))
         {
@@ -862,11 +876,31 @@ static void show_si(obj_t *obj)
         }
 
         print_atp_value(obj);
-        for(int i = 0; i < psi->section_length + 3; i++)
+
+        // table_head
+        for(i = 0; i < 7; i++)
         {
-                //fprintf(stdout, "info ");
+                fprintf(stdout, "%02X ", pid->section[i]);
         }
-        fprintf(stdout, "T.B.D.\n");
+        fprintf(stdout, "%02X, ", pid->section[i++]);
+
+        // table_body
+        switch(psi->table_id)
+        {
+                case 0x42:
+                        table_info_42(obj);
+                        break;
+                case 0x70:
+                        table_info_70(obj);
+                        break;
+                default:
+                        for(; i < psi->section_length + 3; i++)
+                        {
+                                fprintf(stdout, "%02X ", pid->section[i]);
+                        }
+                        break;
+        }
+        fprintf(stdout, "\n");
         return;
 }
 
@@ -1288,6 +1322,39 @@ static void print_atp_value(obj_t *obj)
                 rslt->STC, rslt->STC_base,
                 yellow_on, rslt->pid, color_off);
         return;
+}
+
+static void table_info_42(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        ts_psi_t *psi = &(rslt->psi);
+
+        fprintf(stdout, "transport_stream_id: %d, ", psi->table_id_extension);
+}
+
+static void table_info_70(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+        ts_pid_t *pid = rslt->pids;
+
+        int Y1, M1, K;
+        int Y, M, D;
+        int MJD;
+
+        MJD = pid->section[3];
+        MJD <<= 8;
+        MJD |= pid->section[4];
+
+        Y1 = (MJD - 15078.2) / 365.25;
+        M1 = (MJD - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
+        D = MJD - 14956 - (int)(Y1 * 365.25) - (int)(M1 * 30.6001);
+        K = ((14 == M1) || (15 == M1)) ? 1 : 0;
+        Y = 1900 + Y1 + K;
+        M = M1 - 1 - K * 12;
+
+        fprintf(stdout, "%04d-%02d-%02d_%02X-%02X-%02X, ",
+                Y, M, D,
+                pid->section[5], pid->section[6], pid->section[7]);
 }
 
 //=============================================================================
