@@ -130,8 +130,12 @@ static void show_error(obj_t *obj);
 static void print_atp_title(obj_t *obj); // atp: address_time_PID
 static void print_atp_value(obj_t *obj); // atp: address_time_PID
 
-static void table_info_42(obj_t *obj);
-static void table_info_70(obj_t *obj);
+static void table_info_42(uint8_t *section);
+static void table_info_70(uint8_t *section);
+static void table_info_73(uint8_t *section);
+
+static int descriptor(uint8_t **buf);
+static char *running_status(uint8_t status);
 
 //=============================================================================
 // the main function
@@ -888,10 +892,13 @@ static void show_si(obj_t *obj)
         switch(psi->table_id)
         {
                 case 0x42:
-                        table_info_42(obj);
+                        table_info_42(pid->section);
                         break;
                 case 0x70:
-                        table_info_70(obj);
+                        table_info_70(pid->section);
+                        break;
+                case 0x73:
+                        table_info_73(pid->section);
                         break;
                 default:
                         for(; i < psi->section_length + 3; i++)
@@ -900,7 +907,7 @@ static void show_si(obj_t *obj)
                         }
                         break;
         }
-        fprintf(stdout, "\n");
+        fprintf(stdout, "end\n");
         return;
 }
 
@@ -1324,26 +1331,79 @@ static void print_atp_value(obj_t *obj)
         return;
 }
 
-static void table_info_42(obj_t *obj)
+static void table_info_42(uint8_t *section)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        ts_psi_t *psi = &(rslt->psi);
+        uint8_t *p = section;
+        int section_length;
+        uint16_t transport_stream_id;
+        uint16_t original_network_id;
 
-        fprintf(stdout, "transport_stream_id: %d, ", psi->table_id_extension);
+        p += 1;
+        section_length = (0x0F & *p++);
+        section_length <<= 8;
+        section_length |= *p++;
+
+        transport_stream_id = *p++; section_length--;
+        transport_stream_id <<= 8;
+        transport_stream_id |= *p++; section_length--;
+        fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+        p += 3; section_length -= 3;
+        original_network_id = *p++; section_length--;
+        original_network_id <<= 8;
+        original_network_id |= *p++; section_length--;
+        fprintf(stdout, "original_network_id: %d, ", original_network_id);
+        p += 1; section_length -= 1;
+
+        while(section_length > 4)
+        {
+                uint8_t data;
+                uint16_t service_id;
+                uint8_t rstatus;
+                uint16_t descriptors_loop_length;
+
+                service_id = *p++; section_length--;
+                service_id <<= 8;
+                service_id |= *p++; section_length--;
+                fprintf(stdout, "service_id: %d, ", service_id);
+                p += 1; section_length -= 1;
+                data = *p++; section_length--;
+                rstatus = (data >> 5) & 0x07;
+                fprintf(stdout, "running_status: \"%s\", ", running_status(rstatus));
+                descriptors_loop_length = 0x0F & data;
+                descriptors_loop_length <<= 8;
+                descriptors_loop_length |= *p++; section_length--;
+
+                while(descriptors_loop_length > 0)
+                {
+                        uint8_t len;
+
+                        len = descriptor(&p);
+                        descriptors_loop_length -= len;
+                        section_length -= len;
+
+                        if(2 == len)
+                        {
+                                fprintf(stdout, "wrong descriptor, ");
+                                return;
+                        }
+                }
+        }
 }
 
-static void table_info_70(obj_t *obj)
+static void table_info_70(uint8_t *section)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        ts_pid_t *pid = rslt->pids;
+        uint8_t *p = section;
 
+        int MJD;
         int Y1, M1, K;
         int Y, M, D;
-        int MJD;
+        int HH, MM, SS;
 
-        MJD = pid->section[3];
+        p += 3;
+
+        MJD = *p++;
         MJD <<= 8;
-        MJD |= pid->section[4];
+        MJD |= *p++; // MJD
 
         Y1 = (MJD - 15078.2) / 365.25;
         M1 = (MJD - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
@@ -1352,9 +1412,80 @@ static void table_info_70(obj_t *obj)
         Y = 1900 + Y1 + K;
         M = M1 - 1 - K * 12;
 
+        HH = *p++; // hour
+        MM = *p++; // minute
+        SS = *p++; // second
+
         fprintf(stdout, "%04d-%02d-%02d_%02X-%02X-%02X, ",
-                Y, M, D,
-                pid->section[5], pid->section[6], pid->section[7]);
+                Y, M, D, HH, MM, SS);
+}
+
+static void table_info_73(uint8_t *section)
+{
+        uint8_t *p = section;
+        int descriptors_loop_length;
+
+        int MJD;
+        int Y1, M1, K;
+        int Y, M, D;
+        int HH, MM, SS;
+
+        p += 3;
+
+        MJD = *p++;
+        MJD <<= 8;
+        MJD |= *p++; // MJD
+
+        Y1 = (MJD - 15078.2) / 365.25;
+        M1 = (MJD - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
+        D = MJD - 14956 - (int)(Y1 * 365.25) - (int)(M1 * 30.6001);
+        K = ((14 == M1) || (15 == M1)) ? 1 : 0;
+        Y = 1900 + Y1 + K;
+        M = M1 - 1 - K * 12;
+
+        HH = *p++; // hour
+        MM = *p++; // minute
+        SS = *p++; // second
+
+        fprintf(stdout, "%04d-%02d-%02d_%02X-%02X-%02X, ",
+                Y, M, D, HH, MM, SS);
+
+        descriptors_loop_length = (0x0F & *p++);
+        descriptors_loop_length <<= 8;
+        descriptors_loop_length |= *p++;
+
+        while(descriptors_loop_length > 0)
+        {
+                descriptors_loop_length -= descriptor(&p);
+        }
+}
+
+static int descriptor(uint8_t **buf)
+{
+        uint8_t *p = *buf;
+        uint8_t tag;
+        uint8_t len;
+
+        tag = *p++;
+        len = *p++;
+
+        fprintf(stdout, "(tag(0x%02X), len(0x%02X)), ", tag, len);
+
+        *buf += (len + 2);
+        return (len + 2);
+}
+
+static char *running_status(uint8_t status)
+{
+        switch(status)
+        {
+                case 0: return "undefined";
+                case 1: return "not running";
+                case 2: return "starts in a few seconds";
+                case 3: return "pausing";
+                case 4: return "running";
+                default: return "reserved for future use";
+        }
 }
 
 //=============================================================================
