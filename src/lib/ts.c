@@ -1568,6 +1568,10 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
 
                         tag = *p++; len--; descriptors_loop_length--;
                         length = *p++; len--; descriptors_loop_length--;
+                        if((0xFF == tag) || (0 == length))
+                        {
+                                return -1; // wrong descriptor
+                        }
                         if(0x48 == tag && prog) // service_descriptor
                         {
                                 uint8_t *pt = p;

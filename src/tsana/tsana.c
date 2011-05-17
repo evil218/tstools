@@ -130,12 +130,16 @@ static void show_error(obj_t *obj);
 static void print_atp_title(obj_t *obj); // atp: address_time_PID
 static void print_atp_value(obj_t *obj); // atp: address_time_PID
 
-static void table_info_42(uint8_t *section);
-static void table_info_70(uint8_t *section);
-static void table_info_73(uint8_t *section);
+static void table_info_SDT(uint8_t *section);
+static void table_info_EIT(uint8_t *section);
+static void table_info_TDT(uint8_t *section);
+static void table_info_TOT(uint8_t *section);
+
+static void MJD_UTC(uint8_t *buf);
+static void UTC(uint8_t *buf);
+static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
-static char *running_status(uint8_t status);
 
 //=============================================================================
 // the main function
@@ -892,13 +896,18 @@ static void show_si(obj_t *obj)
         switch(psi->table_id)
         {
                 case 0x42:
-                        table_info_42(pid->section);
+                case 0x46:
+                        table_info_SDT(pid->section);
+                        break;
+                case 0x4E: // FIXME: 0x50 ~ 0x5F
+                case 0x4F: // FIXME: 0x60 ~ 0x6F
+                        table_info_EIT(pid->section);
                         break;
                 case 0x70:
-                        table_info_70(pid->section);
+                        table_info_TDT(pid->section);
                         break;
                 case 0x73:
-                        table_info_73(pid->section);
+                        table_info_TOT(pid->section);
                         break;
                 default:
                         for(; i < psi->section_length + 3; i++)
@@ -1331,7 +1340,10 @@ static void print_atp_value(obj_t *obj)
         return;
 }
 
-static void table_info_42(uint8_t *section)
+//=============================================================================
+// PSI/SI tables
+//=============================================================================
+static void table_info_SDT(uint8_t *section)
 {
         uint8_t *p = section;
         int section_length;
@@ -1368,7 +1380,7 @@ static void table_info_42(uint8_t *section)
                 p += 1; section_length -= 1;
                 data = *p++; section_length--;
                 rstatus = (data >> 5) & 0x07;
-                fprintf(stdout, "running_status: \"%s\", ", running_status(rstatus));
+                fprintf(stdout, "\"%s\", ", running_status(rstatus));
                 descriptors_loop_length = 0x0F & data;
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= *p++; section_length--;
@@ -1388,67 +1400,99 @@ static void table_info_42(uint8_t *section)
                         }
                 }
         }
+
+        return;
 }
 
-static void table_info_70(uint8_t *section)
+static void table_info_EIT(uint8_t *section)
+{
+        uint8_t *p = section;
+        int section_length;
+        uint16_t service_id;
+        uint16_t transport_stream_id;
+        uint16_t original_network_id;
+        uint8_t segment_last_section_number;
+        uint8_t last_table_id;
+
+        p += 1;
+        section_length = (0x0F & *p++);
+        section_length <<= 8;
+        section_length |= *p++;
+
+        service_id = *p++; section_length--;
+        service_id <<= 8;
+        service_id |= *p++; section_length--;
+        fprintf(stdout, "service_id: %d, ", service_id);
+        p += 3; section_length -= 3;
+        transport_stream_id = *p++; section_length--;
+        transport_stream_id <<= 8;
+        transport_stream_id |= *p++; section_length--;
+        fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+        original_network_id = *p++; section_length--;
+        original_network_id <<= 8;
+        original_network_id |= *p++; section_length--;
+        fprintf(stdout, "original_network_id: %d, ", original_network_id);
+        segment_last_section_number = *p++; section_length--;
+        fprintf(stdout, "segment_last_section_number: %d, ", segment_last_section_number);
+        last_table_id = *p++; section_length--;
+        fprintf(stdout, "last_table_id: %d, ", last_table_id);
+
+        while(section_length > 4)
+        {
+                uint8_t data;
+                uint16_t event_id;
+                uint8_t rstatus;
+                uint16_t descriptors_loop_length;
+
+                event_id = *p++; section_length--;
+                event_id <<= 8;
+                event_id |= *p++; section_length--;
+                fprintf(stdout, "event_id: %d, ", event_id);
+                MJD_UTC(p); p += 5; section_length -= 5;
+                UTC(p); p += 3; section_length -= 3;
+                data = *p++; section_length--;
+                rstatus = (data >> 5) & 0x07;
+                fprintf(stdout, "\"%s\", ", running_status(rstatus));
+                descriptors_loop_length = 0x0F & data;
+                descriptors_loop_length <<= 8;
+                descriptors_loop_length |= *p++; section_length--;
+
+                while(descriptors_loop_length > 0)
+                {
+                        uint8_t len;
+
+                        len = descriptor(&p);
+                        descriptors_loop_length -= len;
+                        section_length -= len;
+
+                        if(2 == len)
+                        {
+                                fprintf(stdout, "wrong descriptor, ");
+                                return;
+                        }
+                }
+        }
+
+        return;
+}
+
+static void table_info_TDT(uint8_t *section)
 {
         uint8_t *p = section;
 
-        int MJD;
-        int Y1, M1, K;
-        int Y, M, D;
-        int HH, MM, SS;
-
         p += 3;
+        MJD_UTC(p); p += 5;
 
-        MJD = *p++;
-        MJD <<= 8;
-        MJD |= *p++; // MJD
-
-        Y1 = (MJD - 15078.2) / 365.25;
-        M1 = (MJD - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
-        D = MJD - 14956 - (int)(Y1 * 365.25) - (int)(M1 * 30.6001);
-        K = ((14 == M1) || (15 == M1)) ? 1 : 0;
-        Y = 1900 + Y1 + K;
-        M = M1 - 1 - K * 12;
-
-        HH = *p++; // hour
-        MM = *p++; // minute
-        SS = *p++; // second
-
-        fprintf(stdout, "%04d-%02d-%02d_%02X-%02X-%02X, ",
-                Y, M, D, HH, MM, SS);
+        return;
 }
 
-static void table_info_73(uint8_t *section)
+static void table_info_TOT(uint8_t *section)
 {
         uint8_t *p = section;
         int descriptors_loop_length;
 
-        int MJD;
-        int Y1, M1, K;
-        int Y, M, D;
-        int HH, MM, SS;
-
         p += 3;
-
-        MJD = *p++;
-        MJD <<= 8;
-        MJD |= *p++; // MJD
-
-        Y1 = (MJD - 15078.2) / 365.25;
-        M1 = (MJD - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
-        D = MJD - 14956 - (int)(Y1 * 365.25) - (int)(M1 * 30.6001);
-        K = ((14 == M1) || (15 == M1)) ? 1 : 0;
-        Y = 1900 + Y1 + K;
-        M = M1 - 1 - K * 12;
-
-        HH = *p++; // hour
-        MM = *p++; // minute
-        SS = *p++; // second
-
-        fprintf(stdout, "%04d-%02d-%02d_%02X-%02X-%02X, ",
-                Y, M, D, HH, MM, SS);
+        MJD_UTC(p); p += 5;
 
         descriptors_loop_length = (0x0F & *p++);
         descriptors_loop_length <<= 8;
@@ -1457,6 +1501,63 @@ static void table_info_73(uint8_t *section)
         while(descriptors_loop_length > 0)
         {
                 descriptors_loop_length -= descriptor(&p);
+        }
+
+        return;
+}
+
+//=============================================================================
+// the subfunction for parse PSI/SI tables
+//=============================================================================
+static void MJD_UTC(uint8_t *buf)
+{
+        uint8_t *p = buf;
+        int mjd;
+        int Y1, M1, K;
+        int Y, M, D;
+
+        mjd = *p++;
+        mjd <<= 8;
+        mjd |= *p++;
+
+        Y1 = (mjd - 15078.2) / 365.25;
+        M1 = (mjd - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
+        D = mjd - 14956 - (int)(Y1 * 365.25) - (int)(M1 * 30.6001);
+        K = ((14 == M1) || (15 == M1)) ? 1 : 0;
+        Y = 1900 + Y1 + K;
+        M = M1 - 1 - K * 12;
+
+        fprintf(stdout, "%04d-%02d-%02d_", Y, M, D);
+
+        UTC(p);
+
+        return;
+}
+
+static void UTC(uint8_t *buf)
+{
+        uint8_t *p = buf;
+        int H, M, S;
+
+        H = *p++; // hour
+        M = *p++; // minute
+        S = *p++; // second
+
+        fprintf(stdout, "%02X-%02X-%02X, ", H, M, S);
+
+        return;
+}
+
+static char *running_status(uint8_t status)
+{
+        switch(status)
+        {
+                case  0: return "undefined";
+                case  1: return "stopped";
+                case  2: return "preparing";
+                case  3: return "pausing";
+                case  4: return "running";
+                default: return "reserved running status";
         }
 }
 
@@ -1469,23 +1570,13 @@ static int descriptor(uint8_t **buf)
         tag = *p++;
         len = *p++;
 
-        fprintf(stdout, "(tag(0x%02X), len(0x%02X)), ", tag, len);
+        fprintf(stdout, "tag, 0x%02X, len, 0x%02X, ", tag, len);
 
-        *buf += (len + 2);
-        return (len + 2);
-}
+        len += 2; // count tag and len byte
+        *buf += len;
 
-static char *running_status(uint8_t status)
-{
-        switch(status)
-        {
-                case 0: return "undefined";
-                case 1: return "not running";
-                case 2: return "starts in a few seconds";
-                case 3: return "pausing";
-                case 4: return "running";
-                default: return "reserved for future use";
-        }
+        len = (0xFF == tag) ? 2 : len; // wrong buffer
+        return len;
 }
 
 //=============================================================================
