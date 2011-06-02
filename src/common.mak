@@ -48,7 +48,7 @@ endif
 # others
 # -------------------------------------------------------------------
 CC = gcc
-CPPFLAGS = -I. -I../lib
+CPPFLAGS = -I. -I../include
 CXXFLAGS = $(CFLAGS)
 COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
 
@@ -86,13 +86,13 @@ all: $(NAME)$(POSTFIX)
 $(NAME).a: $(OBJS)
 	ar r $@ $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS) ../lib/libts1.a
-	$(CC) -o $@ $(OBJS) -L../lib -lts1
+$(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a
+	$(CC) -o $@ $(OBJS) -L../libts -lts1
 	cp $@ $(OBJ_DIR)/$@
 	cp $@ $(INSTALL_DIR)/$@
 
-$(NAME): $(OBJS) $(DEPS) ../lib/libts1.a
-	$(CC) -o $@ $(OBJS) -L../lib -lts1
+$(NAME): $(OBJS) $(DEPS) ../libts/libts1.a
+	$(CC) -o $@ $(OBJS) -L../libts -lts1
 	cp $@ $(OBJ_DIR)/$@
 	cp $@ $(INSTALL_DIR)/$@
 
