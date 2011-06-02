@@ -222,7 +222,7 @@ static void state_parse_psi(obj_t *obj)
 
         if(obj->is_outpsi && rslt->is_psi_si)
         {
-                fprintf(stdout, obj->tbuf);
+                fprintf(stdout, "%s", obj->tbuf);
                 //fprintf(stderr, "%s, mode=%d\n", (rslt->is_psi_parsed) ? "done" : "next", obj->mode);
         }
 

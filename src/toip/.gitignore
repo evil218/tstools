@@ -1,4 +1,4 @@
-
-*.exe
-*.o
-*.d
+toip
+toip.exe
+toip.o
+toip.d

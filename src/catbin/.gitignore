@@ -1,4 +1,4 @@
-
-*.exe
-*.o
-*.d
+catbin
+catbin.exe
+catbin.o
+catbin.d

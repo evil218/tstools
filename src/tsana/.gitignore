@@ -1,4 +1,4 @@
-
-*.exe
-*.o
-*.d
+tsana
+tsana.exe
+tsana.o
+tsana.d

@@ -1,4 +1,4 @@
-
-*.exe
-*.o
-*.d
+tobin
+tobin.exe
+tobin.o
+tobin.d

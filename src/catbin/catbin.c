@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
+#include <stdint.h> // for uintN_t, etc
 
 #include "error.h"
 #include "if.h"
