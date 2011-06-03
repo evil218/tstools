@@ -1,0 +1,10 @@
+*/catbin
+*/catip
+*/tsana
+*/tobin
+*/toip
+
+*/*.exe
+*/*.o
+*/*.a
+*/*.d
