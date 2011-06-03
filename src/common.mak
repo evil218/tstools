@@ -15,9 +15,10 @@ POSTFIX = .a
 else
 POSTFIX = .exe
 endif
-INSTALL_DIR = /usr/local/bin
-#INSTALL_DIR = /cygdrive/c/windows/system32
+
 #CFLAGS += -mno-cygwin
+OBJ_DIR = ../../release/windows
+INSTALL_DIR = /usr/local/bin
 
 else # neq ($(TERM),cygwin)
 
@@ -27,6 +28,8 @@ POSTFIX = .a
 else
 POSTFIX =
 endif
+
+OBJ_DIR = ../../release/linux
 INSTALL_DIR = /usr/local/bin
 
 endif # ($(TERM),cygwin)
@@ -38,10 +41,8 @@ BUILD_TYPE = release
 
 ifeq ($(BUILD_TYPE), release)
 	CFLAGS += -O2
-	OBJ_DIR = ../../release
 else
 	CFLAGS += -g
-	OBJ_DIR = ../../debug
 endif
 
 # -------------------------------------------------------------------
@@ -88,13 +89,19 @@ $(NAME).a: $(OBJS)
 
 $(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a
 	$(CC) -o $@ $(OBJS) -L../libts -lts1
-	cp $@ $(OBJ_DIR)/$@
-	cp $@ $(INSTALL_DIR)/$@
 
 $(NAME): $(OBJS) $(DEPS) ../libts/libts1.a
 	$(CC) -o $@ $(OBJS) -L../libts -lts1
-	cp $@ $(OBJ_DIR)/$@
-	cp $@ $(INSTALL_DIR)/$@
+
+$(INSTALL_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
+ifneq ($(NAME),libts1)
+	cp $< $@
+endif
+
+$(OBJ_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
+ifneq ($(NAME),libts1)
+	cp $< $@
+endif
 
 clean:
 	-rm -f $(OBJS) $(DEPS) *~
@@ -112,10 +119,14 @@ depend: $(DEPS)
 
 doc: $(OBJ_DIR)/doc/$(NAME).html
 
-install: $(NAME)$(POSTFIX)
+install: $(INSTALL_DIR)/$(NAME)$(POSTFIX)
 
-uninstall: $(INSTALL_DIR)/$(NAME)$(POSTFIX)
+release: $(OBJ_DIR)/$(NAME)$(POSTFIX)
+
+uninstall:
+ifneq ($(NAME),libts1)
 	-rm -f $(INSTALL_DIR)/$(NAME)$(POSTFIX)
+endif
 
 # =============================================================================
 # THE END

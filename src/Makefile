@@ -7,7 +7,7 @@ define make_dirs
 	@for dir in $(DIRS); do echo; echo "---> $$dir:"; $(MAKE) -C $$dir $@; done
 endef
 
-all doc clean explain depend install uninstall:
+all doc clean explain depend install uninstall release:
 	$(make_dirs)
 
 tag:
