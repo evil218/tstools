@@ -1,0 +1,4 @@
+NAME = tsana
+SRCS = $(NAME).c
+
+!include ../common.msvc.mak

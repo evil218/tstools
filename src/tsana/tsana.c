@@ -11,6 +11,7 @@
 #include <time.h> // for localtime(), etc
 #include <stdint.h> // for uint?_t, etc
 
+#include "common.h"
 #include "error.h"
 #include "if.h"
 #include "ts.h" // has "list.h" already
@@ -724,6 +725,7 @@ static void show_prog(obj_t *obj)
         LIST *list = &(rslt->prog_list);
         char *yellow_on = "";
         char *color_off = "";
+        NODE *node;
 
         if(!(rslt->has_rate))
         {
@@ -740,8 +742,10 @@ static void show_prog(obj_t *obj)
                 yellow_on, rslt->transport_stream_id, color_off,
                 rslt->transport_stream_id);
 
-        for(NODE *node = list->head; node; node = node->next)
+        for(node = list->head; node; node = node->next)
         {
+                int i;
+
                 ts_prog_t *prog = (ts_prog_t *)node;
                 fprintf(stdout, "    program %s%d%s(0x%04X)"
                         ", PMT_PID = %s0x%04X%s"
@@ -754,7 +758,7 @@ static void show_prog(obj_t *obj)
                 // service_provider
                 fprintf(stdout, "        service_provider: %s\"%s\"%s( ",
                         yellow_on, prog->service_provider, color_off);
-                for(int i = 0; i < prog->service_provider_len; i++)
+                for(i = 0; i < prog->service_provider_len; i++)
                 {
                         fprintf(stdout, "%02X ", prog->service_provider[i]);
                 }
@@ -763,7 +767,7 @@ static void show_prog(obj_t *obj)
                 // service_name
                 fprintf(stdout, "        service_name    : %s\"%s\"%s( ",
                         yellow_on, prog->service_name, color_off);
-                for(int i = 0; i < prog->service_name_len; i++)
+                for(i = 0; i < prog->service_name_len; i++)
                 {
                         fprintf(stdout, "%02X ", prog->service_name[i]);
                 }
@@ -771,7 +775,7 @@ static void show_prog(obj_t *obj)
 
                 // program_info
                 fprintf(stdout, "        program_info:%s", yellow_on);
-                for(int i = 0; i < prog->program_info_len; i++)
+                for(i = 0; i < prog->program_info_len; i++)
                 {
                         if(0x00 == (i & 0x0F))
                         {
@@ -973,6 +977,7 @@ static void show_psi_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on = "";
         char *color_off = "";
+        NODE *node;
 
         if(!(rslt->has_rate))
         {
@@ -991,7 +996,7 @@ static void show_psi_rate(obj_t *obj)
 
         // traverse pid_list
         // if it is PSI/SI PID, output its bitrate
-        for(NODE *node = rslt->pid_list.head; node; node = node->next)
+        for(node = rslt->pid_list.head; node; node = node->next)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)node;
                 if(pid_item->PID < 0x0020)
@@ -1010,6 +1015,7 @@ static void show_prog_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on = "";
         char *color_off = "";
+        NODE *node;
 
         if(!(rslt->has_rate))
         {
@@ -1025,7 +1031,7 @@ static void show_prog_rate(obj_t *obj)
         print_atp_value(obj);
         // traverse pid_list
         // if it belongs to this program, output its bitrate
-        for(NODE *node = rslt->pid_list.head; node; node = node->next)
+        for(node = rslt->pid_list.head; node; node = node->next)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)node;
                 if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID)
@@ -1049,6 +1055,7 @@ static void show_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on = "";
         char *color_off = "";
+        NODE *node;
 
         if(!(rslt->has_rate))
         {
@@ -1063,7 +1070,7 @@ static void show_rate(obj_t *obj)
 
         print_atp_value(obj);
         // traverse pid_list, output its bitrate
-        for(NODE *node = rslt->pid_list.head; node; node = node->next)
+        for(node = rslt->pid_list.head; node; node = node->next)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)node;
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
@@ -1520,8 +1527,8 @@ static void MJD_UTC(uint8_t *buf)
         mjd <<= 8;
         mjd |= *p++;
 
-        Y1 = (mjd - 15078.2) / 365.25;
-        M1 = (mjd - 14956.1 - (int)(Y1 * 365.25)) / 30.6001;
+        Y1 = (int)((mjd - 15078.2) / 365.25);
+        M1 = (int)((mjd - 14956.1 - (int)(Y1 * 365.25)) / 30.6001);
         D = mjd - 14956 - (int)(Y1 * 365.25) - (int)(M1 * 30.6001);
         K = ((14 == M1) || (15 == M1)) ? 1 : 0;
         Y = 1900 + Y1 + K;

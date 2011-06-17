@@ -1,0 +1,4 @@
+NAME=tsana
+SRCS := $(wildcard *.c)
+
+include ../common.linux.mak

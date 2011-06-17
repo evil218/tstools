@@ -1,38 +1,16 @@
 # =============================================================================
 # definition
 # =============================================================================
-CFLAGS = -Wall -W -Werror
-CFLAGS += -std=c99
+CFLAGS = -Wall -Werror -std=c99
 
-# -------------------------------------------------------------------
-# windows or linux
-# -------------------------------------------------------------------
-ifeq ($(TERM),cygwin)
-
-# windows
 ifeq ($(NAME),libts1)
 POSTFIX = .a
 else
 POSTFIX = .exe
 endif
 
-#CFLAGS += -mno-cygwin
-OBJ_DIR = ../../release/windows
-INSTALL_DIR = /usr/local/bin
-
-else # neq ($(TERM),cygwin)
-
-# linux
-ifeq ($(NAME),libts1)
-POSTFIX = .a
-else
-POSTFIX =
-endif
-
 OBJ_DIR = ../../release/linux
 INSTALL_DIR = /usr/local/bin
-
-endif # ($(TERM),cygwin)
 
 # -------------------------------------------------------------------
 # debug or release
@@ -50,10 +28,8 @@ endif
 # -------------------------------------------------------------------
 CC = gcc
 CPPFLAGS = -I. -I../include
-CXXFLAGS = $(CFLAGS)
 COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
 
-SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c, %.o, $(SRCS))
 DEPS := $(patsubst %.c, %.d, $(SRCS))
 
@@ -90,9 +66,6 @@ $(NAME).a: $(OBJS)
 $(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a
 	$(CC) -o $@ $(OBJS) -L../libts -lts1
 
-$(NAME): $(OBJS) $(DEPS) ../libts/libts1.a
-	$(CC) -o $@ $(OBJS) -L../libts -lts1
-
 $(INSTALL_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 ifneq ($(NAME),libts1)
 	cp $< $@
@@ -104,8 +77,9 @@ ifneq ($(NAME),libts1)
 endif
 
 clean:
-	-rm -f $(OBJS) $(DEPS) *~
-	-rm -f $(NAME) $(NAME).exe $(NAME).a $(NAME).1 $(NAME).html
+	-rm -f $(OBJS) *~ $(NAME).1 $(NAME).html
+	-rm -f $(NAME)     $(NAME).a  
+	-rm -f $(NAME).exe $(NAME).lib
 
 explain:
 	@echo "    Source     files: $(SRCS)"

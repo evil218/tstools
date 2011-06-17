@@ -1,0 +1,104 @@
+all:
+	@cd libts
+	@echo "---> libts:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catbin
+	@echo "---> catbin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catip
+	@echo "---> catip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tsana
+	@echo "---> tsana:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tobin
+	@echo "---> tobin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\toip
+	@echo "---> toip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..
+
+release:
+	@cd libts
+	@echo "---> libts:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catbin
+	@echo "---> catbin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catip
+	@echo "---> catip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tsana
+	@echo "---> tsana:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tobin
+	@echo "---> tobin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\toip
+	@echo "---> toip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..
+
+install:
+	@cd libts
+	@echo "---> libts:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catbin
+	@echo "---> catbin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catip
+	@echo "---> catip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tsana
+	@echo "---> tsana:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tobin
+	@echo "---> tobin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\toip
+	@echo "---> toip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..
+
+uninstall:
+	@cd libts
+	@echo "---> libts:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catbin
+	@echo "---> catbin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catip
+	@echo "---> catip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tsana
+	@echo "---> tsana:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tobin
+	@echo "---> tobin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\toip
+	@echo "---> toip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..
+
+clean:
+	@cd libts
+	@echo "---> libts:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catbin
+	@echo "---> catbin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\catip
+	@echo "---> catip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tsana
+	@echo "---> tsana:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\tobin
+	@echo "---> tobin:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\toip
+	@echo "---> toip:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..

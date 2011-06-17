@@ -10,6 +10,7 @@
 #include <string.h> // for strcmp, etc
 #include <stdint.h> // for uintN_t, etc
 
+#include "common.h"
 #include "error.h"
 #include "if.h"
 
@@ -30,7 +31,6 @@ static char white_space = ' ';
 static int file_type = FILE_BIN;
 static int show_address = 0;
 static int dec_address = 0; // default: hex address
-//static uint64_t file_size = 0;
 static int aim_start = 0; // first byte
 static int aim_stop = 0; // last byte
 

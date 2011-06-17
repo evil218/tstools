@@ -1,0 +1,4 @@
+NAME=catip
+SRCS := $(wildcard *.c)
+
+include ../common.linux.mak

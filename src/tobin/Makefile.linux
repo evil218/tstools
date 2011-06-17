@@ -1,0 +1,4 @@
+NAME=tobin
+SRCS := $(wildcard *.c)
+
+include ../common.linux.mak

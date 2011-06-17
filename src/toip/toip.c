@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h> // for strcmp, etc
 
+#include "common.h"
 #include "error.h"
 #include "if.h"
 

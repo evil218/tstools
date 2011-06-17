@@ -4,11 +4,8 @@ DIRS = libts catbin catip tsana tobin toip
 MAKEFLAGS += --no-print-directory
 
 define make_dirs
-	@for dir in $(DIRS); do echo; echo "---> $$dir:"; $(MAKE) -C $$dir $@; done
+	@for dir in $(DIRS); do echo; echo "---> $$dir:"; $(MAKE) -C $$dir -f Makefile.linux $@; done
 endef
 
 all doc clean explain depend install uninstall release:
 	$(make_dirs)
-
-tag:
-	ctags -R *

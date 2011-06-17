@@ -417,8 +417,9 @@ int tsDelete(int id)
         else
         {
                 ts_rslt_t *rslt = &(obj->rslt);
+                NODE *node;
 
-                for(NODE *node = rslt->prog_list.head; node; node = node->next)
+                for(node = rslt->prog_list.head; node; node = node->next)
                 {
                         ts_prog_t *prog = (ts_prog_t *)node;
                         list_free(&(prog->track_list));
@@ -516,8 +517,10 @@ static int state_next_pat(obj_t *obj)
         }
         else
         {
+                NODE *node;
+
                 section_number = 0;
-                for(NODE *node = table->section_list.head; node; node = node->next)
+                for(node = table->section_list.head; node; node = node->next)
                 {
                         ts_section_t *section = (ts_section_t *)node;
 
@@ -632,7 +635,7 @@ static int state_next_pkt(obj_t *obj)
                 // STCx - PCRb   ADDx - ADDb
                 // ----------- = -----------
                 // PCRb - PCRa   ADDb - ADDa
-                delta = lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
+                delta = (long double)lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
                 delta *= (rslt->addr - prog->ADDb);
                 delta /= (prog->ADDb - prog->ADDa);
                 rslt->STC = lmt_add(prog->PCRb, (uint64_t)delta, STC_OVF);
@@ -701,8 +704,10 @@ static int state_next_pkt(obj_t *obj)
                                 {
                                         if(prog->PCRa == STC_OVF)
                                         {
+                                                NODE *node;
+
                                                 // 1st PCR of this program, clear cnt & interval
-                                                for(NODE *node = rslt->pid_list.head; node; node = node->next)
+                                                for(node = rslt->pid_list.head; node; node = node->next)
                                                 {
                                                         ts_pid_t *pid_item = (ts_pid_t *)node;
                                                         if(pid_item->prog == prog)
@@ -727,8 +732,10 @@ static int state_next_pkt(obj_t *obj)
                                 rslt->interval += lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
                                 if(rslt->interval >= rslt->aim_interval)
                                 {
+                                        NODE *node;
+
                                         // calc bitrate and clear the packet count
-                                        for(NODE *node = rslt->pid_list.head; node; node = node->next)
+                                        for(node = rslt->pid_list.head; node; node = node->next)
                                         {
                                                 ts_pid_t *pid_item = (ts_pid_t *)node;
                                                 pid_item->lcnt = pid_item->cnt;
@@ -1310,11 +1317,12 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         // record first prog for bitrate calc
                         if(NULL == rslt->prog0)
                         {
+                                NODE *node;
                                 rslt->prog0 = prog;
 
                                 // traverse pid_list
                                 // if it des not belong to any program, use prog0
-                                for(NODE *node = rslt->pid_list.head; node; node = node->next)
+                                for(node = rslt->pid_list.head; node; node = node->next)
                                 {
                                         ts_pid_t *pid_item = (ts_pid_t *)node;
                                         if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF)
@@ -2067,11 +2075,13 @@ static ts_pid_t *add_to_pid_list(LIST *list, ts_pid_t *the_pids)
 static int is_all_prog_parsed(obj_t *obj)
 {
         uint8_t section_number;
+        NODE *prog_node;
 
-        for(NODE *prog_node = obj->rslt.prog_list.head; prog_node; prog_node = prog_node->next)
+        for(prog_node = obj->rslt.prog_list.head; prog_node; prog_node = prog_node->next)
         {
                 ts_prog_t *prog = (ts_prog_t *)prog_node;
                 ts_table_t *table = &(prog->table);
+                NODE *node;
 
                 if(0xFF == table->version_number)
                 {
@@ -2079,7 +2089,7 @@ static int is_all_prog_parsed(obj_t *obj)
                 }
 
                 section_number = 0;
-                for(NODE *node = table->section_list.head; node; node = node->next)
+                for(node = table->section_list.head; node; node = node->next)
                 {
                         ts_section_t *section = (ts_section_t *)node;
 
@@ -2192,8 +2202,9 @@ static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf)
 static int dump(uint8_t *buf, int len)
 {
         uint8_t *p = buf;
+        int i;
 
-        for(int i = 0; i < len; i++)
+        for(i = 0; i < len; i++)
         {
                 fprintf(stderr, "%02X ", *p++);
         }

@@ -1,0 +1,4 @@
+NAME=toip
+SRCS := $(wildcard *.c)
+
+include ../common.linux.mak

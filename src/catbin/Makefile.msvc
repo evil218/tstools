@@ -1,0 +1,4 @@
+NAME = catbin
+SRCS = $(NAME).c
+
+!include ../common.msvc.mak

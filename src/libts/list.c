@@ -32,12 +32,14 @@ void list_init(LIST *list)
 
 void list_free(LIST *list)
 {
+        NODE *node;
+
         if(NULL == list)
         {
                 return;
         }
 
-        for(NODE *node = list->head; NULL != node;)
+        for(node = list->head; NULL != node;)
         {
                 list->head = node->next;
                 free(node);
@@ -108,6 +110,8 @@ void list_add(LIST *list, NODE *node, uint32_t key)
 
 void list_insert(LIST *list, NODE *node, uint32_t key)
 {
+        NODE *x;
+
         if(NULL == list ||
            NULL == node)
         {
@@ -115,7 +119,7 @@ void list_insert(LIST *list, NODE *node, uint32_t key)
         }
 
         node->key = key;
-        for(NODE *x = list->head; x; x = x->next)
+        for(x = list->head; x; x = x->next)
         {
                 if(x->key == key)
                 {
@@ -140,12 +144,14 @@ void list_insert(LIST *list, NODE *node, uint32_t key)
 
 NODE *list_search(LIST *list, uint32_t key)
 {
+        NODE *x;
+
         if(NULL == list)
         {
                 return NULL;
         }
 
-        for(NODE *x = list->head; x; x = x->next)
+        for(x = list->head; x; x = x->next)
         {
                 if(x->key == key)
                 {

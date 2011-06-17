@@ -24,29 +24,30 @@
       <UL>
       <LI><A HREF="#toc4">1.2.1. 算法与界面分离</A>
       <LI><A HREF="#toc5">1.2.2. 数据文本化</A>
+      <LI><A HREF="#toc6">1.2.3. 灵活的数据交换</A>
       </UL>
     </UL>
-  <LI><A HREF="#toc6">使用TStools</A>
+  <LI><A HREF="#toc7">使用TStools</A>
     <UL>
-    <LI><A HREF="#toc7">2.1. 单个工具</A>
-    <LI><A HREF="#toc8">2.2. 组合用法</A>
+    <LI><A HREF="#toc8">2.1. 单个工具</A>
+    <LI><A HREF="#toc9">2.2. 组合用法</A>
       <UL>
-      <LI><A HREF="#toc9">2.2.1. PID成分分析</A>
-      <LI><A HREF="#toc10">2.2.2. 节目树分析</A>
-      <LI><A HREF="#toc11">2.2.3. 错误分析</A>
-      <LI><A HREF="#toc12">2.2.4. PCR分析</A>
-      <LI><A HREF="#toc13">2.2.5. PTS、DTS分析</A>
-      <LI><A HREF="#toc14">2.2.6. 码率分析</A>
-      <LI><A HREF="#toc15">2.2.7. 导出PES数据</A>
-      <LI><A HREF="#toc16">2.2.8. 导出ES数据</A>
-      <LI><A HREF="#toc17">2.2.9. 导出ES数据到对应的二进制文件</A>
-      <LI><A HREF="#toc18">2.2.10. 实时流录制</A>
+      <LI><A HREF="#toc10">2.2.1. PID成分分析</A>
+      <LI><A HREF="#toc11">2.2.2. 节目树分析</A>
+      <LI><A HREF="#toc12">2.2.3. 错误分析</A>
+      <LI><A HREF="#toc13">2.2.4. PCR分析</A>
+      <LI><A HREF="#toc14">2.2.5. PTS、DTS分析</A>
+      <LI><A HREF="#toc15">2.2.6. 码率分析</A>
+      <LI><A HREF="#toc16">2.2.7. 导出PES数据</A>
+      <LI><A HREF="#toc17">2.2.8. 导出ES数据</A>
+      <LI><A HREF="#toc18">2.2.9. 导出ES数据到对应的二进制文件</A>
+      <LI><A HREF="#toc19">2.2.10. 实时流录制</A>
       </UL>
     </UL>
-  <LI><A HREF="#toc19">深入了解TStools</A>
+  <LI><A HREF="#toc20">深入了解TStools</A>
     <UL>
-    <LI><A HREF="#toc20">3.1. TS同步</A>
-    <LI><A HREF="#toc21">3.2. 时钟恢复</A>
+    <LI><A HREF="#toc21">3.1. TS同步</A>
+    <LI><A HREF="#toc22">3.2. 时钟恢复</A>
     </UL>
   </OL>
 
@@ -178,9 +179,39 @@ Unix的小工具思想太强大了！
 </P>
 
 <A NAME="toc6"></A>
-<H1>2. 使用TStools</H1>
+<H3>1.2.3. 灵活的数据交换</H3>
+
+<P>
+在接口模块与分析模块间用管道传输数据时，仅仅传输TS包的内容是不够的。
+</P>
+
+<UL>
+<LI>对于TS文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
+<LI>对于MTS文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
+<LI>对于IP输出形式，包的发送（到达）时间非常重要，直接关系到输出码流的指标好坏。
+</UL>
+
+<P>
+为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
+在上一节数据文本化的基础上，规定：
+每行文本中除了先传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息。
+所有数据段采用“标签+内容”的格式，有些标签后内容的长度固定，有些标签后内容的长度包含在内容中。
+</P>
+
+<UL>
+<LI>标签0x47对应TS包数据，后继内容长度默认为187；
+<LI>标签0x48对应RS校验数据，后继内容长度默认为16；
+<LI>标签0x49对应私有数据，内容的字节数在地址数据中确定；
+<LI>标签0x4A对应相对地址，内容的字节数在地址数据中确定；
+<LI>标签0x4B对应绝对地址，内容的字节数在地址数据中确定；
+<LI>标签0x4C对应相对时间，内容的字节数在地址数据中确定；
+<LI>标签0x4D对应绝对时间，内容的字节数在地址数据中确定。
+</UL>
 
 <A NAME="toc7"></A>
+<H1>2. 使用TStools</H1>
+
+<A NAME="toc8"></A>
 <H2>2.1. 单个工具</H2>
 
 <P>
@@ -197,10 +228,10 @@ Unix下每个工具的使用说明一般要用“--help”来看，
 <LI><A HREF="toip.html">toip</A>：从stdin接收TXT格式的数据，转换成二进制，打成UDP包，按照正确的码率发送出去（尚未实现）。
 </UL>
 
-<A NAME="toc8"></A>
+<A NAME="toc9"></A>
 <H2>2.2. 组合用法</H2>
 
-<A NAME="toc9"></A>
+<A NAME="toc10"></A>
 <H3>2.2.1. PID成分分析</H3>
 
 <PRE>
@@ -254,7 +285,7 @@ tsana有一个“-iv”参数可以设定interval（间隔时间），
 试试看指定更长的时间，对于某些流，有可能分析到更多PID。
 </P>
 
-<A NAME="toc10"></A>
+<A NAME="toc11"></A>
 <H3>2.2.2. 节目树分析</H3>
 
 <PRE>
@@ -299,28 +330,28 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
 本参数同样可以用“-iv”指定PSI分析时间，时间过短时可能分析不到SDT表。
 </P>
 
-<A NAME="toc11"></A>
+<A NAME="toc12"></A>
 <H3>2.2.3. 错误分析</H3>
 
 <PRE>
   语法：catbin xxx.ts | tsana -err
 </PRE>
 
-<A NAME="toc12"></A>
+<A NAME="toc13"></A>
 <H3>2.2.4. PCR分析</H3>
 
 <PRE>
   语法：catbin xxx.ts | tsana -pcr [-pid 0x0101]
 </PRE>
 
-<A NAME="toc13"></A>
+<A NAME="toc14"></A>
 <H3>2.2.5. PTS、DTS分析</H3>
 
 <PRE>
   语法：catbin xxx.ts | tsana -pts [-pid 0x0101]
 </PRE>
 
-<A NAME="toc14"></A>
+<A NAME="toc15"></A>
 <H3>2.2.6. 码率分析</H3>
 
 <PRE>
@@ -329,28 +360,28 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
   语法：catbin xxx.ts | tsana -prog-rate [-prog 27]
 </PRE>
 
-<A NAME="toc15"></A>
+<A NAME="toc16"></A>
 <H3>2.2.7. 导出PES数据</H3>
 
 <PRE>
   语法：catbin xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes
 </PRE>
 
-<A NAME="toc16"></A>
+<A NAME="toc17"></A>
 <H3>2.2.8. 导出ES数据</H3>
 
 <PRE>
   语法：catbin xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es
 </PRE>
 
-<A NAME="toc17"></A>
+<A NAME="toc18"></A>
 <H3>2.2.9. 导出ES数据到对应的二进制文件</H3>
 
 <PRE>
   语法：catbin xxx.ts | tsana -alles
 </PRE>
 
-<A NAME="toc18"></A>
+<A NAME="toc19"></A>
 <H3>2.2.10. 实时流录制</H3>
 
 <PRE>
@@ -358,10 +389,10 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
   语法：catip udp://@224.165.54.31:1234 | tobin xxx.ts
 </PRE>
 
-<A NAME="toc19"></A>
+<A NAME="toc20"></A>
 <H1>3. 深入了解TStools</H1>
 
-<A NAME="toc20"></A>
+<A NAME="toc21"></A>
 <H2>3.1. TS同步</H2>
 
 <P>
@@ -393,7 +424,7 @@ catbin读入的ts文件有可能不是TS同步的——前面有不完整的包�
 这时移动文件指针到第1个包头处，供后面的程序整包读取数据。
 </P>
 
-<A NAME="toc21"></A>
+<A NAME="toc22"></A>
 <H2>3.2. 时钟恢复</H2>
 
 <P>

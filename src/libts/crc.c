@@ -140,13 +140,13 @@ void crc_init()
 // polynomial: 0xE0(LSB first) ?
 uint8_t crc8(void *buf, size_t size)
 {
-        uint8_t crc;
+        uint16_t crc; // FIXME
         uint8_t *data = (uint8_t *)buf;
 
         crc = 0;
         while(size--)
         {
-                crc = crc8_table[(crc >> 8 ^ *data++) & 0xFF] ^ (crc << 8); // ?
+                crc = crc8_table[((crc >> 8) ^ *data++) & 0xFF] ^ (crc << 8); // FIXME
         }
 
         return crc;
