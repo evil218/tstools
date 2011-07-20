@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
-#include "common.h"
-#include "error.h"
-#include "if.h"
+#include "libts/common.h"
+#include "libts/error.h"
+#include "libts/if.h"
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
@@ -21,9 +21,9 @@ static void show_version();
 
 int main(int argc, char *argv[])
 {
-        int size;
         char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
-        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
+        ts_pkt_t PKT;
+        ts_pkt_t *pkt = &PKT;
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -39,8 +39,22 @@ int main(int argc, char *argv[])
 
         while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin))
         {
-                size = t2b(bbuf, tbuf);
-                fwrite(bbuf, size, 1, fd_o);
+                t2b(pkt, tbuf);
+
+                if(pkt->ts)
+                {
+                        fwrite(pkt->ts, LENGTH_TS, 1, fd_o);
+                }
+
+                if(pkt->rs)
+                {
+                        fwrite(pkt->rs, LENGTH_RS, 1, fd_o);
+                }
+
+                if(pkt->data)
+                {
+                        fwrite(pkt->data, pkt->cnt, 1, fd_o);
+                }
         }
 
         fclose(fd_o);

@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
         pkt->ADDR = 0;
         pkt->addr = &(pkt->ADDR);
         pkt->cts = NULL;
-        pkt->dat = NULL;
+        pkt->data = NULL;
         while(1 == url_read(bbuf, npline, 1, fd_i))
         {
                 b2t(tbuf, pkt, white_space);

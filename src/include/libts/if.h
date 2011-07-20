@@ -19,6 +19,7 @@ extern "C" {
 #define TAG_SRC                         (0x03)
 #define TAG_ADDR                        (0x04)
 #define TAG_CTS                         (0x05)
+#define TAG_DATA                        (0x06)
 
 /* length */
 #define LENGTH_TS                       (188)
@@ -43,8 +44,8 @@ typedef struct _ts_pkt_t
         uint64_t CTS; /* Capture Time Stamp */
         uint64_t *cts; /* NULL means no CTS */
 
-        /* other data */
-        uint8_t *dat; /* NULL means no data */
+        uint8_t DATA[256]; /* other data */
+        uint8_t *data; /* NULL means no data */
         uint8_t cnt; /* count of data */
 }
 ts_pkt_t;

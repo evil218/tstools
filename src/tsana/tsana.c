@@ -43,7 +43,6 @@ typedef struct
         uint64_t aim_interval; /* for rate calc */
 
         uint64_t cnt; /* packet analysed */
-        uint32_t ts_size;
         char tbuf[PKT_TBUF];
 
         int ts_id;
@@ -639,16 +638,13 @@ static void show_version()
 
 static int get_one_pkt(obj_t *obj)
 {
-        char *rslt;
-
-        rslt = fgets(obj->tbuf, PKT_TBUF, stdin);
-        if(NULL == rslt)
+        if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin))
         {
                 return GOT_EOF;
         }
         /*puts(obj->tbuf); */
 
-        obj->ts_size = t2b(obj->rslt->pkt, obj->tbuf);
+        t2b(obj->rslt->pkt, obj->tbuf);
         return GOT_RIGHT_PKT;
 }
 
@@ -1113,7 +1109,7 @@ static void show_pes(obj_t *obj)
                 pkt->src = NULL;
                 pkt->addr = NULL;
                 pkt->cts = NULL;
-                pkt->dat = rslt->PES_buf;
+                pkt->data = rslt->PES_buf;
                 pkt->cnt = rslt->PES_len;
 
                 b2t(obj->tbuf, pkt, ' ');
@@ -1139,7 +1135,7 @@ static void show_es(obj_t *obj)
                 pkt->src = NULL;
                 pkt->addr = NULL;
                 pkt->cts = NULL;
-                pkt->dat = rslt->ES_buf;
+                pkt->data = rslt->ES_buf;
                 pkt->cnt = rslt->ES_len;
 
                 b2t(obj->tbuf, pkt, ' ');

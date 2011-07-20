@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
                 pkt->src = NULL;
                 pkt->addr = NULL;
                 pkt->cts = NULL;
-                pkt->dat = NULL;
+                pkt->data = NULL;
 
                 switch(type)
                 {

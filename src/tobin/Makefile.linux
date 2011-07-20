@@ -1,4 +1,6 @@
 NAME=tobin
+POSTFIX = .exe
+
 SRCS := $(wildcard *.c)
 
 include ../common.linux.mak

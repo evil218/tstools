@@ -59,7 +59,7 @@ all: $(NAME)$(POSTFIX)
 $(NAME).a: $(OBJS) $(DEPS)
 	ar r $@ $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS)
+$(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a ../libnet/libnet1.a
 	$(CC) -o $@ $(OBJS) -L../libts -L../libnet -lts1 -lnet1
 
 $(INSTALL_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)

@@ -98,10 +98,12 @@ int b2t(void *tbuf, ts_pkt_t *pkt, char ws)
 
                 /* length */
                 to_text(LENGTH_TS, &text);
+                *text++ = ',';
 
                 /* data */
                 byte = pkt->ts;
-                for(i = 0; i < LENGTH_TS; i++)
+                to_text(*byte++, &text);
+                for(i = 1; i < LENGTH_TS; i++)
                 {
                         *text++ = ws;
                         to_text(*byte++, &text);
@@ -118,10 +120,12 @@ int b2t(void *tbuf, ts_pkt_t *pkt, char ws)
 
                 /* length */
                 to_text(LENGTH_RS, &text);
+                *text++ = ',';
 
                 /* data */
                 byte = pkt->rs;
-                for(i = 0; i < LENGTH_RS; i++)
+                to_text(*byte++, &text);
+                for(i = 1; i < LENGTH_RS; i++)
                 {
                         *text++ = ws;
                         to_text(*byte++, &text);
@@ -153,11 +157,11 @@ int b2t(void *tbuf, ts_pkt_t *pkt, char ws)
                 len += uint_len(pkt->CTS_overflow);
                 len += uint_len(pkt->CTS);
                 to_text(len, &text);
-                *text++ = ws;
+                *text++ = ',';
 
                 /* length & data */
                 uint2txt(pkt->CTS_overflow, &text, ws);
-                *text++ = ws;
+                *text++ = ',';
 
                 /* length & data */
                 uint2txt(pkt->CTS, &text, ws);
@@ -165,14 +169,25 @@ int b2t(void *tbuf, ts_pkt_t *pkt, char ws)
         }
 
         /* DATA */
-        if(NULL != pkt->dat)
+        if(NULL != pkt->data)
         {
-                byte = pkt->dat;
-                for(i = 0; i < pkt->cnt; i++)
+                /* tag */
+                to_text(TAG_DATA, &text);
+                *text++ = ws;
+
+                /* length */
+                to_text(pkt->cnt, &text);
+                *text++ = ',';
+
+                /* data */
+                byte = pkt->data;
+                to_text(*byte++, &text);
+                for(i = 1; i < pkt->cnt; i++)
                 {
-                        to_text(*byte++, &text);
                         *text++ = ws;
+                        to_text(*byte++, &text);
                 }
+                *text++ = ',';
         }
 
         *text = '\0';
@@ -195,6 +210,7 @@ int t2b(ts_pkt_t *pkt, void *tbuf)
         pkt->src = NULL;
         pkt->addr = NULL;
         pkt->cts = NULL;
+        pkt->data = NULL;
 
         exit = 0;
         while(0 == exit)
@@ -224,6 +240,16 @@ int t2b(ts_pkt_t *pkt, void *tbuf)
                                         pb++;
                                 }
                                 pkt->rs = pkt->RS;
+                                break;
+                        case TAG_DATA:
+                                pb = pkt->DATA;
+                                for(i = 0; i < len; i++)
+                                {
+                                        exit = to_byte(pb, &pt);
+                                        pb++;
+                                }
+                                pkt->cnt = len;
+                                pkt->data = pkt->DATA;
                                 break;
                         case TAG_SRC:
                                 pb = &(pkt->SRC);
@@ -316,8 +342,15 @@ static int uint2txt(uint64_t uint, char **text, char ws)
         mask <<= shift;
 
         to_text(i, text);
+        *(*text)++ = ',';
 
         /* data */
+        to_text(((uint & mask) >> shift), text);
+
+        i--;
+        mask >>= 8;
+        shift -= 8;
+
         while(i > 0)
         {
                 *(*text)++ = ws;

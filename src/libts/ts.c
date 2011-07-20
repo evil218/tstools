@@ -1303,7 +1303,9 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
 
                         if(0x0010 != pids->PID)
                         {
+#if 0
                                 fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", pids->PID);
+#endif
                         }
                         free(prog);
                 }
