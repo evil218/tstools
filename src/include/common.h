@@ -1,9 +1,8 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: common.h
-// Purpose: common definition
-// To use: #include "common.h"
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: common.h
+ * funx: common definition
+ */
 
 #ifndef _COMMON_H
 #define _COMMON_H
@@ -12,14 +11,11 @@
 extern "C" {
 #endif
 
-/*============================================================================
- * Definition
- ===========================================================================*/
-#define LINE_LENGTH_MAX                 32767 // max line length in txt file
+#define LINE_LENGTH_MAX                 32767 /* max line length in txt file */
 
-// ANSI control for printf
-#define NONE                            "\033[00m" // recover all
-#define LIGHT                           "\033[01m" // high light colour
+/* ANSI control for printf */
+#define NONE                            "\033[00m" /* recover all */
+#define LIGHT                           "\033[01m" /* high light colour */
 
 #define FGRAY                           "\033[30m"
 #define FRED                            "\033[31m"
@@ -39,15 +35,11 @@ extern "C" {
 #define BCYAN                           "\033[46m"
 #define BWHITE                          "\033[47m"
 
-#define CLRSCR                          "\033[2J" // clear screan
-#define CLRLIN                          "\033[K" // clear to line end
+#define CLRSCR                          "\033[2J" /* clear screan */
+#define CLRLIN                          "\033[K" /* clear to line end */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _COMMON_H
-
-/*****************************************************************************
- * End
- ****************************************************************************/
+#endif /* _COMMON_H */

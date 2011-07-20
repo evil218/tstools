@@ -1,9 +1,9 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//============================================================================
-// Name: udp.c
-// Purpose: UDP access
-// To build: gcc -std-c99 -c udp.c
-//============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: udp.c
+ * funx: UDP access
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,10 +11,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>                  // for inet_ntoa(), inet_addr(), etc
-#include <unistd.h>                     // for close()
-#include <fcntl.h>                      // for fcntl(), O_NONBLOCK, etc
-#include <sys/select.h>                 // for select(), etc
+#include <arpa/inet.h>                  /* for inet_ntoa(), inet_addr(), etc */
+#include <unistd.h>                     /* for close() */
+#include <fcntl.h>                      /* for fcntl(), O_NONBLOCK, etc */
+#include <sys/select.h>                 /* for select(), etc */
 
 #include "error.h"
 #include "udp.h"
@@ -43,24 +43,24 @@ int udp_open(char *addr, unsigned short port)
         strcpy(udp->addr, addr);
         udp->port = port;
 
-        // build socket
+        /* build socket */
         if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
         {
                 perror("socket");
                 return (int)NULL;
         }
 
-        // nonblock mode
+        /* nonblock mode */
         fcntl(udp->sock, F_SETFL, O_NONBLOCK);
 
-        // reuse address
+        /* reuse address */
         {
-                int reuseaddr = 1; // nonzero means enable
+                int reuseaddr = 1; /* nonzero means enable */
                 setsockopt(udp->sock, SOL_SOCKET, SO_REUSEADDR,
                            (char *)&reuseaddr, sizeof(int));
         }
 
-        // name the socket
+        /* name the socket */
         {
                 struct sockaddr_in local;
                 local.sin_family = AF_INET;
@@ -76,7 +76,7 @@ int udp_open(char *addr, unsigned short port)
                 }
         }
 
-        // manage multicast
+        /* manage multicast */
         {
                 struct ip_mreq imreq;
                 imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
@@ -105,7 +105,7 @@ int udp_close(int id)
             return -ERR_BAD_ID;
         }
 
-        // manage multicast
+        /* manage multicast */
         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
         if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr)))
         {
@@ -150,7 +150,7 @@ size_t udp_read(int id, char *buf)
         }
         else if(FD_ISSET(0, &fds))
         {
-                //printf("Key pressed.\n");
+                /*printf("Key pressed.\n"); */
         }
         else
         {

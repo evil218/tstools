@@ -1,18 +1,15 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: crc.c
-// Purpose: Calculate 16-bit or 32-bit CRC for several 8-bit data
-// To build: gcc -std-c99 -c crc.c
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: crc.c
+ * funx: Calculate 16-bit or 32-bit CRC for several 8-bit data
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 
 #include "crc.h"
 
-//=============================================================================
-// Variables definition:
-//=============================================================================
 static uint8_t crc8_table[256];
 
 static uint16_t crc16_table[256] =
@@ -121,39 +118,33 @@ static uint32_t crc32_table[256] =
         0xB3667A2E, 0xC4614AB8, 0x5D681B02, 0x2A6F2B94, 0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D,
 };
 
-//=============================================================================
-// Sub-function declare:
-//=============================================================================
 static void init_crc32_table(uint32_t *table);
 
-//=============================================================================
-// Public functions definition:
-//=============================================================================
 void crc_init()
 {
-        //init_crc8_table(crc8_table);
-        //init_crc16_table(crc16_table);
+        /*init_crc8_table(crc8_table); */
+        /*init_crc16_table(crc16_table); */
         init_crc32_table(crc32_table);
 }
 
-// polynomial: 0x07(MSB first) ?
-// polynomial: 0xE0(LSB first) ?
+/* polynomial: 0x07(MSB first) ? */
+/* polynomial: 0xE0(LSB first) ? */
 uint8_t crc8(void *buf, size_t size)
 {
-        uint16_t crc; // FIXME
+        uint16_t crc; /* FIXME */
         uint8_t *data = (uint8_t *)buf;
 
         crc = 0;
         while(size--)
         {
-                crc = crc8_table[((crc >> 8) ^ *data++) & 0xFF] ^ (crc << 8); // FIXME
+                crc = crc8_table[((crc >> 8) ^ *data++) & 0xFF] ^ (crc << 8); /* FIXME */
         }
 
         return crc;
 }
 
-// polynomial: 0x1021(MSB first)
-// polynomial: 0x8408(LSB first)
+/* polynomial: 0x1021(MSB first) */
+/* polynomial: 0x8408(LSB first) */
 uint16_t crc16(void *buf, size_t size)
 {
         uint16_t crc;
@@ -168,8 +159,8 @@ uint16_t crc16(void *buf, size_t size)
         return crc;
 }
 
-// polynomial: 0x04C11DB7(MSB first)
-// polynomial: 0xEDB88320(LSB first)
+/* polynomial: 0x04C11DB7(MSB first) */
+/* polynomial: 0xEDB88320(LSB first) */
 uint32_t crc32(void *buf, size_t size)
 {
         uint32_t crc;
@@ -236,11 +227,11 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
         int bitinbyte = 0;
         unsigned short databit;
         unsigned short shiftreg[32];
-        //                      0 1 2 3 4 5 6 7 8
+        /*                      0 1 2 3 4 5 6 7 8 */
         unsigned short g08[] = {1,1,1,0,0,0,0,0,1};
-        //                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6
+        /*                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 */
         unsigned short g16[] = {1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1};
-        //                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2
+        /*                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 */
         unsigned short g32[] = {1,1,1,0,1,1,0,1,1,0,1,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,1};
 
         unsigned short *g;
@@ -256,19 +247,19 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
                 default: g = g32; cnt = 32; break;
         }
 
-        // Initialize shift register's to '1'
+        /* Initialize shift register's to '1' */
         for(i = 0; i < cnt; i++)
         {
                 shiftreg[i] = 1;
         }
 
-        // Calculate nr of data bits
+        /* Calculate nr of data bits */
         nrbits = ((int) size) * 8;
         data = buf;
 
         while(bitcount < nrbits)
         {
-                // Fetch bit from bitstream
+                /* Fetch bit from bitstream */
                 databit = (short int) (*data  & (0x80 >> bitinbyte));
                 databit = databit >> (7 - bitinbyte);
                 bitinbyte++;
@@ -279,7 +270,7 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
                         data++;
                 }
 
-                // Perform the shift and modula 2 addition
+                /* Perform the shift and modula 2 addition */
                 databit ^= shiftreg[cnt - 1];
                 i = cnt - 1;
                 while (i != 0)
@@ -297,7 +288,7 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
                 shiftreg[0] = databit;
         }
 
-        // make CRC an UIMSBF
+        /* make CRC an UIMSBF */
         crc = 0;
         for(i = 0; i < cnt; i++)
         {
@@ -307,9 +298,6 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
         return crc;
 }
 
-//=============================================================================
-// Subfunctions definition:
-//=============================================================================
 static void init_crc32_table(uint32_t *table)
 {
         uint32_t i,j;
@@ -332,7 +320,3 @@ static void init_crc32_table(uint32_t *table)
                 table[i] = crc;
         }
 }
-
-/*****************************************************************************
- * End
- ****************************************************************************/

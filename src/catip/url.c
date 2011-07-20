@@ -1,24 +1,19 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//============================================================================
-// Name: url.c
-// Purpose: URL access
-// To build: gcc -std-c99 -c url.c
-//============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: url.c
+ * funx: URL access
+ * 2009-00-00, ZHOU Cheng, init
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "url.h"
 
-//============================================================================
-// Sub-function declare:
-//============================================================================
 static void regcpy(char *des, const char *src);
 static void parse_url(URL *url, const char *str);
 
-//============================================================================
-// Functions definition:
-//============================================================================
 URL *url_open(const char *str, char *mode)
 {
         URL *url;
@@ -49,7 +44,7 @@ URL *url_open(const char *str, char *mode)
                                 url = NULL;
                         }
                         break;
-                default: // PRTCL_FILE
+                default: /* PRTCL_FILE */
                         url->fd = fopen(url->filename, mode);
                         if(NULL == url->fd)
                         {
@@ -76,7 +71,7 @@ int url_close(URL *url)
                 case PRTCL_UDP:
                         udp_close(url->udp);
                         break;
-                default: // PRTCL_FILE
+                default: /* PRTCL_FILE */
                         fclose(url->fd);
                         break;
         }
@@ -98,9 +93,9 @@ int url_seek(URL *url, long offset, int origin)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        // do nothing!
+                        /* do nothing! */
                         break;
-                default: // PRTCL_FILE
+                default: /* PRTCL_FILE */
                         rslt = fseek(url->fd, offset, origin);
                         break;
         }
@@ -121,9 +116,9 @@ int url_getc(URL *url)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        rslt = 0x47; // to cheat host
+                        rslt = 0x47; /* to cheat host */
                         break;
-                default: // PRTCL_FILE
+                default: /* PRTCL_FILE */
                         rslt = fgetc(url->fd);
                         break;
         }
@@ -133,7 +128,7 @@ int url_getc(URL *url)
 
 size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
 {
-        size_t cobj; // the number of objects succeeded in reading
+        size_t cobj; /* the number of objects succeeded in reading */
         size_t byte_needed = size * nobj;
 
         if(NULL == url)
@@ -150,7 +145,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
                                 size_t rslt;
 
                                 rslt = udp_read(url->udp, url->buf);
-                                //printf("rslt of udp_read() is %d\n", rslt);
+                                /*printf("rslt of udp_read() is %d\n", rslt); */
                                 if(rslt > 0)
                                 {
                                         url->ts_cnt += rslt;
@@ -172,7 +167,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
                                 cobj = url->ts_cnt;
                         }
                         break;
-                default: // PRTCL_FILE
+                default: /* PRTCL_FILE */
                         cobj = fread(buf, size, nobj, url->fd);
                         break;
         }
@@ -180,9 +175,6 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
         return cobj;
 }
 
-//============================================================================
-// Subfunctions definition:
-//============================================================================
 static void regcpy(char *des, const char *src)
 {
         char ch;
@@ -217,7 +209,3 @@ static void parse_url(URL *url, const char *str)
                 url->protocol = PRTCL_FILE;
         }
 }
-
-/*****************************************************************************
- * End
- ****************************************************************************/

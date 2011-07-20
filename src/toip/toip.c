@@ -1,39 +1,30 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: toip.c
-// Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o toip toip.c
-// Copyright (C) 2008 by ZHOU Cheng. All right reserved.
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: toip.c
+ * funx: generate text data file with bin data file
+ * 2011-06-28, ZHOU Cheng, init frame
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // for strcmp, etc
+#include <string.h> /* for strcmp, etc */
 
 #include "common.h"
 #include "error.h"
 #include "if.h"
 
-//=============================================================================
-// Variables definition:
-//=============================================================================
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
 
-//=============================================================================
-// Sub-function declare:
-//=============================================================================
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
 static void show_version();
 
-//=============================================================================
-// The main function:
-//=============================================================================
 int main(int argc, char *argv[])
 {
         int size;
-        char tbuf[LINE_LENGTH_MAX + 10]; // txt data buffer
-        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; // bin data buffer
+        char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
+        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -58,16 +49,13 @@ int main(int argc, char *argv[])
         return 0;
 }
 
-//=============================================================================
-// Subfunctions definition:
-//=============================================================================
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
 
         if(1 == argc)
         {
-                // no parameter
+                /* no parameter */
                 fprintf(stderr, "No binary file to write...\n\n");
                 show_help();
                 return -1;
@@ -138,7 +126,3 @@ static void show_version()
         puts("Written by ZHOU Cheng.");
         return;
 }
-
-//=============================================================================
-// THE END.
-//=============================================================================

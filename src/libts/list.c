@@ -1,22 +1,16 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: list.c
-// Purpose: Common Bidirection List
-// To build: gcc -std-c99 -c list.c
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: list.c
+ * funx: Common Bidirection List
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "list.h"
 
-//=============================================================================
-// sub-function declaration
-//=============================================================================
 static void list_insert_before(LIST *list, NODE *next, NODE *node);
 
-//=============================================================================
-// Functions definition:
-//=============================================================================
 void list_init(LIST *list)
 {
         if(NULL == list)
@@ -58,7 +52,7 @@ void list_del(LIST *list, NODE *node)
 
         if(NULL == node->prev)
         {
-                // head node
+                /* head node */
                 list->head = node->next;
         }
         else
@@ -68,7 +62,7 @@ void list_del(LIST *list, NODE *node)
 
         if(NULL == node->next)
         {
-                // tail node
+                /* tail node */
                 list->tail = node->prev;
         }
         else
@@ -94,13 +88,13 @@ void list_add(LIST *list, NODE *node, uint32_t key)
 
         if(NULL == list->tail)
         {
-                // empty list
+                /* empty list */
                 list->head = node;
                 list->tail = node;
         }
         else
         {
-                // normal list
+                /* normal list */
                 list->tail->next = node;
                 list->tail = node;
         }
@@ -123,21 +117,23 @@ void list_insert(LIST *list, NODE *node, uint32_t key)
         {
                 if(x->key == key)
                 {
-                        // find a node with the same key in list
+                        /* find a node with the same key in list */
                         free(node);
-                        //fprintf(stderr, "node in list already, ignore!\n");
+#if 0
+                        fprintf(stderr, "node in list already, ignore!\n");
+#endif
                         return;
                 }
 
                 if(x->key > key)
                 {
-                        // find a big one, insert before
+                        /* find a big one, insert before */
                         list_insert_before(list, x, node);
                         return;
                 }
         }
 
-        // reach list tail, add
+        /* reach list tail, add */
         list_add(list, node, key);
         return;
 }
@@ -186,9 +182,6 @@ NODE *list_prev(NODE *node)
         return (NULL != node) ? node->prev : NULL;
 }
 
-//=============================================================================
-// sub-function definition
-//=============================================================================
 static void list_insert_before(LIST *list, NODE *next, NODE *node)
 {
         if(NULL == list ||
@@ -203,20 +196,16 @@ static void list_insert_before(LIST *list, NODE *next, NODE *node)
 
         if(NULL == next->prev)
         {
-                // head node
+                /* head node */
                 list->head = node;
                 next->prev = node;
         }
         else
         {
-                // normal node
+                /* normal node */
                 next->prev->next = node;
                 next->prev = node;
         }
         list->count++;
         return;
 }
-
-/*****************************************************************************
- * End
- ****************************************************************************/

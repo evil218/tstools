@@ -1,8 +1,8 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: udp.h
-// Purpose: UDP access
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: udp.h
+ * funx: UDP access
+ */
 
 #ifndef _UDP_H
 #define _UDP_H
@@ -19,4 +19,4 @@ size_t udp_read(int id, char *buf);
 }
 #endif
 
-#endif // _UDP_H
+#endif /* _UDP_H */

@@ -1,9 +1,10 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//============================================================================
-// Name: udp.c
-// Purpose: UDP access
-// To build: cl /c udp_msvc.c
-//============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: udp.c
+ * funx: UDP access
+ * 2011-06-01, ZHOU Cheng, init
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,24 +31,24 @@ UDP *udp_open(char *addr, unsigned short port)
         strcpy(udp->addr, addr);
         udp->port = port;
 
-        // build socket
+        /* build socket */
         if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
         {
                 perror("socket");
                 return NULL;
         }
 
-        // nonblock mode
-        //fcntl(udp->sock, F_SETFL, O_NONBLOCK);
+        /* nonblock mode */
+        /*fcntl(udp->sock, F_SETFL, O_NONBLOCK); */
 
-        // reuse address
+        /* reuse address */
         {
-                int reuseaddr = 1; // nonzero means enable
+                int reuseaddr = 1; /* nonzero means enable */
                 setsockopt(udp->sock, SOL_SOCKET, SO_REUSEADDR,
                            (char *)&reuseaddr, sizeof(int));
         }
 
-        // name the socket
+        /* name the socket */
         {
                 struct sockaddr_in local;
                 local.sin_family = AF_INET;
@@ -63,7 +64,7 @@ UDP *udp_open(char *addr, unsigned short port)
                 }
         }
 
-        // manage multicast
+        /* manage multicast */
         {
                 struct ip_mreq imreq;
                 imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
@@ -85,7 +86,7 @@ void udp_close(UDP *udp)
 {
         struct ip_mreq imreq;
 
-        // manage multicast
+        /* manage multicast */
         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
         if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr)))
         {
@@ -122,7 +123,7 @@ size_t udp_read(UDP *udp, char *buf)
         }
         else if(FD_ISSET(0, &fds))
         {
-                //printf("Key pressed.\n");
+                /*printf("Key pressed.\n"); */
         }
         else
         {

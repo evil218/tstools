@@ -1,9 +1,9 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: url.h
-// Purpose: URL access
-// To build: gcc -std-c99 -c url.c
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: url.h
+ * funx: URL access
+ * 2009-00-00, ZHOU Cheng, init
+ */
 
 #ifndef _URL_H
 #define _URL_H
@@ -16,9 +16,6 @@ extern "C" {
 
 #define MAX_STRING_LENGTH 256
 
-/*============================================================================
- * Struct Declaration
- ===========================================================================*/
 enum
 {
         PRTCL_UDP,
@@ -28,27 +25,24 @@ enum
 typedef struct
 {
         char url[MAX_STRING_LENGTH];
-        int  protocol; // PRTCL_XXX
+        int  protocol; /* PRTCL_XXX */
 
-        // for PRTCL_FILE
+        /* for PRTCL_FILE */
         char *path;
         char *filename;
         FILE *fd;
 
-        // for PRTCL_UDP
+        /* for PRTCL_UDP */
         char *ip;
         unsigned short port;
         int udp;
 
-        char buf[8*188]; // for UDP data
+        char buf[8*188]; /* for UDP data */
         char *pbuf;
         size_t ts_cnt;
 }
 URL;
 
-/*============================================================================
- * Public Function Declaration
- ===========================================================================*/
 URL *url_open(const char *str, char *mode);
 int url_close(URL *url);
 int url_seek(URL *url, long offset, int origin);
@@ -59,8 +53,4 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url);
 }
 #endif
 
-#endif // _URL_H
-
-/*****************************************************************************
- * End
- ****************************************************************************/
+#endif /* _URL_H */

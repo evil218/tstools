@@ -2,7 +2,7 @@ tstools.html: tstools.txt
 	asciidoc -n -a toc $<
 
 ../release/doc/tstools.html: tstools.html
-	cp $< $@
+	mv $< $@
 
 all: tstools.html
 

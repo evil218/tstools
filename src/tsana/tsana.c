@@ -1,53 +1,49 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: tsana.c
-// Purpose: analyse character of ts stream
-// To build: gcc -std=c99 -o tsana.exe tsana.c
-// Copyright (C) 2009 by ZHOU Cheng. All right reserved.
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: tsana.c
+ * funx: analyse character of ts stream
+ * 2009-00-00, ZHOU Cheng, init
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // for strcmp, etc
-#include <time.h> // for localtime(), etc
-#include <stdint.h> // for uint?_t, etc
+#include <string.h> /* for strcmp, etc */
+#include <time.h> /* for localtime(), etc */
+#include <stdint.h> /* for uint?_t, etc */
 
 #include "common.h"
 #include "error.h"
 #include "if.h"
-#include "ts.h" // has "list.h" already
+#include "ts.h" /* has "list.h" already */
 
-#define PKT_BBUF                        (256) // 188 or 204
+#define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
 
-#define ANY_PID                         0x2000 // any PID of [0x0000,0x1FFF]
-#define ANY_TABLE                       0xFF // any table_id of [0x00,0xFE]
-#define ANY_PROG                        0x0000 // any prog of [0x0001,0xFFFF]
+#define ANY_PID                         0x2000 /* any PID of [0x0000,0x1FFF] */
+#define ANY_TABLE                       0xFF /* any table_id of [0x00,0xFE] */
+#define ANY_PROG                        0x0000 /* any prog of [0x0001,0xFFFF] */
 
-#define PCR_US                          (27) // 27 clk means 1(us)
-#define PCR_MS                          (27 * 1000) // uint: do NOT use 1e3 
+#define PCR_US                          (27) /* 27 clk means 1(us) */
+#define PCR_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
-//=============================================================================
-// struct definition
-//=============================================================================
 typedef struct
 {
         int mode;
         int state;
 
-        int is_outpsi; // output txt psi packet to stdout
-        int is_prepsi; // get psi information from file first
-        int is_mono; // use colour when print
-        int is_dump; // output packet directly
-        uint64_t aim_start; // ignore some packets fisrt, default: 0(no ignore)
-        uint64_t aim_count; // stop after analyse some packets, default: 0(no stop)
+        int is_outpsi; /* output txt psi packet to stdout */
+        int is_prepsi; /* get psi information from file first */
+        int is_mono; /* use colour when print */
+        int is_dump; /* output packet directly */
+        uint64_t aim_start; /* ignore some packets fisrt, default: 0(no ignore) */
+        uint64_t aim_count; /* stop after analyse some packets, default: 0(no stop) */
         uint16_t aim_pid;
         uint8_t aim_table;
         uint16_t aim_prog;
-        uint64_t aim_interval; // for rate calc
+        uint64_t aim_interval; /* for rate calc */
 
-        uint64_t cnt; // packet analysed
+        uint64_t cnt; /* packet analysed */
         uint32_t ts_size;
-        uint8_t bbuf[PKT_BBUF];
         char tbuf[PKT_TBUF];
 
         int ts_id;
@@ -55,9 +51,6 @@ typedef struct
 }
 obj_t;
 
-//=============================================================================
-// enum definition
-//=============================================================================
 enum
 {
         MODE_LST,
@@ -91,14 +84,8 @@ enum
         GOT_EOF
 };
 
-//=============================================================================
-// variable definition
-//=============================================================================
 static obj_t *obj = NULL;
 
-//=============================================================================
-// sub-function declaration
-//=============================================================================
 static void state_parse_psi(obj_t *obj);
 static void state_parse_each(obj_t *obj);
 
@@ -128,8 +115,8 @@ static void show_es(obj_t *obj);
 static void all_es(obj_t *obj);
 static void show_error(obj_t *obj);
 
-static void print_atp_title(obj_t *obj); // atp: address_time_PID
-static void print_atp_value(obj_t *obj); // atp: address_time_PID
+static void print_atp_title(obj_t *obj); /* atp: address_time_PID */
+static void print_atp_value(obj_t *obj); /* atp: address_time_PID */
 
 static void table_info_SDT(uint8_t *section);
 static void table_info_EIT(uint8_t *section);
@@ -142,9 +129,6 @@ static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
 
-//=============================================================================
-// the main function
-//=============================================================================
 int main(int argc, char *argv[])
 {
         int get_rslt;
@@ -160,7 +144,7 @@ int main(int argc, char *argv[])
                 {
                         break;
                 }
-                if(0 != tsParseTS(obj->ts_id, obj->bbuf, obj->ts_size))
+                if(0 != tsParseTS(obj->ts_id))
                 {
                         break;
                 }
@@ -214,9 +198,6 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
 }
 
-//=============================================================================
-// sub-function definition
-//=============================================================================
 static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
@@ -224,7 +205,7 @@ static void state_parse_psi(obj_t *obj)
         if(obj->is_outpsi && rslt->is_psi_si)
         {
                 fprintf(stdout, "%s", obj->tbuf);
-                //fprintf(stderr, "%s, mode=%d\n", (rslt->is_psi_parsed) ? "done" : "next", obj->mode);
+                /*fprintf(stderr, "%s, mode=%d\n", (rslt->is_psi_parsed) ? "done" : "next", obj->mode); */
         }
 
         if(rslt->is_psi_parsed)
@@ -519,7 +500,7 @@ static obj_t *create(int argc, char *argv[])
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(1 <= dat && dat <= 10000) // 1ms ~ 10s
+                                if(1 <= dat && dat <= 10000) /* 1ms ~ 10s */
                                 {
                                         obj->aim_interval = dat * PCR_MS;
                                 }
@@ -665,9 +646,9 @@ static int get_one_pkt(obj_t *obj)
         {
                 return GOT_EOF;
         }
-        //puts(obj->tbuf);
+        /*puts(obj->tbuf); */
 
-        obj->ts_size = t2b(obj->bbuf, obj->tbuf);
+        obj->ts_size = t2b(obj->rslt->pkt, obj->tbuf);
         return GOT_RIGHT_PKT;
 }
 
@@ -755,7 +736,7 @@ static void show_prog(obj_t *obj)
                         yellow_on, prog->PMT_PID, color_off,
                         yellow_on, prog->PCR_PID, color_off);
 
-                // service_provider
+                /* service_provider */
                 fprintf(stdout, "        service_provider: %s\"%s\"%s( ",
                         yellow_on, prog->service_provider, color_off);
                 for(i = 0; i < prog->service_provider_len; i++)
@@ -764,7 +745,7 @@ static void show_prog(obj_t *obj)
                 }
                 fprintf(stdout, ")\n");
 
-                // service_name
+                /* service_name */
                 fprintf(stdout, "        service_name    : %s\"%s\"%s( ",
                         yellow_on, prog->service_name, color_off);
                 for(i = 0; i < prog->service_name_len; i++)
@@ -773,7 +754,7 @@ static void show_prog(obj_t *obj)
                 }
                 fprintf(stdout, ")\n");
 
-                // program_info
+                /* program_info */
                 fprintf(stdout, "        program_info:%s", yellow_on);
                 for(i = 0; i < prog->program_info_len; i++)
                 {
@@ -786,7 +767,7 @@ static void show_prog(obj_t *obj)
                 }
                 fprintf(stdout, "%s\n", color_off);
 
-                // track
+                /* track */
                 show_track(&(prog->track_list), prog->PCR_PID);
         }
 
@@ -855,14 +836,14 @@ static void show_sec(obj_t *obj)
 
         print_atp_value(obj);
 
-        // table_head
+        /* table_head */
         for(i = 0; i < 7; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "%02X, ", pid->section[i++]);
 
-        // table_body
+        /* table_body */
         for(; i < psi->section_length + 3; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
@@ -889,22 +870,22 @@ static void show_si(obj_t *obj)
 
         print_atp_value(obj);
 
-        // table_head
+        /* table_head */
         for(i = 0; i < 7; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "%02X, ", pid->section[i++]);
 
-        // table_body
+        /* table_body */
         switch(psi->table_id)
         {
                 case 0x42:
                 case 0x46:
                         table_info_SDT(pid->section);
                         break;
-                case 0x4E: // FIXME: 0x50 ~ 0x5F
-                case 0x4F: // FIXME: 0x60 ~ 0x6F
+                case 0x4E: /* FIXME: 0x50 ~ 0x5F */
+                case 0x4F: /* FIXME: 0x60 ~ 0x6F */
                         table_info_EIT(pid->section);
                         break;
                 case 0x70:
@@ -994,8 +975,8 @@ static void show_psi_rate(obj_t *obj)
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
                 yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
-        // traverse pid_list
-        // if it is PSI/SI PID, output its bitrate
+        /* traverse pid_list */
+        /* if it is PSI/SI PID, output its bitrate */
         for(node = rslt->pid_list.head; node; node = node->next)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)node;
@@ -1029,8 +1010,8 @@ static void show_prog_rate(obj_t *obj)
         }
 
         print_atp_value(obj);
-        // traverse pid_list
-        // if it belongs to this program, output its bitrate
+        /* traverse pid_list */
+        /* if it belongs to this program, output its bitrate */
         for(node = rslt->pid_list.head; node; node = node->next)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)node;
@@ -1069,7 +1050,7 @@ static void show_rate(obj_t *obj)
         }
 
         print_atp_value(obj);
-        // traverse pid_list, output its bitrate
+        /* traverse pid_list, output its bitrate */
         for(node = rslt->pid_list.head; node; node = node->next)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)node;
@@ -1097,15 +1078,15 @@ static void show_ptsdts(obj_t *obj)
         print_atp_value(obj);
         fprintf(stdout, "%lld, %+8.3f, %+.3f, ",
                 rslt->PTS,
-                (double)(rslt->PTS_interval) / (90), // ms
-                (double)(rslt->PTS_minus_STC) / (90)); // ms
+                (double)(rslt->PTS_interval) / (90), /* ms */
+                (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
         if(rslt->has_DTS)
         {
                 fprintf(stdout, "%lld, %+8.3f, %+.3f,\n",
                         rslt->DTS,
-                        (double)(rslt->DTS_interval) / (90), // ms
-                        (double)(rslt->DTS_minus_STC) / (90)); // ms
+                        (double)(rslt->DTS_interval) / (90), /* ms */
+                        (double)(rslt->DTS_minus_STC) / (90)); /* ms */
         }
         else
         {
@@ -1118,6 +1099,8 @@ static void show_ptsdts(obj_t *obj)
 static void show_pes(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
+        ts_pkt_t PKT;
+        ts_pkt_t *pkt = &PKT;
 
         if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
         {
@@ -1125,7 +1108,15 @@ static void show_pes(obj_t *obj)
         }
         if(0 != rslt->PES_len)
         {
-                b2t(obj->tbuf, rslt->PES_buf, rslt->PES_len, ' ');
+                pkt->ts = NULL;
+                pkt->rs = NULL;
+                pkt->src = NULL;
+                pkt->addr = NULL;
+                pkt->cts = NULL;
+                pkt->dat = rslt->PES_buf;
+                pkt->cnt = rslt->PES_len;
+
+                b2t(obj->tbuf, pkt, ' ');
                 puts(obj->tbuf);
         }
         return;
@@ -1134,6 +1125,8 @@ static void show_pes(obj_t *obj)
 static void show_es(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
+        ts_pkt_t PKT;
+        ts_pkt_t *pkt = &PKT;
 
         if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
         {
@@ -1141,7 +1134,15 @@ static void show_es(obj_t *obj)
         }
         if(0 != rslt->ES_len)
         {
-                b2t(obj->tbuf, rslt->ES_buf, rslt->ES_len, ' ');
+                pkt->ts = NULL;
+                pkt->rs = NULL;
+                pkt->src = NULL;
+                pkt->addr = NULL;
+                pkt->cts = NULL;
+                pkt->dat = rslt->ES_buf;
+                pkt->cnt = rslt->ES_len;
+
+                b2t(obj->tbuf, pkt, ' ');
                 puts(obj->tbuf);
         }
         return;
@@ -1190,7 +1191,7 @@ static void show_error(obj_t *obj)
                 return;
         }
 
-        // First priority: necessary for de-codability (basic monitoring)
+        /* First priority: necessary for de-codability (basic monitoring) */
         if(err->TS_sync_loss)
         {
                 print_atp_value(obj);
@@ -1244,7 +1245,7 @@ static void show_error(obj_t *obj)
                 err->PID_error = 0;
         }
 
-        // Second priority: recommended for continuous or periodic monitoring
+        /* Second priority: recommended for continuous or periodic monitoring */
         if(err->Transport_error)
         {
                 print_atp_value(obj);
@@ -1292,8 +1293,8 @@ static void show_error(obj_t *obj)
                 err->CAT_error = 0;
         }
 
-        // Third priority: application dependant monitoring
-        // ...
+        /* Third priority: application dependant monitoring */
+        /* ... */
 
         return;
 }
@@ -1320,13 +1321,15 @@ static void print_atp_title(obj_t *obj)
 static void print_atp_value(obj_t *obj)
 {
         ts_rslt_t *rslt;
+        ts_pkt_t *pkt;
         time_t tp;
-        struct tm *lt; // local time
+        struct tm *lt; /* local time */
         char stime[32];
         char *yellow_on = "";
         char *color_off = "";
 
         rslt = obj->rslt;
+        pkt = rslt->pkt;
 
         time(&tp);
         lt = localtime(&tp);
@@ -1341,15 +1344,12 @@ static void print_atp_value(obj_t *obj)
         fprintf(stdout,
                 "%s%s%s, %s0x%llX%s, %lld, %llu, %llu, %s0x%04X%s, ",
                 yellow_on, stime, color_off,
-                yellow_on, rslt->addr, color_off, rslt->addr,
+                yellow_on, pkt->ADDR, color_off, pkt->ADDR,
                 rslt->STC, rslt->STC_base,
                 yellow_on, rslt->pid, color_off);
         return;
 }
 
-//=============================================================================
-// PSI/SI tables
-//=============================================================================
 static void table_info_SDT(uint8_t *section)
 {
         uint8_t *p = section;
@@ -1513,9 +1513,6 @@ static void table_info_TOT(uint8_t *section)
         return;
 }
 
-//=============================================================================
-// the subfunction for parse PSI/SI tables
-//=============================================================================
 static void MJD_UTC(uint8_t *buf)
 {
         uint8_t *p = buf;
@@ -1546,9 +1543,9 @@ static void UTC(uint8_t *buf)
         uint8_t *p = buf;
         int H, M, S;
 
-        H = *p++; // hour
-        M = *p++; // minute
-        S = *p++; // second
+        H = *p++; /* hour */
+        M = *p++; /* minute */
+        S = *p++; /* second */
 
         fprintf(stdout, "%02X-%02X-%02X, ", H, M, S);
 
@@ -1579,13 +1576,9 @@ static int descriptor(uint8_t **buf)
 
         fprintf(stdout, "tag, 0x%02X, len, 0x%02X, ", tag, len);
 
-        len += 2; // count tag and len byte
+        len += 2; /* count tag and len byte */
         *buf += len;
 
-        len = (0xFF == tag) ? 2 : len; // wrong buffer
+        len = (0xFF == tag) ? 2 : len; /* wrong buffer */
         return len;
 }
-
-//=============================================================================
-// THE END.
-//=============================================================================

@@ -1,55 +1,49 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: catbin.c
-// Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o catbin catbin.c
-// Copyright (C) 2008 by ZHOU Cheng. All right reserved.
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: catbin.c
+ * funx: generate text line with bin data file
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // for strcmp, etc
-#include <stdint.h> // for uintN_t, etc
+#include <string.h> /* for strcmp, etc */
+#include <stdint.h> /* for uintN_t, etc */
 
 #include "common.h"
 #include "error.h"
 #include "if.h"
 
-enum
+enum FILE_TYPE
 {
         FILE_MTS,
+        FILE_TSRS,
         FILE_TS,
-        FILE_BIN
+        FILE_BIN,
+        FILE_UNKNOWN
 };
 
-//=============================================================================
-// Variables definition:
-//=============================================================================
 static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
-static int npline = 188; // data number per line
+static int npline = 188; /* data number per line */
 static char white_space = ' ';
-static int file_type = FILE_BIN;
+static int type = FILE_BIN;
 static int show_address = 0;
-static int dec_address = 0; // default: hex address
-static int aim_start = 0; // first byte
-static int aim_stop = 0; // last byte
+static int dec_address = 0; /* default: hex address */
+static int aim_start = 0; /* first byte */
+static int aim_stop = 0; /* last byte */
+static ts_pkt_t PKT;
+static ts_pkt_t *pkt = &PKT;
 
-//=============================================================================
-// Sub-function declare:
-//=============================================================================
 static int deal_with_parameter(int argc, char *argv[]);
-static void show_help();
-static void show_version();
-static int ts_sync();
+static int show_help();
+static int show_version();
+static int judge_type();
+static int mts_time(uint64_t *mts, uint8_t *bin);
 
-//=============================================================================
-// The main function:
-//=============================================================================
 int main(int argc, char *argv[])
 {
-        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; // bin data buffer
-        char tbuf[LINE_LENGTH_MAX + 10]; // txt data buffer
-        uint64_t addr = 0;
+        unsigned char bbuf[LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
+        char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
         char *addr_fmt;
 
         if(0 != deal_with_parameter(argc, argv))
@@ -66,32 +60,45 @@ int main(int argc, char *argv[])
                 return -ERR_FOPEN_FAILED;
         }
 
-        switch(file_type)
-        {
-                case FILE_TS:
-                        if(0 != ts_sync())
-                        {
-                                fprintf(stderr, "EOF, but TS sync failed!\n");
-                                return -1;
-                        }
-                        break;
-                case FILE_MTS:
-                        fseek(fd_i, +4, SEEK_CUR);
-                        npline = 192;
-                        break;
-                default: // FILE_BIN
-                        break;
-        }
-
+        judge_type();
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
-                b2t(tbuf, bbuf, npline, white_space);
+                pkt->ts = NULL;
+                pkt->rs = NULL;
+                pkt->src = NULL;
+                pkt->addr = NULL;
+                pkt->cts = NULL;
+                pkt->dat = NULL;
+
+                switch(type)
+                {
+                        case FILE_TSRS:
+                                pkt->addr = &(pkt->ADDR);
+                                pkt->ts = (bbuf + 0);
+                                pkt->rs = (bbuf + 188);
+                                break;
+                        case FILE_MTS:
+                                pkt->addr = &(pkt->ADDR);
+                                pkt->ts = (bbuf + 4);
+                                pkt->cts = &(pkt->CTS);
+                                mts_time(pkt->cts, bbuf);
+                                pkt->CTS_overflow = 0x40000000;
+                                break;
+                        case FILE_TS:
+                                pkt->addr = &(pkt->ADDR);
+                                pkt->ts = (bbuf + 0);
+                                break;
+                        default: /* FILE_BIN */
+                                pkt->ts = (bbuf + 0);
+                                break;
+                }
+                b2t(tbuf, pkt, white_space);
                 if(show_address)
                 {
-                        fprintf(stdout, addr_fmt, addr, white_space);
+                        fprintf(stdout, addr_fmt, pkt->ADDR, white_space);
                 }
                 puts(tbuf);
-                addr += npline;
+                pkt->ADDR += npline;
         }
 
         fclose(fd_i);
@@ -99,9 +106,6 @@ int main(int argc, char *argv[])
         return 0;
 }
 
-//=============================================================================
-// Subfunctions definition:
-//=============================================================================
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
@@ -109,7 +113,7 @@ static int deal_with_parameter(int argc, char *argv[])
 
         if(1 == argc)
         {
-                // no parameter
+                /* no parameter */
                 fprintf(stderr, "No binary file to process...\n\n");
                 show_help();
                 return -1;
@@ -134,18 +138,6 @@ static int deal_with_parameter(int argc, char *argv[])
                                                 "bad variable for '-n': %d, use %d instead!\n",
                                                 dat, npline);
                                 }
-                        }
-                        else if(0 == strcmp(argv[i], "-bin"))
-                        {
-                                file_type = FILE_BIN;
-                        }
-                        else if(0 == strcmp(argv[i], "-ts"))
-                        {
-                                file_type = FILE_TS;
-                        }
-                        else if(0 == strcmp(argv[i], "-mts"))
-                        {
-                                file_type = FILE_MTS;
                         }
                         else if(0 == strcmp(argv[i], "-a") ||
                                 0 == strcmp(argv[i], "--addr")
@@ -221,7 +213,7 @@ static int deal_with_parameter(int argc, char *argv[])
         return 0;
 }
 
-static void show_help()
+static int show_help()
 {
         puts("'catbin' read binary file, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
@@ -229,9 +221,6 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -bin                     treat as common binary file, default");
-        puts(" -ts                      treat as TS file, sync and guess packet length at first");
-        puts(" -mts                     treat as MTS file, sync and guess packet length at first");
         puts(" -a, --addr               show data address at line head, default: do NOT show it");
         puts(" -d, --decaddr            dec address format, default: hex");
 #if 0
@@ -247,10 +236,10 @@ static void show_help()
         puts("  catbin xxx.ts");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
-        return;
+        return 0;
 }
 
-static void show_version()
+static int show_version()
 {
         puts("catbin 1.0.0");
         puts("");
@@ -260,121 +249,142 @@ static void show_version()
         puts("A PARTICULAR PURPOSE.");
         puts("");
         puts("Written by ZHOU Cheng.");
-        return;
+        return 0;
 }
 
-enum
-{
-        STATE_SYNC2_204,
-        STATE_SYNC2_188,
-        STATE_SYNC1_204,
-        STATE_SYNC1_188,
-        STATE_SYNC0,
-        STATE_EXIT
-};
-
-// for TS data: use "state machine" to determine sync position and packet size
-// continuous 3-sync means TS sync
-static int ts_sync()
+#define SYNC_TIME       3 /* SYNC_TIME syncs means TS sync */
+#define ASYNC_BYTE      4096 /* head ASYNC_BYTE bytes async means BIN file */
+/* for TS data: use "state machine" to determine sync position and packet size */
+static int judge_type()
 {
         uint8_t dat;
-        int state = STATE_SYNC0;
+        int sync_cnt;
+        int state = FILE_UNKNOWN;
 
-        while(STATE_EXIT != state)
+        pkt->ADDR = 0;
+        type = FILE_UNKNOWN;
+        while(FILE_UNKNOWN == type)
         {
                 switch(state)
                 {
-                        case STATE_SYNC0:
+                        case FILE_UNKNOWN:
+                                fseek(fd_i, pkt->ADDR, SEEK_SET);
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
                                         return -1;
                                 }
                                 if(0x47 == dat)
                                 {
-                                        fseek(fd_i, +187, SEEK_CUR);
-                                        state = STATE_SYNC1_188;
+                                        sync_cnt = 1;
+                                        state = FILE_TS;
                                 }
                                 else
                                 {
-                                        // STATE_SYNC0
+                                        pkt->ADDR++;
+                                        if(pkt->ADDR > ASYNC_BYTE)
+                                        {
+                                                pkt->ADDR = 0;
+                                                type = FILE_BIN;
+                                        }
                                 }
                                 break;
-                        case STATE_SYNC1_188:
+                        case FILE_TS:
+                                fseek(fd_i, +187, SEEK_CUR);
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
                                         return -1;
                                 }
                                 if(0x47 == dat)
                                 {
-                                        fseek(fd_i, +187, SEEK_CUR);
-                                        state = STATE_SYNC2_188;
+                                        sync_cnt++;
+                                        if(sync_cnt >= SYNC_TIME)
+                                        {
+                                                npline = 188;
+                                                type = FILE_TS;
+                                        }
                                 }
                                 else
                                 {
-                                        fseek(fd_i, +15, SEEK_CUR);
-                                        state = STATE_SYNC1_204;
+                                        fseek(fd_i, pkt->ADDR + 1, SEEK_SET);
+                                        sync_cnt = 1;
+                                        state = FILE_MTS;
                                 }
                                 break;
-                        case STATE_SYNC1_204:
+                        case FILE_MTS:
+                                fseek(fd_i, +191, SEEK_CUR);
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
                                         return -1;
                                 }
                                 if(0x47 == dat)
                                 {
-                                        fseek(fd_i, +203, SEEK_CUR);
-                                        state = STATE_SYNC2_204;
+                                        sync_cnt++;
+                                        if(sync_cnt >= SYNC_TIME)
+                                        {
+                                                if(pkt->ADDR < 4)
+                                                {
+                                                        fseek(fd_i, pkt->ADDR + 1, SEEK_SET);
+                                                        sync_cnt = 1;
+                                                        state = FILE_TSRS;
+                                                }
+                                                else
+                                                {
+                                                        pkt->ADDR -= 4;
+                                                        npline = 192;
+                                                        type = FILE_MTS;
+                                                }
+                                        }
                                 }
                                 else
                                 {
-                                        fseek(fd_i, -204, SEEK_CUR);
-                                        state = STATE_SYNC0;
+                                        fseek(fd_i, pkt->ADDR + 1, SEEK_SET);
+                                        sync_cnt = 1;
+                                        state = FILE_TSRS;
                                 }
                                 break;
-                        case STATE_SYNC2_188:
+                        case FILE_TSRS:
+                                fseek(fd_i, +203, SEEK_CUR);
                                 if(1 != fread(&dat, 1, 1, fd_i))
                                 {
                                         return -1;
                                 }
                                 if(0x47 == dat)
                                 {
-                                        //fprintf(stderr, "sync with 188\n");
-                                        fseek(fd_i, -377, SEEK_CUR);
-                                        npline = 188;
-                                        state = STATE_EXIT;
+                                        sync_cnt++;
+                                        if(sync_cnt >= SYNC_TIME)
+                                        {
+                                                npline = 204;
+                                                type = FILE_TSRS;
+                                        }
                                 }
                                 else
                                 {
-                                        fseek(fd_i, -376, SEEK_CUR);
-                                        state = STATE_SYNC0;
-                                }
-                                break;
-                        case STATE_SYNC2_204:
-                                if(1 != fread(&dat, 1, 1, fd_i))
-                                {
-                                        return -1;
-                                }
-                                if(0x47 == dat)
-                                {
-                                        //fprintf(stderr, "sync with 204\n");
-                                        fseek(fd_i, -409, SEEK_CUR);
-                                        npline = 204;
-                                        state = STATE_EXIT;
-                                }
-                                else
-                                {
-                                        fseek(fd_i, -408, SEEK_CUR);
-                                        state = STATE_SYNC0;
+                                        pkt->ADDR++;
+                                        state = FILE_UNKNOWN;
                                 }
                                 break;
                         default:
-                                fprintf(stderr, "bad state!\n");
+                                DBG(ERR_BAD_CASE, "%d\n", state);
                                 return -1;
                 }
+        }
+        fseek(fd_i, pkt->ADDR, SEEK_SET);
+        if(pkt->ADDR != 0)
+        {
+                fprintf(stderr, "%lld-byte passed\n", pkt->ADDR);
         }
         return 0;
 }
 
-//=============================================================================
-// THE END.
-//=============================================================================
+static int mts_time(uint64_t *mts, uint8_t *bin)
+{
+        int i;
+
+        for(*mts = 0, i = 0; i < 4; i++)
+        {
+                *mts <<= 8;
+                *mts |= *bin++;
+        }
+
+        return 0;
+}

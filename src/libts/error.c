@@ -1,16 +1,13 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-/*****************************************************************************
- * error.c
- * Error report mechanism
- * ZHOU Cheng, 2009-10-27
- ****************************************************************************/
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: error.c
+ * funx: error report mechanism
+ */
+
 #include <stdio.h>
 
 #include "error.h"
 
-/*============================================================================
- * Error Strings Declaration
- ===========================================================================*/
 static const char *errmsg[] =
 {
         "no error",
@@ -26,20 +23,13 @@ static const char *errmsg[] =
         "fopen failed",
         "end of file",
         "verify failed",
-        "^^^^", // subfunction failed
-        "wrong errno" // should be the last one
+        "^^^^", /* subfunction failed */
+        "wrong errno" /* should be the last one */
 };
 
-/*============================================================================
- * Public Functions Definition
- ===========================================================================*/
 void show_err(const char *file, int line, int err)
 {
         err = (err > ERR_WRONG_ERRNO) ? ERR_WRONG_ERRNO : err;
         fprintf(stderr, "\"%s\", line %d: %s, ", file, line, errmsg[err]);
         return;
 }
-
-/*****************************************************************************
- * End
- ****************************************************************************/

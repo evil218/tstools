@@ -1,40 +1,30 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-//=============================================================================
-// Name: catip.c
-// Purpose: generate text data file with bin data file
-// To build: gcc -std=c99 -o catip catip.c
-// Copyright (C) 2008 by ZHOU Cheng. All right reserved.
-//=============================================================================
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: catip.c
+ * funx: generate text data file with bin data file
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // for strcmp, etc
+#include <string.h> /* for strcmp, etc */
 
 #include "error.h"
 #include "if.h"
 #include "url.h"
 
-//=============================================================================
-// Variables definition:
-//=============================================================================
 static URL *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
-static int npline = 188; // data number per line
+static int npline = 188; /* data number per line */
 static char white_space = ' ';
 
-//=============================================================================
-// Sub-function declare:
-//=============================================================================
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
 static void show_version();
 
-//=============================================================================
-// The main function:
-//=============================================================================
 int main(int argc, char *argv[])
 {
-        unsigned char bbuf[ 204 + 10]; // bin data buffer
-        char tbuf[1024 + 10]; // txt data buffer
+        unsigned char bbuf[ 204 + 10]; /* bin data buffer */
+        char tbuf[1024 + 10]; /* txt data buffer */
 
         if(0 != deal_with_parameter(argc, argv))
         {
@@ -59,16 +49,13 @@ int main(int argc, char *argv[])
         return 0;
 }
 
-//=============================================================================
-// Subfunctions definition:
-//=============================================================================
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
 
         if(1 == argc)
         {
-                // no parameter
+                /* no parameter */
                 fprintf(stderr, "No URL to process...\n\n");
                 show_help();
                 return -1;
@@ -146,7 +133,3 @@ static void show_version()
         puts("Written by ZHOU Cheng.");
         return;
 }
-
-//=============================================================================
-// THE END.
-//=============================================================================

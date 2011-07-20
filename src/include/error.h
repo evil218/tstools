@@ -1,15 +1,12 @@
-/* vim: set tabstop=8 shiftwidth=8: */
-/*****************************************************************************
- * error.h
- * Error report mechanism
- * ZHOU Cheng, 2009-10-27
- ****************************************************************************/
+/*
+ * vim: set tabstop=8 shiftwidth=8:
+ * name: error.h
+ * funx: error report mechanism
+ */
+
 #ifndef _ERROR_H
 #define _ERROR_H
 
-/*============================================================================
- * enum Declaration
- ===========================================================================*/
 enum error_number
 {
         ERR_NO_ERROR = 0,
@@ -26,12 +23,9 @@ enum error_number
         ERR_EOF,
         ERR_VERIFY_FAILED,
         ERR_SUBFUXN_FAILED,
-        ERR_WRONG_ERRNO // should be the last enum!
+        ERR_WRONG_ERRNO /* should be the last enum! */
 };
 
-/*============================================================================
- * Error Micro Declaration
- ===========================================================================*/
 #define DBG(err, ...)                                                       \
         do                                                                  \
 {                                                                           \
@@ -39,13 +33,6 @@ enum error_number
         fprintf(stderr, __VA_ARGS__);                                       \
 }while(0)
 
-/*============================================================================
- * Public Functions Declaration
- ===========================================================================*/
 void show_err(const char *file, int line, int err);
 
-#endif // _ERROR_H
-
-/*****************************************************************************
- * End
- ****************************************************************************/
+#endif /* _ERROR_H */
