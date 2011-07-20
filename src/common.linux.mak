@@ -33,6 +33,8 @@ COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
 OBJS := $(patsubst %.c, %.o, $(SRCS))
 DEPS := $(patsubst %.c, %.d, $(SRCS))
 
+WOBJS := $(patsubst %.c, %.obj, $(SRCS))
+
 # =============================================================================
 # wildcard rule
 # =============================================================================
@@ -77,7 +79,7 @@ ifneq ($(NAME),libts1)
 endif
 
 clean:
-	-rm -f $(OBJS) *~ $(NAME).1 $(NAME).html
+	-rm -f $(OBJS) $(WOBJS) *~ $(NAME).1 $(NAME).html
 	-rm -f $(NAME)     $(NAME).a  
 	-rm -f $(NAME).exe $(NAME).lib
 
