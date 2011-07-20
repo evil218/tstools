@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "crc.h"
+#include "libts/crc.h"
 
 static uint8_t crc8_table[256];
 

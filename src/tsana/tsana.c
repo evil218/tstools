@@ -11,10 +11,10 @@
 #include <time.h> /* for localtime(), etc */
 #include <stdint.h> /* for uint?_t, etc */
 
-#include "common.h"
-#include "error.h"
-#include "if.h"
-#include "ts.h" /* has "list.h" already */
+#include "libts/common.h"
+#include "libts/error.h"
+#include "libts/if.h"
+#include "libts/ts.h" /* has "list.h" already */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)

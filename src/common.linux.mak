@@ -41,7 +41,7 @@ WOBJS := $(patsubst %.c, %.obj, $(SRCS))
 %.d: %.c
 	@echo make dependency file for $<
 	@$(CC) -MM $(CPPFLAGS) $< > $@
-	@$(CC) -MM $(CPPFLAGS) $< | sed s/.o/.d/ >> $@
+	@$(CC) -MM $(CPPFLAGS) $< | sed s/\.o:/.d:/ >> $@
 
 %.o: %.c
 	$(COMPILE) -o $@ $<
@@ -62,7 +62,7 @@ $(OBJ_DIR)/doc/%.html: %.html
 # =============================================================================
 all: $(NAME)$(POSTFIX)
 
-$(NAME).a: $(OBJS)
+$(NAME).a: $(OBJS) $(DEPS)
 	ar r $@ $(OBJS)
 
 $(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a
@@ -75,11 +75,13 @@ endif
 
 $(OBJ_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 ifneq ($(NAME),libts1)
+ifneq ($(TERM),cygwin)
 	cp $< $@
+endif
 endif
 
 clean:
-	-rm -f $(OBJS) $(WOBJS) *~ $(NAME).1 $(NAME).html
+	-rm -f $(DEPS) $(OBJS) $(WOBJS) *~ $(NAME).1 $(NAME).html
 	-rm -f $(NAME)     $(NAME).a  
 	-rm -f $(NAME).exe $(NAME).lib
 

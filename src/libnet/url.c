@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "url.h"
+#include "net/url.h"
 
 static void regcpy(char *des, const char *src);
 static void parse_url(URL *url, const char *str);

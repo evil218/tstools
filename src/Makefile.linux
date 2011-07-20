@@ -1,5 +1,5 @@
-DIRS = libts catbin tsana
-#catip tobin toip
+DIRS = libts catbin catip tsana
+#tobin
 
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory

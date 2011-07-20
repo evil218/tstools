@@ -2,19 +2,22 @@
  * vim: set tabstop=8 shiftwidth=8:
  * name: toip.c
  * funx: generate text data file with bin data file
- * 2011-06-28, ZHOU Cheng, init frame
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
-#include "common.h"
-#include "error.h"
-#include "if.h"
+#include "libts/error.h"
+#include "libts/if.h"
+#include "net/url.h"
 
-static FILE *fd_o = NULL;
-static char file_o[FILENAME_MAX] = "";
+static URL *fd_i = NULL;
+static char file_i[FILENAME_MAX] = "";
+static int npline = 188; /* data number per line */
+static char white_space = ' ';
+static ts_pkt_t PKT;
+static ts_pkt_t *pkt = &PKT;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -22,29 +25,36 @@ static void show_version();
 
 int main(int argc, char *argv[])
 {
-        int size;
-        char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
-        unsigned char bbuf[ LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
+        unsigned char bbuf[ 204 + 10]; /* bin data buffer */
+        char tbuf[1024 + 10]; /* txt data buffer */
 
         if(0 != deal_with_parameter(argc, argv))
         {
                 return -1;
         }
 
-        fd_o = fopen(file_o, "wb");
-        if(NULL == fd_o)
+        fd_i = url_open(file_i, "rb");
+        if(NULL == fd_i)
         {
                 DBG(ERR_FOPEN_FAILED, "\n");
                 return -ERR_FOPEN_FAILED;
         }
 
-        while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin))
+        pkt->ts = (bbuf + 0);
+        pkt->rs = NULL;
+        pkt->src = NULL;
+        pkt->ADDR = 0;
+        pkt->addr = &(pkt->ADDR);
+        pkt->cts = NULL;
+        pkt->dat = NULL;
+        while(1 == url_read(bbuf, npline, 1, fd_i))
         {
-                size = t2b(bbuf, tbuf);
-                fwrite(bbuf, size, 1, fd_o);
+                b2t(tbuf, pkt, white_space);
+                puts(tbuf);
+                pkt->ADDR += npline;
         }
 
-        fclose(fd_o);
+        url_close(fd_i);
 
         return 0;
 }
@@ -56,7 +66,7 @@ static int deal_with_parameter(int argc, char *argv[])
         if(1 == argc)
         {
                 /* no parameter */
-                fprintf(stderr, "No binary file to write...\n\n");
+                fprintf(stderr, "No URL to process...\n\n");
                 show_help();
                 return -1;
         }
@@ -65,7 +75,13 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(     0 == strcmp(argv[i], "-h") ||
+                        if(     0 == strcmp(argv[i], "-s") ||
+                                0 == strcmp(argv[i], "--space")
+                        )
+                        {
+                                sscanf(argv[++i], "%c" , &white_space);
+                        }
+                        else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")
                         )
                         {
@@ -88,7 +104,7 @@ static int deal_with_parameter(int argc, char *argv[])
                 }
                 else
                 {
-                        strcpy(file_o, argv[i]);
+                        strcpy(file_i, argv[i]);
                 }
         }
 
@@ -97,12 +113,13 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'toip' read from stdin, translate 'XY ' to 0xXY, send as UDP packet.");
+        puts("'toip' read TS over IP, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
         puts("Usage: toip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
         puts("");
         puts("Options:");
         puts("");
+        puts(" -s, --space <s>  white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -h, --help       print this information, then exit");
         puts(" -v, --version    print my version, then exit");
         puts("");
@@ -126,3 +143,4 @@ static void show_version()
         puts("Written by ZHOU Cheng.");
         return;
 }
+

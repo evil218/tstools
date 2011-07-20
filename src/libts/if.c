@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "error.h"
-#include "if.h"
+#include "libts/error.h"
+#include "libts/if.h"
 
 /* for function to_byte() */
 #define NEOL (+1) /* normal end of line */

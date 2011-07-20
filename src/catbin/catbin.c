@@ -9,9 +9,9 @@
 #include <string.h> /* for strcmp, etc */
 #include <stdint.h> /* for uintN_t, etc */
 
-#include "common.h"
-#include "error.h"
-#include "if.h"
+#include "libts/common.h"
+#include "libts/error.h"
+#include "libts/if.h"
 
 enum FILE_TYPE
 {

@@ -1,4 +1,4 @@
 NAME=catip
-SRCS = $(NAME).c url.c udp.c
+SRCS = $(NAME).c ../libnet/url.c ../libnet/udp.c
 
 include ../common.linux.mak

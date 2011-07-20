@@ -655,7 +655,7 @@ tsana要知道每个PID的类型——空包和PCR包的CC值是不变的。
 因此我设计了catbin工具，把二进制形式的TS文件读出来，以文本方式一包一行地发给stdout；
 又设计了catip工具，把TS over IP中的UDP包拆开成数个TS包，以文本方式一包一行地发给stdout；
 而tsana只是简单的从stdin中一包一行的接收TS包就可以了，它不需要知道是谁在给它码流。
-以后如果要增加新的输入形式就写一个xxcat就行了，tsana不需要改代码重新编译。
+以后如果要增加新的输入形式就写一个catxx就行了，tsana不需要改代码重新编译。
 （解释一下cat，这是unix下一个非常普通的工具，它把文本文件读出来输出到stdout。
 因为cat不支持二进制文件，所以我仿照它写了一个tscat，后来扩展了其功能不再限定TS文件，于是形成了catbin。）</p></div>
 <div class="paragraph"><p>规定用文本形式一行传送一个TS包还不够明确，具体这一行是什么格式呢？
@@ -714,7 +714,7 @@ cellspacing="0" cellpadding="4">
 <tr>
 <th align="left" valign="top">标签 </th>
 <th align="left" valign="top">长度 </th>
-<th align="left" valign="top">含义       </th>
+<th align="left" valign="top">含义          </th>
 <th align="left" valign="top">类型       </th>
 <th align="left" valign="top">单位      </th>
 <th align="left" valign="top">说明</th>
@@ -756,10 +756,10 @@ cellspacing="0" cellpadding="4">
 <tr>
 <td align="left" valign="top"><p class="table">0x05</p></td>
 <td align="left" valign="top"><p class="table">动态</p></td>
-<td align="left" valign="top"><p class="table">时间戳</p></td>
+<td align="left" valign="top"><p class="table">溢出值+时间戳</p></td>
 <td align="left" valign="top"><p class="table">无符号整数</p></td>
 <td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
-<td align="left" valign="top"><p class="table">本包接收时的时间戳</p></td>
+<td align="left" valign="top"><p class="table">本包接收时的时间戳，溢出值和时间戳前有各自的长度</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">其它</p></td>
@@ -775,7 +775,8 @@ cellspacing="0" cellpadding="4">
 对于MTS文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
 对于其它没有时间戳的源，分析模块内部会基于码率恒定的假设计算出每个包的时间戳。
 虽然时间戳的精度与PCR一样（1/27M 秒），但是并不采用(33+9)-bit的方式传输，
-它只是一个n-bit无符号整数，溢出时自动回0。
+一般来说，它只是一个n-bit无符号整数，达到溢出值时自动回0。
+例如：在MTS文件中，时间戳的溢出值是0x40000000，CTS的范围是[0,0x3FFFFFFF]。
 接收模块内部根据PCR信息和这个时间戳恢复出STC，所有与时间相关的计算都是基于STC进行的。</p></div>
 </div>
 </div>
@@ -839,7 +840,7 @@ toip
 <div class="listingblock">
 <div class="content">
 <pre><tt>语法：
-    catbin xxx.ts | tsana [-list] [-iv 5000]
+    catbin xxx.ts | tsana [-lst] [-iv 5000]
 例子：
     $ catbin c111_sd_1min.ts | tsana
       PID , abbr, detail
@@ -850,7 +851,7 @@ toip
     0x0053,  AUD, audio packet
     0x1FFF, NULL, empty packet</tt></pre>
 </div></div>
-<div class="paragraph"><p>参数“-list”并不是必须的，因为这是tsana的缺省操作。
+<div class="paragraph"><p>参数“-lst”并不是必须的，因为这是tsana的缺省操作。
 输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）：
 - “abbr”：该PID类型简介；
 - “detail”：该PID的详细解释。</p></div>
@@ -860,8 +861,8 @@ toip
 <div class="paragraph"><p>分析器内部会维护一个PID链表，分析期间遇到的新PID包或者PSI表中声明的PID按照从小到大的顺序插入表中。
 因为采用链表，其长度是没有限制的，最多可以有从0x0000到0x1FFF共8192项。
 因为插入时是排序的，所以很容易从小到大打印输出。</p></div>
-<div class="paragraph"><p>PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，输出PID链表。
-因此除了PSI中声明的PID，其它PID是否能分析到取决于PSI分析期间是否能遇到。
+<div class="paragraph"><p>PID成分分析是最早开发的功能，当时一旦所有PMT分析完成就停下来，输出PID链表。
+因此除了PAT、PMT中声明的PID，其它PID是否能分析到取决于PSI分析期间是否能遇到。
 最糟糕的情况是：PAT和各个PMT表相继出现，中间没有其它PID包。
 这种情况下分析到的PID将仅仅是这些表中所提及的。</p></div>
 <div class="paragraph"><p>由于码流长度的无限性，要分析码流中包含哪些PID，决定什么时候结束分析是个重要问题。
@@ -1116,7 +1117,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2011-07-07 20:04:58    
+Last updated 2011-07-10 13:51:21    
 </div>
 </div>
 </body>

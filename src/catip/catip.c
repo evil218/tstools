@@ -8,14 +8,16 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
-#include "error.h"
-#include "if.h"
-#include "url.h"
+#include "libts/error.h"
+#include "libts/if.h"
+#include "net/url.h"
 
 static URL *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
 static char white_space = ' ';
+static ts_pkt_t PKT;
+static ts_pkt_t *pkt = &PKT;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -38,10 +40,18 @@ int main(int argc, char *argv[])
                 return -ERR_FOPEN_FAILED;
         }
 
+        pkt->ts = (bbuf + 0);
+        pkt->rs = NULL;
+        pkt->src = NULL;
+        pkt->ADDR = 0;
+        pkt->addr = &(pkt->ADDR);
+        pkt->cts = NULL;
+        pkt->dat = NULL;
         while(1 == url_read(bbuf, npline, 1, fd_i))
         {
-                b2t(tbuf, bbuf, npline, white_space);
+                b2t(tbuf, pkt, white_space);
                 puts(tbuf);
+                pkt->ADDR += npline;
         }
 
         url_close(fd_i);

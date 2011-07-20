@@ -9,9 +9,9 @@
 #include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
 
-#include "error.h"
-#include "crc.h"
-#include "ts.h"
+#include "libts/error.h"
+#include "libts/crc.h"
+#include "libts/ts.h"
 
 #define BIT(n)                          (1<<(n))
 

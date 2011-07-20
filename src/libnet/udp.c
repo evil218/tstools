@@ -16,8 +16,8 @@
 #include <fcntl.h>                      /* for fcntl(), O_NONBLOCK, etc */
 #include <sys/select.h>                 /* for select(), etc */
 
-#include "error.h"
-#include "udp.h"
+#include "libts/error.h"
+#include "net/udp.h"
 
 #define UDP_LENGTH_MAX                  1536
 
