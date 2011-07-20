@@ -1,4 +1,4 @@
 NAME=catip
-SRCS := $(wildcard *.c)
+SRCS = $(NAME).c url.c udp.c
 
 include ../common.linux.mak

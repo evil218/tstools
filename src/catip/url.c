@@ -74,7 +74,7 @@ int url_close(URL *url)
         switch(url->protocol)
         {
                 case PRTCL_UDP:
-                        udp_close(url->udp, url->ip);
+                        udp_close(url->udp);
                         break;
                 default: // PRTCL_FILE
                         fclose(url->fd);

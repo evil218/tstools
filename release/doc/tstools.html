@@ -1,153 +1,655 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML>
-<HEAD>
-<META NAME="generator" CONTENT="http://txt2tags.org">
-<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8">
-<LINK REL="stylesheet" TYPE="text/css" HREF="fancy.css">
-<TITLE>TStools说明书</TITLE>
-</HEAD><BODY BGCOLOR="white" TEXT="black">
-<CENTER>
-<H1>TStools说明书</H1>
-<FONT SIZE="4"><I>周骋</I></FONT><BR>
-<FONT SIZE="4">最后更新：2011年04月24日</FONT>
-</CENTER>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.3" />
+<title>TStools说明书</title>
+<style type="text/css">
+/* Sans-serif font. */
+h1, h2, h3, h4, h5, h6,
+div.title, caption.title,
+thead, p.table.header,
+div#toctitle,
+span#author, span#revnumber, span#revdate, span#revremark,
+div#footer {
+  font-family: Arial,Helvetica,sans-serif;
+}
 
-<P></P>
-<HR NOSHADE SIZE=1>
-<P></P>
+/* Serif font. */
+div.sectionbody {
+  font-family: Georgia,"Times New Roman",Times,serif;
+}
 
-  <OL>
-  <LI><A HREF="#toc1">初识TStools</A>
-    <UL>
-    <LI><A HREF="#toc2">1.1. TStools的诞生</A>
-    <LI><A HREF="#toc3">1.2. TStools的基本思路</A>
-      <UL>
-      <LI><A HREF="#toc4">1.2.1. 算法与界面分离</A>
-      <LI><A HREF="#toc5">1.2.2. 数据文本化</A>
-      <LI><A HREF="#toc6">1.2.3. 灵活的数据交换</A>
-      </UL>
-    </UL>
-  <LI><A HREF="#toc7">使用TStools</A>
-    <UL>
-    <LI><A HREF="#toc8">2.1. 单个工具</A>
-    <LI><A HREF="#toc9">2.2. 组合用法</A>
-      <UL>
-      <LI><A HREF="#toc10">2.2.1. PID成分分析</A>
-      <LI><A HREF="#toc11">2.2.2. 节目树分析</A>
-      <LI><A HREF="#toc12">2.2.3. 错误分析</A>
-      <LI><A HREF="#toc13">2.2.4. PCR分析</A>
-      <LI><A HREF="#toc14">2.2.5. PTS、DTS分析</A>
-      <LI><A HREF="#toc15">2.2.6. 码率分析</A>
-      <LI><A HREF="#toc16">2.2.7. 导出PES数据</A>
-      <LI><A HREF="#toc17">2.2.8. 导出ES数据</A>
-      <LI><A HREF="#toc18">2.2.9. 导出ES数据到对应的二进制文件</A>
-      <LI><A HREF="#toc19">2.2.10. 实时流录制</A>
-      </UL>
-    </UL>
-  <LI><A HREF="#toc20">深入了解TStools</A>
-    <UL>
-    <LI><A HREF="#toc21">3.1. TS同步</A>
-    <LI><A HREF="#toc22">3.2. 时钟恢复</A>
-    </UL>
-  </OL>
+/* Monospace font. */
+tt {
+  font-size: inherit;
+}
 
-<P></P>
-<HR NOSHADE SIZE=1>
-<P></P>
+body {
+  margin: 1em 5% 1em 5%;
+}
 
-<A NAME="toc1"></A>
-<H1>1. 初识TStools</H1>
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
 
-<A NAME="toc2"></A>
-<H2>1.1. TStools的诞生</H2>
+em {
+  font-style: italic;
+  color: navy;
+}
 
-<P>
-搞数字电视编解码就要跟码流打交道，分析码流的过程中我一直希望把一些繁琐的操作自动化。
-虽然公司有码流分析仪，但几个人共用一个仪器总是不方便，并且有些功能码流分析仪也不支持。
-</P>
-<P>
-2009年初，我开发的H.264编码器出现PCR异常，非常需要连续记录PCR值以便分析其变化规律。
+strong {
+  font-weight: bold;
+  color: #083194;
+}
+
+tt {
+  font-size: inherit;
+  color: navy;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1, h2, h3 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  padding-top: 0.5em;
+}
+h3 {
+  float: left;
+}
+h3 + * {
+  clear: left;
+}
+
+div.sectionbody {
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+ul, ol, li > p {
+  margin-top: 0;
+}
+ul > li     { color: #aaa; }
+ul > li > * { color: black; }
+
+pre {
+  padding: 0;
+  margin: 0;
+}
+
+span#author {
+  color: #527bbd;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+span#email {
+}
+span#revnumber, span#revdate, span#revremark {
+}
+
+div#footer {
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+div#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+div#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+div#preamble {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.0em;
+  margin-bottom: 2.0em;
+  margin-right: 10%;
+  color: #606060;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  color: #527bbd;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid #dddddd;
+  border-left: 4px solid #f0f0f0;
+  padding: 0.5em;
+}
+
+div.listingblock > div.content {
+  border: 1px solid #dddddd;
+  border-left: 5px solid #f0f0f0;
+  background: #f8f8f8;
+  padding: 0.5em;
+}
+
+div.quoteblock, div.verseblock {
+  padding-left: 1.0em;
+  margin-left: 1.0em;
+  margin-right: 10%;
+  border-left: 5px solid #f0f0f0;
+  color: #777777;
+}
+
+div.quoteblock > div.attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock > pre.content {
+  font-family: inherit;
+  font-size: inherit;
+}
+div.verseblock > div.attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+/* DEPRECATED: Pre version 8.2.7 verse style literal block. */
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 3px solid #dddddd;
+}
+
+div.exampleblock > div.content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+div.imageblock div.content { padding-left: 0; }
+span.image img { border-style: none; }
+a.image:visited { color: white; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: normal;
+  color: navy;
+}
+dd > *:first-child {
+  margin-top: 0.1em;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+ol.arabic {
+  list-style-type: decimal;
+}
+ol.loweralpha {
+  list-style-type: lower-alpha;
+}
+ol.upperalpha {
+  list-style-type: upper-alpha;
+}
+ol.lowerroman {
+  list-style-type: lower-roman;
+}
+ol.upperroman {
+  list-style-type: upper-roman;
+}
+
+div.compact ul, div.compact ol,
+div.compact p, div.compact p,
+div.compact div, div.compact div {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead, p.table.header {
+  font-weight: bold;
+  color: #527bbd;
+}
+tfoot {
+  font-weight: bold;
+}
+td > div.verse {
+  white-space: pre;
+}
+p.table {
+  margin-top: 0;
+}
+/* Because the table frame attribute is overriden by CSS in most browsers. */
+div.tableblock > table[frame="void"] {
+  border-style: none;
+}
+div.tableblock > table[frame="hsides"] {
+  border-left-style: none;
+  border-right-style: none;
+}
+div.tableblock > table[frame="vsides"] {
+  border-top-style: none;
+  border-bottom-style: none;
+}
+
+
+div.hdlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+div.hdlist tr {
+  padding-bottom: 15px;
+}
+dt.hdlist1.strong, td.hdlist1.strong {
+  font-weight: bold;
+}
+td.hdlist1 {
+  vertical-align: top;
+  font-style: normal;
+  padding-right: 0.8em;
+  color: navy;
+}
+td.hdlist2 {
+  vertical-align: top;
+}
+div.hdlist.compact tr {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.comment {
+  background: yellow;
+}
+
+.footnote, .footnoteref {
+  font-size: 0.8em;
+}
+
+span.footnote, span.footnoteref {
+  vertical-align: super;
+}
+
+#footnotes {
+  margin: 20px 0 20px 0;
+  padding: 7px 0 0 0;
+}
+
+#footnotes div.footnote {
+  margin: 0 0 5px 0;
+}
+
+#footnotes hr {
+  border: none;
+  border-top: 1px solid silver;
+  height: 1px;
+  text-align: left;
+  margin-left: 0;
+  width: 20%;
+  min-width: 100px;
+}
+
+div.colist td {
+  padding-right: 0.5em;
+  padding-bottom: 0.3em;
+  vertical-align: top;
+}
+div.colist td img {
+  margin-top: 0.3em;
+}
+
+@media print {
+  div#footer-badges { display: none; }
+}
+
+div#toc {
+  margin-bottom: 2.5em;
+}
+
+div#toctitle {
+  color: #527bbd;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 1.0em;
+  margin-bottom: 0.1em;
+}
+
+div.toclevel1, div.toclevel2, div.toclevel3, div.toclevel4 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+div.toclevel2 {
+  margin-left: 2em;
+  font-size: 0.9em;
+}
+div.toclevel3 {
+  margin-left: 4em;
+  font-size: 0.9em;
+}
+div.toclevel4 {
+  margin-left: 6em;
+  font-size: 0.9em;
+}
+
+</style>
+<script type="text/javascript">
+/*<![CDATA[*/
+window.onload = function(){asciidoc.footnotes(); asciidoc.toc(2);}
+var asciidoc = {  // Namespace.
+
+/////////////////////////////////////////////////////////////////////
+// Table Of Contents generator
+/////////////////////////////////////////////////////////////////////
+
+/* Author: Mihai Bazon, September 2002
+ * http://students.infoiasi.ro/~mishoo
+ *
+ * Table Of Content generator
+ * Version: 0.4
+ *
+ * Feel free to use this script under the terms of the GNU General Public
+ * License, as long as you do not remove or alter this notice.
+ */
+
+ /* modified by Troy D. Hanson, September 2006. License: GPL */
+ /* modified by Stuart Rackham, 2006, 2009. License: GPL */
+
+// toclevels = 1..4.
+toc: function (toclevels) {
+
+  function getText(el) {
+    var text = "";
+    for (var i = el.firstChild; i != null; i = i.nextSibling) {
+      if (i.nodeType == 3 /* Node.TEXT_NODE */) // IE doesn't speak constants.
+        text += i.data;
+      else if (i.firstChild != null)
+        text += getText(i);
+    }
+    return text;
+  }
+
+  function TocEntry(el, text, toclevel) {
+    this.element = el;
+    this.text = text;
+    this.toclevel = toclevel;
+  }
+
+  function tocEntries(el, toclevels) {
+    var result = new Array;
+    var re = new RegExp('[hH]([2-'+(toclevels+1)+'])');
+    // Function that scans the DOM tree for header elements (the DOM2
+    // nodeIterator API would be a better technique but not supported by all
+    // browsers).
+    var iterate = function (el) {
+      for (var i = el.firstChild; i != null; i = i.nextSibling) {
+        if (i.nodeType == 1 /* Node.ELEMENT_NODE */) {
+          var mo = re.exec(i.tagName);
+          if (mo && (i.getAttribute("class") || i.getAttribute("className")) != "float") {
+            result[result.length] = new TocEntry(i, getText(i), mo[1]-1);
+          }
+          iterate(i);
+        }
+      }
+    }
+    iterate(el);
+    return result;
+  }
+
+  var toc = document.getElementById("toc");
+  var entries = tocEntries(document.getElementById("content"), toclevels);
+  for (var i = 0; i < entries.length; ++i) {
+    var entry = entries[i];
+    if (entry.element.id == "")
+      entry.element.id = "_toc_" + i;
+    var a = document.createElement("a");
+    a.href = "#" + entry.element.id;
+    a.appendChild(document.createTextNode(entry.text));
+    var div = document.createElement("div");
+    div.appendChild(a);
+    div.className = "toclevel" + entry.toclevel;
+    toc.appendChild(div);
+  }
+  if (entries.length == 0)
+    toc.parentNode.removeChild(toc);
+},
+
+
+/////////////////////////////////////////////////////////////////////
+// Footnotes generator
+/////////////////////////////////////////////////////////////////////
+
+/* Based on footnote generation code from:
+ * http://www.brandspankingnew.net/archive/2005/07/format_footnote.html
+ */
+
+footnotes: function () {
+  var cont = document.getElementById("content");
+  var noteholder = document.getElementById("footnotes");
+  var spans = cont.getElementsByTagName("span");
+  var refs = {};
+  var n = 0;
+  for (i=0; i<spans.length; i++) {
+    if (spans[i].className == "footnote") {
+      n++;
+      // Use [\s\S] in place of . so multi-line matches work.
+      // Because JavaScript has no s (dotall) regex flag.
+      note = spans[i].innerHTML.match(/\s*\[([\s\S]*)]\s*/)[1];
+      noteholder.innerHTML +=
+        "<div class='footnote' id='_footnote_" + n + "'>" +
+        "<a href='#_footnoteref_" + n + "' title='Return to text'>" +
+        n + "</a>. " + note + "</div>";
+      spans[i].innerHTML =
+        "[<a id='_footnoteref_" + n + "' href='#_footnote_" + n +
+        "' title='View footnote' class='footnote'>" + n + "</a>]";
+      var id =spans[i].getAttribute("id");
+      if (id != null) refs["#"+id] = n;
+    }
+  }
+  if (n == 0)
+    noteholder.parentNode.removeChild(noteholder);
+  else {
+    // Process footnoterefs.
+    for (i=0; i<spans.length; i++) {
+      if (spans[i].className == "footnoteref") {
+        var href = spans[i].getElementsByTagName("a")[0].getAttribute("href");
+        href = href.match(/#.*/)[0];  // Because IE return full URL.
+        n = refs[href];
+        spans[i].innerHTML =
+          "[<a href='#_footnote_" + n +
+          "' title='View footnote' class='footnote'>" + n + "</a>]";
+      }
+    }
+  }
+}
+
+}
+/*]]>*/
+</script>
+</head>
+<body class="book">
+<div id="header">
+<h1>TStools说明书</h1>
+<span id="author">周骋</span><br />
+<span id="revnumber">version 1.0,</span>
+<span id="revdate">2011年06月25日</span>
+<div id="toc">
+  <div id="toctitle">Table of Contents</div>
+  <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
+</div>
+</div>
+<div id="content">
+<div class="sect1">
+<h2 id="_">1. 致谢</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>请允许我在这里占用少量篇幅，
+向所有鼓励、帮助我不断完善这个码流分析工具的朋友和组织致以诚挚谢意！</p></div>
+<div class="paragraph"><p>感谢数码视讯，这个公司把我引入了TS流的奇妙世界，通过TS流我学到了很多精彩的知识。</p></div>
+<div class="paragraph"><p>感谢所有试用TStool或浏览本书并提供意见和建议的人们，你们的需求是我完成这个分析工具的强大动力。</p></div>
+<div class="paragraph"><p>最后，感谢我的朋友和家人，感谢他们的理解和支持。</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__2">2. 序言</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>MPEG-2（运动图像压缩编码国际标准）的系统部分
+将一个或更多的音频、视频或其它基本数据流合成单个或多个数据流，以适应存储和传输。
+这个开放的、高瞻远瞩的标准在全世界推广的过程中不断发展壮大，
+即便在MPEG-2视频编码标准逐渐淡出历史舞台的今天，
+它仍然能够承载各种视音频传输需求，在广电、消费等各种专业、非专业领域发挥作用。</p></div>
+<div class="paragraph"><p>TS码流是一串字节序列，表面枯燥的数字背后传输的是美妙的声音与图像。
+一旦解码出现异常，我们就需要通过分析，定位排查码流中的错误。
+然而打印在屏幕上的数据就像Matrix（黑客帝国）中满屏绿色的符号，
+我们没有直接看懂TS流的能力，因此在诊断码流故障时需要借助码流分析工具。
+本书描述的就是一种独具特色的码流分析工具。</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_tstools">3. 初识TStools</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_tstools_2">3.1. TStools的诞生</h3>
+<div class="paragraph"><p>搞数字电视编解码就要跟码流打交道，分析码流的过程中我一直希望把一些繁琐的操作自动化。
+虽然公司有码流分析仪，但几个人共用一个仪器总是不方便，并且有些功能码流分析仪也不支持。</p></div>
+<div class="paragraph"><p>2009年初，我开发的H.264编码器出现PCR异常，非常需要连续记录PCR值以便分析其变化规律。
 码流分析仪只关注像PCR间隔和PCR抖动这样的指标，不能连续输出PCR值。
 于是TStools的最初版本诞生了——SVN的日志记录了它版本化的日子：4月1日。
-当时有tsana、ts2es和tsflt三个工具，因此叫TStools（TS工具集）——是不是有点BusyBox的味道？
-</P>
-
-<UL>
-<LI>tsana分析TS包头，如果有PCR就提取并打印出来；
-<LI>ts2es借用了同事给的一个函数，实现TS到ES的转换（试了一下，好像功能不对）；
-<LI>tsflt可以将码流中指定PID的包打印出来。
-</UL>
-
-<P>
-第2季度，我负责在公司的EMR平台上开发IP发送功能。
+当时有tsana、ts2es和tsflt三个工具，因此叫TStools（TS工具集）——是不是有点BusyBox的味道？</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+tsana分析TS包头，如果有PCR就提取并打印出来；
+</p>
+</li>
+<li>
+<p>
+ts2es借用了同事给的一个函数，实现TS到ES的转换（试了一下，好像功能不对）；
+</p>
+</li>
+<li>
+<p>
+tsflt可以将码流中指定PID的包打印出来。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>第2季度，我负责在公司的EMR平台上开发IP发送功能。
 代码缺陷和网络问题都会导致丢包，这种小概率事件可能一夜只发生一次，甚至仅在早上上班的时候出现。
 因此准确地捕捉丢包事件，对调试工作会有很大帮助。
 但是码流分析仪的软件夜里可能会死机，导致拷机实验失败。
 因此我在tsana工具中增加了UDP接收模块，跟踪指定PID的CC值，一旦不连续就把系统时间和CC情况打印出来。
-如果想同时分析所有PID的丢包情况就要复杂一些了：
-</P>
-
-<UL>
-<LI>tsana要同时跟踪每一种PID的CC数值——需要建立一个链表记录所有出现过的PID；
-<LI>tsana要知道每个PID的类型——空包和PCR包的CC值是不变的。
-</UL>
-
-<P>
-即使是完整的实现丢包检测都必须做PSI分析，因此我在这个简单的基础上停下来，开始考虑TStools的架构。
-</P>
-
-<A NAME="toc3"></A>
-<H2>1.2. TStools的基本思路</H2>
-
-<A NAME="toc4"></A>
-<H3>1.2.1. 算法与界面分离</H3>
-
-<P>
-码流分析产生的数据结果很复杂，如何展现给用户是个重要的问题。
+如果想同时分析所有PID的丢包情况就要复杂一些了：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+tsana要同时跟踪每一种PID的CC数值——需要建立一个链表记录所有出现过的PID；
+</p>
+</li>
+<li>
+<p>
+tsana要知道每个PID的类型——空包和PCR包的CC值是不变的。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>即使是完整的实现丢包检测都必须做PSI分析，因此我在这个简单的基础上停下来，开始考虑TStools的架构。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_tstools_3">3.2. TStools的基本思路</h3>
+<div class="sect3">
+<h4 id="__3">3.2.1. 算法与界面分离</h4>
+<div class="paragraph"><p>码流分析产生的数据结果很复杂，如何展现给用户是个重要的问题。
 针对各种数据特点，图形界面的码流分析软件会使用列表、树、波形图等各种控件展现。
 鄙人没有太多艺术细胞，若搞出一个丑丑的图形界面，不仅别人看不上眼，自己用着也难受。
 另外搞图形界面需要花大量精力在界面技术上，我更想把精力都用在码流分析算法上。
-因此作为一个懒人，我选择文本界面，只是简单地把分析结果打印出来。
-</P>
-<P>
-<IMG ALIGN="middle" SRC="pic_multi_IF.jpg" BORDER="0" ALT="">
-</P>
-<P>
-这里必须提一下csv文件格式，说它是一种文件格式实在是搞复杂了，
+因此作为一个懒人，我选择文本界面，只是简单地把分析结果打印出来。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_multi_IF.jpg" alt="mlti_IF" />
+</span></p></div>
+<div class="paragraph"><p>这里必须提一下csv文件格式，说它是一种文件格式实在是搞复杂了，
 它就是一种文本方式的数据文件，唯一的要求是数据之间用英文逗号隔开。
 但是因为这样的规定，像Excel这样的数据处理软件可以直接打开它，开展进一步的数据分析，甚至以图形方式展现数据。
-因此csv文件格式是数据能被进一步分析的重要形式，本项目的大部分数据输出都采用逗号分隔，以便保存为csv文件。
-</P>
-<P>
-虽然我不做图形界面，但是也不想拒绝别人为本项目开发其它形式的界面。
-因此本项目的分析代码与文本界面位于不同的模块——如果分析模块封装的很好，别人是可以直接拿来开发界面的。
-</P>
-<P>
-由于分析模块和文本界面仅处理数据，不涉及任何平台相关的内容，因此项目的可移植性非常好。
+因此csv文件格式是数据能被进一步分析的重要形式，本项目的大部分数据输出都采用逗号分隔，以便保存为csv文件。</p></div>
+<div class="paragraph"><p>虽然我不做图形界面，但是也不想拒绝别人为本项目开发其它形式的界面。
+因此本项目的分析代码与文本界面位于不同的模块——如果分析模块封装的很好，别人是可以直接拿来开发界面的。</p></div>
+<div class="paragraph"><p>由于分析模块和文本界面仅处理数据，不涉及任何平台相关的内容，因此项目的可移植性非常好。
 我不想把这样的项目局限在Windows平台下，因此在Windows下坚持基于cygwin环境开发，
-目前的TStools源代码可以直接在Linux环境下编译运行。
-</P>
-
-<A NAME="toc5"></A>
-<H3>1.2.2. 数据文本化</H3>
-
-<P>
-为了同时支持离线分析（TS文件）和在线分析（TS over IP），tsana曾经根据参数格式（文件名/URL地址）选择不同的输入模块。
+目前的TStools源代码可以直接在Linux环境下编译运行。</p></div>
+</div>
+<div class="sect3">
+<h4 id="__4">3.2.2. 数据文本化</h4>
+<div class="paragraph"><p>为了同时支持离线分析（TS文件）和在线分析（TS over IP），tsana曾经根据参数格式（文件名/URL地址）选择不同的输入模块。
 当时我还把UDP模块的接口封装成文件系统接口的样子，以便tsana能用同样的函数打开两种源。
 后来我发现可能的输入方式不止这两种，RTP方式、HTTP方式也可以传输TS流，甚至只要开发一个小盒子就可以支持ASI输入。
-难道每增加一种输入方式就要改一次tsana？在shell中，这个问题有更好的解决办法。
-</P>
-<P>
-Unix下有一个叫做“过滤器”的概念：
+难道每增加一种输入方式就要改一次tsana？在shell中，这个问题有更好的解决办法。</p></div>
+<div class="paragraph"><p>Unix下有一个叫做“过滤器”的概念：
 每个工具处理stdin（标准输入）传入的内容，产生的结果写给stdout（标准输出），出现的错误写入stderr（标准错误）。
 由于“管道”可以实现输入输出重新定向，多个这样的过滤器可以用管道连接起来，完成复杂的任务。
-如果把tsana设计成一个过滤器，仅处理从stdin输入的码流，借助管道就可以支持任意形式的输入。
-</P>
-<P>
-<IMG ALIGN="middle" SRC="pic_pipe.jpg" BORDER="0" ALT="">
-</P>
-<P>
-采用这个方案需要解决一个衍生问题：二进制形式的TS数据以什么样的格式在管道间传输？
+如果把tsana设计成一个过滤器，仅处理从stdin输入的码流，借助管道就可以支持任意形式的输入。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_pipe.jpg" alt="pic_pipe.jpg" />
+</span></p></div>
+<div class="paragraph"><p>采用这个方案需要解决一个衍生问题：二进制形式的TS数据以什么样的格式在管道间传输？
 二进制文件由于可读性差，数据定位复杂，传输时需要同步，在Unix世界中被严重鄙视。
 大部分过滤器都采用文本格式，一行行地（每行同步一次）传递数据。
 因此我设计了catbin工具，把二进制形式的TS文件读出来，以文本方式一包一行地发给stdout；
@@ -155,126 +657,204 @@ Unix下有一个叫做“过滤器”的概念：
 而tsana只是简单的从stdin中一包一行的接收TS包就可以了，它不需要知道是谁在给它码流。
 以后如果要增加新的输入形式就写一个xxcat就行了，tsana不需要改代码重新编译。
 （解释一下cat，这是unix下一个非常普通的工具，它把文本文件读出来输出到stdout。
-因为cat不支持二进制文件，所以我仿照它写了一个tscat，后来扩展了其功能不再限定TS文件，于是形成了catbin。）
-</P>
-<P>
-规定用文本形式一行传送一个TS包还不够明确，具体这一行是什么格式呢？
+因为cat不支持二进制文件，所以我仿照它写了一个tscat，后来扩展了其功能不再限定TS文件，于是形成了catbin。）</p></div>
+<div class="paragraph"><p>规定用文本形式一行传送一个TS包还不够明确，具体这一行是什么格式呢？
 考虑到阅读方便，TS包中的188（或204）个字节之间要有分隔符，
 前面提到的英文逗号自然可以，但是过于密集的逗号还是影响阅读，因此用单个空格做分隔符更好。
-于是每个TS包变成了这样的文本行：“?? ?? ?? ... ?? \n”，每个字节变成了3个可显字符。
+于是每个TS包变成了这样的文本行：“?? ?? ?? &#8230; ?? \n”，每个字节变成了3个可显字符。
 （如果用户需要，catbin允许指定任何字符用作间隔符，而tsana也允许间隔处出现任何[0-9A-Fa-f]范围之外的字符。）
 如果catbin中使用“printf("%02X ", x)”把数据转换成文本形式，效率就太低了。
-对于这样一个固定的转换，使用查表法可以克服TS数据文本化的唯一弊端——效率问题。
-</P>
-<P>
-当TS包变成文本行时，我忽然发现除了tsana，还可以直接使用Unix下的很多工具直接处理catbin的输出：
-可以用grep过滤出指定PID的TS包，可以用sed修改某些数据，可以用vim快速定位目标数据......它们都支持强大的正规表达式。
+对于这样一个固定的转换，使用查表法可以克服TS数据文本化的唯一弊端——效率问题。</p></div>
+<div class="paragraph"><p>当TS包变成文本行时，我忽然发现除了tsana，还可以直接使用Unix下的很多工具直接处理catbin的输出：
+可以用grep过滤出指定PID的TS包，可以用sed修改某些数据，可以用vim快速定位目标数据&#8230;&#8230;它们都支持强大的正规表达式。
 最后一个问题：这些工具的输出还是文本格式，如果想回到二进制格式呢？
 于是我设计了tobin工具，把符合上述格式的文本转换回二进制文件（阴阳平衡很重要）。
 当tobin出现时，我发现用“catip + tobin”立刻就能实现实时流的录制功能（用VLC录流是需要一点技巧的）。
-Unix的小工具思想太强大了！
-</P>
-<P>
-<IMG ALIGN="middle" SRC="pic_recorder.jpg" BORDER="0" ALT="">
-</P>
-
-<A NAME="toc6"></A>
-<H3>1.2.3. 灵活的数据交换</H3>
-
-<P>
-在接口模块与分析模块间用管道传输数据时，仅仅传输TS包的内容是不够的。
-</P>
-
-<UL>
-<LI>对于TS文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
-<LI>对于MTS文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
-<LI>对于IP输出形式，包的发送（到达）时间非常重要，直接关系到输出码流的指标好坏。
-</UL>
-
-<P>
-为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
-在上一节数据文本化的基础上，规定：
+Unix的小工具思想太强大了！</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_recorder.jpg" alt="pic_recorder.jpg" />
+</span></p></div>
+</div>
+<div class="sect3">
+<h4 id="__5">3.2.3. 灵活的数据交换</h4>
+<div class="paragraph"><p>在接口模块与分析模块间用管道传输数据时，仅仅传输TS包的内容是不够的。</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+对于TS文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
+</p>
+</li>
+<li>
+<p>
+对于MTS文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
+</p>
+</li>
+<li>
+<p>
+对于IP输出形式，包的发送（到达）时间非常重要，直接关系到输出码流的指标好坏。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
+在上一节数据文本化的基础上规定：
 每行文本中除了先传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息。
-所有数据段采用“标签+内容”的格式，有些标签后内容的长度固定，有些标签后内容的长度包含在内容中。
-</P>
-
-<UL>
-<LI>标签0x47对应TS包数据，后继内容长度默认为187；
-<LI>标签0x48对应RS校验数据，后继内容长度默认为16；
-<LI>标签0x49对应私有数据，内容的字节数在地址数据中确定；
-<LI>标签0x4A对应相对地址，内容的字节数在地址数据中确定；
-<LI>标签0x4B对应绝对地址，内容的字节数在地址数据中确定；
-<LI>标签0x4C对应相对时间，内容的字节数在地址数据中确定；
-<LI>标签0x4D对应绝对时间，内容的字节数在地址数据中确定。
-</UL>
-
-<A NAME="toc7"></A>
-<H1>2. 使用TStools</H1>
-
-<A NAME="toc8"></A>
-<H2>2.1. 单个工具</H2>
-
-<P>
-Unix下每个工具的使用说明一般要用“--help”来看，
+所有数据段采用“标签[+长度]+数据”的格式（对于数据长度固定的标签，长度字节省略）:</p></div>
+<div class="tableblock">
+<table rules="all"
+width="100%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<col width="16%" />
+<thead>
+<tr>
+<th align="left" valign="top">标签 </th>
+<th align="left" valign="top">长度 </th>
+<th align="left" valign="top">含义       </th>
+<th align="left" valign="top">类型       </th>
+<th align="left" valign="top">单位        </th>
+<th align="left" valign="top">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" align="left" valign="top"><p class="table">0x47</p></td>
+<td align="left" valign="top"><p class="table">TS包数据</p></td>
+<td colspan="2" align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table">默认187-byte</p></td>
+</tr>
+<tr>
+<td colspan="2" align="left" valign="top"><p class="table">0x48</p></td>
+<td align="left" valign="top"><p class="table">RS校验数据</p></td>
+<td colspan="2" align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table">默认16-byte</p></td>
+</tr>
+<tr>
+<td colspan="2" align="left" valign="top"><p class="table">0x49</p></td>
+<td align="left" valign="top"><p class="table">本包来源</p></td>
+<td colspan="2" align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table">默认1-byte，将来用于复用</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">0x4A</p></td>
+<td align="left" valign="top"><p class="table">len</p></td>
+<td align="left" valign="top"><p class="table">相对地址</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">byte</p></td>
+<td align="left" valign="top"><p class="table">本包头与前一包头的距离</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">0x4B</p></td>
+<td align="left" valign="top"><p class="table">len</p></td>
+<td align="left" valign="top"><p class="table">相对时间</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">(1/27M)(秒)</p></td>
+<td align="left" valign="top"><p class="table">本包头距前一包头的时间</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">其它</p></td>
+<td colspan="5" align="left" valign="top"><p class="table">保留，接收端遇到时从该标签一直忽略到行尾</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="paragraph"><p>表中没有绝对地址和绝对时间标签，因为接收端可以通过累加计算出来。
+另外，随着系统运行时间的延续，绝对地址值和绝对时间值可能大到超出数据类型能表示的范围，导致程序错误。
+声明绝对时间并没有实际意义——即便是PCR这样大的数据类型，也会在26.5小时后回绕到0。
+但是声明绝对地址还有点儿意义，对于TS文件，通过绝对地址可以定位数据，找到错误发生的位置。
+为此补充规定：相对地址为0并不是错误，它表示这是第1个包，或者告诉接收方把绝对地址计数器清零。</p></div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_tstools_4">4. 使用TStools</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="__6">4.1. 单个工具</h3>
+<div class="paragraph"><p>Unix下每个工具的使用说明一般要用“--help”来看，
 如果你懒得去命令行敲键盘，就看看这些自动生成的链接吧！
-翻译成中文有点画蛇添足，说明书还是看原版的好：
-</P>
-
-<UL>
-<LI><A HREF="catbin.html">catbin</A>：打开指定的TS文件，将每个TS包转换成TXT格式发送到stdout。
-<LI><A HREF="catip.html">catip</A>：接收UDP包，拆成TS包转换成TXT格式发送到stdout。
-<LI><A HREF="tsana.html">tsana</A>：从stdin接收TXT格式的TS包，按照参数要求分析，并以TXT格式输出到stdout。
-<LI><A HREF="tobin.html">tobin</A>：从stdin接收TXT格式的数据，转换成二进制写入指定文件。
-<LI><A HREF="toip.html">toip</A>：从stdin接收TXT格式的数据，转换成二进制，打成UDP包，按照正确的码率发送出去（尚未实现）。
-</UL>
-
-<A NAME="toc9"></A>
-<H2>2.2. 组合用法</H2>
-
-<A NAME="toc10"></A>
-<H3>2.2.1. PID成分分析</H3>
-
-<PRE>
-  语法：
-      catbin xxx.ts | tsana [-list] [-iv 5000]
-  
-  例子：
-      $ catbin c111_sd_1min.ts | tsana
-        PID , abbr, detail
-      0x0000,  PAT, program association section
-      0x0050,  PMT, program map section
-      0x0051,  PCR, program counter reference
-      0x0052,  VID, video packet
-      0x0053,  AUD, audio packet
-      0x1FFF, NULL, empty packet
-</PRE>
-
-<P>
-参数“-list”并不是必须的，因为这是tsana的缺省操作。
+翻译成中文有点画蛇添足，说明书还是看原版的好：</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+catbin
+</dt>
+<dd>
+<p>
+<a href="catbin.html">打开指定的TS文件，将每个TS包转换成TXT格式发送到stdout</a>
+</p>
+</dd>
+<dt class="hdlist1">
+catip
+</dt>
+<dd>
+<p>
+<a href="catip.html">接收UDP包，拆成TS包转换成TXT格式发送到stdout</a>
+</p>
+</dd>
+<dt class="hdlist1">
+tsana
+</dt>
+<dd>
+<p>
+<a href="tsana.html">从stdin接收TXT格式的TS包，按照参数要求分析，并以TXT格式输出到stdout</a>
+</p>
+</dd>
+<dt class="hdlist1">
+tobin
+</dt>
+<dd>
+<p>
+<a href="tobin.html">从stdin接收TXT格式的数据，转换成二进制写入指定文件</a>
+</p>
+</dd>
+<dt class="hdlist1">
+toip
+</dt>
+<dd>
+<p>
+<a href="toip.html">从stdin接收TXT格式的数据，转换成二进制，打成UDP包，按照正确的码率发送出去（尚未实现）</a>
+</p>
+</dd>
+</dl></div>
+</div>
+<div class="sect2">
+<h3 id="__7">4.2. 组合用法</h3>
+<div class="sect3">
+<h4 id="_pid">4.2.1. PID成分分析</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：
+    catbin xxx.ts | tsana [-list] [-iv 5000]
+例子：
+    $ catbin c111_sd_1min.ts | tsana
+      PID , abbr, detail
+    0x0000,  PAT, program association section
+    0x0050,  PMT, program map section
+    0x0051,  PCR, program counter reference
+    0x0052,  VID, video packet
+    0x0053,  AUD, audio packet
+    0x1FFF, NULL, empty packet</tt></pre>
+</div></div>
+<div class="paragraph"><p>参数“-list”并不是必须的，因为这是tsana的缺省操作。
 输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）：
-</P>
-
-<UL>
-<LI>“abbr”：该PID类型简介；
-<LI>“detail”：该PID的详细解释。
-</UL>
-
-<P>
-<IMG ALIGN="middle" SRC="pic_PID_list.jpg" BORDER="0" ALT="">
-</P>
-<P>
-分析器内部会维护一个PID链表，分析期间遇到的新PID包或者PSI表中声明的PID按照从小到大的顺序插入表中。
+- “abbr”：该PID类型简介；
+- “detail”：该PID的详细解释。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_PID_list.jpg" alt="pic_PID_list.jpg" />
+</span></p></div>
+<div class="paragraph"><p>分析器内部会维护一个PID链表，分析期间遇到的新PID包或者PSI表中声明的PID按照从小到大的顺序插入表中。
 因为采用链表，其长度是没有限制的，最多可以有从0x0000到0x1FFF共8192项。
-因为插入时是排序的，所以很容易从小到大打印输出。
-</P>
-<P>
-PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，输出PID链表。
+因为插入时是排序的，所以很容易从小到大打印输出。</p></div>
+<div class="paragraph"><p>PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，输出PID链表。
 因此除了PSI中声明的PID，其它PID是否能分析到取决于PSI分析期间是否能遇到。
 最糟糕的情况是：PAT和各个PMT表相继出现，中间没有其它PID包。
-这种情况下分析到的PID将仅仅是这些表中所提及的。
-</P>
-<P>
-由于码流长度的无限性，要分析码流中包含哪些PID，决定什么时候结束分析是个重要问题。
+这种情况下分析到的PID将仅仅是这些表中所提及的。</p></div>
+<div class="paragraph"><p>由于码流长度的无限性，要分析码流中包含哪些PID，决定什么时候结束分析是个重要问题。
 如果码流正常，大部分PID都将在PSI表中声明，因此完成节目分析时已经可以输出PID表了。
 但是像SDT、NIT这样的表在PAT、PMT体系中是找不到的，更何况一些码流中会有意无意的出现unknown PID。
 因此限定分析时间是个更合理的方案——任何常用的PID至少每秒钟应该出现1次。
@@ -282,182 +862,265 @@ PID成分分析是最早开发的功能，一旦PSI分析完成就停下来，�
 tsana有一个“-iv”参数可以设定interval（间隔时间），
 最初引入这个参数是为了指明码率分析的时间尺度——间隔时间越短，码率波动越明显。
 在本操作中，这个参数可以用来限定节目分析的时间——缺省1000ms已经足够长了，
-试试看指定更长的时间，对于某些流，有可能分析到更多PID。
-</P>
+试试看指定更长的时间，对于某些流，有可能分析到更多PID。</p></div>
+</div>
+<div class="sect3">
+<h4 id="__8">4.2.2. 节目树分析</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：
+    catbin xxx.ts | tsana -psi [-iv 5000]
 
-<A NAME="toc11"></A>
-<H3>2.2.2. 节目树分析</H3>
-
-<PRE>
-  语法：
-      catbin xxx.ts | tsana -psi [-iv 5000]
-  
-  例子：
-      $ catbin /cygdrive/d/c111_sd_1min.ts | tsana -psi
-      transport_stream: 1(0x0001)
-          program 3(0x0003), PMT_PID = 0x0050, PCR_PID = 0x0051
-              service_provider: DVT( 44 56 54 )
-              service_name    : ENC3( 45 4E 43 33 )
-              program_info:
-              track 0x0052, stream_type = 0x1B
-                  type: H.264, ITU-T Rec.H.264|ISO/IEC 14496-10 Video
-                  ES_info:
-              track 0x0053, stream_type = 0x03
-                  type: MPEG-1, ISO/IEC 11172-3 Audio
-                  ES_info:
-</PRE>
-
-<P>
-参数“-psi”告诉tsana在完成PSI/SI分析后，把所有节目信息以树的形式打印出来。
+例子：
+    $ catbin /cygdrive/d/c111_sd_1min.ts | tsana -psi
+    transport_stream: 1(0x0001)
+        program 3(0x0003), PMT_PID = 0x0050, PCR_PID = 0x0051
+            service_provider: DVT( 44 56 54 )
+            service_name    : ENC3( 45 4E 43 33 )
+            program_info:
+            track 0x0052, stream_type = 0x1B
+                type: H.264, ITU-T Rec.H.264|ISO/IEC 14496-10 Video
+                ES_info:
+            track 0x0053, stream_type = 0x03
+                type: MPEG-1, ISO/IEC 11172-3 Audio
+                ES_info:</tt></pre>
+</div></div>
+<div class="paragraph"><p>参数“-psi”告诉tsana在完成PSI/SI分析后，把所有节目信息以树的形式打印出来。
 节目树按照节目号从小到大的顺序依次打印每个节目的信息：
 节目号、PMT_PID、PCR_PID、service info、program_info和该节目的多个track。
-每个track包含stream_type，PID和ES_info。
-</P>
-<P>
-<IMG ALIGN="middle" SRC="pic_PSI_tree.jpg" BORDER="0" ALT="">
-</P>
-<P>
-分析器内部维护了1个prog链表，链表的每1项有自己的track链表。
+每个track包含stream_type，PID和ES_info。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_PSI_tree.jpg" alt="pic_PSI_tree.jpg" />
+</span></p></div>
+<div class="paragraph"><p>分析器内部维护了1个prog链表，链表的每1项有自己的track链表。
 在PSI/SI分析的过程中，这些链表因为收集到的信息不断长大。
-因为采用链表，这些表的长度没有限制，码流中声明了多少就能放下多少。
-</P>
-<P>
-最复杂的PSI/SI表由多个section组成，每个section可能分散在多个TS包中。
-TStools支持这种因为超长需要多个TS包承载的PSI/SI。
-</P>
-<P>
-“-psi”仅关注PAT、PMT和SDT的分析，NIT、CAT等其它表的分析参见“-sec”和“-si”参数。
-本参数同样可以用“-iv”指定PSI分析时间，时间过短时可能分析不到SDT表。
-</P>
-
-<A NAME="toc12"></A>
-<H3>2.2.3. 错误分析</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -err
-</PRE>
-
-<A NAME="toc13"></A>
-<H3>2.2.4. PCR分析</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -pcr [-pid 0x0101]
-</PRE>
-
-<A NAME="toc14"></A>
-<H3>2.2.5. PTS、DTS分析</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -pts [-pid 0x0101]
-</PRE>
-
-<A NAME="toc15"></A>
-<H3>2.2.6. 码率分析</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -sys-rate
-  语法：catbin xxx.ts | tsana -psi-rate
-  语法：catbin xxx.ts | tsana -prog-rate [-prog 27]
-</PRE>
-
-<A NAME="toc16"></A>
-<H3>2.2.7. 导出PES数据</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes
-</PRE>
-
-<A NAME="toc17"></A>
-<H3>2.2.8. 导出ES数据</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es
-</PRE>
-
-<A NAME="toc18"></A>
-<H3>2.2.9. 导出ES数据到对应的二进制文件</H3>
-
-<PRE>
-  语法：catbin xxx.ts | tsana -alles
-</PRE>
-
-<A NAME="toc19"></A>
-<H3>2.2.10. 实时流录制</H3>
-
-<PRE>
-  语法：catip udp://@:1234 | tobin xxx.ts
-  语法：catip udp://@224.165.54.31:1234 | tobin xxx.ts
-</PRE>
-
-<A NAME="toc20"></A>
-<H1>3. 深入了解TStools</H1>
-
-<A NAME="toc21"></A>
-<H2>3.1. TS同步</H2>
-
-<P>
-catbin读入的ts文件有可能不是TS同步的——前面有不完整的包数据，
+因为采用链表，这些表的长度没有限制，码流中声明了多少就能放下多少。</p></div>
+<div class="paragraph"><p>最复杂的PSI/SI表由多个section组成，每个section可能分散在多个TS包中。
+TStools支持这种因为超长需要多个TS包承载的PSI/SI。</p></div>
+<div class="paragraph"><p>“-psi”仅关注PAT、PMT和SDT的分析，NIT、CAT等其它表的分析参见“-sec”和“-si”参数。
+本参数同样可以用“-iv”指定PSI分析时间，时间过短时可能分析不到SDT表。</p></div>
+</div>
+<div class="sect3">
+<h4 id="__9">4.2.3. 错误分析</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -err</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="_pcr">4.2.4. PCR分析</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -pcr [-pid 0x0101]</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="_pts_dts">4.2.5. PTS、DTS分析</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -pts [-pid 0x0101]</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="__10">4.2.6. 码率分析</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -sys-rate
+语法：catbin xxx.ts | tsana -psi-rate
+语法：catbin xxx.ts | tsana -prog-rate [-prog 27]</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="_pes">4.2.7. 导出PES数据</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="_es">4.2.8. 导出ES数据</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="_es_2">4.2.9. 导出ES数据到对应的二进制文件</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catbin xxx.ts | tsana -alles</tt></pre>
+</div></div>
+</div>
+<div class="sect3">
+<h4 id="__11">4.2.10. 实时流录制</h4>
+<div class="listingblock">
+<div class="content">
+<pre><tt>语法：catip udp://@:1234 | tobin xxx.ts
+语法：catip udp://@224.165.54.31:1234 | tobin xxx.ts</tt></pre>
+</div></div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_tstools_5">5. 深入了解TStools</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_ts">5.1. TS同步</h3>
+<div class="paragraph"><p>catbin读入的ts文件有可能不是TS同步的——前面有不完整的包数据，
 有可能不是188字节包长的——204字节包长。
 对于这些情况，让用户猜测后以参数的方式输入固然可以，但是用起来会很不方便。
-工具catbin有内置ts_sync()函数自动处理这两种情况——对于非TS文件可以用“-n”和“--no-sync”参数关闭该功能。
-</P>
-<P>
-<IMG ALIGN="middle" SRC="pic_TS_sync.jpg" BORDER="0" ALT="">
-</P>
-<P>
-如图示，ts_sync()函数采用了状态机实现这个功能。
+工具catbin有内置ts_sync()函数自动处理这两种情况——对于非TS文件可以用“-n”和“--no-sync”参数关闭该功能。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_TS_sync.jpg" alt="pic_TS_sync.jpg" />
+</span></p></div>
+<div class="paragraph"><p>如图示，ts_sync()函数采用了状态机实现这个功能。
 在每个状态下，先用fread()函数读1个字节，根据这个字节是否是0x47，决定文件指针的移动和状态的变化。
 目前状态机在连续3个0x47位置正确时认为同步成功——需要的话可以改成更多个0x47。
-因此除了EXIT外，有5个判断同步字节的状态：SYNC0、SYNC1_188、SYNC1_204、SYNC2_188、SYNC2_204。
-</P>
-
-<UL>
-<LI>SYNC0：等待遇到第1个包头；
-<LI>SYNC1_188：假设包长为188，期望遇到第2个包头；
-<LI>SYNC1_204：在188处没有0x47，可能包长是204，期望遇到第2个包头；
-<LI>SYNC2_188：遇到两个188包长的包头了，期望遇到第3个包头；
-<LI>SYNC2_204：遇到两个204包长的包头了，期望遇到第3个包头。
-</UL>
-
-<P>
-如果SYNC2_188或SYNC2_204读到的正好是0x47，则不仅实现了TS同步，而且知道了包长。
-这时移动文件指针到第1个包头处，供后面的程序整包读取数据。
-</P>
-
-<A NAME="toc22"></A>
-<H2>3.2. 时钟恢复</H2>
-
-<P>
-在分析码流的PCR指标时，需要精确的知道码流的到达时间。
+因此除了EXIT外，有5个判断同步字节的状态：SYNC0、SYNC1_188、SYNC1_204、SYNC2_188、SYNC2_204。</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+SYNC0：等待遇到第1个包头；
+</p>
+</li>
+<li>
+<p>
+SYNC1_188：假设包长为188，期望遇到第2个包头；
+</p>
+</li>
+<li>
+<p>
+SYNC1_204：在188处没有0x47，可能包长是204，期望遇到第2个包头；
+</p>
+</li>
+<li>
+<p>
+SYNC2_188：遇到两个188包长的包头了，期望遇到第3个包头；
+</p>
+</li>
+<li>
+<p>
+SYNC2_204：遇到两个204包长的包头了，期望遇到第3个包头。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>如果SYNC2_188或SYNC2_204读到的正好是0x47，则不仅实现了TS同步，而且知道了包长。
+这时移动文件指针到第1个包头处，供后面的程序整包读取数据。</p></div>
+</div>
+<div class="sect2">
+<h3 id="__12">5.2. 时钟恢复</h3>
+<div class="paragraph"><p>在分析码流的PCR指标时，需要精确的知道码流的到达时间。
 对于TS over IP，因为多个TS包被打成1个UDP包发送，每个包的到达时间已经无法准确获取了；
-而ts文件中只有每个TS包的数据，也没有到达时间的信息。
-</P>
-<P>
-由于系统码率稳定，可以认为每个包是等间隔到达的。
+而ts文件中只有每个TS包的数据，也没有到达时间的信息。</p></div>
+<div class="paragraph"><p>由于系统码率稳定，可以认为每个包是等间隔到达的。
 只要知道所在节目前面2个PCR值，就能根据间隔包数计算当前包的到达时间。
-本项目的核心模块正是基于这样的原理计算第3个PCR包前每个包的到达时间：
-</P>
-<P>
-<IMG ALIGN="middle" SRC="pic_STC.jpg" BORDER="0" ALT="">
-</P>
-
-<UL>
-<LI>假设ADDa包和ADDb包的PCR抖动为0，其到达时间就是各自的PCR值，根据包间距离可以线性推导后面ADDx包的到达时间STCx。
-<LI>当携带第3个PCR的ADDc包出现时，根据推导出的到达时间STCc和该包的PCR值可以计算该包的PCR抖动。
-<LI>丢弃ADDa的信息，假设ADDc的PCR抖动为0，ADDc后面的包根据ADDb和ADDc计算。
-<LI>对于多节目流，不同节目的TS包的到达时间是基于它们各自的PCR计算的。
-<LI>由于除PMT之外的PSI/SI包和空包不属于任何节目，其到达时间基于PAT中的第1个节目的PCR计算。
-</UL>
-
-<P>
-注意，这里先假设PCRa和PCRb准确而计算PCRc的抖动，然后假设PCRb和PCRc准确去计算PCRd的抖动。
-这是因为无法判断哪个PCR不准确，总是假设前2个PCR准确去计算当前PCR的抖动可以将误差限定在局部范围。
-</P>
-<P>
-先写这些吧！
-朋友们要是发现了BUG，或者有什么好的意见和建议，可以通过<A HREF="mailto:zhoucheng@tsinghua.org.cn">周骋</A>联系我。
-</P>
-
-<!-- html code generated by txt2tags 2.6 (http://txt2tags.org) -->
-<!-- cmdline: txt2tags -o ../release/doc/tstools.html tstools.t2t -->
-</BODY></HTML>
+本项目的核心模块正是基于这样的原理计算第3个PCR包前每个包的到达时间：</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_STC.jpg" alt="pic_STC.jpg" />
+</span></p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+假设ADDa包和ADDb包的PCR抖动为0，其到达时间就是各自的PCR值，根据包间距离可以线性推导后面ADDx包的到达时间STCx。
+</p>
+</li>
+<li>
+<p>
+当携带第3个PCR的ADDc包出现时，根据推导出的到达时间STCc和该包的PCR值可以计算该包的PCR抖动。
+</p>
+</li>
+<li>
+<p>
+丢弃ADDa的信息，假设ADDc的PCR抖动为0，ADDc后面的包根据ADDb和ADDc计算。
+</p>
+</li>
+<li>
+<p>
+对于多节目流，不同节目的TS包的到达时间是基于它们各自的PCR计算的。
+</p>
+</li>
+<li>
+<p>
+由于除PMT之外的PSI/SI包和空包不属于任何节目，其到达时间基于PAT中的第1个节目的PCR计算。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>注意，这里先假设PCRa和PCRb准确而计算PCRc的抖动，然后假设PCRb和PCRc准确去计算PCRd的抖动。
+这是因为无法判断哪个PCR不准确，总是假设前2个PCR准确去计算当前PCR的抖动可以将误差限定在局部范围。</p></div>
+<div class="paragraph"><p>先写这些吧！
+朋友们要是发现了BUG，或者有什么好的意见和建议，可以通过<a href="mailto:zhoucheng@tsinghua.org.cn">周骋</a>联系我。</p></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__13">6. Appendix A: 附录</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>One or more optional appendixes go here at section level 1.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__14">7. 参考资料</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The bibliography list is a style of AsciiDoc bulleted list.</p></div>
+<div class="ulist bibliography"><div class="title">Books</div><ul>
+<li>
+<p>
+<a id="taoup"></a>[taoup] Eric Steven Raymond. <em>The Art of Unix Programming</em>. Addison-Wesley. ISBN 0-13-142901-9.
+</p>
+</li>
+</ul></div>
+<div class="ulist bibliography"><div class="title">Articles</div><ul>
+<li>
+<p>
+<a id="abc2003"></a>[abc2003] Gall Anonim. <em>An article</em>, Whatever. 2003.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__15">8. 术语表</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Glossaries are optional. Glossaries entries are an example of a style of AsciiDoc labeled lists.</p></div>
+<div class="dlist glossary"><dl>
+<dt>
+A glossary term
+</dt>
+<dd>
+<p>
+  The corresponding (indented) definition.
+</p>
+</dd>
+<dt>
+A second glossary term
+</dt>
+<dd>
+<p>
+  The corresponding (indented) definition.
+</p>
+</dd>
+</dl></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__16">9. 出版商</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Sumavision</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__17">10. 索引</h2>
+<div class="sectionbody">
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+<div id="footer">
+<div id="footer-text">
+Version 1.0<br />
+Last updated 2011-06-25 14:42:56    
+</div>
+</div>
+</body>
+</html>

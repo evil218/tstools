@@ -1,7 +1,12 @@
-../release/doc/%.html: %.t2t
-	txt2tags -o $@ $<
+tstools.html: tstools.txt
+	asciidoc -n -a toc $<
 
-all: ../release/doc/tstools.html
+../release/doc/tstools.html: tstools.html
+	cp $< $@
+
+all: tstools.html
+
+release: ../release/doc/tstools.html
 
 clean:
-	rm ../release/doc/tstools.html
+	rm tstools.html

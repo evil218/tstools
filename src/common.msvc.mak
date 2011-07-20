@@ -26,7 +26,7 @@ CFLAGS = $(CFLAGS) /Zi
 # -------------------------------------------------------------------
 # others
 # -------------------------------------------------------------------
-CFLAGS = $(CFLAGS) /I. /I../include
+CFLAGS = $(CFLAGS) /I. /I../include /DPLATFORM=MSVC
 
 OBJS = $(SRCS:.c=.obj)
 DEPS = $(SRCS:.c=.d)

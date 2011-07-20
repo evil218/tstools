@@ -2,34 +2,21 @@
 //============================================================================
 // Name: udp.c
 // Purpose: UDP access
-// To build: gcc -std-c99 -c udp.c
+// To build: cl /c udp_msvc.c
 //============================================================================
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>                  // for inet_ntoa(), inet_addr(), etc
-#include <unistd.h>                     // for close()
-#include <fcntl.h>                      // for fcntl(), O_NONBLOCK, etc
-#include <sys/select.h>                 // for select(), etc
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
-#include "error.h"
 #include "udp.h"
+#pragma comment(lib, "Ws2_32.lib")
 
 #define UDP_LENGTH_MAX                  1536
 
-typedef struct
-{
-        int sock;
-        char addr[32];
-        unsigned short port;
-}
-UDP;
-
-int udp_open(char *addr, unsigned short port)
+UDP *udp_open(char *addr, unsigned short port)
 {
         UDP *udp;
 
@@ -37,21 +24,21 @@ int udp_open(char *addr, unsigned short port)
         if(NULL == udp)
         {
                 perror("malloc");
-                return (int)NULL;
+                return NULL;
         }
 
         strcpy(udp->addr, addr);
         udp->port = port;
 
         // build socket
-        if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+        if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
         {
                 perror("socket");
-                return (int)NULL;
+                return NULL;
         }
 
         // nonblock mode
-        fcntl(udp->sock, F_SETFL, O_NONBLOCK);
+        //fcntl(udp->sock, F_SETFL, O_NONBLOCK);
 
         // reuse address
         {
@@ -72,7 +59,7 @@ int udp_open(char *addr, unsigned short port)
                         perror("bind");
                         fprintf(stderr, "    addr: %s\n", inet_ntoa(local.sin_addr));
                         fprintf(stderr, "    port: %d\n", ntohs(local.sin_port));
-                        return (int)NULL;
+                        return NULL;
                 }
         }
 
@@ -91,19 +78,12 @@ int udp_open(char *addr, unsigned short port)
                 }
         }
 
-        return (int)udp;
+        return udp;
 }
 
-int udp_close(int id)
+void udp_close(UDP *udp)
 {
-        UDP *udp = (UDP *)id;
         struct ip_mreq imreq;
-
-        if(NULL == udp)
-        {
-            DBG(ERR_BAD_ID, "\r\n");
-            return -ERR_BAD_ID;
-        }
 
         // manage multicast
         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
@@ -118,22 +98,14 @@ int udp_close(int id)
         }
 
         close(udp->sock);
-        return 0;
 }
 
-size_t udp_read(int id, char *buf)
+size_t udp_read(UDP *udp, char *buf)
 {
-        UDP *udp = (UDP *)id;
         size_t rslt = 0;
         fd_set fds;
         struct sockaddr_in remote;
         socklen_t socklen = sizeof(struct sockaddr_in);
-
-        if(NULL == udp)
-        {
-            DBG(ERR_BAD_ID, "\r\n");
-            return -ERR_BAD_ID;
-        }
 
         FD_ZERO(&fds);
         FD_SET(0, &fds);

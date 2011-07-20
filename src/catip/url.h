@@ -38,7 +38,7 @@ typedef struct
         // for PRTCL_UDP
         char *ip;
         unsigned short port;
-        UDP *udp;
+        int udp;
 
         char buf[8*188]; // for UDP data
         char *pbuf;

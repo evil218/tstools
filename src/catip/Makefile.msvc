@@ -1,4 +1,4 @@
 NAME = catip
-SRCS = $(NAME).c udp.c url.c
+SRCS = $(NAME).c url.c udp_msvc.c
 
 !include ../common.msvc.mak
