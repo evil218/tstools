@@ -1,4 +1,6 @@
 NAME = libts1
+POSTFIX = .a
+
 SRCS := $(wildcard *.c)
 
 include ../common.linux.mak

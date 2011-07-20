@@ -1,5 +1,5 @@
-NAME=catip
-POSTFIX = .exe
+NAME = libnet1
+POSTFIX = .a
 
 SRCS := $(wildcard *.c)
 

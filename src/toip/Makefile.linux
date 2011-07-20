@@ -1,4 +1,6 @@
 NAME=toip
-SRCS := $(wildcard *.c) ../libnet/url.c ../libnet/udp.c
+POSTFIX = .exe
+
+SRCS := $(wildcard *.c)
 
 include ../common.linux.mak

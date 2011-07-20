@@ -1,4 +1,4 @@
-DIRS = libts catbin catip tsana
+DIRS = libts libnet catbin catip tsana
 #tobin
 
 # Do not print "Entering directory ..."

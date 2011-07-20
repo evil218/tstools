@@ -1,6 +1,4 @@
 NAME = libts1
 SRCS = crc.c error.c if.c list.c ts.c
-#	   udp.c \
-#	   url.c \
 
 !include ../common.msvc.mak

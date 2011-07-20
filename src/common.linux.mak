@@ -3,12 +3,6 @@
 # =============================================================================
 CFLAGS = -Wall -Werror -std=c99
 
-ifeq ($(NAME),libts1)
-POSTFIX = .a
-else
-POSTFIX = .exe
-endif
-
 OBJ_DIR = ../../release/linux
 INSTALL_DIR = /usr/local/bin
 
@@ -65,16 +59,16 @@ all: $(NAME)$(POSTFIX)
 $(NAME).a: $(OBJS) $(DEPS)
 	ar r $@ $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a
-	$(CC) -o $@ $(OBJS) -L../libts -lts1
+$(NAME).exe: $(OBJS) $(DEPS)
+	$(CC) -o $@ $(OBJS) -L../libts -L../libnet -lts1 -lnet1
 
 $(INSTALL_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
-ifneq ($(NAME),libts1)
+ifneq ($(POSTFIX),.a)
 	cp $< $@
 endif
 
 $(OBJ_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
-ifneq ($(NAME),libts1)
+ifneq ($(POSTFIX),.a)
 ifneq ($(TERM),cygwin)
 	cp $< $@
 endif
@@ -102,7 +96,7 @@ install: $(INSTALL_DIR)/$(NAME)$(POSTFIX)
 release: $(OBJ_DIR)/$(NAME)$(POSTFIX)
 
 uninstall:
-ifneq ($(NAME),libts1)
+ifneq ($(POSTFIX),.a)
 	-rm -f $(INSTALL_DIR)/$(NAME)$(POSTFIX)
 endif
 
