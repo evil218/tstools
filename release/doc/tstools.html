@@ -652,24 +652,23 @@ tsana要知道每个PID的类型——空包和PCR包的CC值是不变的。
 <div class="paragraph"><p>采用这个方案需要解决一个衍生问题：二进制形式的TS数据以什么样的格式在管道间传输？
 二进制文件由于可读性差，数据定位复杂，传输时需要同步，在Unix世界中被严重鄙视。
 大部分过滤器都采用文本格式，一行行地（每行同步一次）传递数据。
-因此我设计了catbin工具，把二进制形式的TS文件读出来，以文本方式一包一行地发给stdout；
+因此我设计了catts工具，把二进制形式的TS文件读出来，以文本方式一包一行地发给stdout；
 又设计了catip工具，把TS over IP中的UDP包拆开成数个TS包，以文本方式一包一行地发给stdout；
 而tsana只是简单的从stdin中一包一行的接收TS包就可以了，它不需要知道是谁在给它码流。
 以后如果要增加新的输入形式就写一个catxx就行了，tsana不需要改代码重新编译。
 （解释一下cat，这是unix下一个非常普通的工具，它把文本文件读出来输出到stdout。
-因为cat不支持二进制文件，所以我仿照它写了一个tscat，后来扩展了其功能不再限定TS文件，于是形成了catbin。）</p></div>
+因为cat不支持二进制格式的TS文件，所以我仿照它写了一个catts）</p></div>
 <div class="paragraph"><p>规定用文本形式一行传送一个TS包还不够明确，具体这一行是什么格式呢？
 考虑到阅读方便，TS包中的188（或204）个字节之间要有分隔符，
 前面提到的英文逗号自然可以，但是过于密集的逗号还是影响阅读，因此用单个空格做分隔符更好。
-于是每个TS包变成了这样的文本行：“?? ?? ?? &#8230; ?? \n”，每个字节变成了3个可显字符。
-（如果用户需要，catbin允许指定任何字符用作间隔符，而tsana也允许间隔处出现任何[0-9A-Fa-f]范围之外的字符。）
-如果catbin中使用“printf("%02X ", x)”把数据转换成文本形式，效率就太低了。
+于是每个TS包变成了这样的文本行：“?? ?? ?? &#8230; ?? ”，每个字节变成了3个可显字符。
+如果catts中使用“printf("%02X ", x)”把数据转换成文本形式，效率就太低了。
 对于这样一个固定的转换，使用查表法可以克服TS数据文本化的唯一弊端——效率问题。</p></div>
-<div class="paragraph"><p>当TS包变成文本行时，我忽然发现除了tsana，还可以直接使用Unix下的很多工具直接处理catbin的输出：
+<div class="paragraph"><p>当TS包变成文本行时，我忽然发现除了tsana，还可以直接使用Unix下的很多工具直接处理catts的输出：
 可以用grep过滤出指定PID的TS包，可以用sed修改某些数据，可以用vim快速定位目标数据&#8230;&#8230;它们都支持强大的正规表达式。
 最后一个问题：这些工具的输出还是文本格式，如果想回到二进制格式呢？
-于是我设计了tobin工具，把符合上述格式的文本转换回二进制文件（阴阳平衡很重要）。
-当tobin出现时，我发现用“catip + tobin”立刻就能实现实时流的录制功能（用VLC录流是需要一点技巧的）。
+于是我设计了tots工具，把符合上述格式的文本转换回二进制文件（阴阳平衡很重要）。
+当tots出现时，我发现用“catip + tots”立刻就能实现实时流的录制功能（用VLC录流是需要一点技巧的）。
 Unix的小工具思想太强大了！</p></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_recorder.jpg" alt="录流" />
@@ -697,23 +696,21 @@ Unix的小工具思想太强大了！</p></div>
 </ul></div>
 <div class="paragraph"><p>为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
 在上一节数据文本化的基础上规定：
-每行文本中除了先传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息。
-所有数据段采用“标签+长度+数据”的格式：</p></div>
+每行文本中除了传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息。
+所有数据段采用“标签,数据,”的格式，为了方便看数据，建议先传输ts、trp、data之类的核心数据段。</p></div>
 <div class="tableblock">
 <table rules="all"
 width="100%"
 frame="border"
 cellspacing="0" cellpadding="4">
-<col width="16%" />
-<col width="16%" />
-<col width="16%" />
-<col width="16%" />
-<col width="16%" />
-<col width="16%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
 <thead>
 <tr>
-<th align="left" valign="top">标签 </th>
-<th align="left" valign="top">长度 </th>
+<th align="left" valign="top"> 标签  </th>
 <th align="left" valign="top">含义          </th>
 <th align="left" valign="top">类型       </th>
 <th align="left" valign="top">单位      </th>
@@ -722,61 +719,82 @@ cellspacing="0" cellpadding="4">
 </thead>
 <tbody>
 <tr>
-<td align="left" valign="top"><p class="table">0x01</p></td>
-<td align="left" valign="top"><p class="table">188</p></td>
+<td align="left" valign="top"><p class="table">ts</p></td>
 <td align="left" valign="top"><p class="table">TS包数据</p></td>
 <td align="left" valign="top"><p class="table">字节序列</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">188-byte</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">0x02</p></td>
-<td align="left" valign="top"><p class="table">16</p></td>
+<td align="left" valign="top"><p class="table">rs</p></td>
 <td align="left" valign="top"><p class="table">RS校验数据</p></td>
 <td align="left" valign="top"><p class="table">字节序列</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">16-byte</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">0x03</p></td>
-<td align="left" valign="top"><p class="table">1</p></td>
+<td align="left" valign="top"><p class="table">addr</p></td>
+<td align="left" valign="top"><p class="table">地址</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">byte</p></td>
+<td align="left" valign="top"><p class="table">包头距第1包头的字节数</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">mtst</p></td>
+<td align="left" valign="top"><p class="table">MTS时间戳</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
+<td align="left" valign="top"><p class="table">本包接收时的时间戳，满0x40000000溢出回0</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">stc</p></td>
+<td align="left" valign="top"><p class="table">系统时间计数值</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
+<td align="left" valign="top"><p class="table">本包接收时的时间戳，满2576980377600溢出回0</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">data</p></td>
+<td align="left" valign="top"><p class="table">其它数据片段</p></td>
+<td align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">pes/es片段&#8230;</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">rtp</p></td>
+<td align="left" valign="top"><p class="table">RTP包数据</p></td>
+<td align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">将来可支持RTP包的分析</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">src</p></td>
 <td align="left" valign="top"><p class="table">本包来源</p></td>
 <td align="left" valign="top"><p class="table">字节序列</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table">将来用于复用</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">0x04</p></td>
-<td align="left" valign="top"><p class="table">动态</p></td>
-<td align="left" valign="top"><p class="table">地址</p></td>
-<td align="left" valign="top"><p class="table">无符号整数</p></td>
-<td align="left" valign="top"><p class="table">byte</p></td>
-<td align="left" valign="top"><p class="table">包头距第一包头的字节数</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">0x05</p></td>
-<td align="left" valign="top"><p class="table">动态</p></td>
-<td align="left" valign="top"><p class="table">溢出值+时间戳</p></td>
-<td align="left" valign="top"><p class="table">无符号整数</p></td>
-<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
-<td align="left" valign="top"><p class="table">本包接收时的时间戳，溢出值和时间戳前有各自的长度</p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table">其它</p></td>
-<td colspan="5" align="left" valign="top"><p class="table">保留，接收端遇到时从该标签一直忽略到行尾</p></td>
+<td colspan="4" align="left" valign="top"><p class="table">保留，接收端遇到时从该标签一直忽略到行尾</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<div class="paragraph"><p>地址是必须提供的信息。
+<div class="paragraph"><p>实际的传输内容是这样的（TS包太长，中间的内容省略了）：</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>ts,47 00 32 12 ... AD 3F 43 4C,addr,0,
+ts,47 00 32 13 ... BA 44 39 4A,addr,188,</tt></pre>
+</div></div>
+<div class="paragraph"><p>地址（addr）是输入环节的重要信息：
 对于文件，通过地址可以定位数据，找到错误发生的位置；
-对于网络等实时流，地址反映了已分析的数据总量。</p></div>
-<div class="paragraph"><p>时间戳反映了包的到达（或发送）时间。
+对于网络等实时流，地址反映了已分析的数据总量。
+在传输pes、es片段的场合可以没有地址信息。</p></div>
+<div class="paragraph"><p>时间戳（mtst, stc）反映了包的到达（或发送）时间。
 对于MTS文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
-对于其它没有时间戳的源，分析模块内部会基于码率恒定的假设计算出每个包的时间戳。
-虽然时间戳的精度与PCR一样（1/27M 秒），但是并不采用(33+9)-bit的方式传输，
-一般来说，它只是一个n-bit无符号整数，达到溢出值时自动回0。
-例如：在MTS文件中，时间戳的溢出值是0x40000000，CTS的范围是[0,0x3FFFFFFF]。
+对于其它没有时间戳的源，分析模块内部会基于码率恒定的假设计算出每个包的STC。
+mtst时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
 接收模块内部根据PCR信息和这个时间戳恢复出STC，所有与时间相关的计算都是基于STC进行的。</p></div>
 </div>
 </div>
@@ -792,11 +810,11 @@ cellspacing="0" cellpadding="4">
 翻译成中文有点画蛇添足，说明书还是看原版的好：</p></div>
 <div class="dlist"><dl>
 <dt class="hdlist1">
-catbin
+catts
 </dt>
 <dd>
 <p>
-<a href="catbin.html">打开指定的TS文件，将每个TS包转换成TXT格式发送到stdout</a>
+<a href="catts.html">打开指定的TS文件，将每个TS包转换成TXT格式发送到stdout</a>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -816,11 +834,11 @@ tsana
 </p>
 </dd>
 <dt class="hdlist1">
-tobin
+tots
 </dt>
 <dd>
 <p>
-<a href="tobin.html">从stdin接收TXT格式的数据，转换成二进制写入指定文件</a>
+<a href="tots.html">从stdin接收TXT格式的数据，转换成二进制写入指定文件</a>
 </p>
 </dd>
 <dt class="hdlist1">
@@ -840,9 +858,9 @@ toip
 <div class="listingblock">
 <div class="content">
 <pre><tt>语法：
-    catbin xxx.ts | tsana [-lst] [-iv 5000]
+    catts xxx.ts | tsana [-lst] [-iv 5000]
 例子：
-    $ catbin c111_sd_1min.ts | tsana
+    $ catts c111_sd_1min.ts | tsana
       PID , abbr, detail
     0x0000,  PAT, program association section
     0x0050,  PMT, program map section
@@ -880,10 +898,10 @@ tsana有一个“-iv”参数可以设定interval（间隔时间），
 <div class="listingblock">
 <div class="content">
 <pre><tt>语法：
-    catbin xxx.ts | tsana -psi [-iv 5000]
+    catts xxx.ts | tsana -psi [-iv 5000]
 
 例子：
-    $ catbin /cygdrive/d/c111_sd_1min.ts | tsana -psi
+    $ catts /cygdrive/d/c111_sd_1min.ts | tsana -psi
     transport_stream: 1(0x0001)
         program 3(0x0003), PMT_PID = 0x0050, PCR_PID = 0x0051
             service_provider: DVT( 44 56 54 )
@@ -915,59 +933,59 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。</p></div>
 <h4 id="__9">4.2.3. 错误分析</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -err</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -err</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="_pcr">4.2.4. PCR分析</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -pcr [-pid 0x0101]</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -pcr [-pid 0x0101]</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="_pts_dts">4.2.5. PTS、DTS分析</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -pts [-pid 0x0101]</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -pts [-pid 0x0101]</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="__10">4.2.6. 码率分析</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -sys-rate
-语法：catbin xxx.ts | tsana -psi-rate
-语法：catbin xxx.ts | tsana -prog-rate [-prog 27]</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -sys-rate
+语法：catts xxx.ts | tsana -psi-rate
+语法：catts xxx.ts | tsana -prog-rate [-prog 27]</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="_pes">4.2.7. 导出PES数据</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -pes [-pid 0x0032] | tots 32.pes</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="_es">4.2.8. 导出ES数据</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -es [-pid 0x0032] | tots 32.es</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="_es_2">4.2.9. 导出ES数据到对应的二进制文件</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catbin xxx.ts | tsana -alles</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -alles</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
 <h4 id="__11">4.2.10. 实时流录制</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catip udp://@:1234 | tobin xxx.ts
-语法：catip udp://@224.165.54.31:1234 | tobin xxx.ts</tt></pre>
+<pre><tt>语法：catip udp://@:1234 | tots xxx.ts
+语法：catip udp://@224.165.54.31:1234 | tots xxx.ts</tt></pre>
 </div></div>
 </div>
 </div>
@@ -978,10 +996,10 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。</p></div>
 <div class="sectionbody">
 <div class="sect2">
 <h3 id="_ts">5.1. TS同步</h3>
-<div class="paragraph"><p>catbin读入的ts文件有可能不是TS同步的——前面有不完整的包数据，
+<div class="paragraph"><p>catts读入的ts文件有可能不是TS同步的——前面有不完整的包数据，
 有可能不是188字节包长的——204字节包长。
 对于这些情况，让用户猜测后以参数的方式输入固然可以，但是用起来会很不方便。
-工具catbin有内置ts_sync()函数自动处理这两种情况——对于非TS文件可以用“-n”和“--no-sync”参数关闭该功能。</p></div>
+工具catts有内置ts_sync()函数自动处理这两种情况——对于非TS文件可以用“-n”和“--no-sync”参数关闭该功能。</p></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_TS_sync.jpg" alt="码流同步" />
 </span></p></div>
@@ -1117,7 +1135,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2011-07-10 17:11:06    
+Last updated 2011-08-03 15:48:36    
 </div>
 </div>
 </body>

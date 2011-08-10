@@ -6,5 +6,5 @@
 @rem 截取COUNT个TS包
 @set COUNT=451814
 
-catbin %1 | tsana -dump -start %START% -count %COUNT% | tobin %1.ts
+catts %1 | tsana -dump -start %START% -count %COUNT% | tots %1.ts
 pause

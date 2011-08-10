@@ -1,2 +1,2 @@
-catbin %1 | tsana -alles
+catts %1 | tsana -alles
 pause

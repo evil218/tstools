@@ -1,4 +1,4 @@
-NAME=catbin
+NAME=catts
 POSTFIX = .exe
 
 SRCS := $(wildcard *.c)

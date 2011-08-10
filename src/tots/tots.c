@@ -1,7 +1,7 @@
 /*
  * vim: set tabstop=8 shiftwidth=8:
- * name: tobin.c
- * funx: generate text data file with bin data file
+ * name: tots.c
+ * funx: generate bin ts file with text data in stdin
  */
 
 #include <stdio.h>
@@ -110,9 +110,9 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'tobin' read from stdin, translate 'XY ' to 0xXY, send to file.");
+        puts("'tots' read from stdin, translate 'XY ' to 0xXY, send to file.");
         puts("");
-        puts("Usage: tobin [OPTION] file [OPTION]");
+        puts("Usage: tots [OPTION] file [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -120,7 +120,7 @@ static void show_help()
         puts(" -v, --version    print my version, then exit");
         puts("");
         puts("Examples:");
-        puts("  tobin xxx.ts");
+        puts("  tots xxx.ts");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
@@ -128,7 +128,7 @@ static void show_help()
 
 static void show_version()
 {
-        puts("tobin 1.0.0");
+        puts("tots 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");

@@ -1,41 +1,49 @@
 Content-type: text/html
 
-<HTML><HEAD><TITLE>Manpage of TOBIN</TITLE>
+<HTML><HEAD><TITLE>Manpage of CATTS</TITLE>
 </HEAD><BODY>
-<H1>TOBIN</H1>
-Section: User Commands (1)<BR>Updated: May 2011<BR><A HREF="#index">Index</A>
+<H1>CATTS</H1>
+Section: User Commands (1)<BR>Updated: August 2011<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-tobin - manual page for tobin 1.0.0
+catts - manual page for catts 1.0.0
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
-<B>tobin</B>
+<B>catts</B>
 
 [<I>OPTION</I>] <I>file </I>[<I>OPTION</I>]
 <A NAME="lbAD">&nbsp;</A>
 <H2>DESCRIPTION</H2>
 
-'tobin' read from stdin, translate 'XY ' to 0xXY, send to file.
+'catts' read binary file, translate 0xXX to 'XY ' format, then send to stdout.
 <A NAME="lbAE">&nbsp;</A>
 <H2>OPTIONS</H2>
 
 <P>
 <DL COMPACT>
+<DT><B>-a</B>, <B>--addr</B><DD>
+show data address at line head, default: do NOT show it
+<DT><B>-d</B>, <B>--decaddr</B><DD>
+dec address format, default: hex
+<DT><B>-s</B>, <B>--seperate</B> &lt;,&gt;<DD>
+white space, any char except [0-9A-Fa-f], default: ' '
+<DT><B>-w</B>, <B>--width</B> &lt;w&gt;<DD>
+w-byte per line, [1,10922], default: 188
 <DT><B>-h</B>, <B>--help</B><DD>
-print this information, then exit
+display this information
 <DT><B>-v</B>, <B>--version</B><DD>
-print my version, then exit
+display my version
 </DL>
 <A NAME="lbAF">&nbsp;</A>
 <H2>EXAMPLES</H2>
 
 <DL COMPACT>
 <DT><DD>
-tobin xxx.ts
+catts xxx.ts
 </DL>
 <A NAME="lbAG">&nbsp;</A>
 <H2>AUTHOR</H2>
@@ -58,18 +66,18 @@ A PARTICULAR PURPOSE.
 <H2>SEE ALSO</H2>
 
 The full documentation for
-<B>tobin</B>
+<B>catts</B>
 
 is maintained as a Texinfo manual.  If the
 <B>info</B>
 
 and
-<B>tobin</B>
+<B>catts</B>
 
 programs are properly installed at your site, the command
 <DL COMPACT>
 <DT><DD>
-<B>info tobin</B>
+<B>info catts</B>
 
 </DL>
 <P>
@@ -94,6 +102,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 09:03:05 GMT, May 05, 2011
+Time: 07:57:29 GMT, August 03, 2011
 </BODY>
 </HTML>

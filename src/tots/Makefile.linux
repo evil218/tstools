@@ -1,4 +1,4 @@
-NAME=tobin
+NAME=tots
 POSTFIX = .exe
 
 SRCS := $(wildcard *.c)

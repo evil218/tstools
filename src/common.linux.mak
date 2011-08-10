@@ -41,15 +41,21 @@ WOBJS := $(patsubst %.c, %.obj, $(SRCS))
 	$(COMPILE) -o $@ $<
 
 %.1: $(INSTALL_DIR)/%$(POSTFIX)
+ifneq ($(POSTFIX),.a)
 	-help2man -o $@ $<
+endif
 
 $(INSTALL_DIR)/%$(POSTFIX): %$(POSTFIX)
 
 %.html: %.1
+ifneq ($(POSTFIX),.a)
 	-man2html $< > $@
+endif
 
-$(OBJ_DIR)/doc/%.html: %.html
+$(OBJ_DIR)/../doc/%.html: %.html
+ifneq ($(POSTFIX),.a)
 	cp $< $@
+endif
 
 # =============================================================================
 # supported aim
@@ -89,7 +95,7 @@ depend: $(DEPS)
 
 -include $(DEPS)
 
-doc: $(OBJ_DIR)/doc/$(NAME).html
+doc: $(OBJ_DIR)/../doc/$(NAME).html
 
 install: $(INSTALL_DIR)/$(NAME)$(POSTFIX)
 

@@ -1,7 +1,7 @@
 /*
  * vim: set tabstop=8 shiftwidth=8:
- * name: catbin.c
- * funx: generate text line with bin data file
+ * name: catts.c
+ * funx: generate text line with bin ts file
  */
 
 #include <stdio.h>
@@ -215,9 +215,9 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static int show_help()
 {
-        puts("'catbin' read binary file, translate 0xXX to 'XY ' format, then send to stdout.");
+        puts("'catts' read binary file, translate 0xXX to 'XY ' format, then send to stdout.");
         puts("");
-        puts("Usage: catbin [OPTION] file [OPTION]");
+        puts("Usage: catts [OPTION] file [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -233,7 +233,7 @@ static int show_help()
         puts(" -v, --version            display my version");
         puts("");
         puts("Examples:");
-        puts("  catbin xxx.ts");
+        puts("  catts xxx.ts");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return 0;
@@ -241,7 +241,7 @@ static int show_help()
 
 static int show_version()
 {
-        puts("catbin 1.0.0");
+        puts("catts 1.0.0");
         puts("");
         puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
         puts("This is free software; contact author for additional information.");
