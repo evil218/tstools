@@ -1,21 +1,11 @@
 # =============================================================================
 # definition
 # =============================================================================
-CFLAGS = -Wall -Werror -std=c99
+CFLAGS = -Wall -Werror
+CFLAGS += -O2
 
 OBJ_DIR = ../../release/linux
 INSTALL_DIR = /usr/local/bin
-
-# -------------------------------------------------------------------
-# debug or release
-# -------------------------------------------------------------------
-BUILD_TYPE = release
-
-ifeq ($(BUILD_TYPE), release)
-	CFLAGS += -O2
-else
-	CFLAGS += -g
-endif
 
 # -------------------------------------------------------------------
 # others
@@ -65,8 +55,11 @@ all: $(NAME)$(POSTFIX)
 $(NAME).a: $(OBJS) $(DEPS)
 	ar r $@ $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS) ../libts/libts1.a ../libnet/libnet1.a
-	$(CC) -o $@ $(OBJS) -L../libts -L../libnet -lts1 -lnet1
+$(NAME): $(OBJS) $(DEPS) $(LIBDEPS)
+	$(CC) -o $@ $(OBJS) $(LIBFLAGS)
+
+$(NAME).exe: $(OBJS) $(DEPS) $(LIBDEPS)
+	$(CC) -o $@ $(OBJS) $(LIBFLAGS)
 
 $(INSTALL_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 ifneq ($(POSTFIX),.a)
@@ -77,6 +70,8 @@ $(OBJ_DIR)/$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 ifneq ($(POSTFIX),.a)
 ifneq ($(TERM),cygwin)
 	cp $< $@
+else
+	@echo "no cygwin release version"
 endif
 endif
 

@@ -1,5 +1,8 @@
 NAME=tots
-POSTFIX = .exe
+POSTFIX = 
+
+LIBDEPS =  ../libts/libts1.a
+LIBFLAGS =  -L../libts -lts1
 
 SRCS := $(wildcard *.c)
 

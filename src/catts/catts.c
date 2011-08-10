@@ -200,7 +200,7 @@ static int show_version()
 static int judge_type()
 {
         uint8_t dat;
-        int sync_cnt;
+        int sync_cnt = 0;
         int state = FILE_UNKNOWN;
 
         pkt->ADDR = 0;

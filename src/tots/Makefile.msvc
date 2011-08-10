@@ -1,4 +1,9 @@
-NAME = tobin
+NAME = tots
+POSTFIX = .exe
+
+LIBDEPS = ..\libts\libts1.lib
+LIBFLAGS = ..\libts\libts1.lib
+
 SRCS = $(NAME).c
 
 !include ../common.msvc.mak

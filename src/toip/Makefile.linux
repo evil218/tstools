@@ -1,5 +1,10 @@
 NAME=toip
-POSTFIX = .exe
+POSTFIX = 
+
+LIBDEPS =  ../libts/libts1.a
+LIBDEPS += ../libnet/libnet1.a
+LIBFLAGS =  -L../libts -lts1
+LIBFLAGS += -L../libnet -lnet1
 
 SRCS := $(wildcard *.c)
 

@@ -14,7 +14,7 @@ ts_record.bat
 
 安装：
 参考Makefile，
-make install即可把这些工具拷入linux的/usr/local/bin目录，
-make uninstall即可把这些工具从linux的/usr/local/bin目录中删除。
+sudo make install即可把这些工具拷入linux的/usr/local/bin目录，
+sudo make uninstall即可把这些工具从linux的/usr/local/bin目录中删除。
 
 周骋

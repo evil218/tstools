@@ -2,26 +2,10 @@
 # definition
 # =============================================================================
 CFLAGS = /W2 /nologo
-
-!if "$(NAME)" == "libts1"
-POSTFIX = .lib
-!else
-POSTFIX = .exe
-!endif
+CFLAGS = $(CFLAGS) /O2
 
 OBJ_DIR = ..\..\release\windows
 INSTALL_DIR = C:\WINDOWS\system32
-
-# -------------------------------------------------------------------
-# debug or release
-# -------------------------------------------------------------------
-BUILD_TYPE = release
-
-!if "$(BUILD_TYPE)" == "release"
-CFLAGS = $(CFLAGS) /O2
-!else
-CFLAGS = $(CFLAGS) /Zi
-!endif
 
 # -------------------------------------------------------------------
 # others
@@ -39,8 +23,8 @@ all: $(NAME)$(POSTFIX)
 $(NAME).lib: $(OBJS)
 	LIB /NOLOGO /OUT:$(NAME).lib $(OBJS)
 
-$(NAME).exe: $(OBJS) $(DEPS)
-	$(CC) /nologo $(OBJS) ..\libts\libts1.lib
+$(NAME).exe: $(OBJS) $(DEPS) $(LIBDEPS)
+	$(CC) /nologo $(OBJS) $(LIBFLAGS)
 
 $(INSTALL_DIR)\$(NAME)$(POSTFIX): $(NAME)$(POSTFIX)
 !if "$(NAME)" != "libts1"
