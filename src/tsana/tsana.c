@@ -33,7 +33,7 @@ typedef struct
 
         int is_outpsi; /* output txt psi packet to stdout */
         int is_prepsi; /* get psi information from file first */
-        int is_mono; /* use colour when print */
+        int is_color; /* use colour when print */
         int is_dump; /* output packet directly */
         uint64_t aim_start; /* ignore some packets fisrt, default: 0(no ignore) */
         uint64_t aim_count; /* stop after analyse some packets, default: 0(no stop) */
@@ -333,7 +333,7 @@ static obj_t *create(int argc, char *argv[])
 
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
-        obj->is_mono = 0;
+        obj->is_color = 0;
         obj->is_dump = 0;
         obj->cnt = 0;
         obj->aim_start = 0;
@@ -376,9 +376,9 @@ static obj_t *create(int argc, char *argv[])
                         {
                                 obj->is_prepsi = 1;
                         }
-                        else if(0 == strcmp(argv[i], "-mono"))
+                        else if(0 == strcmp(argv[i], "-color"))
                         {
-                                obj->is_mono = 1;
+                                obj->is_color = 1;
                         }
                         else if(0 == strcmp(argv[i], "-pcr"))
                         {
@@ -601,7 +601,7 @@ static void show_help()
         puts(" -alles           write ES data into different file by PID");
         puts(" -err             output all errors found");
         puts(" -dump            dump cared packet");
-        puts(" -mono            disable colour effect, default: use colour to help read");
+        puts(" -color           enable colour effect to help read, default: mono");
         puts("");
         puts(" -start <x>       analyse from packet(x), default: 0, first packet");
         puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
@@ -679,7 +679,7 @@ static void show_list(obj_t *obj)
                 pids = (ts_pid_t *)node;
                 yellow_on = "";
                 color_off = "";
-                if((NULL != pids->track) && !(obj->is_mono))
+                if((NULL != pids->track) && (obj->is_color))
                 {
                         yellow_on = FYELLOW;
                         color_off = NONE;
@@ -709,7 +709,7 @@ static void show_prog(obj_t *obj)
                 return;
         }
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
@@ -780,7 +780,7 @@ static void show_track(LIST *list, uint16_t pcr_pid)
         char *yellow_on = "";
         char *color_off = "";
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 red_on = FRED;
                 yellow_on = FYELLOW;
@@ -935,7 +935,7 @@ static void show_sys_rate(obj_t *obj)
                 return;
         }
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
@@ -961,7 +961,7 @@ static void show_psi_rate(obj_t *obj)
                 return;
         }
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
@@ -999,7 +999,7 @@ static void show_prog_rate(obj_t *obj)
                 return;
         }
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
@@ -1039,7 +1039,7 @@ static void show_rate(obj_t *obj)
                 return;
         }
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
@@ -1292,7 +1292,7 @@ static void print_atp_title(obj_t *obj)
         char *yellow_on = "";
         char *color_off = "";
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
@@ -1323,7 +1323,7 @@ static void print_atp_value(obj_t *obj)
         lt = localtime(&tp);
         strftime(stime, 32, "%H:%M:%S", lt);
 
-        if(!(obj->is_mono))
+        if(obj->is_color)
         {
                 yellow_on = FYELLOW;
                 color_off = NONE;
