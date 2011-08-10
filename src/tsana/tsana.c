@@ -1072,14 +1072,14 @@ static void show_ptsdts(obj_t *obj)
         }
 
         print_atp_value(obj);
-        fprintf(stdout, "%lld, %+8.3f, %+.3f, ",
+        fprintf(stdout, "%lld, %+8.3f, %+8.3f, ",
                 rslt->PTS,
                 (double)(rslt->PTS_interval) / (90), /* ms */
                 (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
         if(rslt->has_DTS)
         {
-                fprintf(stdout, "%lld, %+8.3f, %+.3f,\n",
+                fprintf(stdout, "%lld, %+8.3f, %+8.3f,\n",
                         rslt->DTS,
                         (double)(rslt->DTS_interval) / (90), /* ms */
                         (double)(rslt->DTS_minus_STC) / (90)); /* ms */
@@ -1104,15 +1104,11 @@ static void show_pes(obj_t *obj)
         }
         if(0 != rslt->PES_len)
         {
-                pkt->ts = NULL;
-                pkt->rs = NULL;
-                pkt->src = NULL;
-                pkt->addr = NULL;
-                pkt->cts = NULL;
+                pkt_init(pkt);
                 pkt->data = rslt->PES_buf;
                 pkt->cnt = rslt->PES_len;
 
-                b2t(obj->tbuf, pkt, ' ');
+                b2t(obj->tbuf, pkt);
                 puts(obj->tbuf);
         }
         return;
@@ -1130,15 +1126,11 @@ static void show_es(obj_t *obj)
         }
         if(0 != rslt->ES_len)
         {
-                pkt->ts = NULL;
-                pkt->rs = NULL;
-                pkt->src = NULL;
-                pkt->addr = NULL;
-                pkt->cts = NULL;
+                pkt_init(pkt);
                 pkt->data = rslt->ES_buf;
                 pkt->cnt = rslt->ES_len;
 
-                b2t(obj->tbuf, pkt, ' ');
+                b2t(obj->tbuf, pkt);
                 puts(obj->tbuf);
         }
         return;

@@ -15,7 +15,6 @@
 static URL *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static char white_space = ' ';
 static ts_pkt_t PKT;
 static ts_pkt_t *pkt = &PKT;
 
@@ -40,16 +39,14 @@ int main(int argc, char *argv[])
                 return -ERR_FOPEN_FAILED;
         }
 
+        pkt_init(pkt);
         pkt->ts = (bbuf + 0);
-        pkt->rs = NULL;
-        pkt->src = NULL;
-        pkt->ADDR = 0;
         pkt->addr = &(pkt->ADDR);
-        pkt->cts = NULL;
-        pkt->data = NULL;
+
+        pkt->ADDR = 0;
         while(1 == url_read(bbuf, npline, 1, fd_i))
         {
-                b2t(tbuf, pkt, white_space);
+                b2t(tbuf, pkt);
                 puts(tbuf);
                 pkt->ADDR += npline;
         }
@@ -75,14 +72,8 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(     0 == strcmp(argv[i], "-s") ||
-                                0 == strcmp(argv[i], "--space")
-                        )
-                        {
-                                sscanf(argv[++i], "%c" , &white_space);
-                        }
-                        else if(0 == strcmp(argv[i], "-h") ||
-                                0 == strcmp(argv[i], "--help")
+                        if(0 == strcmp(argv[i], "-h") ||
+                           0 == strcmp(argv[i], "--help")
                         )
                         {
                                 show_help();
@@ -119,7 +110,6 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -s, --space <s>  white space, any char except [0-9A-Fa-f], default: ' '");
         puts(" -h, --help       print this information, then exit");
         puts(" -v, --version    print my version, then exit");
         puts("");

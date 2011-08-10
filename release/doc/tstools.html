@@ -696,8 +696,8 @@ Unix的小工具思想太强大了！</p></div>
 </ul></div>
 <div class="paragraph"><p>为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
 在上一节数据文本化的基础上规定：
-每行文本中除了传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息。
-所有数据段采用“标签,数据,”的格式，为了方便看数据，建议先传输ts、trp、data之类的核心数据段。</p></div>
+每行文本中除了传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息，
+所有数据段采用“标签,数据,”的格式。</p></div>
 <div class="tableblock">
 <table rules="all"
 width="100%"
@@ -740,7 +740,7 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">包头距第1包头的字节数</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">mtst</p></td>
+<td align="left" valign="top"><p class="table">mts</p></td>
 <td align="left" valign="top"><p class="table">MTS时间戳</p></td>
 <td align="left" valign="top"><p class="table">无符号整数</p></td>
 <td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
@@ -781,7 +781,8 @@ cellspacing="0" cellpadding="4">
 </tbody>
 </table>
 </div>
-<div class="paragraph"><p>实际的传输内容是这样的（TS包太长，中间的内容省略了）：</p></div>
+<div class="paragraph"><p>为了方便看数据，建议先传输ts、trp、data之类的核心数据段，
+实际的传输内容是这样的（TS包太长，中间的内容省略了）：</p></div>
 <div class="listingblock">
 <div class="content">
 <pre><tt>ts,47 00 32 12 ... AD 3F 43 4C,addr,0,
@@ -791,10 +792,10 @@ ts,47 00 32 13 ... BA 44 39 4A,addr,188,</tt></pre>
 对于文件，通过地址可以定位数据，找到错误发生的位置；
 对于网络等实时流，地址反映了已分析的数据总量。
 在传输pes、es片段的场合可以没有地址信息。</p></div>
-<div class="paragraph"><p>时间戳（mtst, stc）反映了包的到达（或发送）时间。
+<div class="paragraph"><p>时间戳（mts, stc）反映了包的到达（或发送）时间。
 对于MTS文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
 对于其它没有时间戳的源，分析模块内部会基于码率恒定的假设计算出每个包的STC。
-mtst时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
+mts时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
 接收模块内部根据PCR信息和这个时间戳恢复出STC，所有与时间相关的计算都是基于STC进行的。</p></div>
 </div>
 </div>
@@ -1135,7 +1136,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2011-08-03 15:48:36    
+Last updated 2011-08-07 21:57:02    
 </div>
 </div>
 </body>

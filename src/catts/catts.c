@@ -18,17 +18,13 @@ enum FILE_TYPE
         FILE_MTS,
         FILE_TSRS,
         FILE_TS,
-        FILE_BIN,
         FILE_UNKNOWN
 };
 
 static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static char white_space = ' ';
-static int type = FILE_BIN;
-static int show_address = 0;
-static int dec_address = 0; /* default: hex address */
+static int type = FILE_TS;
 static int aim_start = 0; /* first byte */
 static int aim_stop = 0; /* last byte */
 static ts_pkt_t PKT;
@@ -44,13 +40,11 @@ int main(int argc, char *argv[])
 {
         unsigned char bbuf[LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
         char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
-        char *addr_fmt;
 
         if(0 != deal_with_parameter(argc, argv))
         {
                 return -1;
         }
-        addr_fmt = (dec_address) ? "%llu%c" : "%llX%c";
 
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i)
@@ -63,40 +57,27 @@ int main(int argc, char *argv[])
         judge_type();
         while(1 == fread(bbuf, npline, 1, fd_i))
         {
-                pkt->ts = NULL;
-                pkt->rs = NULL;
-                pkt->src = NULL;
-                pkt->addr = NULL;
-                pkt->cts = NULL;
-                pkt->data = NULL;
+                pkt_init(pkt);
 
                 switch(type)
                 {
-                        case FILE_TSRS:
-                                pkt->addr = &(pkt->ADDR);
-                                pkt->ts = (bbuf + 0);
-                                pkt->rs = (bbuf + 188);
-                                break;
-                        case FILE_MTS:
-                                pkt->addr = &(pkt->ADDR);
-                                pkt->ts = (bbuf + 4);
-                                pkt->cts = &(pkt->CTS);
-                                mts_time(pkt->cts, bbuf);
-                                pkt->CTS_overflow = 0x40000000;
-                                break;
                         case FILE_TS:
                                 pkt->addr = &(pkt->ADDR);
                                 pkt->ts = (bbuf + 0);
                                 break;
-                        default: /* FILE_BIN */
+                        case FILE_MTS:
+                                pkt->addr = &(pkt->ADDR);
+                                pkt->ts = (bbuf + 4);
+                                pkt->mts = &(pkt->MTS);
+                                mts_time(pkt->mts, bbuf);
+                                break;
+                        default: /* FILE_TSRS */
+                                pkt->addr = &(pkt->ADDR);
                                 pkt->ts = (bbuf + 0);
+                                pkt->rs = (bbuf + 188);
                                 break;
                 }
-                b2t(tbuf, pkt, white_space);
-                if(show_address)
-                {
-                        fprintf(stdout, addr_fmt, pkt->ADDR, white_space);
-                }
+                b2t(tbuf, pkt);
                 puts(tbuf);
                 pkt->ADDR += npline;
         }
@@ -109,7 +90,6 @@ int main(int argc, char *argv[])
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
-        int dat;
 
         if(1 == argc)
         {
@@ -123,35 +103,7 @@ static int deal_with_parameter(int argc, char *argv[])
         {
                 if('-' == argv[i][0])
                 {
-                        if(     0 == strcmp(argv[i], "-w") ||
-                                0 == strcmp(argv[i], "--width")
-                        )
-                        {
-                                sscanf(argv[++i], "%i" , &dat);
-                                if(0 < dat && dat <= (LINE_LENGTH_MAX / 3))
-                                {
-                                        npline = dat;
-                                }
-                                else
-                                {
-                                        fprintf(stderr,
-                                                "bad variable for '-n': %d, use %d instead!\n",
-                                                dat, npline);
-                                }
-                        }
-                        else if(0 == strcmp(argv[i], "-a") ||
-                                0 == strcmp(argv[i], "--addr")
-                        )
-                        {
-                                show_address = 1;
-                        }
-                        else if(0 == strcmp(argv[i], "-d") ||
-                                0 == strcmp(argv[i], "--decaddr")
-                        )
-                        {
-                                dec_address = 1;
-                        }
-                        else if(0 == strcmp(argv[i], "-start"))
+                        if(0 == strcmp(argv[i], "-start"))
                         {
                                 int start;
 
@@ -176,12 +128,6 @@ static int deal_with_parameter(int argc, char *argv[])
                                 }
                                 sscanf(argv[i], "%i" , &stop);
                                 aim_stop = stop;
-                        }
-                        else if(0 == strcmp(argv[i], "-s") ||
-                                0 == strcmp(argv[i], "--space")
-                        )
-                        {
-                                sscanf(argv[++i], "%c" , &white_space);
                         }
                         else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")
@@ -221,14 +167,10 @@ static int show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -a, --addr               show data address at line head, default: do NOT show it");
-        puts(" -d, --decaddr            dec address format, default: hex");
 #if 0
         puts(" -start <a>               cat from a%(file length), default: 0, first byte");
         puts(" -stop <b>                cat to b%(file length), default: 0, last byte");
 #endif
-        puts(" -s, --seperate <,>       white space, any char except [0-9A-Fa-f], default: ' '");
-        puts(" -w, --width <w>          w-byte per line, [1,10922], default: 188");
         puts(" -h, --help               display this information");
         puts(" -v, --version            display my version");
         puts("");
@@ -284,7 +226,7 @@ static int judge_type()
                                         if(pkt->ADDR > ASYNC_BYTE)
                                         {
                                                 pkt->ADDR = 0;
-                                                type = FILE_BIN;
+                                                type = FILE_UNKNOWN;
                                         }
                                 }
                                 break;

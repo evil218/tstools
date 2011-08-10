@@ -43,12 +43,12 @@ int main(int argc, char *argv[])
 
                 if(pkt->ts)
                 {
-                        fwrite(pkt->ts, LENGTH_TS, 1, fd_o);
+                        fwrite(pkt->ts, 188, 1, fd_o);
                 }
 
                 if(pkt->rs)
                 {
-                        fwrite(pkt->rs, LENGTH_RS, 1, fd_o);
+                        fwrite(pkt->rs, 16, 1, fd_o);
                 }
 
                 if(pkt->data)

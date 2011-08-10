@@ -607,14 +607,14 @@ static int state_next_pkt(obj_t *obj)
         }
 
         /* calc STC, should be here(before PCR flush) */
-        if(NULL != pkt->cts)
+        if(NULL != pkt->mts)
         {
                 uint64_t dCTS;
 
-                dCTS = pkt->CTS;
-                dCTS += (pkt->CTS < rslt->lCTS) ? pkt->CTS_overflow : 0;
+                dCTS = pkt->MTS;
+                dCTS += (pkt->MTS < rslt->lCTS) ? 0x40000000 : 0;
                 dCTS -= rslt->lCTS;
-                rslt->lCTS = pkt->CTS;
+                rslt->lCTS = pkt->MTS;
 
                 rslt->STC = rslt->lSTC + dCTS;
                 rslt->lSTC = rslt->STC;
@@ -693,7 +693,7 @@ static int state_next_pkt(obj_t *obj)
                         /* STC_sync */
                         if(!prog->STC_sync)
                         {
-                                if(NULL != pkt->cts)
+                                if(NULL != pkt->mts)
                                 {
                                         rslt->lSTC = rslt->PCR;
                                 }
