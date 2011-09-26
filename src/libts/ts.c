@@ -151,6 +151,7 @@ typedef struct _obj_t
         int state;
 
         int is_pes_align; /* met first PES head */
+        int is_verbose; /* report key step one by one */
 
         ts_rslt_t rslt;
 }
@@ -370,10 +371,12 @@ int tsCreate(ts_rslt_t **rslt)
         obj->is_first_pkt = 1;
         obj->state = STATE_NEXT_PAT;
         obj->is_pes_align = 0; /* PES align(0: need; 1: dot't need) */
+        obj->is_verbose = 0; /* 0: shut up; 1: report key step */
 
         (*rslt)->cnt = 0;
         (*rslt)->CC_lost = 0;
-        (*rslt)->is_psi_parsed = 0;
+        (*rslt)->is_pat_pmt_parsed = 0;
+        (*rslt)->is_psi_parse_finished = 0;
         (*rslt)->concerned_pid = 0x0000; /* PAT_PID */
         (*rslt)->prog0 = NULL;
         (*rslt)->interval = 0;
@@ -515,15 +518,20 @@ static int state_next_pat(obj_t *obj)
                         section_number++;
                 }
 
-                /* all PAT section parsed */
-                //fprintf(stderr, "PAT ok\n");
+                if(obj->is_verbose)
+                {
+                        fprintf(stdout, "all PAT section parsed\n");
+                }
                 obj->state = STATE_NEXT_PMT;
         }
 
         if(is_all_prog_parsed(obj))
         {
-                //fprintf(stderr, "No PMT\n");
-                obj->rslt.is_psi_parsed = 1;
+                if(obj->is_verbose)
+                {
+                        fprintf(stdout, "no PMT section\n");
+                }
+                obj->rslt.is_pat_pmt_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
 
@@ -545,8 +553,11 @@ static int state_next_pmt(obj_t *obj)
 
         if(is_all_prog_parsed(obj))
         {
-                //fprintf(stderr, "PMT ok\n");
-                obj->rslt.is_psi_parsed = 1;
+                if(obj->is_verbose)
+                {
+                        fprintf(stdout, "all PMT section parsed\n");
+                }
+                obj->rslt.is_pat_pmt_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
 
@@ -637,17 +648,10 @@ static int state_next_pkt(obj_t *obj)
                         delta *= (pkt->ADDR - prog->ADDb);
                         delta /= (prog->ADDb - prog->ADDa);
                         rslt->STC = lmt_add(prog->PCRb, (uint64_t)delta, STC_OVF);
-                        //fprintf(stderr, "new STC\n");
                 }
                 else
                 {
                         rslt->STC = 0;
-#if 0
-                        fprintf(stderr, "prog %X, PCRa %lld, PCRb %lld\n",
-                                (int)prog,
-                                prog->PCRa,
-                                prog->PCRb);
-#endif
                 }
         }
         rslt->STC_base = rslt->STC / 300;
@@ -715,8 +719,11 @@ static int state_next_pkt(obj_t *obj)
                                                 {
                                                         NODE *node;
 
-                                                        /* 1st PCR of this program, clear cnt & interval */
-                                                        //fprintf(stderr, "1st PCR\n");
+                                                        if(obj->is_verbose)
+                                                        {
+                                                                fprintf(stdout, "1st PCR of program(%d)\n", prog->program_number);
+                                                        }
+                                                        /* clear cnt & interval */
                                                         for(node = rslt->pid_list.head; node; node = node->next)
                                                         {
                                                                 ts_pid_t *pid_item = (ts_pid_t *)node;
@@ -730,8 +737,11 @@ static int state_next_pkt(obj_t *obj)
                                                 }
                                                 else
                                                 {
-                                                        /* 2ed PCR of this program, STC can be calc */
-                                                        //fprintf(stderr, "2ed PCR\n");
+                                                        if(obj->is_verbose)
+                                                        {
+                                                                fprintf(stdout, "2ed PCR of program(%d)\n", prog->program_number);
+                                                        }
+                                                        /* STC can be calc */
                                                         prog->STC_sync = 1;
                                                 }
                                         }
@@ -767,13 +777,14 @@ static int state_next_pkt(obj_t *obj)
                                         rslt->interval = 0;
 
                                         rslt->has_rate = 1;
+
+                                        rslt->is_psi_parse_finished = 1;
                                 }
                         }
                 }
                 else
                 {
                         fprintf(stderr, "No program use this PCR packet(0x%04X)!\n", ts->PID);
-                        //rslt->has_rate = 1;
                 }
         }
 

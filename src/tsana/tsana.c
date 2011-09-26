@@ -44,6 +44,7 @@ typedef struct
 
         uint64_t cnt; /* packet analysed */
         char tbuf[PKT_TBUF];
+        char tbak[PKT_TBUF];
 
         int ts_id;
         ts_rslt_t *rslt;
@@ -180,16 +181,30 @@ int main(int argc, char *argv[])
                 }
         }
 
-        if(!(obj->is_dump) && (STATE_PARSE_PSI == obj->state))
+        if(!(rslt->is_psi_parse_finished) && !(obj->is_dump))
         {
-                fprintf(stderr, "PSI parsing unfinished!\n");
-                if(MODE_PSI == obj->mode)
+                char *red_on = "";
+                char *color_off = "";
+
+                if(obj->is_color)
                 {
-                        show_prog(obj);
+                        red_on = FRED;
+                        color_off = NONE;
                 }
-                else
+                fprintf(stderr, "%sPSI parsing unfinished because of the bad PCR data!%s\n",
+                        red_on, color_off);
+
+                rslt->is_psi_parse_finished = 1;
+                switch(obj->mode)
                 {
-                        show_list(obj);
+                        case MODE_LST:
+                                show_list(obj);
+                                break;
+                        case MODE_PSI:
+                                show_prog(obj);
+                                break;
+                        default:
+                                break;
                 }
         }
 
@@ -204,10 +219,9 @@ static void state_parse_psi(obj_t *obj)
         if(obj->is_outpsi && rslt->is_psi_si)
         {
                 fprintf(stdout, "%s", obj->tbuf);
-                /*fprintf(stderr, "%s, mode=%d\n", (rslt->is_psi_parsed) ? "done" : "next", obj->mode); */
         }
 
-        if(rslt->is_psi_parsed)
+        if(rslt->is_pat_pmt_parsed)
         {
                 switch(obj->mode)
                 {
@@ -642,8 +656,8 @@ static int get_one_pkt(obj_t *obj)
         {
                 return GOT_EOF;
         }
-        /*puts(obj->tbuf); */
 
+        strcpy(obj->tbak, obj->tbuf); /* for dump */
         t2b(obj->rslt->pkt, obj->tbuf);
         return GOT_RIGHT_PKT;
 }
@@ -656,7 +670,7 @@ static void show_pkt(obj_t *obj)
         {
                 return;
         }
-        fprintf(stdout, "%s", obj->tbuf);
+        fprintf(stdout, "%s", obj->tbak);
 }
 
 static void show_list(obj_t *obj)
@@ -668,7 +682,7 @@ static void show_list(obj_t *obj)
         char *yellow_on;
         char *color_off;
 
-        if(!(rslt->has_rate))
+        if(!(rslt->is_psi_parse_finished))
         {
                 return;
         }
@@ -704,7 +718,7 @@ static void show_prog(obj_t *obj)
         char *color_off = "";
         NODE *node;
 
-        if(!(rslt->has_rate))
+        if(!(rslt->is_psi_parse_finished))
         {
                 return;
         }
@@ -715,7 +729,7 @@ static void show_prog(obj_t *obj)
                 color_off = NONE;
         }
 
-        fprintf(stdout, "transport_stream %s%d%s(0x%04X)\n",
+        fprintf(stdout, "transport_stream_id, %s%d%s(0x%04X)\n",
                 yellow_on, rslt->transport_stream_id, color_off,
                 rslt->transport_stream_id);
 
@@ -724,9 +738,9 @@ static void show_prog(obj_t *obj)
                 int i;
 
                 ts_prog_t *prog = (ts_prog_t *)node;
-                fprintf(stdout, "program %s%d%s(0x%04X), "
-                        "PMT_PID %s0x%04X%s, "
-                        "PCR_PID %s0x%04X%s, ",
+                fprintf(stdout, "program_number, %s%d%s(0x%04X), "
+                        "PMT_PID, %s0x%04X%s, "
+                        "PCR_PID, %s0x%04X%s, ",
                         yellow_on, prog->program_number, color_off,
                         prog->program_number,
                         yellow_on, prog->PMT_PID, color_off,
@@ -735,7 +749,7 @@ static void show_prog(obj_t *obj)
                 /* service_provider */
                 if(prog->service_provider_len)
                 {
-                        fprintf(stdout, "service_provider %s\"%s\"%s(%02X",
+                        fprintf(stdout, "service_provider, %s\"%s\"%s(%02X",
                                 yellow_on, prog->service_provider, color_off,
                                 prog->service_provider[0]);
                         for(i = 1; i < prog->service_provider_len; i++)
@@ -748,7 +762,7 @@ static void show_prog(obj_t *obj)
                 /* service_name */
                 if(prog->service_name_len)
                 {
-                        fprintf(stdout, "service_name %s\"%s\"%s(%02X",
+                        fprintf(stdout, "service_name, %s\"%s\"%s(%02X",
                                 yellow_on, prog->service_name, color_off,
                                 prog->service_name[0]);
                         for(i = 1; i < prog->service_name_len; i++)
@@ -761,7 +775,7 @@ static void show_prog(obj_t *obj)
                 /* program_info */
                 if(prog->program_info_len)
                 {
-                        fprintf(stdout, "program_info:%s %02X",
+                        fprintf(stdout, "program_info, %s%02X",
                                 yellow_on,
                                 prog->program_info[0]);
                         for(i = 1; i < prog->program_info_len; i++)
@@ -799,16 +813,16 @@ static void show_track(LIST *list, uint16_t pcr_pid)
         for(node = list->head; node; node = node->next)
         {
                 track = (ts_track_t *)node;
-                fprintf(stdout, "track %s0x%04X%s, "
-                        "stream_type %s0x%02X%s, ",
+                fprintf(stdout, "track, %s0x%04X%s, "
+                        "stream_type, %s0x%02X%s, ",
                         yellow_on, track->PID, color_off,
                         yellow_on, track->stream_type, color_off);
-                fprintf(stdout, "type, %s, %s, ",
-                        track->sdes,
-                        track->ldes);
+                fprintf(stdout, "type, %s%s%s, detail, %s%s%s, ",
+                        yellow_on, track->sdes, color_off,
+                        yellow_on, track->ldes, color_off);
                 if(track->es_info_len)
                 {
-                        fprintf(stdout, "ES_info %s%02X",
+                        fprintf(stdout, "ES_info, %s%02X",
                                 yellow_on, track->es_info[0]);
                         for(i = 1; i < track->es_info_len; i++)
                         {

@@ -226,7 +226,8 @@ typedef struct _ts_rslt_t
 
         /* PSI/SI table */
         ts_psi_t psi;
-        int is_psi_parsed;
+        int is_pat_pmt_parsed;
+        int is_psi_parse_finished;
         int is_psi_si;
         int has_section;
         LIST table_list; /* ts_table_t, PSI/SI table except PMT */
