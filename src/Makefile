@@ -5,3 +5,6 @@ cygwin linux:
 
 msvc:
 	echo "include Makefile.msvc" > include.mak
+
+ctags:
+	ctags -R *

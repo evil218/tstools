@@ -45,7 +45,7 @@ explain:
 	@echo "    Object     files: $(OBJS)"
 	@echo "    Dependency files: $(DEPS)"
 
-#!include $(DEPS)
+#include $(DEPS)
 
 install: $(INSTALL_DIR)\$(NAME)$(POSTFIX)
 

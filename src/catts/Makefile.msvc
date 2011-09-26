@@ -6,4 +6,4 @@ LIBFLAGS = ..\libts\libts1.lib
 
 SRCS = $(NAME).c
 
-!include ../common.msvc.mak
+include ../common.msvc.mak

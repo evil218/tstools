@@ -715,7 +715,7 @@ static void show_prog(obj_t *obj)
                 color_off = NONE;
         }
 
-        fprintf(stdout, "transport_stream: %s%d%s(0x%04X)\n",
+        fprintf(stdout, "transport_stream %s%d%s(0x%04X)\n",
                 yellow_on, rslt->transport_stream_id, color_off,
                 rslt->transport_stream_id);
 
@@ -724,44 +724,53 @@ static void show_prog(obj_t *obj)
                 int i;
 
                 ts_prog_t *prog = (ts_prog_t *)node;
-                fprintf(stdout, "    program %s%d%s(0x%04X)"
-                        ", PMT_PID = %s0x%04X%s"
-                        ", PCR_PID = %s0x%04X%s\n",
+                fprintf(stdout, "program %s%d%s(0x%04X), "
+                        "PMT_PID %s0x%04X%s, "
+                        "PCR_PID %s0x%04X%s, ",
                         yellow_on, prog->program_number, color_off,
                         prog->program_number,
                         yellow_on, prog->PMT_PID, color_off,
                         yellow_on, prog->PCR_PID, color_off);
 
                 /* service_provider */
-                fprintf(stdout, "        service_provider: %s\"%s\"%s( ",
-                        yellow_on, prog->service_provider, color_off);
-                for(i = 0; i < prog->service_provider_len; i++)
+                if(prog->service_provider_len)
                 {
-                        fprintf(stdout, "%02X ", prog->service_provider[i]);
+                        fprintf(stdout, "service_provider %s\"%s\"%s(%02X",
+                                yellow_on, prog->service_provider, color_off,
+                                prog->service_provider[0]);
+                        for(i = 1; i < prog->service_provider_len; i++)
+                        {
+                                fprintf(stdout, " %02X", prog->service_provider[i]);
+                        }
+                        fprintf(stdout, "), ");
                 }
-                fprintf(stdout, ")\n");
 
                 /* service_name */
-                fprintf(stdout, "        service_name    : %s\"%s\"%s( ",
-                        yellow_on, prog->service_name, color_off);
-                for(i = 0; i < prog->service_name_len; i++)
+                if(prog->service_name_len)
                 {
-                        fprintf(stdout, "%02X ", prog->service_name[i]);
+                        fprintf(stdout, "service_name %s\"%s\"%s(%02X",
+                                yellow_on, prog->service_name, color_off,
+                                prog->service_name[0]);
+                        for(i = 1; i < prog->service_name_len; i++)
+                        {
+                                fprintf(stdout, " %02X", prog->service_name[i]);
+                        }
+                        fprintf(stdout, "), ");
                 }
-                fprintf(stdout, ")\n");
 
                 /* program_info */
-                fprintf(stdout, "        program_info:%s", yellow_on);
-                for(i = 0; i < prog->program_info_len; i++)
+                if(prog->program_info_len)
                 {
-                        if(0x00 == (i & 0x0F))
+                        fprintf(stdout, "program_info:%s %02X",
+                                yellow_on,
+                                prog->program_info[0]);
+                        for(i = 1; i < prog->program_info_len; i++)
                         {
-                                fprintf(stdout, "\n");
-                                fprintf(stdout, "            ");
+                                fprintf(stdout, " %02X", prog->program_info[i]);
                         }
-                        fprintf(stdout, "%02X ", prog->program_info[i]);
+                        fprintf(stdout, "%s", color_off);
                 }
-                fprintf(stdout, "%s\n", color_off);
+                fprintf(stdout, "\n");
 
                 /* track */
                 show_track(&(prog->track_list), prog->PCR_PID);
@@ -790,26 +799,24 @@ static void show_track(LIST *list, uint16_t pcr_pid)
         for(node = list->head; node; node = node->next)
         {
                 track = (ts_track_t *)node;
-                fprintf(stdout, "        track %s0x%04X%s"
-                        ", stream_type = %s0x%02X%s"
-                        "%s%s%s\n",
+                fprintf(stdout, "track %s0x%04X%s, "
+                        "stream_type %s0x%02X%s, ",
                         yellow_on, track->PID, color_off,
-                        yellow_on, track->stream_type, color_off,
-                        red_on, ((track->PID == pcr_pid) ? " with PCR" : ""), color_off);
-                fprintf(stdout, "            type: %s, %s\n",
+                        yellow_on, track->stream_type, color_off);
+                fprintf(stdout, "type, %s, %s, ",
                         track->sdes,
                         track->ldes);
-                fprintf(stdout, "            ES_info:%s", yellow_on);
-                for(i = 0; i < track->es_info_len; i++)
+                if(track->es_info_len)
                 {
-                        if(0x00 == (i & 0x0F))
+                        fprintf(stdout, "ES_info %s%02X",
+                                yellow_on, track->es_info[0]);
+                        for(i = 1; i < track->es_info_len; i++)
                         {
-                                fprintf(stdout, "\n");
-                                fprintf(stdout, "                ");
+                                fprintf(stdout, " %02X", track->es_info[i]);
                         }
-                        fprintf(stdout, "%02X ", track->es_info[i]);
+                        fprintf(stdout, "%s, ", color_off);
                 }
-                fprintf(stdout, "%s\n", color_off);
+                fprintf(stdout, "\n");
         }
         return;
 }

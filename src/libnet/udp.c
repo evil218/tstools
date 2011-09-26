@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef PLATFORM_MSVC
+#include <winsock.h>
+#include <sys/types.h>
+#include <sys/timeb.h>
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -15,6 +20,7 @@
 #include <unistd.h>                     /* for close() */
 #include <fcntl.h>                      /* for fcntl(), O_NONBLOCK, etc */
 #include <sys/select.h>                 /* for select(), etc */
+#endif
 
 #include "libts/error.h"
 #include "net/udp.h"
@@ -32,6 +38,9 @@ UDP;
 int udp_open(char *addr, unsigned short port)
 {
         UDP *udp;
+#if 0
+        WSA
+#endif
 
         udp = (UDP *)malloc(sizeof(UDP));
         if(NULL == udp)

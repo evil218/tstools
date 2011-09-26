@@ -11,7 +11,7 @@ INSTALL_DIR = /usr/local/bin
 # others
 # -------------------------------------------------------------------
 CC = gcc
-CPPFLAGS = -I. -I../include
+CPPFLAGS = -I. -I../include -DPLATFORM_LINUX
 COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
 
 OBJS := $(patsubst %.c, %.o, $(SRCS))

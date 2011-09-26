@@ -516,11 +516,13 @@ static int state_next_pat(obj_t *obj)
                 }
 
                 /* all PAT section parsed */
+                //fprintf(stderr, "PAT ok\n");
                 obj->state = STATE_NEXT_PMT;
         }
 
         if(is_all_prog_parsed(obj))
         {
+                //fprintf(stderr, "No PMT\n");
                 obj->rslt.is_psi_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
@@ -543,6 +545,7 @@ static int state_next_pmt(obj_t *obj)
 
         if(is_all_prog_parsed(obj))
         {
+                //fprintf(stderr, "PMT ok\n");
                 obj->rslt.is_psi_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
@@ -634,10 +637,17 @@ static int state_next_pkt(obj_t *obj)
                         delta *= (pkt->ADDR - prog->ADDb);
                         delta /= (prog->ADDb - prog->ADDa);
                         rslt->STC = lmt_add(prog->PCRb, (uint64_t)delta, STC_OVF);
+                        //fprintf(stderr, "new STC\n");
                 }
                 else
                 {
                         rslt->STC = 0;
+#if 0
+                        fprintf(stderr, "prog %X, PCRa %lld, PCRb %lld\n",
+                                (int)prog,
+                                prog->PCRa,
+                                prog->PCRb);
+#endif
                 }
         }
         rslt->STC_base = rslt->STC / 300;
@@ -706,6 +716,7 @@ static int state_next_pkt(obj_t *obj)
                                                         NODE *node;
 
                                                         /* 1st PCR of this program, clear cnt & interval */
+                                                        //fprintf(stderr, "1st PCR\n");
                                                         for(node = rslt->pid_list.head; node; node = node->next)
                                                         {
                                                                 ts_pid_t *pid_item = (ts_pid_t *)node;
@@ -720,6 +731,7 @@ static int state_next_pkt(obj_t *obj)
                                                 else
                                                 {
                                                         /* 2ed PCR of this program, STC can be calc */
+                                                        //fprintf(stderr, "2ed PCR\n");
                                                         prog->STC_sync = 1;
                                                 }
                                         }
@@ -760,7 +772,8 @@ static int state_next_pkt(obj_t *obj)
                 }
                 else
                 {
-                        fprintf(stderr, "error: PCR packet without program pointer!\n");
+                        fprintf(stderr, "No program use this PCR packet(0x%04X)!\n", ts->PID);
+                        //rslt->has_rate = 1;
                 }
         }
 

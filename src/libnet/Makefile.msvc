@@ -1,0 +1,6 @@
+NAME = libnet1
+POSTFIX = .lib
+
+SRCS = udp.c url.c
+
+include ../common.msvc.mak

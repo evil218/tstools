@@ -1,6 +1,12 @@
+DIRS = libts libnet catts catip tsana tots
+
 all release install uninstall clean:
+#	for %%dir in ($(DIRS)) do (cd %%dir && echo "--->%%dir:")
 	@cd libts
 	@echo "---> libts:"
+	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
+	@cd ..\libnet
+	@echo "---> libnet:"
 	-@$(MAKE) /NOLOGO /F Makefile.msvc $@
 	@cd ..\catts
 	@echo "---> catts:"

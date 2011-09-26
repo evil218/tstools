@@ -1,9 +1,9 @@
 NAME = catip
 POSTFIX = .exe
 
-LIBDEPS = ..\libts\libts1.lib
-LIBFLAGS = ..\libts\libts1.lib
+LIBDEPS = ..\libts\libts1.lib ..\libnet\libnet1.lib
+LIBFLAGS = ..\libts\libts1.lib ..\libnet\libnet1.lib
 
-SRCS = $(NAME).c url.c udp_msvc.c
+SRCS = $(NAME).c
 
-!include ../common.msvc.mak
+include ../common.msvc.mak
