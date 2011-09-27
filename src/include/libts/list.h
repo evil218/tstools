@@ -1,7 +1,27 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
- * name: list.h
+/* vim: set tabstop=8 shiftwidth=8:
+ * name: list
  * funx: Common Bidirection List
+ *              _______      _______      _______ 
+ *             |       |    |       |    |       |
+ *    *phead-->| next ----->| next ----->| next --->NULL
+ *      NULL<--- prev  |<---- prev  |<---- prev  |
+ *             | tail ---*  | tail  |    | tail  |
+ *             |  key  | |  |  key  |    |  key  |
+ *             | name  | |  | name  |    | name  |
+ *   unshift==>|       | |  |       |    |       |==>pop
+ *     shift<==|   *   | |  |   *   |    |   *   |<==push
+ *             |_______| |  |_______|    |_______|
+ *               lnode   |    lnode        lnode  
+ *               (HEAD)  *---------------->(TAIL)
+ * 
+ *       empty  list: *phead == NULL
+ *       normal list: *phead == HEAD
+ *
+ *       LIFO: stack: push & pop
+ *       FIFO: queue: push & shift
+ *
+ * 2009-05-08, ZHOU Cheng, Init for TStools(referred to the lstLib of VxWorks)
+ * 2011-09-18, ZHOU Cheng, Modified for param_xml module
  */
 
 #ifndef _LIST_H
@@ -11,37 +31,28 @@
 extern "C" {
 #endif
 
-#include <stdint.h> /* for uintN_t */
-
-typedef struct _NODE
+typedef struct _lnode_t
 {
-        struct _NODE *next;
-        struct _NODE *prev;
-        uint32_t key; /* for list_insert() */
-}
-NODE;
+        struct _lnode_t *next;
+        struct _lnode_t *prev;
+        struct _lnode_t *tail; /* only head->tail is valid! */
+        int key; /* for sort list: use list_set_key() before list_insert()! */
+        const char *name; /* for variable type list: use list_set_name() before list_push()! */
+} lnode_t; /* list node */
 
-typedef struct _LIST
-{
-        NODE *head;
-        NODE *tail;
-        int count;
-}
-LIST;
+/* note: PHEAD will be convert to (lnode_t **) type! */
+/* note: LNODE will be convert to (lnode_t  *) type! */
+void list_free(void *PHEAD);
+void list_delete(void *PHEAD, void *LNODE);
+void list_push(void *PHEAD, void *LNODE);
+void list_unshift(void *PHEAD, void *LNODE);
+void *list_pop(void *PHEAD);   /* It's up to the caller to free the lnode with free()! */
+void *list_shift(void *PHEAD); /* It's up to the caller to free the lnode with free()! */
+void list_insert(void *PHEAD, void *LNODE); /* small key first */
 
-void  list_init(LIST *list);
-void  list_free(LIST *list);
-
-void  list_del(LIST *list, NODE *node);
-void  list_add(LIST *list, NODE *node, uint32_t key); /* to list tail */
-void  list_insert(LIST *list, NODE *node, uint32_t key); /* small key first */
-NODE *list_search(LIST *list, uint32_t key);
-
-int   list_cnt(LIST *list);
-NODE *list_head(LIST *list);
-NODE *list_tail(LIST *list);
-NODE *list_next(NODE *node);
-NODE *list_prev(NODE *node);
+void *list_search(void *PHEAD, int key);
+void list_set_key(void *LNODE, int key);
+void list_set_name(void *LNODE, const char *name);
 
 #ifdef __cplusplus
 }

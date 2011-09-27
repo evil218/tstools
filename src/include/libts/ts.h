@@ -82,10 +82,7 @@ ts_psi_t;
 
 typedef struct _ts_section_t
 {
-        /* for list */
-        NODE *next;
-        NODE *prev;
-        uint32_t key; /* copy section_number as key */
+        lnode_t cvfl; /* common variable for list */
 
         uint8_t section_number;
         uint16_t section_length;
@@ -95,61 +92,18 @@ ts_section_t; /* unit of section list */
 
 typedef struct _ts_table_t
 {
-        /* for list */
-        NODE *next;
-        NODE *prev;
-        uint32_t key; /* copy table_id as key */
+        lnode_t cvfl; /* common variable for list */
 
         uint8_t table_id; /* 0x00~0xFF except 0x02 */
         uint8_t version_number;
         uint8_t last_section_number;
-        LIST section_list; /* ts_section_t */
+        ts_section_t *section0;
 }
 ts_table_t; /* unit of PSI/SI table list */
 
-typedef struct _ts_prog_t
-{
-        /* for list */
-        NODE *next;
-        NODE *prev;
-        uint32_t key; /* copy program_number as key */
-
-        /* PMT section,  */
-        int is_parsed;
-        ts_table_t table; /* table_id = 0x02 */
-
-        /* program information */
-        uint16_t PMT_PID; /* 13-bit */
-        uint16_t PCR_PID; /* 13-bit */
-        uint16_t program_number;
-        int program_info_len;
-        uint8_t program_info[INFO_LEN_MAX];
-
-        /* service information */
-        uint8_t service_name_len;
-        uint8_t service_name[SERVER_STR_MAX];
-        uint8_t service_provider_len;
-        uint8_t service_provider[SERVER_STR_MAX];
-
-        /* tracks */
-        LIST track_list; /* ts_track_t, track list of this program */
-
-        /* for STC calc */
-        uint64_t ADDa; /* PCR packet a: packet address */
-        int64_t PCRa; /* PCR packet a: PCR value */
-        uint64_t ADDb; /* PCR packet b: packet address */
-        int64_t PCRb; /* PCR packet b: PCR value */
-        int STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
-        uint64_t interval;
-}
-ts_prog_t; /* unit of prog list */
-
 typedef struct _ts_track_t
 {
-        /* for list */
-        NODE *next;
-        NODE *prev;
-        uint32_t key; /* copy PID as key */
+        lnode_t cvfl; /* common variable for list */
 
         /* PID */
         uint16_t PID; /* 13-bit */
@@ -170,12 +124,43 @@ typedef struct _ts_track_t
 }
 ts_track_t; /* unit of track list */
 
+typedef struct _ts_prog_t
+{
+        lnode_t cvfl; /* common variable for list */
+
+        /* PMT section,  */
+        int is_parsed;
+        ts_table_t table; /* table_id = 0x02 */
+
+        /* program information */
+        uint16_t PMT_PID; /* 13-bit */
+        uint16_t PCR_PID; /* 13-bit */
+        uint16_t program_number;
+        int program_info_len;
+        uint8_t program_info[INFO_LEN_MAX];
+
+        /* service information */
+        uint8_t service_name_len;
+        uint8_t service_name[SERVER_STR_MAX];
+        uint8_t service_provider_len;
+        uint8_t service_provider[SERVER_STR_MAX];
+
+        /* tracks */
+        ts_track_t *track0;
+
+        /* for STC calc */
+        uint64_t ADDa; /* PCR packet a: packet address */
+        int64_t PCRa; /* PCR packet a: PCR value */
+        uint64_t ADDb; /* PCR packet b: packet address */
+        int64_t PCRb; /* PCR packet b: PCR value */
+        int STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
+        uint64_t interval;
+}
+ts_prog_t; /* unit of prog list */
+
 typedef struct _ts_pid_t
 {
-        /* for list */
-        NODE *next;
-        NODE *prev;
-        uint32_t key; /* copy PID as key */
+        lnode_t cvfl; /* common variable for list */
 
         /* PID */
         uint16_t PID; /* 13-bit */
@@ -230,13 +215,12 @@ typedef struct _ts_rslt_t
         int is_psi_parse_finished;
         int is_psi_si;
         int has_section;
-        LIST table_list; /* ts_table_t, PSI/SI table except PMT */
+        ts_table_t *table0; /* PSI/SI table except PMT */
 
         /* TS information */
         uint16_t transport_stream_id;
-        LIST prog_list; /* ts_prog_t, program list */
-        LIST pid_list; /* ts_pid_t, pid list */
-        ts_prog_t *prog0; /* first program in this stream */
+        ts_prog_t *prog0; /* program list */
+        ts_pid_t *pid0; /* pid list */
 
         /* PMT, PCR, VID and AUD has timestamp according to its PCR */
         /* other PID has timestamp according to the PCR in the 1st program */

@@ -100,7 +100,7 @@ static int get_one_pkt(obj_t *obj);
 static void show_pkt(obj_t *obj);
 static void show_list(obj_t *obj);
 static void show_prog(obj_t *obj);
-static void show_track(LIST *list, uint16_t pcr_pid);
+static void show_track(void *PTRACK, uint16_t pcr_pid);
 
 static void show_sec(obj_t *obj);
 static void show_si(obj_t *obj);
@@ -675,10 +675,9 @@ static void show_pkt(obj_t *obj)
 
 static void show_list(obj_t *obj)
 {
-        NODE *node;
+        lnode_t *lnode;
         ts_pid_t *pids;
         ts_rslt_t *rslt = obj->rslt;
-        LIST *list = &(rslt->pid_list);
         char *yellow_on;
         char *color_off;
 
@@ -688,9 +687,9 @@ static void show_list(obj_t *obj)
         }
 
         fprintf(stdout, "  PID , abbr, detail\n");
-        for(node = list->head; node; node = node->next)
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
         {
-                pids = (ts_pid_t *)node;
+                pids = (ts_pid_t *)lnode;
                 yellow_on = "";
                 color_off = "";
                 if((NULL != pids->track) && (obj->is_color))
@@ -713,10 +712,9 @@ static void show_list(obj_t *obj)
 static void show_prog(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        LIST *list = &(rslt->prog_list);
         char *yellow_on = "";
         char *color_off = "";
-        NODE *node;
+        lnode_t *lnode;
 
         if(!(rslt->is_psi_parse_finished))
         {
@@ -733,11 +731,11 @@ static void show_prog(obj_t *obj)
                 yellow_on, rslt->transport_stream_id, color_off,
                 rslt->transport_stream_id);
 
-        for(node = list->head; node; node = node->next)
+        for(lnode = (lnode_t *)(rslt->prog0); lnode; lnode = lnode->next)
         {
                 int i;
 
-                ts_prog_t *prog = (ts_prog_t *)node;
+                ts_prog_t *prog = (ts_prog_t *)lnode;
                 fprintf(stdout, "program_number, %s%d%s(0x%04X), "
                         "PMT_PID, %s0x%04X%s, "
                         "PCR_PID, %s0x%04X%s, ",
@@ -787,17 +785,18 @@ static void show_prog(obj_t *obj)
                 fprintf(stdout, "\n");
 
                 /* track */
-                show_track(&(prog->track_list), prog->PCR_PID);
+                show_track(&(prog->track0), prog->PCR_PID);
         }
 
         obj->state = STATE_EXIT;
         return;
 }
 
-static void show_track(LIST *list, uint16_t pcr_pid)
+static void show_track(void *PTRACK, uint16_t pcr_pid)
 {
         uint16_t i;
-        NODE *node;
+        lnode_t **ptrack = (lnode_t **)PTRACK;
+        lnode_t *lnode;
         ts_track_t *track;
         char *red_on = "";
         char *yellow_on = "";
@@ -810,9 +809,9 @@ static void show_track(LIST *list, uint16_t pcr_pid)
                 color_off = NONE;
         }
 
-        for(node = list->head; node; node = node->next)
+        for(lnode = *ptrack; lnode; lnode = lnode->next)
         {
-                track = (ts_track_t *)node;
+                track = (ts_track_t *)lnode;
                 fprintf(stdout, "track, %s0x%04X%s, "
                         "stream_type, %s0x%02X%s, ",
                         yellow_on, track->PID, color_off,
@@ -975,7 +974,7 @@ static void show_psi_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on = "";
         char *color_off = "";
-        NODE *node;
+        lnode_t *lnode;
 
         if(!(rslt->has_rate))
         {
@@ -992,11 +991,11 @@ static void show_psi_rate(obj_t *obj)
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
                 yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
-        /* traverse pid_list */
+        /* traverse pid0 */
         /* if it is PSI/SI PID, output its bitrate */
-        for(node = rslt->pid_list.head; node; node = node->next)
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
         {
-                ts_pid_t *pid_item = (ts_pid_t *)node;
+                ts_pid_t *pid_item = (ts_pid_t *)lnode;
                 if(pid_item->PID < 0x0020)
                 {
                         fprintf(stdout, "%s0x%04X%s, %9.6f, ",
@@ -1013,7 +1012,7 @@ static void show_prog_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on = "";
         char *color_off = "";
-        NODE *node;
+        lnode_t *lnode;
 
         if(!(rslt->has_rate))
         {
@@ -1027,11 +1026,11 @@ static void show_prog_rate(obj_t *obj)
         }
 
         print_atp_value(obj);
-        /* traverse pid_list */
+        /* traverse pid0 */
         /* if it belongs to this program, output its bitrate */
-        for(node = rslt->pid_list.head; node; node = node->next)
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
         {
-                ts_pid_t *pid_item = (ts_pid_t *)node;
+                ts_pid_t *pid_item = (ts_pid_t *)lnode;
                 if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID)
                 {
                         continue;
@@ -1053,7 +1052,7 @@ static void show_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on = "";
         char *color_off = "";
-        NODE *node;
+        lnode_t *lnode;
 
         if(!(rslt->has_rate))
         {
@@ -1067,10 +1066,10 @@ static void show_rate(obj_t *obj)
         }
 
         print_atp_value(obj);
-        /* traverse pid_list, output its bitrate */
-        for(node = rslt->pid_list.head; node; node = node->next)
+        /* traverse pid0, output its bitrate */
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
         {
-                ts_pid_t *pid_item = (ts_pid_t *)node;
+                ts_pid_t *pid_item = (ts_pid_t *)lnode;
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
                         yellow_on, pid_item->PID, color_off,
                         pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
