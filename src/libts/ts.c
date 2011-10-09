@@ -355,7 +355,7 @@ static int parse_PES_head(obj_t *obj); /* PES layer information */
 static int parse_PES_head_switch(obj_t *obj);
 static int parse_PES_head_detail(obj_t *obj);
 
-static ts_pid_t *add_to_pid_list(void *PHEAD, ts_pid_t *pids);
+static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *pid);
 static ts_pid_t *add_new_pid(obj_t *obj);
 static int is_all_prog_parsed(obj_t *obj);
 static int pid_type(uint16_t pid);
@@ -425,9 +425,17 @@ int tsDelete(int id)
                 {
                         ts_prog_t *prog = (ts_prog_t *)lnode;
                         list_free(&(prog->track0));
+                        list_free(&(prog->table_02.section0));
                 }
                 list_free(&(rslt->prog0));
                 list_free(&(rslt->pid0));
+
+                for(lnode = (lnode_t *)(rslt->table0); lnode; lnode = lnode->next)
+                {
+                        ts_table_t *table = (ts_table_t *)lnode;
+                        list_free(&(table->section0));
+                }
+                list_free(&(rslt->table0));
 
                 free(obj);
 
@@ -500,7 +508,6 @@ int tsParseOther(int id)
 static int state_next_pat(obj_t *obj)
 {
         ts_t *ts = &(obj->ts);
-        lnode_t **table0 = (lnode_t **)&(obj->rslt.table0);
         ts_table_t *table;
         uint8_t section_number;
 
@@ -511,7 +518,7 @@ static int state_next_pat(obj_t *obj)
 
         /* section parse has done in parse_TS_head()! */
         dbg(1, "search 0x00 in table_list");
-        if(NULL == (table = (ts_table_t *)list_search(table0, 0x00)))
+        if(NULL == (table = (ts_table_t *)list_search(&(obj->rslt.table0), 0x00)))
         {
                 return -1;
         }
@@ -558,11 +565,11 @@ static int state_next_pat(obj_t *obj)
 static int state_next_pmt(obj_t *obj)
 {
         ts_t *ts = &(obj->ts);
-        ts_pid_t *pids;
+        ts_pid_t *pid;
 
         dbg(1, "search 0x%04X in pid_list", ts->PID);
-        pids = (ts_pid_t *)list_search(&(obj->rslt.pid0), ts->PID);
-        if((NULL == pids) || (PMT_PID != pids->type))
+        pid = (ts_pid_t *)list_search(&(obj->rslt.pid0), ts->PID);
+        if((NULL == pid) || (PMT_PID != pid->type))
         {
                 return -1; /* not PMT */
         }
@@ -587,14 +594,14 @@ static int state_next_pkt(obj_t *obj)
         ts_t *ts = &(obj->ts);
         af_t *af = &(obj->af);
         ts_rslt_t *rslt = &(obj->rslt);
-        ts_pid_t *pids = rslt->pids;
-        ts_track_t *track = pids->track; /* may be NULL */
-        ts_prog_t *prog = pids->prog; /* may be NULL */
+        ts_pid_t *pid = rslt->pid;
+        ts_track_t *track = pid->track; /* may be NULL */
+        ts_prog_t *prog = pid->prog; /* may be NULL */
         ts_error_t *err = &(rslt->err);
         ts_pkt_t *pkt = rslt->pkt;
 
         /* CC */
-        if(pids->is_CC_sync)
+        if(pid->is_CC_sync)
         {
                 uint8_t dCC;
                 int lost;
@@ -609,28 +616,28 @@ static int state_next_pkt(obj_t *obj)
                         dCC = 0;
                 }
 
-                pids->CC += dCC;
-                pids->CC &= 0x0F; /* 4-bit */
+                pid->CC += dCC;
+                pid->CC &= 0x0F; /* 4-bit */
                 lost  = (int)ts->continuity_counter;
-                lost -= (int)pids->CC;
+                lost -= (int)pid->CC;
                 if(lost < 0)
                 {
                         lost += 16;
                 }
 
-                rslt->CC_wait = pids->CC;
+                rslt->CC_wait = pid->CC;
                 rslt->CC_find = ts->continuity_counter;
                 rslt->CC_lost = lost;
         }
         else
         {
-                pids->is_CC_sync = 1;
+                pid->is_CC_sync = 1;
 
-                rslt->CC_wait = pids->CC;
+                rslt->CC_wait = pid->CC;
                 rslt->CC_find = ts->continuity_counter;
                 rslt->CC_lost = 0;
         }
-        pids->CC = ts->continuity_counter; /* update CC */
+        pid->CC = ts->continuity_counter; /* update CC */
         err->Continuity_count_error = rslt->CC_lost;
         if(0x1FFF == ts->PID)
         {
@@ -840,7 +847,7 @@ static int parse_TS_head(obj_t *obj)
         /* init rslt */
         rslt->is_psi_si = 0;
         rslt->has_section = 0;
-        rslt->pids = NULL;
+        rslt->pid = NULL;
         rslt->has_rate = 0;
         rslt->has_PCR = 0;
         rslt->has_PTS = 0;
@@ -902,20 +909,20 @@ static int parse_TS_head(obj_t *obj)
                 /* data_byte, PSI or PES */
         }
 
-        rslt->pid = ts->PID; /* record into rslt struct */
-        dbg(1, "search 0x%04X in pid_list", rslt->pid);
-        rslt->pids = (ts_pid_t *)list_search(&(obj->rslt.pid0), rslt->pid);
-        if(NULL == rslt->pids)
+        rslt->PID = ts->PID; /* record into rslt struct */
+        dbg(1, "search 0x%04X in pid_list", rslt->PID);
+        rslt->pid = (ts_pid_t *)list_search(&(obj->rslt.pid0), rslt->PID);
+        if(NULL == rslt->pid)
         {
                 /* find new PID, add it in pid_list */
-                rslt->pids = add_new_pid(obj);
+                rslt->pid = add_new_pid(obj);
         }
 
         /* statistic & PSI/SI section collect */
-        rslt->pids->cnt++;
+        rslt->pid->cnt++;
         rslt->sys_cnt++;
         rslt->nul_cnt += ((0x1FFF == ts->PID) ? 1 : 0);
-        if((ts->PID < 0x0020)) /* || (PMT_PID == rslt->pids->type)) */
+        if((ts->PID < 0x0020)) /* || (PMT_PID == rslt->pid->type)) */
         {
                 /* PSI/SI packet */
                 rslt->psi_cnt++;
@@ -1032,10 +1039,10 @@ static int section(obj_t *obj)
         uint8_t pointer_field;
         ts_t *ts = &(obj->ts);
         ts_psi_t *psi = &(obj->rslt.psi);
-        ts_pid_t *pids = obj->rslt.pids;
+        ts_pid_t *pid = obj->rslt.pid;
 
         /* FIXME: if data after CRC_32 is NOT 0xFF, it's another section! */
-        if(0 == pids->section_idx)
+        if(0 == pid->section_idx)
         {
                 /* waiting for section head */
                 if(1 == ts->payload_unit_start_indicator)
@@ -1043,8 +1050,8 @@ static int section(obj_t *obj)
                         pointer_field = *(obj->p)++; obj->len--;
                         obj->p += pointer_field;
                         obj->len -= pointer_field;
-                        memcpy(pids->section, obj->p, obj->len);
-                        pids->section_idx = obj->len;
+                        memcpy(pid->section, obj->p, obj->len);
+                        pid->section_idx = obj->len;
                 }
                 else /* (0 == ts->payload_unit_start_indicator) */
                 {
@@ -1052,40 +1059,40 @@ static int section(obj_t *obj)
                         /*dump(obj->p, obj->len); */
                 }
         }
-        else /* (0 != pids->section_idx) */
+        else /* (0 != pid->section_idx) */
         {
                 /* collect section data */
                 if(1 == ts->payload_unit_start_indicator)
                 {
                         pointer_field = *(obj->p)++; obj->len--;
-                        memcpy(pids->section + pids->section_idx, obj->p, pointer_field);
-                        pids->section_idx += pointer_field;
+                        memcpy(pid->section + pid->section_idx, obj->p, pointer_field);
+                        pid->section_idx += pointer_field;
                         parse_table(obj);
                         obj->p += pointer_field;
                         obj->len -= pointer_field;
-                        memcpy(pids->section, obj->p, obj->len);
-                        pids->section_idx = obj->len;
+                        memcpy(pid->section, obj->p, obj->len);
+                        pid->section_idx = obj->len;
                 }
                 else /* (0 == ts->payload_unit_start_indicator) */
                 {
-                        memcpy(pids->section + pids->section_idx, obj->p, 184);
-                        pids->section_idx += 184;
+                        memcpy(pid->section + pid->section_idx, obj->p, 184);
+                        pid->section_idx += 184;
                 }
         }
 
-        if(pids->section_idx >= 8)
+        if(pid->section_idx >= 8)
         {
                 /* PSI head OK */
-                if(0 != parse_PSI_head(psi, pids->section))
+                if(0 != parse_PSI_head(psi, pid->section))
                 {
                         return -1;
                 }
 
-                if(pids->section_idx >= (3 + psi->section_length))
+                if(pid->section_idx >= (3 + psi->section_length))
                 {
                         /* section data enough */
                         parse_table(obj);
-                        pids->section_idx = 0;
+                        pid->section_idx = 0;
                 }
         }
 
@@ -1099,13 +1106,13 @@ static int parse_table(obj_t *obj)
         lnode_t **psection0;
         ts_section_t *section;
         ts_rslt_t *rslt = &(obj->rslt);
-        ts_pid_t *pids = rslt->pids;
+        ts_pid_t *pid = rslt->pid;
         ts_psi_t *psi = &(rslt->psi);
         ts_error_t *err = &(rslt->err);
         int is_new_version = 0;
 
         /* get psi head info */
-        if(0 != parse_PSI_head(psi, pids->section))
+        if(0 != parse_PSI_head(psi, pid->section))
         {
                 return -1;
         }
@@ -1113,22 +1120,22 @@ static int parse_table(obj_t *obj)
         /* CRC check */
         if(psi->check_CRC)
         {
-                p = pids->section + 3 + psi->section_length - 4;
-                pids->CRC_32   = *p++;
-                pids->CRC_32 <<= 8;
-                pids->CRC_32  |= *p++;
-                pids->CRC_32 <<= 8;
-                pids->CRC_32  |= *p++;
-                pids->CRC_32 <<= 8;
-                pids->CRC_32  |= *p++;
+                p = pid->section + 3 + psi->section_length - 4;
+                pid->CRC_32   = *p++;
+                pid->CRC_32 <<= 8;
+                pid->CRC_32  |= *p++;
+                pid->CRC_32 <<= 8;
+                pid->CRC_32  |= *p++;
+                pid->CRC_32 <<= 8;
+                pid->CRC_32  |= *p++;
 
-                pids->CRC_32_calc = CRC_for_TS(pids->section, 3 + psi->section_length - 4, 32);
-                /*pids->CRC_32_calc = CRC(pids->section, 3 + psi->section_length - 4, 32); */
-                /*pids->CRC_32_calc = crc32(pids->section, 3 + psi->section_length - 4); */
-                if(pids->CRC_32_calc != pids->CRC_32)
+                pid->CRC_32_calc = CRC_for_TS(pid->section, 3 + psi->section_length - 4, 32);
+                /*pid->CRC_32_calc = CRC(pid->section, 3 + psi->section_length - 4, 32); */
+                /*pid->CRC_32_calc = crc32(pid->section, 3 + psi->section_length - 4); */
+                if(pid->CRC_32_calc != pid->CRC_32)
                 {
                         err->CRC_error = 1;
-                        /*dump(pids->section, 3 + psi->section_length); */
+                        /*dump(pid->section, 3 + psi->section_length); */
                         return -1;
                 }
         }
@@ -1137,12 +1144,12 @@ static int parse_table(obj_t *obj)
         if(0x02 == psi->table_id)
         {
                 /* PMT section */
-                if(NULL == pids->prog)
+                if(NULL == pid->prog)
                 {
                         DBG(ERR_OTHER, "\n");
                         return -1;
                 }
-                table = &(pids->prog->table);
+                table = &(pid->prog->table_02);
         }
         else
         {
@@ -1198,7 +1205,7 @@ static int parse_table(obj_t *obj)
 
                 section->section_number = psi->section_number;
                 section->section_length = psi->section_length;
-                memcpy(section->data, pids->section, 3 + psi->section_length);
+                memcpy(section->data, pid->section, 3 + psi->section_length);
                 dbg(1, "insert 0x%02X in section_list", psi->section_number);
                 list_set_key(section, psi->section_number);
                 list_insert(psection0, section);
@@ -1216,13 +1223,13 @@ static int parse_table(obj_t *obj)
         switch(psi->table_id)
         {
                 case 0x00:
-                        parse_PAT_load(obj, pids->section);
+                        parse_PAT_load(obj, pid->section);
                         break;
                 case 0x02:
-                        parse_PMT_load(obj, pids->section);
+                        parse_PMT_load(obj, pid->section);
                         break;
                 case 0x42:
-                        parse_SDT_load(obj, pids->section);
+                        parse_SDT_load(obj, pid->section);
                         break;
                 default:
                         break;
@@ -1312,7 +1319,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
         uint8_t *p = section + 8;
         ts_psi_t *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
-        ts_pid_t ts_pid, *pids = &ts_pid;
+        ts_pid_t ts_pid, *pid = &ts_pid;
         ts_prog_t *prog;
         ts_rslt_t *rslt = &(obj->rslt);
 
@@ -1348,17 +1355,17 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 dat = *p++; len--;
                 prog->PMT_PID <<= 8;
                 prog->PMT_PID |= dat;
-                pids->PID = prog->PMT_PID;
+                pid->PID = prog->PMT_PID;
 
                 if(0 == prog->program_number)
                 {
                         /* network PID, not a program */
-                        pids->type = NIT_PID;
+                        pid->type = NIT_PID;
 
-                        if(0x0010 != pids->PID)
+                        if(0x0010 != pid->PID)
                         {
 #if 0
-                                fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", pids->PID);
+                                fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", pid->PID);
 #endif
                         }
                         free(prog);
@@ -1367,7 +1374,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                 {
                         lnode_t *lnode;
 
-                        pids->type = PMT_PID;
+                        pid->type = PMT_PID;
 
                         if(!(rslt->prog0))
                         {
@@ -1385,10 +1392,10 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
 
                         /* PMT table */
                         prog->is_parsed = 0;
-                        prog->table.table_id = 0x02;
-                        prog->table.version_number = 0xFF; /* never reached version */
-                        prog->table.last_section_number = 0; /* no use */
-                        prog->table.section0 = NULL;
+                        prog->table_02.table_id = 0x02;
+                        prog->table_02.version_number = 0xFF; /* never reached version */
+                        prog->table_02.last_section_number = 0; /* no use */
+                        prog->table_02.section0 = NULL;
 
                         /* track list */
                         prog->track0 = NULL;
@@ -1411,15 +1418,15 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         list_insert(&(rslt->prog0), prog);
                 }
 
-                pids->cnt = 0;
-                pids->lcnt = 0;
-                pids->prog = prog;
-                pids->track = NULL;
-                pids->CC = 0;
-                pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE[pids->type].sdes;
-                pids->ldes = PID_TYPE[pids->type].ldes;
-                add_to_pid_list(&(rslt->pid0), pids); /* NIT or PMT PID */
+                pid->cnt = 0;
+                pid->lcnt = 0;
+                pid->prog = prog;
+                pid->track = NULL;
+                pid->CC = 0;
+                pid->is_CC_sync = 0;
+                pid->sdes = PID_TYPE[pid->type].sdes;
+                pid->ldes = PID_TYPE[pid->type].ldes;
+                add_to_pid_list(&(rslt->pid0), pid); /* NIT or PMT PID */
         }
 
         return 0;
@@ -1431,7 +1438,7 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
         uint8_t *p = section + 8;
         ts_psi_t *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
-        ts_pid_t ts_pid, *pids = &ts_pid;
+        ts_pid_t ts_pid, *pid = &ts_pid;
         ts_prog_t *prog;
         ts_track_t *track;
 
@@ -1454,17 +1461,17 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
         prog->PCR_PID |= dat;
 
         /* add PCR PID */
-        pids->PID = prog->PCR_PID;
-        pids->cnt = 0;
-        pids->lcnt = 0;
-        pids->prog = prog;
-        pids->track = NULL;
-        pids->type = PCR_PID;
-        pids->CC = 0;
-        pids->is_CC_sync = 1;
-        pids->sdes = PID_TYPE[pids->type].sdes;
-        pids->ldes = PID_TYPE[pids->type].ldes;
-        add_to_pid_list(&(obj->rslt.pid0), pids); /* PCR_PID */
+        pid->PID = prog->PCR_PID;
+        pid->cnt = 0;
+        pid->lcnt = 0;
+        pid->prog = prog;
+        pid->track = NULL;
+        pid->type = PCR_PID;
+        pid->CC = 0;
+        pid->is_CC_sync = 1;
+        pid->sdes = PID_TYPE[pid->type].sdes;
+        pid->ldes = PID_TYPE[pid->type].ldes;
+        add_to_pid_list(&(obj->rslt.pid0), pid); /* PCR_PID */
 
         /* program_info_length */
         dat = *p++; len--;
@@ -1540,17 +1547,17 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
                 list_push(&(prog->track0), track);
 
                 /* add track PID */
-                pids->PID = track->PID;
-                pids->cnt = 0;
-                pids->lcnt = 0;
-                pids->prog = prog;
-                pids->track = track;
-                pids->type = track->type;
-                pids->CC = 0;
-                pids->is_CC_sync = 0;
-                pids->sdes = PID_TYPE[pids->type].sdes;
-                pids->ldes = PID_TYPE[pids->type].ldes;
-                add_to_pid_list(&(obj->rslt.pid0), pids); /* elementary_PID */
+                pid->PID = track->PID;
+                pid->cnt = 0;
+                pid->lcnt = 0;
+                pid->prog = prog;
+                pid->track = track;
+                pid->type = track->type;
+                pid->CC = 0;
+                pid->is_CC_sync = 0;
+                pid->sdes = PID_TYPE[pid->type].sdes;
+                pid->ldes = PID_TYPE[pid->type].ldes;
+                add_to_pid_list(&(obj->rslt.pid0), pid); /* elementary_PID */
         }
 
         return 0;
@@ -2056,104 +2063,103 @@ static int parse_PES_head_detail(obj_t *obj)
 
 static ts_pid_t *add_new_pid(obj_t *obj)
 {
-        ts_pid_t ts_pid, *pids;
+        ts_pid_t ts_pid, *pid;
         ts_rslt_t *rslt = &(obj->rslt);
 
-        pids = &ts_pid;
+        pid = &ts_pid;
 
-        pids->PID = rslt->pid;
-        pids->type = pid_type(pids->PID);
+        pid->PID = rslt->PID;
+        pid->type = pid_type(pid->PID);
         if((NULL != rslt->prog0) && 
-           (pids->PID < 0x0020 || pids->PID == 0x1FFF))
+           (pid->PID < 0x0020 || pid->PID == 0x1FFF))
         {
-                pids->prog = rslt->prog0;
+                pid->prog = rslt->prog0;
         }
         else
         {
-                pids->prog = NULL;
+                pid->prog = NULL;
         }
-        pids->track = NULL;
-        pids->cnt = 1;
-        pids->lcnt = 0;
-        /*pids->CC = ts->continuity_counter; */
-        pids->is_CC_sync = 0;
-        pids->sdes = PID_TYPE[pids->type].sdes;
-        pids->ldes = PID_TYPE[pids->type].ldes;
+        pid->track = NULL;
+        pid->cnt = 1;
+        pid->lcnt = 0;
+        /*pid->CC = ts->continuity_counter; */
+        pid->is_CC_sync = 0;
+        pid->sdes = PID_TYPE[pid->type].sdes;
+        pid->ldes = PID_TYPE[pid->type].ldes;
 
-        return add_to_pid_list(&(rslt->pid0), pids); /* other_PID */
+        return add_to_pid_list(&(rslt->pid0), pid); /* other_PID */
 }
 
-static ts_pid_t *add_to_pid_list(void *PHEAD, ts_pid_t *the_pids)
+static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
 {
-        lnode_t **phead = (lnode_t **)PHEAD;
-        ts_pid_t *pids;
+        ts_pid_t *pid;
 
-        dbg(1, "search 0x%04X in pid_list", the_pids->PID);
-        if(NULL != (pids = (ts_pid_t *)list_search(phead, the_pids->PID)))
+        dbg(1, "search 0x%04X in pid_list", the_pid->PID);
+        if(NULL != (pid = (ts_pid_t *)list_search(phead, the_pid->PID)))
         {
                 /* in pid_list already, just update information */
-                pids->PID = the_pids->PID;
-                pids->prog = the_pids->prog;
-                pids->track = the_pids->track;
-                pids->type = the_pids->type;
-                pids->cnt = the_pids->cnt;
-                pids->lcnt = the_pids->lcnt;
-                pids->CC = the_pids->CC;
-                pids->is_CC_sync = the_pids->is_CC_sync;
-                pids->sdes = the_pids->sdes;
-                pids->ldes = the_pids->ldes;
+                pid->PID = the_pid->PID;
+                pid->prog = the_pid->prog;
+                pid->track = the_pid->track;
+                pid->type = the_pid->type;
+                pid->cnt = the_pid->cnt;
+                pid->lcnt = the_pid->lcnt;
+                pid->CC = the_pid->CC;
+                pid->is_CC_sync = the_pid->is_CC_sync;
+                pid->sdes = the_pid->sdes;
+                pid->ldes = the_pid->ldes;
         }
         else
         {
-                pids = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                if(NULL == pids)
+                pid = (ts_pid_t *)malloc(sizeof(ts_pid_t));
+                if(NULL == pid)
                 {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return NULL;
                 }
 
-                pids->PID = the_pids->PID;
-                pids->prog = the_pids->prog;
-                pids->track = the_pids->track;
-                pids->type = the_pids->type;
-                pids->cnt = the_pids->cnt;
-                pids->lcnt = the_pids->lcnt;
-                pids->CC = the_pids->CC;
-                pids->is_CC_sync = the_pids->is_CC_sync;
-                pids->sdes = the_pids->sdes;
-                pids->ldes = the_pids->ldes;
-                pids->section_idx = 0; /* wait to sync with section head */
-                pids->fd = NULL;
+                pid->PID = the_pid->PID;
+                pid->prog = the_pid->prog;
+                pid->track = the_pid->track;
+                pid->type = the_pid->type;
+                pid->cnt = the_pid->cnt;
+                pid->lcnt = the_pid->lcnt;
+                pid->CC = the_pid->CC;
+                pid->is_CC_sync = the_pid->is_CC_sync;
+                pid->sdes = the_pid->sdes;
+                pid->ldes = the_pid->ldes;
+                pid->section_idx = 0; /* wait to sync with section head */
+                pid->fd = NULL;
 
-                dbg(1, "insert 0x%04X in pid_list", the_pids->PID);
-                list_set_key(pids, the_pids->PID);
-                list_insert(phead, pids);
+                dbg(1, "insert 0x%04X in pid_list", the_pid->PID);
+                list_set_key(pid, the_pid->PID);
+                list_insert(phead, pid);
         }
-        return pids;
+        return pid;
 }
 
 static int is_all_prog_parsed(obj_t *obj)
 {
         uint8_t section_number;
-        lnode_t *prog_node;
+        lnode_t *lnode_p; /* lnode of program list */
 
-        for(prog_node = (lnode_t *)(obj->rslt.prog0); prog_node; prog_node = prog_node->next)
+        for(lnode_p = (lnode_t *)(obj->rslt.prog0); lnode_p; lnode_p = lnode_p->next)
         {
-                ts_prog_t *prog = (ts_prog_t *)prog_node;
-                ts_table_t *table = &(prog->table);
-                lnode_t *lnode;
+                ts_prog_t *prog = (ts_prog_t *)lnode_p;
+                ts_table_t *table_02 = &(prog->table_02);
+                lnode_t *lnode_s; /* lnode of section list */
 
-                if(0xFF == table->version_number)
+                if(0xFF == table_02->version_number)
                 {
                         return 0;
                 }
 
                 section_number = 0;
-                for(lnode = (lnode_t *)(table->section0); lnode; lnode = lnode->next)
+                for(lnode_s = (lnode_t *)(table_02->section0); lnode_s; lnode_s = lnode_s->next)
                 {
-                        ts_section_t *section = (ts_section_t *)lnode;
+                        ts_section_t *section = (ts_section_t *)lnode_s;
 
-                        if(section_number > table->last_section_number)
+                        if(section_number > table_02->last_section_number)
                         {
                                 return 0;
                         }

@@ -2,6 +2,24 @@
  * vim: set tabstop=8 shiftwidth=8:
  * name: ts.h
  * funx: analyse ts stream
+ * 
+ * list: rslt -+-  pid  ->  pid  -> .. ->  pid
+ *             |
+ *             +-  prog(table) ->  prog(table) -> .. ->  prog(table)
+ *             |    |     |         |     |               |     |
+ *             |  track  sect     track  sect           track  sect
+ *             |    |     |         |     |               |     |
+ *             |  track  sect     track  sect           track  sect
+ *             |    ..    ..        ..    ..              ..    ..
+ *             |  track  sect     track  sect           track  sect
+ *             |
+ *             +- table -> table -> .. -> table
+ *                  |        |              |
+ *                 sect     sect           sect
+ *                  |        |              |
+ *                 sect     sect           sect
+ *                  ..       ..             .. 
+ *                 sect     sect           sect
  */
 
 #ifndef _TS_H
@@ -130,7 +148,7 @@ typedef struct _ts_prog_t
 
         /* PMT section,  */
         int is_parsed;
-        ts_table_t table; /* table_id = 0x02 */
+        ts_table_t table_02; /* table_id = 0x02 */
 
         /* program information */
         uint16_t PMT_PID; /* 13-bit */
@@ -174,7 +192,7 @@ typedef struct _ts_pid_t
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
 
-        /* relative pointer */
+         /* point to the node in xxx_list */
         ts_prog_t *prog; /* should be prog0 if does not belong to any program */
         ts_track_t *track; /* should be NULL if not video or audio packet */
 
@@ -198,13 +216,13 @@ typedef struct _ts_rslt_t
         /* information about current packet */
         uint64_t cnt; /* count of this packet, start from 0 */
         ts_pkt_t PKT;
-        ts_pkt_t *pkt;
+        ts_pkt_t *pkt; /* point to PKT */
         uint64_t lCTS; /* for calc dCTS */
 
         uint16_t concerned_pid; /* used for PSI parsing */
-        uint16_t pid;
+        uint16_t PID;
 
-        ts_pid_t *pids; /* point to item in pid_list */
+        ts_pid_t *pid; /* point to the node in pid_list */
 
         /* error */
         ts_error_t err;

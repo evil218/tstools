@@ -1,21 +1,22 @@
 /* vim: set tabstop=8 shiftwidth=8:
  * name: list
  * funx: Common Bidirection List
- *              _______      _______      _______ 
- *             |       |    |       |    |       |
- *    *phead-->| next ----->| next ----->| next --->NULL
- *      NULL<--- prev  |<---- prev  |<---- prev  |
- *             | tail ---*  | tail  |    | tail  |
- *             |  key  | |  |  key  |    |  key  |
- *             | name  | |  | name  |    | name  |
- *   unshift==>|       | |  |       |    |       |==>pop
- *     shift<==|   *   | |  |   *   |    |   *   |<==push
- *             |_______| |  |_______|    |_______|
- *               lnode   |    lnode        lnode  
- *               (HEAD)  *---------------->(TAIL)
+ *
+ *   *xxxx0;     (HEAD)    _____________     (TAIL)
+ *        |     _______   |   _______   |   _______ 
+ *        *--->|       |  |  |       |  |  |       |
+ *             | tail ----*  | tail  |  |  | tail  |
+ *             | next ------>| next ----*->| next --->NULL
+ *      NULL<--- prev  |<----- prev  |<----- prev  |
+ *             |  key  |     |  key  |     |  key  |
+ *             | name  |     | name  |     | name  |
+ *   unshift==>|       |     |       |     |       |==>pop
+ *     shift<==|   *   |     |   *   |     |   *   |<==push
+ *             |_______|     |_______|     |_______|
+ *               lnode         lnode         lnode  
  * 
- *       empty  list: *phead == NULL
- *       normal list: *phead == HEAD
+ *       empty  list: *xxxx0 == NULL;
+ *       normal list: *xxxx0 == HEAD;
  *
  *       LIFO: stack: push & pop
  *       FIFO: queue: push & shift

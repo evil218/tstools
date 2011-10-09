@@ -666,7 +666,7 @@ static void show_pkt(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
         {
                 return;
         }
@@ -676,7 +676,7 @@ static void show_pkt(obj_t *obj)
 static void show_list(obj_t *obj)
 {
         lnode_t *lnode;
-        ts_pid_t *pids;
+        ts_pid_t *pid;
         ts_rslt_t *rslt = obj->rslt;
         char *yellow_on;
         char *color_off;
@@ -689,19 +689,19 @@ static void show_list(obj_t *obj)
         fprintf(stdout, "  PID , abbr, detail\n");
         for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
         {
-                pids = (ts_pid_t *)lnode;
+                pid = (ts_pid_t *)lnode;
                 yellow_on = "";
                 color_off = "";
-                if((NULL != pids->track) && (obj->is_color))
+                if((NULL != pid->track) && (obj->is_color))
                 {
                         yellow_on = FYELLOW;
                         color_off = NONE;
                 }
                 fprintf(stdout, "%s0x%04X, %s, %s%s\n",
                         yellow_on,
-                        pids->PID,
-                        pids->sdes,
-                        pids->ldes,
+                        pid->PID,
+                        pid->sdes,
+                        pid->ldes,
                         color_off);
         }
         obj->state = STATE_EXIT;
@@ -839,7 +839,7 @@ static void show_sec(obj_t *obj)
         int i;
         ts_rslt_t *rslt = obj->rslt;
         ts_psi_t *psi = &(rslt->psi);
-        ts_pid_t *pid = rslt->pids;
+        ts_pid_t *pid = rslt->pid;
 
         if(!(rslt->has_section))
         {
@@ -873,7 +873,7 @@ static void show_si(obj_t *obj)
         int i;
         ts_rslt_t *rslt = obj->rslt;
         ts_psi_t *psi = &(rslt->psi);
-        ts_pid_t *pid = rslt->pids;
+        ts_pid_t *pid = rslt->pid;
 
         if(!(rslt->has_section))
         {
@@ -925,7 +925,7 @@ static void show_pcr(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
         {
                 return;
         }
@@ -1082,7 +1082,7 @@ static void show_ptsdts(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
         {
                 return;
         }
@@ -1118,7 +1118,7 @@ static void show_pes(obj_t *obj)
         ts_pkt_t PKT;
         ts_pkt_t *pkt = &PKT;
 
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
         {
                 return;
         }
@@ -1140,7 +1140,7 @@ static void show_es(obj_t *obj)
         ts_pkt_t PKT;
         ts_pkt_t *pkt = &PKT;
 
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
         {
                 return;
         }
@@ -1165,27 +1165,27 @@ static void all_es(obj_t *obj)
                 return;
         }
 
-        if(NULL == rslt->pids)
+        if(NULL == rslt->pid)
         {
-                fprintf(stderr, "Bad pids point!\n");
+                fprintf(stderr, "Bad pid point!\n");
                 return;
         }
 
-        if(NULL == rslt->pids->fd)
+        if(NULL == rslt->pid->fd)
         {
                 char name[100];
 
-                sprintf(name, "%04X.es", rslt->pids->PID);
+                sprintf(name, "%04X.es", rslt->pid->PID);
                 fprintf(stdout, "open file %s\n", name);
-                rslt->pids->fd = fopen(name, "wb");
+                rslt->pid->fd = fopen(name, "wb");
         }
-        if(NULL == rslt->pids->fd)
+        if(NULL == rslt->pid->fd)
         {
                 DBG(ERR_FOPEN_FAILED, "\n");
                 return;
         }
 
-        fwrite(rslt->ES_buf, rslt->ES_len, 1, rslt->pids->fd);
+        fwrite(rslt->ES_buf, rslt->ES_len, 1, rslt->pid->fd);
         return;
 }
 
@@ -1194,7 +1194,7 @@ static void show_error(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         ts_error_t *err = &(rslt->err);
 
-        if(ANY_PID != obj->aim_pid && rslt->pid != obj->aim_pid)
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
         {
                 return;
         }
@@ -1264,7 +1264,7 @@ static void show_error(obj_t *obj)
         {
                 print_atp_value(obj);
                 fprintf(stdout, "2.2 , CRC_error(0x%08X! 0x%08X?)\n",
-                        rslt->pids->CRC_32_calc, rslt->pids->CRC_32);
+                        rslt->pid->CRC_32_calc, rslt->pid->CRC_32);
                 err->CRC_error = 0;
         }
         if(err->PCR_repetition_error)
@@ -1354,7 +1354,7 @@ static void print_atp_value(obj_t *obj)
                 yellow_on, stime, color_off,
                 yellow_on, pkt->ADDR, color_off, pkt->ADDR,
                 rslt->STC, rslt->STC_base,
-                yellow_on, rslt->pid, color_off);
+                yellow_on, rslt->PID, color_off);
         return;
 }
 
