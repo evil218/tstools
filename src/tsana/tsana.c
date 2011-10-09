@@ -16,6 +16,8 @@
 #include "libts/if.h"
 #include "libts/ts.h" /* has "list.h" already */
 
+#include "atsc_mh_tcp.h"
+
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
 
@@ -57,6 +59,7 @@ enum
         MODE_PSI,
         MODE_SEC,
         MODE_SI,
+        MODE_TCP,
         MODE_PCR,
         MODE_PTSDTS,
         MODE_SYS_RATE,
@@ -252,6 +255,7 @@ static void state_parse_psi(obj_t *obj)
                                 break;
                         case MODE_LST:
                         case MODE_PSI:
+                        case MODE_TCP:
                         case MODE_SYS_RATE:
                         case MODE_PSI_RATE:
                         case MODE_PROG_RATE:
@@ -291,6 +295,12 @@ static void state_parse_each(obj_t *obj)
                         break;
                 case MODE_SI:
                         show_si(obj);
+                        break;
+                case MODE_TCP:
+                        if(0x1FFA == obj->rslt->PID) {
+                                fprintf(stdout, "%s", obj->tbak);
+                                show_tcp(obj->rslt->pkt->ts);
+                        }
                         break;
                 case MODE_PCR:
                         show_pcr(obj);
@@ -376,6 +386,10 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-si"))
                         {
                                 obj->mode = MODE_SI;
+                        }
+                        else if(0 == strcmp(argv[i], "-tcp"))
+                        {
+                                obj->mode = MODE_TCP;
                         }
                         else if(0 == strcmp(argv[i], "-outpsi"))
                         {
@@ -603,6 +617,7 @@ static void show_help()
         puts(" -psi             show PSI tree information");
         puts(" -sec             show SI section data of cared <table>");
         puts(" -si              show SI section information of cared <table>");
+        puts(" -tcp             show TCP(ATSC M/H) field information");
         puts(" -outpsi          output PSI packet");
         puts(" -pcr             output PCR information of cared <pid>");
         puts(" -sys-rate        output system bit-rate");
