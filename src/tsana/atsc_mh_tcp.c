@@ -43,14 +43,13 @@ typedef struct _tcp_para_t
         uint8_t TCP_ECC[TCP_ECC_LEN];
 }tcp_pata_t;
 
-tcp_pata_t tcp_param; 
 
 void show_tcp(uint8_t *ts_pack)
 {
         int i;
         uint8_t *tcp_data = (uint8_t *)(ts_pack + 5);
-        int tcpLen = sizeof(tcp_param);
-        //uint16_t network_identifier_pattern;
+        tcp_pata_t tcp_param; 
+        int tcpLen = sizeof(tcp_pata_t);
 
         memset(&tcp_param, 0, tcpLen);
         tcp_param.sig_data.packet_frame_number = (*tcp_data)>>3;
@@ -137,60 +136,51 @@ void show_tcp(uint8_t *ts_pack)
                 tcp_param.TCP_ECC[i] = *tcp_data++;
         }
 
-        printf(" #sig_data:\n");
-        printf("    packet_frame_number:%d, mode:%d\n",tcp_param.sig_data.packet_frame_number, tcp_param.sig_data.mode);
+        fprintf(stdout,"\n #sig_data=>packet_frame_number:%02X, mode:%02X\n",tcp_param.sig_data.packet_frame_number, tcp_param.sig_data.mode);
 
-        printf(" #trellis_code_state: ");
+        fprintf(stdout," #trellis_code_state: ");
         for(i = 0; i<TRELLIS_CODE_LEN; i++)
         {
-                if( i%8 == 0 )
-                {
-                        printf("\n");
-                }
-                printf(" 0x%02x ", tcp_param.trellis_code_state[i]);
+                fprintf(stdout,"%02X ", tcp_param.trellis_code_state[i]);
         }
 
-        printf("\n #syn_time_stamp_base:0x%02x%02x%02x\n", 
+        fprintf(stdout,"\n #syn_time_stamp_base:%02X%02X%02X\n", 
                tcp_param.syn_time_stamp_base[0],
                tcp_param.syn_time_stamp_base[1],
                tcp_param.syn_time_stamp_base[2]);
 
-        printf(" #max_delay_base:0x%02x%02x%02x\n", 
+        fprintf(stdout," #max_delay_base:%02X%02X%02X\n", 
                tcp_param.max_delay_base[0],
                tcp_param.max_delay_base[1],
                tcp_param.max_delay_base[2]);
 
-        printf(" #network_identifier_pattern:%d\n", tcp_param.network_identifier_pattern);
-        printf(" #syn_time_stamp_extension:%d\n", tcp_param.syn_time_stamp_extension);
-        printf(" #max_delay_base_extension:%d\n", tcp_param.max_delay_base_extension);
-        printf(" #packet_number:0x%04x\n", tcp_param.packet_number);
+        fprintf(stdout," #network_identifier_pattern:%02X\n", tcp_param.network_identifier_pattern);
+        fprintf(stdout," #syn_time_stamp_extension:%02X\n", tcp_param.syn_time_stamp_extension);
+        fprintf(stdout," #max_delay_base_extension:%02X\n", tcp_param.max_delay_base_extension);
+        fprintf(stdout," #packet_number:%04X\n", tcp_param.packet_number);
 
-        printf(" #adjusted_gps_seconds_count:%d\n", tcp_param.adjusted_gps_seconds_count);
-        printf(" #tx_group_number:%d\n", tcp_param.tx_group_number);
+        fprintf(stdout," #adjusted_gps_seconds_count:%04X\n", tcp_param.adjusted_gps_seconds_count);
+        fprintf(stdout," #tx_group_number:%02X\n", tcp_param.tx_group_number);
 
 #if 0
-        printf(" #tx_data:");
+        fprintf(stdout," #tx_data:");
         for(i = 0; i<TX_DATA_NUM; i++)
         {
-                printf("   tx_data: \n", i);
-                printf(" tx_address:0x%03X\n", tcp_param.tx_data[i].tx_address);
-                printf(" tx_identifier_level:%d\n", tcp_param.tx_data[i].tx_identifier_level);
-                printf(" tx_data_inhibit:%d\n", tcp_param.tx_data[i].tx_data_inhibit);
-                printf(" tx_time_offset:0x%04X\n", tcp_param.tx_data[i].tx_time_offset);
-                printf(" tx_power:0x%03X\n", tcp_param.tx_data[i].tx_power);
+                fprintf(stdout,"   tx_data: \n", i);
+                fprintf(stdout," tx_address:%03X\n", tcp_param.tx_data[i].tx_address);
+                fprintf(stdout," tx_identifier_level:%02X\n", tcp_param.tx_data[i].tx_identifier_level);
+                fprintf(stdout," tx_data_inhibit:%02X\n", tcp_param.tx_data[i].tx_data_inhibit);
+                fprintf(stdout," tx_time_offset:%04X\n", tcp_param.tx_data[i].tx_time_offset);
+                fprintf(stdout," tx_power:%03X\n", tcp_param.tx_data[i].tx_power);
         }
 #endif
-        printf(" #AT_frame_number:%d\n", tcp_param.AT_frame_number);
-        printf(" #atsc_time_displacement:%d\n", tcp_param.atsc_time_displacement);
+        fprintf(stdout," #AT_frame_number:%02X\n", tcp_param.AT_frame_number);
+        fprintf(stdout," #atsc_time_displacement:%02X\n", tcp_param.atsc_time_displacement);
 
-        printf("\n #TCP_ECC:");
+        fprintf(stdout," #TCP_ECC: ");
         for(i = 0; i<TCP_ECC_LEN; i++)
         {
-                if( i%8 == 0 )
-                {
-                        printf("\n");
-                }
-                printf(" 0x%02X ", tcp_param.TCP_ECC[i]);
+                fprintf(stdout,"%02X ", tcp_param.TCP_ECC[i]);
         }
-        printf("\n");
+        fprintf(stdout,"\n");
 }
