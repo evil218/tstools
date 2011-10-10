@@ -11,12 +11,10 @@
 #include <time.h> /* for localtime(), etc */
 #include <stdint.h> /* for uint?_t, etc */
 
-#include "libts/common.h"
-#include "libts/error.h"
-#include "libts/if.h"
-#include "libts/ts.h" /* has "list.h" already */
-
-#include "atsc_mh_tcp.h"
+#include "common.h"
+#include "error.h"
+#include "if.h"
+#include "ts.h" /* has "list.h" already */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
@@ -107,6 +105,7 @@ static void show_track(void *PTRACK, uint16_t pcr_pid);
 
 static void show_sec(obj_t *obj);
 static void show_si(obj_t *obj);
+static void show_tcp(obj_t *obj);
 static void show_pcr(obj_t *obj);
 static void show_sys_rate(obj_t *obj);
 static void show_psi_rate(obj_t *obj);
@@ -131,6 +130,8 @@ static void UTC(uint8_t *buf);
 static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
+
+void atsc_mh_tcp(uint8_t *ts); /* atsc_mh_tcp.c */
 
 int main(int argc, char *argv[])
 {
@@ -297,10 +298,7 @@ static void state_parse_each(obj_t *obj)
                         show_si(obj);
                         break;
                 case MODE_TCP:
-                        if(0x1FFA == obj->rslt->PID) {
-                                fprintf(stdout, "%s", obj->tbak);
-                                show_tcp(obj->rslt->pkt->ts);
-                        }
+                        show_tcp(obj);
                         break;
                 case MODE_PCR:
                         show_pcr(obj);
@@ -933,6 +931,19 @@ static void show_si(obj_t *obj)
                         break;
         }
         fprintf(stdout, "end\n");
+        return;
+}
+
+static void show_tcp(obj_t *obj)
+{
+        ts_rslt_t *rslt = obj->rslt;
+
+        if(0x1FFA != rslt->PID) {
+                return;
+        }
+
+        print_atp_value(obj);
+        atsc_mh_tcp(rslt->pkt->ts);
         return;
 }
 

@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
-#include "libts/common.h"
-#include "libts/error.h"
-#include "libts/if.h"
+#include "common.h"
+#include "error.h"
+#include "if.h"
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";

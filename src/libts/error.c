@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 
-#include "libts/error.h"
+#include "error.h"
 
 static const char *errmsg[] =
 {

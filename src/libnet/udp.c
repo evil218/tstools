@@ -22,8 +22,8 @@
 #include <sys/select.h>                 /* for select(), etc */
 #endif
 
-#include "libts/error.h"
-#include "net/udp.h"
+#include "error.h"
+#include "udp.h"
 
 #define UDP_LENGTH_MAX                  1536
 

@@ -11,7 +11,10 @@ INSTALL_DIR = /usr/local/bin
 # others
 # -------------------------------------------------------------------
 CC = gcc
-CPPFLAGS = -I. -I../include -DPLATFORM_LINUX
+CPPFLAGS = -DPLATFORM_LINUX
+CPPFLAGS += -I.
+CPPFLAGS += -I../include/libts
+CPPFLAGS += -I../include/net
 COMPILE = $(CC) $(CPPFLAGS) $(CFLAGS) -c
 
 OBJS := $(patsubst %.c, %.o, $(SRCS))

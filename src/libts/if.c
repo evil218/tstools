@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libts/error.h"
-#include "libts/if.h"
+#include "error.h"
+#include "if.h"
 
 /* for function to_byte() */
 #define NEOL (+1) /* normal end of line */

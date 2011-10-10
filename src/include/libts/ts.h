@@ -5,7 +5,7 @@
  * 
  * list: rslt -+-  pid  ->  pid  -> .. ->  pid
  *             |
- *             +-  prog(table) ->  prog(table) -> .. ->  prog(table)
+ *             +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
  *             |    |     |         |     |               |     |
  *             |  track  sect     track  sect           track  sect
  *             |    |     |         |     |               |     |

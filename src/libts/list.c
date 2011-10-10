@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "libts/list.h"
+#include "list.h"
 
 #if 0
-#define DEBUG /* print detail info. to debug list */
+#define DEBUG /* print detail info. to debug this module */
 #endif
 
 #ifdef DEBUG

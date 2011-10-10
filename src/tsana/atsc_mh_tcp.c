@@ -1,13 +1,17 @@
-/* vim: set tabstop=8 shiftwidth=8: */
+/* vim: set tabstop=8 shiftwidth=8:
+ * name: atsc_mh_tcp
+ * funx: parse each field of ATSC M/H TCP packet
+ *
+ * 2011-10-09, LI WenYan, Init for debug ATSC M/H MUX card
+ */
+
 #include <stdio.h>
 #include <string.h>
-#include "atsc_mh_tcp.h"
 
-#define TCP_LEN (184) /* 188 -4 */
-#define TRELLIS_CODE_LEN (12) /* 12 */
-#define TX_DATA_NUM (16) /* 20 */
-#define TCP_ECC_LEN (20) /* 20 */
-#define BIT(n)   (1<<n)
+#define TRELLIS_CODE_LEN                (12) /* bytes */
+#define TX_DATA_NUM                     (16) /* groups */
+#define TCP_ECC_LEN                     (20) /* bytes */
+#define BIT(n)                          (1<<n)
 
 typedef struct _signaling_data_t
 {
@@ -43,20 +47,20 @@ typedef struct _tcp_para_t
         uint8_t TCP_ECC[TCP_ECC_LEN];
 }tcp_pata_t;
 
-
-void show_tcp(uint8_t *ts_pack)
+void atsc_mh_tcp(uint8_t *ts_pack)
 {
         int i;
         uint8_t *tcp_data = (uint8_t *)(ts_pack + 5);
         tcp_pata_t tcp_param; 
         int tcpLen = sizeof(tcp_pata_t);
 
+        //fprintf(stdout, "%s", obj->tbak);
         memset(&tcp_param, 0, tcpLen);
         tcp_param.sig_data.packet_frame_number = (*tcp_data)>>3;
         tcp_param.sig_data.mode = ( (*tcp_data)&BIT(2) )>>2;
         tcp_data++;
 
-        for(i = 0; i<TRELLIS_CODE_LEN; i++)
+        for(i = 0; i < TRELLIS_CODE_LEN; i++)
         {
                 tcp_param.trellis_code_state[i] = *tcp_data++;
         }
@@ -92,7 +96,7 @@ void show_tcp(uint8_t *ts_pack)
 
         tcp_param.tx_group_number = *tcp_data++;
 
-        for(i = 0; i<TX_DATA_NUM; i++)
+        for(i = 0; i < TX_DATA_NUM; i++)
         {
                 tcp_param.tx_data[i].tx_address = *tcp_data++; 
                 tcp_param.tx_data[i].tx_address <<= 4;
@@ -131,20 +135,21 @@ void show_tcp(uint8_t *ts_pack)
 
         tcp_data += 32; /* reserved part(263/8=) */
 
-        for(i = 0; i<TCP_ECC_LEN; i++)
+        for(i = 0; i < TCP_ECC_LEN; i++)
         {
                 tcp_param.TCP_ECC[i] = *tcp_data++;
         }
 
-        fprintf(stdout,"\n #sig_data=>packet_frame_number:%02X, mode:%02X\n",tcp_param.sig_data.packet_frame_number, tcp_param.sig_data.mode);
+        fprintf(stdout," #sig_data=>packet_frame_number:%02X, mode:%02X\n",tcp_param.sig_data.packet_frame_number, tcp_param.sig_data.mode);
 
         fprintf(stdout," #trellis_code_state: ");
         for(i = 0; i<TRELLIS_CODE_LEN; i++)
         {
                 fprintf(stdout,"%02X ", tcp_param.trellis_code_state[i]);
         }
+        fprintf(stdout,"\n");
 
-        fprintf(stdout,"\n #syn_time_stamp_base:%02X%02X%02X\n", 
+        fprintf(stdout," #syn_time_stamp_base:%02X%02X%02X\n", 
                tcp_param.syn_time_stamp_base[0],
                tcp_param.syn_time_stamp_base[1],
                tcp_param.syn_time_stamp_base[2]);
@@ -164,7 +169,7 @@ void show_tcp(uint8_t *ts_pack)
 
 #if 0
         fprintf(stdout," #tx_data:");
-        for(i = 0; i<TX_DATA_NUM; i++)
+        for(i = 0; i < TX_DATA_NUM; i++)
         {
                 fprintf(stdout,"   tx_data: \n", i);
                 fprintf(stdout," tx_address:%03X\n", tcp_param.tx_data[i].tx_address);
@@ -178,7 +183,7 @@ void show_tcp(uint8_t *ts_pack)
         fprintf(stdout," #atsc_time_displacement:%02X\n", tcp_param.atsc_time_displacement);
 
         fprintf(stdout," #TCP_ECC: ");
-        for(i = 0; i<TCP_ECC_LEN; i++)
+        for(i = 0; i < TCP_ECC_LEN; i++)
         {
                 fprintf(stdout,"%02X ", tcp_param.TCP_ECC[i]);
         }

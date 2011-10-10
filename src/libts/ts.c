@@ -9,9 +9,9 @@
 #include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
 
-#include "libts/error.h"
-#include "libts/crc.h"
-#include "libts/ts.h"
+#include "error.h"
+#include "crc.h"
+#include "ts.h"
 
 #if 0
 #define DEBUG /* print detail info. to debug ts module */

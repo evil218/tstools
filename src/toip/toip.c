@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
-#include "libts/error.h"
-#include "libts/if.h"
-#include "net/url.h"
+#include "error.h"
+#include "if.h"
+#include "url.h"
 
 static URL *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
