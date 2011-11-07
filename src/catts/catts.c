@@ -18,6 +18,7 @@ enum FILE_TYPE
         FILE_MTS,
         FILE_TSRS,
         FILE_TS,
+        FILE_BIN,
         FILE_UNKNOWN
 };
 
@@ -226,7 +227,7 @@ static int judge_type()
                                         if(pkt->ADDR > ASYNC_BYTE)
                                         {
                                                 pkt->ADDR = 0;
-                                                type = FILE_UNKNOWN;
+                                                type = FILE_BIN;
                                         }
                                 }
                                 break;

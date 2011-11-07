@@ -1000,43 +1000,37 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。</p></div>
 <div class="paragraph"><p>catts读入的ts文件有可能不是TS同步的——前面有不完整的包数据，
 有可能不是188字节包长的——204字节包长。
 对于这些情况，让用户猜测后以参数的方式输入固然可以，但是用起来会很不方便。
-工具catts有内置ts_sync()函数自动处理这两种情况——对于非TS文件可以用“-n”和“--no-sync”参数关闭该功能。</p></div>
+工具catts有内置judge_type()函数自动处理这两种情况——对于非TS文件可以用“-n”和“--no-sync”参数关闭该功能。</p></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_TS_sync.jpg" alt="码流同步" />
 </span></p></div>
-<div class="paragraph"><p>如图示，ts_sync()函数采用了状态机实现这个功能。
+<div class="paragraph"><p>如图示，judge_type()函数采用了状态机实现这个功能。
 在每个状态下，先用fread()函数读1个字节，根据这个字节是否是0x47，决定文件指针的移动和状态的变化。
 目前状态机在连续3个0x47位置正确时认为同步成功——需要的话可以改成更多个0x47。
-因此除了EXIT外，有5个判断同步字节的状态：SYNC0、SYNC1_188、SYNC1_204、SYNC2_188、SYNC2_204。</p></div>
+因此除了FILE_BIN外，有4个判断同步字节的状态：FILE_UNKNOWN、FILE_TS、FILE_MTS、FILE_TSRS。</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
-SYNC0：等待遇到第1个包头；
+FILE_UNKNOWN：匹配包头后进入FILE_TS检测状态，若前4096-byte匹配失败就认为是BIN文件；
 </p>
 </li>
 <li>
 <p>
-SYNC1_188：假设包长为188，期望遇到第2个包头；
+FILE_TS：若间隔为188的连续3个包头匹配成功就认为是TS文件，否则进入FILE_MTS检测状态；
 </p>
 </li>
 <li>
 <p>
-SYNC1_204：在188处没有0x47，可能包长是204，期望遇到第2个包头；
+FILE_MTS：若间隔为192的连续3个包头匹配成功就认为是MTS文件，否则进入FILE_TSRS检测状态；
 </p>
 </li>
 <li>
 <p>
-SYNC2_188：遇到两个188包长的包头了，期望遇到第3个包头；
-</p>
-</li>
-<li>
-<p>
-SYNC2_204：遇到两个204包长的包头了，期望遇到第3个包头。
+FILE_TSRS：若间隔为204的连续3个包头匹配成功就认为是TSRS文件，否则进入FILE_UNKNOWN检测状态；
 </p>
 </li>
 </ul></div>
-<div class="paragraph"><p>如果SYNC2_188或SYNC2_204读到的正好是0x47，则不仅实现了TS同步，而且知道了包长。
-这时移动文件指针到第1个包头处，供后面的程序整包读取数据。</p></div>
+<div class="paragraph"><p>知道文件格式的同时就知道了开头处应该忽略的字节数，调整文件指针到第一个同步字节处，即可开展后继处理。</p></div>
 </div>
 <div class="sect2">
 <h3 id="__12">5.2. 时钟恢复</h3>
@@ -1136,7 +1130,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2011-08-07 21:57:02    
+Last updated 2011-11-07 16:53:37    
 </div>
 </div>
 </body>
