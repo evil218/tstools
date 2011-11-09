@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "common.h"
+
 #define TRELLIS_CODE_LEN                (12) /* bytes */
 #define TX_DATA_NUM                     (16) /* groups */
 #define TCP_ECC_LEN                     (20) /* bytes */
@@ -32,11 +34,11 @@ typedef struct _tcp_para_t
 {
         sig_data_t sig_data;
         uint8_t trellis_code_state[TRELLIS_CODE_LEN];
-        uint8_t syn_time_stamp_base[3];
-        uint8_t max_delay_base[3];
+        uint32_t syn_time_stamp;//uint8_t syn_time_stamp_base[3];
+        uint32_t max_delay;//uint8_t max_delay_base[3];
         uint16_t network_identifier_pattern; /* 12 */
-        uint8_t syn_time_stamp_extension;  /* 1 */
-        uint8_t max_delay_base_extension;  /* 1 */
+        //uint8_t syn_time_stamp_extension;  /* 1 */
+        //uint8_t max_delay_extension;  /* 1 */
         uint16_t packet_number; /* 10 */
         uint32_t adjusted_gps_seconds_count;
         uint8_t tx_group_number;
@@ -47,12 +49,22 @@ typedef struct _tcp_para_t
         uint8_t TCP_ECC[TCP_ECC_LEN];
 }tcp_pata_t;
 
-void atsc_mh_tcp(uint8_t *ts_pack)
+void atsc_mh_tcp(uint8_t *ts_pack, uint8_t is_color)
 {
         int i;
+        char *yellow_on = "";
+        char *color_off = "";
         uint8_t *tcp_data = (uint8_t *)(ts_pack + 5);
         tcp_pata_t tcp_param; 
         int tcpLen = sizeof(tcp_pata_t);
+        uint32_t syn_time_stamp_extension;
+        uint32_t max_delay_extension;
+
+        if(1)
+        {
+                yellow_on = FYELLOW;
+                color_off = NONE;
+        }
 
         //fprintf(stdout, "%s", obj->tbak);
         memset(&tcp_param, 0, tcpLen);
@@ -65,21 +77,26 @@ void atsc_mh_tcp(uint8_t *ts_pack)
                 tcp_param.trellis_code_state[i] = *tcp_data++;
         }
 
+        tcp_param.syn_time_stamp = *tcp_data++;
+        tcp_param.syn_time_stamp <<= 8;
+        tcp_param.syn_time_stamp |= *tcp_data++;
+        tcp_param.syn_time_stamp <<= 8;
+        tcp_param.syn_time_stamp |= *tcp_data++;
 
-        tcp_param.syn_time_stamp_base[0] = *tcp_data++;
-        tcp_param.syn_time_stamp_base[1] = *tcp_data++;
-        tcp_param.syn_time_stamp_base[2] = *tcp_data++;
-
-        tcp_param.max_delay_base[0] = *tcp_data++;
-        tcp_param.max_delay_base[1] = *tcp_data++;
-        tcp_param.max_delay_base[2] = *tcp_data++;
+        tcp_param.max_delay = *tcp_data++;
+        tcp_param.max_delay <<= 8;
+        tcp_param.max_delay |= *tcp_data++;
+        tcp_param.max_delay <<= 8;
+        tcp_param.max_delay |= *tcp_data++;
 
         tcp_param.network_identifier_pattern = *tcp_data++;
         tcp_param.network_identifier_pattern <<= 4;
         tcp_param.network_identifier_pattern |= (*tcp_data>>4);
 
-        tcp_param.syn_time_stamp_extension = ((*tcp_data)&BIT(3))>>3;
-        tcp_param.max_delay_base_extension = ((*tcp_data)&BIT(2))>>2;
+        syn_time_stamp_extension = ((*tcp_data)&BIT(3))>>3;
+        tcp_param.syn_time_stamp |= syn_time_stamp_extension<<24;
+        max_delay_extension = ((*tcp_data)&BIT(2))>>2;
+        tcp_param.max_delay |= max_delay_extension<<24;
 
         tcp_param.packet_number = (*tcp_data)&0x03;
         tcp_param.packet_number <<= 8;
@@ -140,52 +157,86 @@ void atsc_mh_tcp(uint8_t *ts_pack)
                 tcp_param.TCP_ECC[i] = *tcp_data++;
         }
 
-        fprintf(stdout," #sig_data=>packet_frame_number:%02X, mode:%02X\n",tcp_param.sig_data.packet_frame_number, tcp_param.sig_data.mode);
+        // FIXME because pack_frame_num is 20,turn to be 0,and mode is also always 0. not print.
+        /*fprintf(stdout,"\n #sig_data=>pack_frame_num,%s%02X%s, mode,%s%02X%s ",
+          yellow_on,
+          tcp_param.sig_data.packet_frame_number, 
+          color_off,
+          yellow_on,
+          tcp_param.sig_data.mode,
+          color_off);
+          */
 
-        fprintf(stdout," #trellis_code_state: ");
-        for(i = 0; i<TRELLIS_CODE_LEN; i++)
-        {
-                fprintf(stdout,"%02X ", tcp_param.trellis_code_state[i]);
-        }
-        fprintf(stdout,"\n");
 
-        fprintf(stdout," #syn_time_stamp_base:%02X%02X%02X\n", 
-               tcp_param.syn_time_stamp_base[0],
-               tcp_param.syn_time_stamp_base[1],
-               tcp_param.syn_time_stamp_base[2]);
+        fprintf(stdout,"Syn_time_stamp,%s%08X%s ", 
+                yellow_on,
+                tcp_param.syn_time_stamp,
+                color_off);
 
-        fprintf(stdout," #max_delay_base:%02X%02X%02X\n", 
-               tcp_param.max_delay_base[0],
-               tcp_param.max_delay_base[1],
-               tcp_param.max_delay_base[2]);
+        fprintf(stdout,"Max_delay,%s%08X%s ", 
+                yellow_on, 
+                tcp_param.max_delay, 
+                color_off);
 
-        fprintf(stdout," #network_identifier_pattern:%02X\n", tcp_param.network_identifier_pattern);
-        fprintf(stdout," #syn_time_stamp_extension:%02X\n", tcp_param.syn_time_stamp_extension);
-        fprintf(stdout," #max_delay_base_extension:%02X\n", tcp_param.max_delay_base_extension);
-        fprintf(stdout," #packet_number:%04X\n", tcp_param.packet_number);
+        // FIXME fixed 0yet not print
+        /* fprintf(stdout," #network_pattern,%s%04X%s\n", 
+           yellow_on, 
+           tcp_param.network_identifier_pattern, 
+           color_off);
+           fprintf(stdout,"pack_num,%s%04X%s ", 
+           yellow_on, 
+           tcp_param.packet_number,
+           color_off);
+           */      
 
-        fprintf(stdout," #adjusted_gps_seconds_count:%04X\n", tcp_param.adjusted_gps_seconds_count);
-        fprintf(stdout," #tx_group_number:%02X\n", tcp_param.tx_group_number);
+        fprintf(stdout,"Adj_gpsSec_cnt,%s%08X%s ",
+                yellow_on,
+                tcp_param.adjusted_gps_seconds_count,
+                color_off);
+        //fprintf(stdout," #tx_group_num,%02X ", tcp_param.tx_group_number);
+
+
+        fprintf(stdout,"AT_frame_number,%s%08X%s ", 
+                yellow_on,
+                tcp_param.AT_frame_number,
+                color_off);
+        fprintf(stdout,"Atsc_time,%s%08X%s", 
+                yellow_on,
+                tcp_param.atsc_time_displacement,
+                color_off);
 
 #if 0
         fprintf(stdout," #tx_data:");
         for(i = 0; i < TX_DATA_NUM; i++)
         {
                 fprintf(stdout,"   tx_data: \n", i);
-                fprintf(stdout," tx_address:%03X\n", tcp_param.tx_data[i].tx_address);
-                fprintf(stdout," tx_identifier_level:%02X\n", tcp_param.tx_data[i].tx_identifier_level);
-                fprintf(stdout," tx_data_inhibit:%02X\n", tcp_param.tx_data[i].tx_data_inhibit);
+                fprintf(stdout," tx_address:%04X\n", tcp_param.tx_data[i].tx_address);
+                fprintf(stdout," tx_identifier_level:%04X\n", tcp_param.tx_data[i].tx_identifier_level);
+                fprintf(stdout," tx_data_inhibit:%04X\n", tcp_param.tx_data[i].tx_data_inhibit);
                 fprintf(stdout," tx_time_offset:%04X\n", tcp_param.tx_data[i].tx_time_offset);
-                fprintf(stdout," tx_power:%03X\n", tcp_param.tx_data[i].tx_power);
+                fprintf(stdout," tx_power:%04X\n", tcp_param.tx_data[i].tx_power);
         }
 #endif
-        fprintf(stdout," #AT_frame_number:%02X\n", tcp_param.AT_frame_number);
-        fprintf(stdout," #atsc_time_displacement:%02X\n", tcp_param.atsc_time_displacement);
+
+#if 0
+        fprintf(stdout," #trellis_code_state: ");
+        for(i = 0; i<TRELLIS_CODE_LEN; i++)
+        {
+                fprintf(stdout,"%s%02X%s ", 
+                        yellow_on,
+                        tcp_param.trellis_code_state[i],
+                        color_off);
+        }
+        fprintf(stdout,"\n");
 
         fprintf(stdout," #TCP_ECC: ");
         for(i = 0; i < TCP_ECC_LEN; i++)
         {
-                fprintf(stdout,"%02X ", tcp_param.TCP_ECC[i]);
+                fprintf(stdout,"%s%02X%s ", 
+                        yellow_on,
+                        tcp_param.TCP_ECC[i],
+                        color_off);
         }
+#endif   
         fprintf(stdout,"\n");
 }
