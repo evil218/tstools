@@ -40,11 +40,9 @@ typedef struct _ts_error_t
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
-        int PAT_error; /* 1.3 */
-        int PAT_error_2; /* 1.3a */
+        int PAT_error; /* 1.3 ---- 1.3a of TR 101 290 V1.2.1 2001-05 */
         int Continuity_count_error; /* 1.4 */
-        int PMT_error; /* 1.5 */
-        int PMT_error_2; /* 1.5a */
+        int PMT_error; /* 1.5 ---- 1.5a of TR 101 290 V1.2.1 2001-05 */
         int PID_error; /* 1.6 */
 
         /* Second priority: recommended for continuous or periodic monitoring */
@@ -116,6 +114,7 @@ typedef struct _ts_table_t
         uint8_t version_number;
         uint8_t last_section_number;
         ts_section_t *section0;
+        int64_t STC;
 }
 ts_table_t; /* unit of PSI/SI table list */
 
@@ -189,6 +188,7 @@ typedef struct _ts_pid_t
         /* only for PID with PSI/SI */
         int section_idx; /* to index data in section */
         uint8_t section[4416]; /* (184*24=4416), PSI/SI|private <= 1024|4096 */
+        int64_t section_interval;
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
 

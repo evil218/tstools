@@ -23,8 +23,8 @@
 #define ANY_TABLE                       0xFF /* any table_id of [0x00,0xFE] */
 #define ANY_PROG                        0x0000 /* any prog of [0x0001,0xFFFF] */
 
-#define PCR_US                          (27) /* 27 clk means 1(us) */
-#define PCR_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
+#define STC_US                          (27) /* 27 clk means 1(us) */
+#define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
 typedef struct
 {
@@ -231,12 +231,12 @@ static void state_parse_psi(obj_t *obj)
                 {
                         case MODE_SEC:
                                 print_atp_title(obj);
-                                fprintf(stdout, "section\n");
+                                fprintf(stdout, "section_interval, table_head, table_body\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_SI:
                                 print_atp_title(obj);
-                                fprintf(stdout, "id, \n");
+                                fprintf(stdout, "section_interval, table_head, table_body\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PCR:
@@ -277,6 +277,20 @@ static void state_parse_psi(obj_t *obj)
 
 static void state_parse_each(obj_t *obj)
 {
+        ts_rslt_t *rslt = obj->rslt;
+        ts_psi_t *psi = &(rslt->psi);
+
+        /* filter */
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
+        {
+                return;
+        }
+        if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
+        {
+                return;
+        }
+
+        /* show_xxx() */
         switch(obj->mode)
         {
                 case MODE_LST:
@@ -363,7 +377,7 @@ static obj_t *create(int argc, char *argv[])
         obj->aim_pid = ANY_PID;
         obj->aim_table = ANY_TABLE;
         obj->aim_prog = ANY_PROG;
-        obj->aim_interval = 1000 * PCR_MS;
+        obj->aim_interval = 1000 * STC_MS;
 
         for(i = 1; i < argc; i++)
         {
@@ -527,7 +541,7 @@ static obj_t *create(int argc, char *argv[])
                                 sscanf(argv[i], "%i" , &dat);
                                 if(1 <= dat && dat <= 10000) /* 1ms ~ 10s */
                                 {
-                                        obj->aim_interval = dat * PCR_MS;
+                                        obj->aim_interval = dat * STC_MS;
                                 }
                                 else
                                 {
@@ -628,8 +642,8 @@ static void show_help()
         puts(" -alles           write ES data into different file by PID");
         puts(" -err             output all errors found");
         puts(" -dump            dump cared packet");
-        puts(" -color           enable colour effect to help read, default: mono");
         puts("");
+        puts(" -color           enable colour effect to help read, default: mono");
         puts(" -start <x>       analyse from packet(x), default: 0, first packet");
         puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
         puts(" -pid <pid>       set cared PID, default: any PID");
@@ -858,12 +872,11 @@ static void show_sec(obj_t *obj)
         {
                 return;
         }
-        if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
-        {
-                return;
-        }
 
         print_atp_value(obj);
+
+        /* section_interval */
+        fprintf(stdout, "%+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
         /* table_head */
         for(i = 0; i < 7; i++)
@@ -892,12 +905,11 @@ static void show_si(obj_t *obj)
         {
                 return;
         }
-        if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
-        {
-                return;
-        }
 
         print_atp_value(obj);
+
+        /* section_interval */
+        fprintf(stdout, "%+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
         /* table_head */
         for(i = 0; i < 7; i++)
@@ -930,7 +942,7 @@ static void show_si(obj_t *obj)
                         }
                         break;
         }
-        fprintf(stdout, "end\n");
+        fprintf(stdout, "\n");
         return;
 }
 
@@ -951,10 +963,6 @@ static void show_pcr(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
-                return;
-        }
         if(!(rslt->has_PCR))
         {
                 return;
@@ -965,8 +973,8 @@ static void show_pcr(obj_t *obj)
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
-                (double)(rslt->PCR_interval) / PCR_MS,
-                (double)(rslt->PCR_jitter) * 1e3 / PCR_US);
+                (double)(rslt->PCR_interval) / STC_MS,
+                (double)(rslt->PCR_jitter) * 1e3 / STC_US);
         return;
 }
 
@@ -1108,10 +1116,6 @@ static void show_ptsdts(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
-                return;
-        }
         if(!(rslt->has_PTS))
         {
                 return;
@@ -1144,10 +1148,6 @@ static void show_pes(obj_t *obj)
         ts_pkt_t PKT;
         ts_pkt_t *pkt = &PKT;
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
-                return;
-        }
         if(0 != rslt->PES_len)
         {
                 pkt_init(pkt);
@@ -1166,10 +1166,6 @@ static void show_es(obj_t *obj)
         ts_pkt_t PKT;
         ts_pkt_t *pkt = &PKT;
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
-                return;
-        }
         if(0 != rslt->ES_len)
         {
                 pkt_init(pkt);
@@ -1220,11 +1216,6 @@ static void show_error(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         ts_error_t *err = &(rslt->err);
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
-                return;
-        }
-
         /* First priority: necessary for de-codability (basic monitoring) */
         if(err->TS_sync_loss)
         {
@@ -1248,12 +1239,6 @@ static void show_error(obj_t *obj)
                 fprintf(stdout, "1.3 , PAT_error\n");
                 err->PAT_error = 0;
         }
-        if(err->PAT_error_2)
-        {
-                print_atp_value(obj);
-                fprintf(stdout, "1.3a, PAT_error_2\n");
-                err->PAT_error_2 = 0;
-        }
         if(err->Continuity_count_error)
         {
                 print_atp_value(obj);
@@ -1265,12 +1250,6 @@ static void show_error(obj_t *obj)
                 print_atp_value(obj);
                 fprintf(stdout, "1.5 , PMT_error\n");
                 err->PMT_error = 0;
-        }
-        if(err->PMT_error_2)
-        {
-                print_atp_value(obj);
-                fprintf(stdout, "1.5a, PMT_error_2\n");
-                err->PMT_error_2 = 0;
         }
         if(err->PID_error)
         {
@@ -1297,21 +1276,21 @@ static void show_error(obj_t *obj)
         {
                 print_atp_value(obj);
                 fprintf(stdout, "2.3a, PCR_repetition_error(%+7.3f ms)\n",
-                        (double)(rslt->PCR_interval) / PCR_MS);
+                        (double)(rslt->PCR_interval) / STC_MS);
                 err->PCR_repetition_error = 0;
         }
         if(err->PCR_discontinuity_indicator_error)
         {
                 print_atp_value(obj);
                 fprintf(stdout, "2.3b, PCR_discontinuity_indicator_error(%+7.3f ms)\n",
-                        (double)(rslt->PCR_continuity) / PCR_MS);
+                        (double)(rslt->PCR_continuity) / STC_MS);
                 err->PCR_discontinuity_indicator_error = 0;
         }
         if(err->PCR_accuracy_error)
         {
                 print_atp_value(obj);
                 fprintf(stdout, "2.4 , PCR_accuracy_error(%+4.0f ns)\n",
-                        (double)(rslt->PCR_jitter) * 1e3 / PCR_US);
+                        (double)(rslt->PCR_jitter) * 1e3 / STC_US);
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error)
