@@ -120,16 +120,27 @@ static void show_error(obj_t *obj);
 static void print_atp_title(obj_t *obj); /* atp: address_time_PID */
 static void print_atp_value(obj_t *obj); /* atp: address_time_PID */
 
-static void table_info_SDT(uint8_t *section);
-static void table_info_EIT(uint8_t *section);
-static void table_info_TDT(uint8_t *section);
-static void table_info_TOT(uint8_t *section);
+static void table_info_PAT(ts_psi_t *psi, uint8_t *section);
+static void table_info_CAT(ts_psi_t *psi, uint8_t *section);
+static void table_info_PMT(ts_psi_t *psi, uint8_t *section);
+static void table_info_TSDT(ts_psi_t *psi, uint8_t *section);
+static void table_info_NIT(ts_psi_t *psi, uint8_t *section);
+static void table_info_SDT(ts_psi_t *psi, uint8_t *section);
+static void table_info_BAT(ts_psi_t *psi, uint8_t *section);
+static void table_info_EIT(ts_psi_t *psi, uint8_t *section);
+static void table_info_TDT(ts_psi_t *psi, uint8_t *section);
+static void table_info_RST(ts_psi_t *psi, uint8_t *section);
+static void table_info_ST(ts_psi_t *psi, uint8_t *section);
+static void table_info_TOT(ts_psi_t *psi, uint8_t *section);
+static void table_info_DIT(ts_psi_t *psi, uint8_t *section);
+static void table_info_SIT(ts_psi_t *psi, uint8_t *section);
 
 static void MJD_UTC(uint8_t *buf);
 static void UTC(uint8_t *buf);
 static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
+static int coding_string(uint8_t *p, int len);
 
 void atsc_mh_tcp(uint8_t *ts); /* atsc_mh_tcp.c */
 
@@ -231,12 +242,12 @@ static void state_parse_psi(obj_t *obj)
                 {
                         case MODE_SEC:
                                 print_atp_title(obj);
-                                fprintf(stdout, "section_interval, table_head, table_body\n");
+                                fprintf(stdout, "section_interval, section_head, section_body\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_SI:
                                 print_atp_title(obj);
-                                fprintf(stdout, "section_interval, table_head, table_body\n");
+                                fprintf(stdout, "section_interval, section_head, section_body\n");
                                 obj->state = STATE_PARSE_EACH;
                                 break;
                         case MODE_PCR:
@@ -754,7 +765,7 @@ static void show_prog(obj_t *obj)
                 color_off = NONE;
         }
 
-        fprintf(stdout, "transport_stream_id, %s%d%s(0x%04X)\n",
+        fprintf(stdout, "transport_stream_id, %s%5d%s(0x%04X)\n",
                 yellow_on, rslt->transport_stream_id, color_off,
                 rslt->transport_stream_id);
 
@@ -763,7 +774,7 @@ static void show_prog(obj_t *obj)
                 int i;
 
                 ts_prog_t *prog = (ts_prog_t *)lnode;
-                fprintf(stdout, "program_number, %s%d%s(0x%04X), "
+                fprintf(stdout, "program_number, %s%5d%s(0x%04X), "
                         "PMT_PID, %s0x%04X%s, "
                         "PCR_PID, %s0x%04X%s, ",
                         yellow_on, prog->program_number, color_off,
@@ -774,8 +785,11 @@ static void show_prog(obj_t *obj)
                 /* service_provider */
                 if(prog->service_provider_len)
                 {
-                        fprintf(stdout, "service_provider, %s\"%s\"%s(%02X",
-                                yellow_on, prog->service_provider, color_off,
+                        fprintf(stdout, "service_provider, %s\"",
+                                yellow_on);
+                        coding_string(prog->service_provider, prog->service_provider_len);
+                        fprintf(stdout, "\"%s(%02X",
+                                color_off,
                                 prog->service_provider[0]);
                         for(i = 1; i < prog->service_provider_len; i++)
                         {
@@ -787,8 +801,11 @@ static void show_prog(obj_t *obj)
                 /* service_name */
                 if(prog->service_name_len)
                 {
-                        fprintf(stdout, "service_name, %s\"%s\"%s(%02X",
-                                yellow_on, prog->service_name, color_off,
+                        fprintf(stdout, "service_name, %s\"",
+                                yellow_on);
+                        coding_string(prog->service_name, prog->service_name_len);
+                        fprintf(stdout, "\"%s(%02X",
+                                color_off,
                                 prog->service_name[0]);
                         for(i = 1; i < prog->service_name_len; i++)
                         {
@@ -878,14 +895,14 @@ static void show_sec(obj_t *obj)
         /* section_interval */
         fprintf(stdout, "%+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
-        /* table_head */
+        /* section_head */
         for(i = 0; i < 7; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "%02X, ", pid->section[i++]);
 
-        /* table_body */
+        /* section_body */
         for(; i < psi->section_length + 3; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
@@ -897,6 +914,7 @@ static void show_sec(obj_t *obj)
 static void show_si(obj_t *obj)
 {
         int i;
+        int is_unknown_table_id = 0;
         ts_rslt_t *rslt = obj->rslt;
         ts_psi_t *psi = &(rslt->psi);
         ts_pid_t *pid = rslt->pid;
@@ -911,36 +929,105 @@ static void show_si(obj_t *obj)
         /* section_interval */
         fprintf(stdout, "%+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
-        /* table_head */
+        /* section_head */
         for(i = 0; i < 7; i++)
         {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "%02X, ", pid->section[i++]);
 
-        /* table_body */
-        switch(psi->table_id)
-        {
-                case 0x42:
-                case 0x46:
-                        table_info_SDT(pid->section);
-                        break;
-                case 0x4E: /* FIXME: 0x50 ~ 0x5F */
-                case 0x4F: /* FIXME: 0x60 ~ 0x6F */
-                        table_info_EIT(pid->section);
-                        break;
-                case 0x70:
-                        table_info_TDT(pid->section);
-                        break;
-                case 0x73:
-                        table_info_TOT(pid->section);
-                        break;
-                default:
-                        for(; i < psi->section_length + 3; i++)
-                        {
-                                fprintf(stdout, "%02X ", pid->section[i]);
-                        }
-                        break;
+        /* section_body */
+        if(     0x00 == psi->table_id) {
+                table_info_PAT(psi, pid->section);
+        }
+        else if(0x01 == psi->table_id) {
+                table_info_CAT(psi, pid->section);
+        }
+        else if(0x02 == psi->table_id) {
+                table_info_PMT(psi, pid->section);
+        }
+        else if(0x03 == psi->table_id) {
+                table_info_TSDT(psi, pid->section);
+        }
+        else if(0x04 <= psi->table_id && psi->table_id <= 0x3F) {
+                fprintf(stdout, "reserved table_id: ");
+                is_unknown_table_id = 1;
+        }
+        else if(0x40 == psi->table_id) { /* actual */
+                table_info_NIT(psi, pid->section);
+        }
+        else if(0x41 == psi->table_id) { /* other */
+                table_info_NIT(psi, pid->section);
+        }
+        else if(0x42 == psi->table_id) { /* actual */
+                table_info_SDT(psi, pid->section);
+        }
+        else if(0x43 <= psi->table_id && psi->table_id <= 0x45) {
+                fprintf(stdout, "reserved table_id: ");
+                is_unknown_table_id = 1;
+        }
+        else if(0x46 == psi->table_id) { /* other */
+                table_info_SDT(psi, pid->section);
+        }
+        else if(0x47 <= psi->table_id && psi->table_id <= 0x49) {
+                fprintf(stdout, "reserved table_id: ");
+                is_unknown_table_id = 1;
+        }
+        else if(0x4A == psi->table_id) {
+                table_info_BAT(psi, pid->section);
+        }
+        else if(0x4B <= psi->table_id && psi->table_id <= 0x4D) {
+                fprintf(stdout, "reserved table_id: ");
+                is_unknown_table_id = 1;
+        }
+        else if(0x4E == psi->table_id) { /* actual, P/F */
+                table_info_EIT(psi, pid->section);
+        }
+        else if(0x4F == psi->table_id) { /* other, P/F */
+                table_info_EIT(psi, pid->section);
+        }
+        else if(0x50 <= psi->table_id && psi->table_id <= 0x5F) { /* actual, schedule */
+                table_info_EIT(psi, pid->section);
+        }
+        else if(0x60 <= psi->table_id && psi->table_id <= 0x6F) { /* other, schedule */
+                table_info_EIT(psi, pid->section);
+        }
+        else if(0x70 == psi->table_id) {
+                table_info_TDT(psi, pid->section);
+        }
+        else if(0x71 == psi->table_id) {
+                table_info_RST(psi, pid->section);
+        }
+        else if(0x72 == psi->table_id) {
+                table_info_ST(psi, pid->section);
+        }
+        else if(0x73 == psi->table_id) {
+                table_info_TOT(psi, pid->section);
+        }
+        else if(0x74 <= psi->table_id && psi->table_id <= 0x7D) {
+                fprintf(stdout, "reserved table_id: ");
+                is_unknown_table_id = 1;
+        }
+        else if(0x7E == psi->table_id) {
+                table_info_DIT(psi, pid->section);
+        }
+        else if(0x7F == psi->table_id) {
+                table_info_SIT(psi, pid->section);
+        }
+        else if(0x80 <= psi->table_id && psi->table_id <= 0xFE) {
+                fprintf(stdout, "user table_id: ");
+                is_unknown_table_id = 1;
+        }
+        else { /* (0xFF == psi->table_id) */
+                fprintf(stdout, "reserved table_id: ");
+                is_unknown_table_id = 1;
+        }
+
+        if(is_unknown_table_id) {
+                for(; i < psi->section_length + 3; i++)
+                {
+                        fprintf(stdout, "%02X ", pid->section[i]);
+                }
         }
         fprintf(stdout, "\n");
         return;
@@ -1363,23 +1450,190 @@ static void print_atp_value(obj_t *obj)
         return;
 }
 
-static void table_info_SDT(uint8_t *section)
+static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
 {
-        uint8_t *p = section;
+        uint8_t *p = section + 3;
+        int section_length;
+        uint16_t transport_stream_id;
+
+        /* section head */
+        section_length = psi->section_length;
+        transport_stream_id = psi->table_id_extension;
+        fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+
+        /* PAT special */
+        p += 5; section_length -= 5;
+
+        while(section_length > 4)
+        {
+                uint8_t data;
+                uint16_t program_number;
+                uint16_t PID;
+
+                data = *p++; section_length--;
+                program_number = data;
+                data = *p++; section_length--;
+                program_number <<= 8;
+                program_number |= data;
+
+                data = *p++; section_length--;
+                PID = data & 0x1F;
+                data = *p++; section_length--;
+                PID <<= 8;
+                PID |= data;
+
+                if(0 == program_number) {
+                        fprintf(stdout, "(  net, 0x%04X), ", PID);
+                }
+                else {
+                        fprintf(stdout, "(%5d, 0x%04X), ", program_number, PID);
+                }
+        }
+
+        return;
+}
+
+static void table_info_CAT(ts_psi_t *psi, uint8_t *section)
+{
+        uint8_t *p = section + 3;
+        int section_length;
+        uint16_t descriptors_loop_length;
+
+        /* section head */
+        section_length = psi->section_length;
+
+        /* CAT special */
+        p += 5; section_length -= 5;
+        descriptors_loop_length = section_length - 4;
+        while(descriptors_loop_length > 0)
+        {
+                uint8_t len;
+
+                len = descriptor(&p);
+                descriptors_loop_length -= len;
+
+                if(0 == len)
+                {
+                        fprintf(stdout, "wrong descriptor, ");
+                        return;
+                }
+        }
+
+        return;
+}
+
+static void table_info_PMT(ts_psi_t *psi, uint8_t *section)
+{
+        //uint8_t *p = section;
+        //int section_length;
+
+        return;
+}
+
+static void table_info_TSDT(ts_psi_t *psi, uint8_t *section)
+{
+        //uint8_t *p = section;
+        //int section_length;
+
+        return;
+}
+
+static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
+{
+        uint8_t *p = section + 3;
+        int section_length;
+        uint16_t network_id;
+        uint16_t network_descriptors_length;
+        uint16_t transport_stream_loop_length;
+
+        /* section head */
+        section_length = psi->section_length;
+        network_id = psi->table_id_extension;
+        fprintf(stdout, "network_id: %d, ", network_id);
+
+        /* SDT special */
+        p += 5; section_length -= 5;
+
+        /* network_descriptors */
+        network_descriptors_length = (*p++) & 0x0F; section_length--;
+        network_descriptors_length <<= 8;
+        network_descriptors_length |= *p++; section_length--;
+        while(network_descriptors_length > 0)
+        {
+                uint8_t len;
+
+                len = descriptor(&p);
+                network_descriptors_length -= len;
+                section_length -= len;
+
+                if(0 == len)
+                {
+                        fprintf(stdout, "wrong descriptor, ");
+                        return;
+                }
+        }
+
+        /* transport_stream_loop */
+        transport_stream_loop_length = (*p++) & 0x0F; section_length--;
+        transport_stream_loop_length <<= 8;
+        transport_stream_loop_length |= *p++; section_length--;
+        while(transport_stream_loop_length > 0)
+        {
+                uint16_t transport_stream_id;
+                uint16_t original_network_id;
+                uint16_t transport_descriptors_length;
+
+                transport_stream_id = *p++; section_length--;
+                transport_stream_id <<= 8;
+                transport_stream_id |= *p++; section_length--;
+                fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+
+                original_network_id = *p++; section_length--;
+                original_network_id <<= 8;
+                original_network_id |= *p++; section_length--;
+                fprintf(stdout, "original_network_id: %d, ", original_network_id);
+
+                /* transport_descriptors */
+                transport_descriptors_length = (*p++) & 0x0F; section_length--;
+                transport_descriptors_length <<= 8;
+                transport_descriptors_length |= *p++; section_length--;
+
+                transport_stream_loop_length -= 6;
+                transport_stream_loop_length -= transport_descriptors_length;
+
+                while(transport_descriptors_length > 0)
+                {
+                        uint8_t len;
+
+                        len = descriptor(&p);
+                        transport_descriptors_length -= len;
+                        section_length -= len;
+
+                        if(0 == len)
+                        {
+                                fprintf(stdout, "wrong descriptor, ");
+                                return;
+                        }
+                }
+        }
+
+        return;
+}
+
+static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
+{
+        uint8_t *p = section + 3;
         int section_length;
         uint16_t transport_stream_id;
         uint16_t original_network_id;
 
-        p += 1;
-        section_length = (0x0F & *p++);
-        section_length <<= 8;
-        section_length |= *p++;
-
-        transport_stream_id = *p++; section_length--;
-        transport_stream_id <<= 8;
-        transport_stream_id |= *p++; section_length--;
+        /* section head */
+        section_length = psi->section_length;
+        transport_stream_id = psi->table_id_extension;
         fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
-        p += 3; section_length -= 3;
+
+        /* SDT special */
+        p += 5; section_length -= 5;
         original_network_id = *p++; section_length--;
         original_network_id <<= 8;
         original_network_id |= *p++; section_length--;
@@ -1413,7 +1667,7 @@ static void table_info_SDT(uint8_t *section)
                         descriptors_loop_length -= len;
                         section_length -= len;
 
-                        if(2 == len)
+                        if(0 == len)
                         {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
@@ -1424,9 +1678,17 @@ static void table_info_SDT(uint8_t *section)
         return;
 }
 
-static void table_info_EIT(uint8_t *section)
+static void table_info_BAT(ts_psi_t *psi, uint8_t *section)
 {
-        uint8_t *p = section;
+        //uint8_t *p = section;
+        //int section_length;
+
+        return;
+}
+
+static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
+{
+        uint8_t *p = section + 3;
         int section_length;
         uint16_t service_id;
         uint16_t transport_stream_id;
@@ -1434,16 +1696,13 @@ static void table_info_EIT(uint8_t *section)
         uint8_t segment_last_section_number;
         uint8_t last_table_id;
 
-        p += 1;
-        section_length = (0x0F & *p++);
-        section_length <<= 8;
-        section_length |= *p++;
-
-        service_id = *p++; section_length--;
-        service_id <<= 8;
-        service_id |= *p++; section_length--;
+        /* section head */
+        section_length = psi->section_length;
+        service_id = psi->table_id_extension;
         fprintf(stdout, "service_id: %d, ", service_id);
-        p += 3; section_length -= 3;
+
+        /* EIT special */
+        p += 5; section_length -= 5;
         transport_stream_id = *p++; section_length--;
         transport_stream_id <<= 8;
         transport_stream_id |= *p++; section_length--;
@@ -1485,7 +1744,7 @@ static void table_info_EIT(uint8_t *section)
                         descriptors_loop_length -= len;
                         section_length -= len;
 
-                        if(2 == len)
+                        if(0 == len)
                         {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
@@ -1496,22 +1755,36 @@ static void table_info_EIT(uint8_t *section)
         return;
 }
 
-static void table_info_TDT(uint8_t *section)
+static void table_info_TDT(ts_psi_t *psi, uint8_t *section)
 {
-        uint8_t *p = section;
+        uint8_t *p = section + 3;
 
-        p += 3;
         MJD_UTC(p); p += 5;
 
         return;
 }
 
-static void table_info_TOT(uint8_t *section)
+static void table_info_RST(ts_psi_t *psi, uint8_t *section)
 {
-        uint8_t *p = section;
+        //uint8_t *p = section;
+        //int section_length;
+
+        return;
+}
+
+static void table_info_ST(ts_psi_t *psi, uint8_t *section)
+{
+        //uint8_t *p = section;
+        //int section_length;
+
+        return;
+}
+
+static void table_info_TOT(ts_psi_t *psi, uint8_t *section)
+{
+        uint8_t *p = section + 3;
         int descriptors_loop_length;
 
-        p += 3;
         MJD_UTC(p); p += 5;
 
         descriptors_loop_length = (0x0F & *p++);
@@ -1522,6 +1795,22 @@ static void table_info_TOT(uint8_t *section)
         {
                 descriptors_loop_length -= descriptor(&p);
         }
+
+        return;
+}
+
+static void table_info_DIT(ts_psi_t *psi, uint8_t *section)
+{
+        //uint8_t *p = section;
+        //int section_length;
+
+        return;
+}
+
+static void table_info_SIT(ts_psi_t *psi, uint8_t *section)
+{
+        //uint8_t *p = section;
+        //int section_length;
 
         return;
 }
@@ -1580,6 +1869,7 @@ static char *running_status(uint8_t status)
 
 static int descriptor(uint8_t **buf)
 {
+        int i;
         uint8_t *p = *buf;
         uint8_t tag;
         uint8_t len;
@@ -1587,11 +1877,56 @@ static int descriptor(uint8_t **buf)
         tag = *p++;
         len = *p++;
 
-        fprintf(stdout, "tag, 0x%02X, len, 0x%02X, ", tag, len);
+        fprintf(stdout, "(");
+        if(0x40 == tag) { /* network_name_descriptor */
+                fprintf(stdout, "\"");
+                coding_string(p, len);
+                fprintf(stdout, "\"");
+        }
+        else if(0x48 == tag) { /* service_descriptor */
+                int service_provider_name_length;
+                int service_name_length;
+
+                fprintf(stdout, "0x%02X, ", *p++);
+
+                fprintf(stdout, "\"");
+                service_provider_name_length = *p++;
+                coding_string(p, service_provider_name_length);
+                p += service_provider_name_length;
+                fprintf(stdout, "\", ");
+
+                fprintf(stdout, "\"");
+                service_name_length = *p++;
+                coding_string(p, service_name_length);
+                p += service_name_length;
+                fprintf(stdout, "\"");
+        }
+        else {
+                fprintf(stdout, "%02X %02X,", tag, len);
+                if(0 != len) {
+                        for(i = len; i > 0; i--) {
+                                fprintf(stdout, " %02X", *p++);
+                        }
+                }
+        }
+        fprintf(stdout, "), ");
 
         len += 2; /* count tag and len byte */
         *buf += len;
 
-        len = (0xFF == tag) ? 2 : len; /* wrong buffer */
+        len = (0xFF == tag) ? 0 : len; /* wrong buffer */
         return len;
+}
+
+static int coding_string(uint8_t *p, int len)
+{
+        uint8_t coding = *p;
+
+        if(0x01 <= coding && coding <= 0x1F) {
+                p++; len--; /* pass first byte */
+        }
+        for(; len > 0; len--) {
+                fprintf(stdout, "%c", *p++);
+        }
+        return 0;
 }

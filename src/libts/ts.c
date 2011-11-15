@@ -325,7 +325,7 @@ static const stream_type_t STREAM_TYPE_TABLE[] =
         {0x42, VID_PID, "AVS", "Advanced Video Standard"},
         {0x7F, USR_PID, "IPMP", "IPMP stream"},
         {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
-        {0xFF, UNO_PID, "", ""}, /* loop stop condition! */
+        {0xFF, UNO_PID, "UNKNOWN", "Unknown stream"}, /* loop stop condition! */
 };
 
 enum
@@ -382,6 +382,8 @@ int tsCreate(ts_rslt_t **rslt)
         *rslt = &(obj->rslt);
         (*rslt)->pkt = &((*rslt)->PKT);
         (*rslt)->table0 = NULL;
+        (*rslt)->has_got_transport_stream_id = 0;
+        (*rslt)->transport_stream_id = 0;
         (*rslt)->prog0 = NULL;
         (*rslt)->pid0 = NULL;
 
@@ -779,7 +781,10 @@ static int state_next_pkt(obj_t *obj)
         /* PES head & ES data */
         if(track && (0 == ts->transport_scrambling_control))
         {
-                parse_PES_head(obj);
+                if(AUD_PID == pid->type || VID_PID == pid->type)
+                {
+                        parse_PES_head(obj);
+                }
 
                 if(rslt->has_PTS)
                 {
@@ -1362,6 +1367,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
 
         /* in PAT, table_id_extension is transport_stream_id */
         rslt->transport_stream_id = psi->table_id_extension;
+        rslt->has_got_transport_stream_id = 1;
 
         while(len > 4)
         {
@@ -1619,9 +1625,11 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
         uint16_t original_network_id;
 
         /* in SDT, table_id_extension is transport_stream_id */
-        if(psi->table_id_extension != rslt->transport_stream_id)
+        if(rslt->has_got_transport_stream_id &&
+           psi->table_id_extension != rslt->transport_stream_id)
         {
-                fprintf(stderr, "table_id_extension(%d) != transport_stream_id(%d)\n",
+                fprintf(stderr, "table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)\n",
+                        psi->table_id,
                         psi->table_id_extension,
                         rslt->transport_stream_id);
                 return -1; /* bad SDT table, ignore */
@@ -1633,10 +1641,12 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
         dat = *p++; len--;
         original_network_id <<= 8;
         original_network_id |= dat;
-        if(original_network_id != rslt->transport_stream_id)
+        if(rslt->has_got_transport_stream_id &&
+           original_network_id != rslt->transport_stream_id)
         {
 #if 0
-                fprintf(stderr, "original_network_id(%d) != transport_stream_id(%d)\n",
+                fprintf(stderr, "table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)\n",
+                        psi->table_id,
                         original_network_id,
                         rslt->transport_stream_id);
                 return -1; /* bad SDT table, ignore */

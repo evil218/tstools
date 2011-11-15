@@ -236,6 +236,7 @@ typedef struct _ts_rslt_t
         ts_table_t *table0; /* PSI/SI table except PMT */
 
         /* TS information */
+        int has_got_transport_stream_id;
         uint16_t transport_stream_id;
         ts_prog_t *prog0; /* program list */
         ts_pid_t *pid0; /* pid list */
