@@ -15,6 +15,7 @@
 #include "error.h"
 #include "if.h"
 #include "ts.h" /* has "list.h" already */
+#include "UTF_GB.h"
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
@@ -1459,7 +1460,7 @@ static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
         /* section head */
         section_length = psi->section_length;
         transport_stream_id = psi->table_id_extension;
-        fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+        fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
         /* PAT special */
         p += 5; section_length -= 5;
@@ -1469,6 +1470,8 @@ static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
                 uint8_t data;
                 uint16_t program_number;
                 uint16_t PID;
+
+                fprintf(stdout, "\n    ");
 
                 data = *p++; section_length--;
                 program_number = data;
@@ -1483,10 +1486,10 @@ static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
                 PID |= data;
 
                 if(0 == program_number) {
-                        fprintf(stdout, "(  net, 0x%04X), ", PID);
+                        fprintf(stdout, "network_PID, 0x%04X, ", PID);
                 }
                 else {
-                        fprintf(stdout, "(%5d, 0x%04X), ", program_number, PID);
+                        fprintf(stdout, "program %5d, PID 0x%04X, ", program_number, PID);
                 }
         }
 
@@ -1549,7 +1552,7 @@ static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
         /* section head */
         section_length = psi->section_length;
         network_id = psi->table_id_extension;
-        fprintf(stdout, "network_id: %d, ", network_id);
+        fprintf(stdout, "network_id: %5d, ", network_id);
 
         /* SDT special */
         p += 5; section_length -= 5;
@@ -1583,15 +1586,17 @@ static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
                 uint16_t original_network_id;
                 uint16_t transport_descriptors_length;
 
+                fprintf(stdout, "\n    ");
+
                 transport_stream_id = *p++; section_length--;
                 transport_stream_id <<= 8;
                 transport_stream_id |= *p++; section_length--;
-                fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+                fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
                 original_network_id = *p++; section_length--;
                 original_network_id <<= 8;
                 original_network_id |= *p++; section_length--;
-                fprintf(stdout, "original_network_id: %d, ", original_network_id);
+                fprintf(stdout, "original_network_id: %5d, ", original_network_id);
 
                 /* transport_descriptors */
                 transport_descriptors_length = (*p++) & 0x0F; section_length--;
@@ -1630,15 +1635,16 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
         /* section head */
         section_length = psi->section_length;
         transport_stream_id = psi->table_id_extension;
-        fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+        fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
         /* SDT special */
         p += 5; section_length -= 5;
         original_network_id = *p++; section_length--;
         original_network_id <<= 8;
         original_network_id |= *p++; section_length--;
-        fprintf(stdout, "original_network_id: %d, ", original_network_id);
+        fprintf(stdout, "original_network_id: %5d, ", original_network_id);
         p += 1; section_length -= 1;
+        /* fprintf(stdout, "section_length(%d), ", section_length); */
 
         while(section_length > 4)
         {
@@ -1647,10 +1653,12 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
                 uint8_t rstatus;
                 uint16_t descriptors_loop_length;
 
+                fprintf(stdout, "\n    ");
+
                 service_id = *p++; section_length--;
                 service_id <<= 8;
                 service_id |= *p++; section_length--;
-                fprintf(stdout, "service_id: %d, ", service_id);
+                fprintf(stdout, "service_id: %5d, ", service_id);
                 p += 1; section_length -= 1;
                 data = *p++; section_length--;
                 rstatus = (data >> 5) & 0x07;
@@ -1658,7 +1666,12 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
                 descriptors_loop_length = 0x0F & data;
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= *p++; section_length--;
+                /* fprintf(stdout, "descriptors_loop_length(%d), ", descriptors_loop_length); */
 
+                if(descriptors_loop_length + 4 > section_length) {
+                        fprintf(stdout, "wrong section, ");
+                        return;
+                }
                 while(descriptors_loop_length > 0)
                 {
                         uint8_t len;
@@ -1672,7 +1685,9 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
+                        /* fprintf(stdout, "descriptors_loop_length(%d), ", descriptors_loop_length); */
                 }
+                /* fprintf(stdout, "section_length(%d), ", section_length); */
         }
 
         return;
@@ -1699,22 +1714,22 @@ static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
         /* section head */
         section_length = psi->section_length;
         service_id = psi->table_id_extension;
-        fprintf(stdout, "service_id: %d, ", service_id);
+        fprintf(stdout, "service_id: %5d, ", service_id);
 
         /* EIT special */
         p += 5; section_length -= 5;
         transport_stream_id = *p++; section_length--;
         transport_stream_id <<= 8;
         transport_stream_id |= *p++; section_length--;
-        fprintf(stdout, "transport_stream_id: %d, ", transport_stream_id);
+        fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
         original_network_id = *p++; section_length--;
         original_network_id <<= 8;
         original_network_id |= *p++; section_length--;
-        fprintf(stdout, "original_network_id: %d, ", original_network_id);
+        fprintf(stdout, "original_network_id: %5d, ", original_network_id);
         segment_last_section_number = *p++; section_length--;
-        fprintf(stdout, "segment_last_section_number: %d, ", segment_last_section_number);
+        fprintf(stdout, "segment_last_section_number: %5d, ", segment_last_section_number);
         last_table_id = *p++; section_length--;
-        fprintf(stdout, "last_table_id: %d, ", last_table_id);
+        fprintf(stdout, "last_table_id: %5d, ", last_table_id);
 
         while(section_length > 4)
         {
@@ -1723,10 +1738,12 @@ static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
                 uint8_t rstatus;
                 uint16_t descriptors_loop_length;
 
+                fprintf(stdout, "\n    ");
+
                 event_id = *p++; section_length--;
                 event_id <<= 8;
                 event_id |= *p++; section_length--;
-                fprintf(stdout, "event_id: %d, ", event_id);
+                fprintf(stdout, "event_id: %5d, ", event_id);
                 MJD_UTC(p); p += 5; section_length -= 5;
                 UTC(p); p += 3; section_length -= 3;
                 data = *p++; section_length--;
@@ -1921,12 +1938,20 @@ static int descriptor(uint8_t **buf)
 static int coding_string(uint8_t *p, int len)
 {
         uint8_t coding = *p;
+        char str[256] = "";
 
         if(0x01 <= coding && coding <= 0x1F) {
                 p++; len--; /* pass first byte */
         }
-        for(; len > 0; len--) {
-                fprintf(stdout, "%c", *p++);
+        switch(coding) {
+                case 0x11:
+                        utf16_gb((const uint16_t *)p, str, len, 1);
+                        break;
+                default:
+                        memcpy(str, p, len);
+                        str[len] = '\0';
+                        break;
         }
+        fprintf(stdout, "%s", str);
         return 0;
 }

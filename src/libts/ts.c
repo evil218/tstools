@@ -781,7 +781,8 @@ static int state_next_pkt(obj_t *obj)
         /* PES head & ES data */
         if(track && (0 == ts->transport_scrambling_control))
         {
-                if(AUD_PID == pid->type || VID_PID == pid->type)
+                if(AUD_PID == pid->type || AUD_PCR == pid->type ||
+                   VID_PID == pid->type || VID_PCR == pid->type)
                 {
                         parse_PES_head(obj);
                 }
