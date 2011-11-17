@@ -34,7 +34,6 @@ typedef struct
 
         int is_outpsi; /* output txt psi packet to stdout */
         int is_prepsi; /* get psi information from file first */
-        int is_color; /* use colour when print */
         int is_dump; /* output packet directly */
         uint64_t aim_start; /* ignore some packets fisrt, default: 0(no ignore) */
         uint64_t aim_count; /* stop after analyse some packets, default: 0(no stop) */
@@ -42,6 +41,10 @@ typedef struct
         uint8_t aim_table;
         uint16_t aim_prog;
         uint64_t aim_interval; /* for rate calc */
+        int is_color;
+        char *color_off; /*  */
+        char *color_red; /*  */
+        char *color_yellow; /*  */
 
         uint64_t cnt; /* packet analysed */
         char tbuf[PKT_TBUF];
@@ -143,7 +146,7 @@ static char *running_status(uint8_t status);
 static int descriptor(uint8_t **buf);
 static int coding_string(uint8_t *p, int len);
 
-void atsc_mh_tcp(uint8_t *ts); /* atsc_mh_tcp.c */
+void atsc_mh_tcp(uint8_t *ts_pack, int is_color); /* atsc_mh_tcp.c */
 
 int main(int argc, char *argv[])
 {
@@ -199,16 +202,8 @@ int main(int argc, char *argv[])
 
         if(!(rslt->is_psi_parse_finished) && !(obj->is_dump))
         {
-                char *red_on = "";
-                char *color_off = "";
-
-                if(obj->is_color)
-                {
-                        red_on = FRED;
-                        color_off = NONE;
-                }
                 fprintf(stderr, "%sPSI parsing unfinished because of the bad PCR data!%s\n",
-                        red_on, color_off);
+                        obj->color_red, obj->color_off);
 
                 rslt->is_psi_parse_finished = 1;
                 switch(obj->mode)
@@ -381,7 +376,6 @@ static obj_t *create(int argc, char *argv[])
 
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
-        obj->is_color = 0;
         obj->is_dump = 0;
         obj->cnt = 0;
         obj->aim_start = 0;
@@ -390,6 +384,10 @@ static obj_t *create(int argc, char *argv[])
         obj->aim_table = ANY_TABLE;
         obj->aim_prog = ANY_PROG;
         obj->aim_interval = 1000 * STC_MS;
+        obj->is_color = 0;
+        obj->color_off = "";
+        obj->color_red = "";
+        obj->color_yellow = "";
 
         for(i = 1; i < argc; i++)
         {
@@ -431,6 +429,9 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-color"))
                         {
                                 obj->is_color = 1;
+                                obj->color_off = NONE;
+                                obj->color_red = FRED;
+                                obj->color_yellow = FYELLOW;
                         }
                         else if(0 == strcmp(argv[i], "-pcr"))
                         {
@@ -491,7 +492,7 @@ static obj_t *create(int argc, char *argv[])
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(0x0000 <= dat && dat <= 0x1FFF)
+                                if(0x0000 <= dat && dat <= 0x2000)
                                 {
                                         obj->aim_pid = (uint16_t)dat;
                                 }
@@ -511,7 +512,7 @@ static obj_t *create(int argc, char *argv[])
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(0x00 <= dat && dat <= 0xFE)
+                                if(0x00 <= dat && dat <= 0xFF)
                                 {
                                         obj->aim_table = (uint8_t)dat;
                                 }
@@ -531,7 +532,7 @@ static obj_t *create(int argc, char *argv[])
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(0x0001 <= dat && dat <= 0xFFFF)
+                                if(0x0000 <= dat && dat <= 0xFFFF)
                                 {
                                         obj->aim_prog = dat;
                                 }
@@ -658,9 +659,9 @@ static void show_help()
         puts(" -color           enable colour effect to help read, default: mono");
         puts(" -start <x>       analyse from packet(x), default: 0, first packet");
         puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
-        puts(" -pid <pid>       set cared PID, default: any PID");
-        puts(" -table <id>      set cared table, default: any table");
-        puts(" -prog <prog>     set cared prog, default: any program");
+        puts(" -pid <pid>       set cared PID, default: any PID(0x2000)");
+        puts(" -table <id>      set cared table, default: any table(0xFF)");
+        puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
         puts(" -iv <iv>         set cared interval(1ms-10,000ms), default: 1000ms");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
@@ -717,7 +718,7 @@ static void show_list(obj_t *obj)
         lnode_t *lnode;
         ts_pid_t *pid;
         ts_rslt_t *rslt = obj->rslt;
-        char *yellow_on;
+        char *color_yellow;
         char *color_off;
 
         if(!(rslt->is_psi_parse_finished))
@@ -729,15 +730,15 @@ static void show_list(obj_t *obj)
         for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
         {
                 pid = (ts_pid_t *)lnode;
-                yellow_on = "";
+                color_yellow = "";
                 color_off = "";
-                if((NULL != pid->track) && (obj->is_color))
+                if(NULL != pid->track)
                 {
-                        yellow_on = FYELLOW;
-                        color_off = NONE;
+                        color_yellow = obj->color_yellow;
+                        color_off = obj->color_off;
                 }
                 fprintf(stdout, "%s0x%04X, %s, %s%s\n",
-                        yellow_on,
+                        color_yellow,
                         pid->PID,
                         pid->sdes,
                         pid->ldes,
@@ -751,8 +752,6 @@ static void show_list(obj_t *obj)
 static void show_prog(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        char *yellow_on = "";
-        char *color_off = "";
         lnode_t *lnode;
 
         if(!(rslt->is_psi_parse_finished))
@@ -760,14 +759,8 @@ static void show_prog(obj_t *obj)
                 return;
         }
 
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
-        }
-
         fprintf(stdout, "transport_stream_id, %s%5d%s(0x%04X)\n",
-                yellow_on, rslt->transport_stream_id, color_off,
+                obj->color_yellow, rslt->transport_stream_id, obj->color_off,
                 rslt->transport_stream_id);
 
         for(lnode = (lnode_t *)(rslt->prog0); lnode; lnode = lnode->next)
@@ -778,19 +771,19 @@ static void show_prog(obj_t *obj)
                 fprintf(stdout, "program_number, %s%5d%s(0x%04X), "
                         "PMT_PID, %s0x%04X%s, "
                         "PCR_PID, %s0x%04X%s, ",
-                        yellow_on, prog->program_number, color_off,
+                        obj->color_yellow, prog->program_number, obj->color_off,
                         prog->program_number,
-                        yellow_on, prog->PMT_PID, color_off,
-                        yellow_on, prog->PCR_PID, color_off);
+                        obj->color_yellow, prog->PMT_PID, obj->color_off,
+                        obj->color_yellow, prog->PCR_PID, obj->color_off);
 
                 /* service_provider */
                 if(prog->service_provider_len)
                 {
                         fprintf(stdout, "service_provider, %s\"",
-                                yellow_on);
+                                obj->color_yellow);
                         coding_string(prog->service_provider, prog->service_provider_len);
                         fprintf(stdout, "\"%s(%02X",
-                                color_off,
+                                obj->color_off,
                                 prog->service_provider[0]);
                         for(i = 1; i < prog->service_provider_len; i++)
                         {
@@ -803,10 +796,10 @@ static void show_prog(obj_t *obj)
                 if(prog->service_name_len)
                 {
                         fprintf(stdout, "service_name, %s\"",
-                                yellow_on);
+                                obj->color_yellow);
                         coding_string(prog->service_name, prog->service_name_len);
                         fprintf(stdout, "\"%s(%02X",
-                                color_off,
+                                obj->color_off,
                                 prog->service_name[0]);
                         for(i = 1; i < prog->service_name_len; i++)
                         {
@@ -819,13 +812,13 @@ static void show_prog(obj_t *obj)
                 if(prog->program_info_len)
                 {
                         fprintf(stdout, "program_info, %s%02X",
-                                yellow_on,
+                                obj->color_yellow,
                                 prog->program_info[0]);
                         for(i = 1; i < prog->program_info_len; i++)
                         {
                                 fprintf(stdout, " %02X", prog->program_info[i]);
                         }
-                        fprintf(stdout, "%s", color_off);
+                        fprintf(stdout, "%s, ", obj->color_off);
                 }
                 fprintf(stdout, "\n");
 
@@ -843,36 +836,29 @@ static void show_track(void *PTRACK, uint16_t pcr_pid)
         lnode_t **ptrack = (lnode_t **)PTRACK;
         lnode_t *lnode;
         ts_track_t *track;
-        char *red_on = "";
-        char *yellow_on = "";
-        char *color_off = "";
-
-        if(obj->is_color)
-        {
-                red_on = FRED;
-                yellow_on = FYELLOW;
-                color_off = NONE;
-        }
+        char *color_pid;
 
         for(lnode = *ptrack; lnode; lnode = lnode->next)
         {
                 track = (ts_track_t *)lnode;
+
+                color_pid = (track->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
                 fprintf(stdout, "track, %s0x%04X%s, "
                         "stream_type, %s0x%02X%s, ",
-                        yellow_on, track->PID, color_off,
-                        yellow_on, track->stream_type, color_off);
+                        color_pid, track->PID, obj->color_off,
+                        obj->color_yellow, track->stream_type, obj->color_off);
                 fprintf(stdout, "type, %s%s%s, detail, %s%s%s, ",
-                        yellow_on, track->sdes, color_off,
-                        yellow_on, track->ldes, color_off);
+                        obj->color_yellow, track->sdes, obj->color_off,
+                        obj->color_yellow, track->ldes, obj->color_off);
                 if(track->es_info_len)
                 {
                         fprintf(stdout, "ES_info, %s%02X",
-                                yellow_on, track->es_info[0]);
+                                obj->color_yellow, track->es_info[0]);
                         for(i = 1; i < track->es_info_len; i++)
                         {
                                 fprintf(stdout, " %02X", track->es_info[i]);
                         }
-                        fprintf(stdout, "%s, ", color_off);
+                        fprintf(stdout, "%s, ", obj->color_off);
                 }
                 fprintf(stdout, "\n");
         }
@@ -1043,7 +1029,7 @@ static void show_tcp(obj_t *obj)
         }
 
         print_atp_value(obj);
-        atsc_mh_tcp(rslt->pkt->ts);
+        atsc_mh_tcp(rslt->pkt->ts, obj->is_color);
         return;
 }
 
@@ -1069,33 +1055,23 @@ static void show_pcr(obj_t *obj)
 static void show_sys_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        char *yellow_on = "";
-        char *color_off = "";
 
         if(!(rslt->has_rate))
         {
                 return;
         }
 
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
-        }
-
         print_atp_value(obj);
         fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, \n",
-                yellow_on, color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                yellow_on, color_off, rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                obj->color_yellow, obj->color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
+                obj->color_yellow, obj->color_off, rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
         return;
 }
 
 static void show_psi_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        char *yellow_on = "";
-        char *color_off = "";
         lnode_t *lnode;
 
         if(!(rslt->has_rate))
@@ -1103,15 +1079,9 @@ static void show_psi_rate(obj_t *obj)
                 return;
         }
 
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
-        }
-
         print_atp_value(obj);
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
-                yellow_on, color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
         /* traverse pid0 */
         /* if it is PSI/SI PID, output its bitrate */
@@ -1121,7 +1091,7 @@ static void show_psi_rate(obj_t *obj)
                 if(pid_item->PID < 0x0020)
                 {
                         fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                                yellow_on, pid_item->PID, color_off,
+                                obj->color_yellow, pid_item->PID, obj->color_off,
                                 pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                 }
         }
@@ -1132,19 +1102,11 @@ static void show_psi_rate(obj_t *obj)
 static void show_prog_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        char *yellow_on = "";
-        char *color_off = "";
         lnode_t *lnode;
 
         if(!(rslt->has_rate))
         {
                 return;
-        }
-
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
         }
 
         print_atp_value(obj);
@@ -1161,7 +1123,7 @@ static void show_prog_rate(obj_t *obj)
                    (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
                 {
                         fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                                yellow_on, pid_item->PID, color_off,
+                                obj->color_yellow, pid_item->PID, obj->color_off,
                                 pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
                 }
         }
@@ -1172,19 +1134,11 @@ static void show_prog_rate(obj_t *obj)
 static void show_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        char *yellow_on = "";
-        char *color_off = "";
         lnode_t *lnode;
 
         if(!(rslt->has_rate))
         {
                 return;
-        }
-
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
         }
 
         print_atp_value(obj);
@@ -1193,7 +1147,7 @@ static void show_rate(obj_t *obj)
         {
                 ts_pid_t *pid_item = (ts_pid_t *)lnode;
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                        yellow_on, pid_item->PID, color_off,
+                        obj->color_yellow, pid_item->PID, obj->color_off,
                         pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
         }
         fprintf(stdout, "\n");
@@ -1402,20 +1356,11 @@ static void show_error(obj_t *obj)
 
 static void print_atp_title(obj_t *obj)
 {
-        char *yellow_on = "";
-        char *color_off = "";
-
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
-        }
-
         fprintf(stdout,
                 "%shh:mm:ss%s, %saddress%s, address, STC, STC_base, %sPID%s, ",
-                yellow_on, color_off,
-                yellow_on, color_off,
-                yellow_on, color_off);
+                obj->color_yellow, obj->color_off,
+                obj->color_yellow, obj->color_off,
+                obj->color_yellow, obj->color_off);
         return;
 }
 
@@ -1426,8 +1371,6 @@ static void print_atp_value(obj_t *obj)
         time_t tp;
         struct tm *lt; /* local time */
         char stime[32];
-        char *yellow_on = "";
-        char *color_off = "";
 
         rslt = obj->rslt;
         pkt = rslt->pkt;
@@ -1436,18 +1379,12 @@ static void print_atp_value(obj_t *obj)
         lt = localtime(&tp);
         strftime(stime, 32, "%H:%M:%S", lt);
 
-        if(obj->is_color)
-        {
-                yellow_on = FYELLOW;
-                color_off = NONE;
-        }
-
         fprintf(stdout,
                 "%s%s%s, %s0x%llX%s, %lld, %llu, %llu, %s0x%04X%s, ",
-                yellow_on, stime, color_off,
-                yellow_on, pkt->ADDR, color_off, pkt->ADDR,
+                obj->color_yellow, stime, obj->color_off,
+                obj->color_yellow, pkt->ADDR, obj->color_off, pkt->ADDR,
                 rslt->STC, rslt->STC_base,
-                yellow_on, rslt->PID, color_off);
+                obj->color_yellow, rslt->PID, obj->color_off);
         return;
 }
 
