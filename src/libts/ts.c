@@ -695,44 +695,74 @@ static int state_next_pkt(obj_t *obj)
                         prog->ADDb = pkt->ADDR;
 
                         /* STC_sync */
-                        if(!prog->STC_sync)
-                        {
-                                if(NULL != pkt->mts)
-                                {
+                        if(!prog->STC_sync) {
+                                if(pkt->mts) {
+                                        prog->STC_sync = 1; /* STC can be calc */
                                         rslt->lSTC = rslt->PCR;
-                                }
-                                else
-                                {
-                                        if(prog->PCRb != STC_OVF)
-                                        {
-                                                if(prog->PCRa == STC_OVF)
-                                                {
-                                                        lnode_t *lnode;
 
-                                                        if(obj->is_verbose)
-                                                        {
+                                        /* first cnt clear */
+                                        if(prog->PCR_PID == rslt->prog0->PCR_PID) {
+                                                lnode_t *lnode;
+
+                                                for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                                        ts_pid_t *pid_item = (ts_pid_t *)lnode;
+                                                        if(pid_item->prog == prog) {
+                                                                pid_item->lcnt = 0;
+                                                                pid_item->cnt = 0;
+                                                        }
+                                                }
+
+                                                rslt->last_sys_cnt = 0;
+                                                rslt->sys_cnt = 0;
+
+                                                rslt->last_psi_cnt = 0;
+                                                rslt->psi_cnt = 0;
+
+                                                rslt->last_nul_cnt = 0;
+                                                rslt->nul_cnt = 0;
+
+                                                rslt->last_interval = 0;
+                                                rslt->interval = 0;
+                                        }
+                                }
+                                else {
+                                        if(prog->PCRb != STC_OVF) {
+                                                if(prog->PCRa == STC_OVF) {
+                                                        /* first cnt clear */
+                                                        if(prog->PCR_PID == rslt->prog0->PCR_PID) {
+                                                                lnode_t *lnode;
+
+                                                                for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                                                        ts_pid_t *pid_item = (ts_pid_t *)lnode;
+                                                                        if(pid_item->prog == prog) {
+                                                                                pid_item->lcnt = 0;
+                                                                                pid_item->cnt = 0;
+                                                                        }
+                                                                }
+
+                                                                rslt->last_sys_cnt = 0;
+                                                                rslt->sys_cnt = 0;
+
+                                                                rslt->last_psi_cnt = 0;
+                                                                rslt->psi_cnt = 0;
+
+                                                                rslt->last_nul_cnt = 0;
+                                                                rslt->nul_cnt = 0;
+
+                                                                rslt->last_interval = 0;
+                                                                rslt->interval = 0;
+                                                        }
+
+                                                        if(obj->is_verbose) {
                                                                 fprintf(stdout, "1st PCR of program(%d)\n", prog->program_number);
                                                         }
-                                                        /* clear cnt & interval */
-                                                        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
-                                                        {
-                                                                ts_pid_t *pid_item = (ts_pid_t *)lnode;
-                                                                if(pid_item->prog == prog)
-                                                                {
-                                                                        pid_item->lcnt = 0;
-                                                                        pid_item->cnt = 0;
-                                                                }
-                                                        }
-                                                        prog->interval = 0;
                                                 }
-                                                else
-                                                {
-                                                        if(obj->is_verbose)
-                                                        {
+                                                else {
+                                                        prog->STC_sync = 1; /* STC can be calc */
+
+                                                        if(obj->is_verbose) {
                                                                 fprintf(stdout, "2ed PCR of program(%d)\n", prog->program_number);
                                                         }
-                                                        /* STC can be calc */
-                                                        prog->STC_sync = 1;
                                                 }
                                         }
                                 }
@@ -892,7 +922,7 @@ static int parse_TS_head(obj_t *obj)
         pid = rslt->pid;
 
         /* calc STC, should be as early as possible */
-        if(NULL != pkt->mts)
+        if(pkt->mts)
         {
                 uint64_t dCTS;
 
@@ -1361,7 +1391,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
         }
 
         /* to avoid stack overflow, FIXME */
-        if(NULL != rslt->prog0)
+        if(rslt->prog0)
         {
                 return 0;
         }
@@ -2132,7 +2162,7 @@ static ts_pid_t *add_new_pid(obj_t *obj)
 
         pid->PID = rslt->PID;
         pid->type = pid_type(pid->PID);
-        if((NULL != rslt->prog0) && 
+        if((rslt->prog0) && 
            (pid->PID < 0x0020 || pid->PID == 0x1FFF))
         {
                 pid->prog = rslt->prog0;
@@ -2157,8 +2187,8 @@ static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
         ts_pid_t *pid;
 
         dbg(1, "search 0x%04X in pid_list", the_pid->PID);
-        if(NULL != (pid = (ts_pid_t *)list_search(phead, the_pid->PID)))
-        {
+        pid = (ts_pid_t *)list_search(phead, the_pid->PID);
+        if(pid) {
                 /* in pid_list already, just update information */
                 pid->PID = the_pid->PID;
                 pid->prog = the_pid->prog;
@@ -2171,11 +2201,9 @@ static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
                 pid->sdes = the_pid->sdes;
                 pid->ldes = the_pid->ldes;
         }
-        else
-        {
+        else {
                 pid = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                if(NULL == pid)
-                {
+                if(NULL == pid) {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return NULL;
                 }

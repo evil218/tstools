@@ -171,7 +171,6 @@ typedef struct _ts_prog_t
         uint64_t ADDb; /* PCR packet b: packet address */
         int64_t PCRb; /* PCR packet b: PCR value */
         int STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
-        uint64_t interval;
 }
 ts_prog_t; /* unit of prog list */
 
