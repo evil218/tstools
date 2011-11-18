@@ -242,7 +242,6 @@ typedef struct _ts_rslt_t
 
         /* PMT, PCR, VID and AUD has timestamp according to its PCR */
         /* other PID has timestamp according to the PCR in the 1st program */
-        int64_t lSTC; /* System Time Clock of last packet */
         int64_t STC; /* System Time Clock of this packet */
         int64_t STC_base;
         int16_t STC_ext;

@@ -373,7 +373,7 @@ int tsCreate(ts_rslt_t **rslt)
         ts_error_t *err;
 
         obj = (obj_t *)malloc(sizeof(obj_t));
-        if(NULL == obj)
+        if(!obj)
         {
                 DBG(ERR_MALLOC_FAILED, "\n");
                 return (int)NULL;
@@ -413,7 +413,7 @@ int tsDelete(int id)
         obj_t *obj;
 
         obj = (obj_t *)id;
-        if(NULL == obj)
+        if(!obj)
         {
                 DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
@@ -452,7 +452,7 @@ int tsParseTS(int id)
         ts_pkt_t *pkt;
 
         obj = (obj_t *)id;
-        if(NULL == obj)
+        if(!obj)
         {
                 DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
@@ -484,7 +484,7 @@ int tsParseOther(int id)
         obj_t *obj;
 
         obj = (obj_t *)id;
-        if(NULL == obj)
+        if(!obj)
         {
                 DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
@@ -520,7 +520,8 @@ static int state_next_pat(obj_t *obj)
 
         /* section parse has done in parse_TS_head()! */
         dbg(1, "search 0x00 in table_list");
-        if(NULL == (table = (ts_table_t *)list_search(&(obj->rslt.table0), 0x00)))
+        table = (ts_table_t *)list_search(&(obj->rslt.table0), 0x00);
+        if(!table)
         {
                 return -1;
         }
@@ -571,7 +572,7 @@ static int state_next_pmt(obj_t *obj)
 
         dbg(1, "search 0x%04X in pid_list", ts->PID);
         pid = (ts_pid_t *)list_search(&(obj->rslt.pid0), ts->PID);
-        if((NULL == pid) || (PMT_PID != pid->type))
+        if((!pid) || (PMT_PID != pid->type))
         {
                 return -1; /* not PMT */
         }
@@ -696,75 +697,54 @@ static int state_next_pkt(obj_t *obj)
 
                         /* STC_sync */
                         if(!prog->STC_sync) {
+                                int is_first_count_clear = 0;
+
                                 if(pkt->mts) {
-                                        prog->STC_sync = 1; /* STC can be calc */
-                                        rslt->lSTC = rslt->PCR;
+                                        /* MTS: STC */
+                                        rslt->STC = rslt->PCR;
 
-                                        /* first cnt clear */
-                                        if(prog->PCR_PID == rslt->prog0->PCR_PID) {
-                                                lnode_t *lnode;
+                                        /* clear count after 1st PCR */
+                                        is_first_count_clear = 1;
 
-                                                for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                                        ts_pid_t *pid_item = (ts_pid_t *)lnode;
-                                                        if(pid_item->prog == prog) {
-                                                                pid_item->lcnt = 0;
-                                                                pid_item->cnt = 0;
-                                                        }
-                                                }
-
-                                                rslt->last_sys_cnt = 0;
-                                                rslt->sys_cnt = 0;
-
-                                                rslt->last_psi_cnt = 0;
-                                                rslt->psi_cnt = 0;
-
-                                                rslt->last_nul_cnt = 0;
-                                                rslt->nul_cnt = 0;
-
-                                                rslt->last_interval = 0;
-                                                rslt->interval = 0;
-                                        }
+                                        /* STC sync after 1st PCR */
+                                        prog->STC_sync = 1;
                                 }
                                 else {
-                                        if(prog->PCRb != STC_OVF) {
-                                                if(prog->PCRa == STC_OVF) {
-                                                        /* first cnt clear */
-                                                        if(prog->PCR_PID == rslt->prog0->PCR_PID) {
-                                                                lnode_t *lnode;
+                                        /* TS */
+                                        if(STC_OVF == prog->PCRa) {
+                                                /* clear count after 1st PCR */
+                                                is_first_count_clear = 1;
+                                        }
+                                        else {
+                                                /* STC sync after 2nd PCR */
+                                                prog->STC_sync = 1;
+                                        }
+                                }
 
-                                                                for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                                                        ts_pid_t *pid_item = (ts_pid_t *)lnode;
-                                                                        if(pid_item->prog == prog) {
-                                                                                pid_item->lcnt = 0;
-                                                                                pid_item->cnt = 0;
-                                                                        }
-                                                                }
+                                /* first count clear */
+                                if(is_first_count_clear &&
+                                   prog->PCR_PID == rslt->prog0->PCR_PID) {
+                                        lnode_t *lnode;
 
-                                                                rslt->last_sys_cnt = 0;
-                                                                rslt->sys_cnt = 0;
-
-                                                                rslt->last_psi_cnt = 0;
-                                                                rslt->psi_cnt = 0;
-
-                                                                rslt->last_nul_cnt = 0;
-                                                                rslt->nul_cnt = 0;
-
-                                                                rslt->last_interval = 0;
-                                                                rslt->interval = 0;
-                                                        }
-
-                                                        if(obj->is_verbose) {
-                                                                fprintf(stdout, "1st PCR of program(%d)\n", prog->program_number);
-                                                        }
-                                                }
-                                                else {
-                                                        prog->STC_sync = 1; /* STC can be calc */
-
-                                                        if(obj->is_verbose) {
-                                                                fprintf(stdout, "2ed PCR of program(%d)\n", prog->program_number);
-                                                        }
+                                        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                                ts_pid_t *pid_item = (ts_pid_t *)lnode;
+                                                if(pid_item->prog == prog) {
+                                                        pid_item->lcnt = 0;
+                                                        pid_item->cnt = 0;
                                                 }
                                         }
+
+                                        rslt->last_sys_cnt = 0;
+                                        rslt->sys_cnt = 0;
+
+                                        rslt->last_psi_cnt = 0;
+                                        rslt->psi_cnt = 0;
+
+                                        rslt->last_nul_cnt = 0;
+                                        rslt->nul_cnt = 0;
+
+                                        rslt->last_interval = 0;
+                                        rslt->interval = 0;
                                 }
                         }
 
@@ -914,7 +894,7 @@ static int parse_TS_head(obj_t *obj)
         rslt->PID = ts->PID; /* record into rslt struct */
         dbg(1, "search 0x%04X in pid_list", rslt->PID);
         rslt->pid = (ts_pid_t *)list_search(&(obj->rslt.pid0), rslt->PID);
-        if(NULL == rslt->pid)
+        if(!(rslt->pid))
         {
                 /* find new PID, add it in pid_list */
                 rslt->pid = add_new_pid(obj);
@@ -924,15 +904,10 @@ static int parse_TS_head(obj_t *obj)
         /* calc STC, should be as early as possible */
         if(pkt->mts)
         {
-                uint64_t dCTS;
+                int64_t dCTS = lmt_min(pkt->MTS, rslt->lCTS, 0x40000000);
 
-                dCTS = pkt->MTS;
-                dCTS += (pkt->MTS < rslt->lCTS) ? 0x40000000 : 0;
-                dCTS -= rslt->lCTS;
-                rslt->lCTS = pkt->MTS;
-
-                rslt->STC = rslt->lSTC + dCTS;
-                rslt->lSTC = rslt->STC;
+                rslt->STC += dCTS; /* got this STC */
+                rslt->lCTS = pkt->MTS; /* record last CTS */
         }
         else
         {
@@ -1184,7 +1159,7 @@ static int parse_table(obj_t *obj)
         if(0x02 == psi->table_id)
         {
                 /* PMT section */
-                if(NULL == pid->prog)
+                if(!(pid->prog))
                 {
                         DBG(ERR_OTHER, "\n");
                         return -1;
@@ -1197,11 +1172,12 @@ static int parse_table(obj_t *obj)
                 lnode_t **ptable0 = (lnode_t **)&(rslt->table0);
 
                 dbg(1, "search 0x%02X in table_list", psi->table_id);
-                if(NULL == (table = (ts_table_t *)list_search(ptable0, psi->table_id)))
+                table = (ts_table_t *)list_search(ptable0, psi->table_id);
+                if(!table)
                 {
                         /* add table */
                         table = (ts_table_t *)malloc(sizeof(ts_table_t));
-                        if(NULL == table)
+                        if(!table)
                         {
                                 DBG(ERR_MALLOC_FAILED, "\n");
                                 return -ERR_MALLOC_FAILED;
@@ -1234,11 +1210,12 @@ static int parse_table(obj_t *obj)
 
         /* get "section" pointer */
         dbg(1, "search 0x%02X in section_list", psi->section_number);
-        if(NULL == (section = (ts_section_t *)list_search(psection0, psi->section_number)))
+        section = (ts_section_t *)list_search(psection0, psi->section_number);
+        if(!section)
         {
                 /* add section */
                 section = (ts_section_t *)malloc(sizeof(ts_section_t));
-                if(NULL == section)
+                if(!section)
                 {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return -ERR_MALLOC_FAILED;
@@ -1404,7 +1381,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
         {
                 /* add program */
                 prog = (ts_prog_t *)malloc(sizeof(ts_prog_t));
-                if(NULL == prog)
+                if(!prog)
                 {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return -ERR_MALLOC_FAILED;
@@ -1528,7 +1505,7 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
         /* in PMT, table_id_extension is program_number */
         dbg(1, "search 0x%04X in prog_list", psi->table_id_extension);
         prog = (ts_prog_t *)list_search(&(obj->rslt.prog0), psi->table_id_extension);
-        if((NULL == prog) || (prog->is_parsed))
+        if((!prog) || (prog->is_parsed))
         {
                 return -1; /* parsed program, ignore */
         }
@@ -1580,7 +1557,7 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
         {
                 /* add track */
                 track = (ts_track_t *)malloc(sizeof(ts_track_t));
-                if(NULL == track)
+                if(!track)
                 {
                         fprintf(stderr, "Malloc memory failure!\n");
                         exit(EXIT_FAILURE);
@@ -2203,7 +2180,7 @@ static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
         }
         else {
                 pid = (ts_pid_t *)malloc(sizeof(ts_pid_t));
-                if(NULL == pid) {
+                if(!pid) {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return NULL;
                 }

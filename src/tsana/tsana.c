@@ -66,7 +66,6 @@ enum
         MODE_PTSDTS,
         MODE_SYS_RATE,
         MODE_PSI_RATE,
-        MODE_PROG_RATE,
         MODE_RATE,
         MODE_PES,
         MODE_ES,
@@ -113,7 +112,6 @@ static void show_tcp(obj_t *obj);
 static void show_pcr(obj_t *obj);
 static void show_sys_rate(obj_t *obj);
 static void show_psi_rate(obj_t *obj);
-static void show_prog_rate(obj_t *obj);
 static void show_rate(obj_t *obj);
 static void show_ptsdts(obj_t *obj);
 static void show_pes(obj_t *obj);
@@ -266,7 +264,6 @@ static void state_parse_psi(obj_t *obj)
                         case MODE_TCP:
                         case MODE_SYS_RATE:
                         case MODE_PSI_RATE:
-                        case MODE_PROG_RATE:
                         case MODE_RATE:
                         case MODE_PES:
                         case MODE_ES:
@@ -287,28 +284,36 @@ static void state_parse_each(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         ts_psi_t *psi = &(rslt->psi);
 
-        /* filter */
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
-                return;
-        }
-        if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
-        {
-                return;
+        /* filter for some mode */
+        if(obj->mode == MODE_SEC        ||
+           obj->mode == MODE_SI         ||
+           obj->mode == MODE_PCR        ||
+           obj->mode == MODE_PTSDTS     ||
+           obj->mode == MODE_PES        ||
+           obj->mode == MODE_ES         ||
+           obj->mode == MODE_ERROR) {
+                /* PID filter */
+                if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
+                {
+                        return;
+                }
+
+                /* table filter */
+                if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
+                {
+                        return;
+                }
         }
 
         /* show_xxx() */
-        switch(obj->mode)
-        {
+        switch(obj->mode) {
                 case MODE_LST:
-                        if(!(obj->is_dump))
-                        {
+                        if(!(obj->is_dump)) {
                                 show_list(obj);
                         }
                         break;
                 case MODE_PSI:
-                        if(!(obj->is_dump))
-                        {
+                        if(!(obj->is_dump)) {
                                 show_prog(obj);
                         }
                         break;
@@ -329,9 +334,6 @@ static void state_parse_each(obj_t *obj)
                         break;
                 case MODE_PSI_RATE:
                         show_psi_rate(obj);
-                        break;
-                case MODE_PROG_RATE:
-                        show_prog_rate(obj);
                         break;
                 case MODE_RATE:
                         show_rate(obj);
@@ -444,10 +446,6 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-psi-rate"))
                         {
                                 obj->mode = MODE_PSI_RATE;
-                        }
-                        else if(0 == strcmp(argv[i], "-prog-rate"))
-                        {
-                                obj->mode = MODE_PROG_RATE;
                         }
                         else if(0 == strcmp(argv[i], "-rate"))
                         {
@@ -642,13 +640,12 @@ static void show_help()
         puts(" -psi             show PSI tree information");
         puts(" -sec             show SI section data of cared <table>");
         puts(" -si              show SI section information of cared <table>");
-        puts(" -tcp             show TCP(ATSC M/H) field information");
+        puts(" -tcp             show TCP(ATSC MH) field information");
         puts(" -outpsi          output PSI packet");
         puts(" -pcr             output PCR information of cared <pid>");
-        puts(" -sys-rate        output system bit-rate");
-        puts(" -psi-rate        output psi/si bit-rate");
-        puts(" -prog-rate       output bit-rate of cared <prog>");
-        puts(" -rate            output bit-rate of all PID");
+        puts(" -sys-rate        output system, psi-si(total), empty bit-rate");
+        puts(" -psi-rate        output psi-si(total), psi-si(each) bit-rate");
+        puts(" -rate            output pid(each) bit-rate, filtered by <prog> and <pid>");
         puts(" -pts             output PTS and DTS information of cared <pid>");
         puts(" -pes             output PES data of cared <pid>");
         puts(" -es              output ES data of cared <pid>");
@@ -1056,12 +1053,12 @@ static void show_sys_rate(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(!(rslt->has_rate))
-        {
+        if(!(rslt->has_rate)) {
                 return;
         }
 
         print_atp_value(obj);
+        fprintf(stdout, "sys-rate, ");
         fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, \n",
                 obj->color_yellow, obj->color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
@@ -1074,58 +1071,27 @@ static void show_psi_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         lnode_t *lnode;
 
-        if(!(rslt->has_rate))
-        {
+        if(!(rslt->has_rate)) {
                 return;
         }
 
         print_atp_value(obj);
-        fprintf(stdout, "%spsi-si%s, %9.6f, ",
+        fprintf(stdout, "psi-rate, ");
+        fprintf(stdout, "%stotal%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
-        /* traverse pid0 */
-        /* if it is PSI/SI PID, output its bitrate */
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
-        {
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
                 ts_pid_t *pid_item = (ts_pid_t *)lnode;
-                if(pid_item->PID < 0x0020)
-                {
-                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                                obj->color_yellow, pid_item->PID, obj->color_off,
-                                pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                }
-        }
-        fprintf(stdout, "\n");
-        return;
-}
 
-static void show_prog_rate(obj_t *obj)
-{
-        ts_rslt_t *rslt = obj->rslt;
-        lnode_t *lnode;
-
-        if(!(rslt->has_rate))
-        {
-                return;
-        }
-
-        print_atp_value(obj);
-        /* traverse pid0 */
-        /* if it belongs to this program, output its bitrate */
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
-        {
-                ts_pid_t *pid_item = (ts_pid_t *)lnode;
-                if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID)
-                {
+                if(pid_item->PID >= 0x0020) {
+                        /* not psi/si PID */
                         continue;
                 }
-                if(ANY_PROG == obj->aim_prog ||
-                   (pid_item->prog && (pid_item->prog->program_number == obj->aim_prog)))
-                {
-                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                                obj->color_yellow, pid_item->PID, obj->color_off,
-                                pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
-                }
+
+                /* without PMT */
+                fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                        obj->color_yellow, pid_item->PID, obj->color_off,
+                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
         }
         fprintf(stdout, "\n");
         return;
@@ -1136,16 +1102,36 @@ static void show_rate(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         lnode_t *lnode;
 
-        if(!(rslt->has_rate))
-        {
+        if(!(rslt->has_rate)) {
                 return;
         }
 
         print_atp_value(obj);
-        /* traverse pid0, output its bitrate */
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
-        {
+        fprintf(stdout, "pid-rate, ");
+
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
                 ts_pid_t *pid_item = (ts_pid_t *)lnode;
+
+                if(ANY_PID != obj->aim_pid && pid_item->PID != obj->aim_pid) {
+                        /* not cared PID */
+                        continue;
+                }
+
+                if(ANY_PROG != obj->aim_prog) {
+                        if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
+                                /* not program */
+                                continue;
+                        }
+                        else if(!(pid_item->prog)) {
+                                /* not program */
+                                continue;
+                        }
+                        else if(pid_item->prog->program_number != obj->aim_prog) {
+                                /* not cared program */
+                                continue;
+                        }
+                }
+
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
                         obj->color_yellow, pid_item->PID, obj->color_off,
                         pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
