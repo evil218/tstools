@@ -39,7 +39,7 @@
 #define STC_US                          (27)               /* 27 clk == 1(us) */
 #define STC_MS                          (27 * 1000)        /* do NOT use 1e3  */
 #define STC_1S                          (27 * 1000 * 1000) /* do NOT use 1e3  */
-#define STC_OVF                         (STC_BASE_OVF * 300) /* 2576980377600 */
+#define STC_OVF                         (STC_BASE_OVF * 300L) /* 2576980377600 */
 
 typedef struct _ts_t
 {
@@ -660,6 +660,13 @@ static int state_next_pkt(obj_t *obj)
 
                 if(prog)
                 {
+                        if(!prog->STC_sync) {
+                                /* use PCR as STC, suppose PCR_jitter is zero */
+                                rslt->STC = rslt->PCR;
+                                rslt->STC_base = rslt->STC / 300;
+                                rslt->STC_ext = rslt->STC % 300;
+                        }
+
                         /* PCR_interval (PCR packet arrive time interval) */
                         rslt->PCR_interval = lmt_min(rslt->STC, prog->PCRb, STC_OVF);
                         if((prog->STC_sync) &&
@@ -700,9 +707,6 @@ static int state_next_pkt(obj_t *obj)
                                 int is_first_count_clear = 0;
 
                                 if(pkt->mts) {
-                                        /* MTS: STC */
-                                        rslt->STC = rslt->PCR;
-
                                         /* clear count after 1st PCR */
                                         is_first_count_clear = 1;
 
@@ -1603,6 +1607,9 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
                                 default:      track->type = UNO_PCR; break;
                         }
                 }
+                track->PTS = STC_OVF;
+                track->DTS = STC_OVF;
+
                 dbg(1, "push 0x%04X in track_list", track->PID);
                 list_push(&(prog->track0), track);
 
