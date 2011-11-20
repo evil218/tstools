@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h> /* for uint?_t, etc */
 
 #include "common.h"
 

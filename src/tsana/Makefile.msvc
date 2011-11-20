@@ -4,6 +4,6 @@ POSTFIX = .exe
 LIBDEPS = ..\libts\libts1.lib
 LIBFLAGS = ..\libts\libts1.lib
 
-SRCS = $(NAME).c
+SRCS = $(NAME).c atsc_mh_tcp.c
 
 include ../common.msvc.mak

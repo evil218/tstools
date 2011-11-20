@@ -10,7 +10,7 @@ INSTALL_DIR = C:\WINDOWS\system32
 # -------------------------------------------------------------------
 # others
 # -------------------------------------------------------------------
-CFLAGS = $(CFLAGS) /I. /I../include /DPLATFORM=MSVC
+CFLAGS = $(CFLAGS) /I. /I../include/libts /I../include/net /DPLATFORM=MSVC
 
 OBJS = $(SRCS:.c=.obj)
 DEPS = $(SRCS:.c=.d)
