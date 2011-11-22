@@ -1868,7 +1868,7 @@ static int coding_string(uint8_t *p, int len)
         }
         switch(coding) {
                 case 0x11:
-                        utf16_gb((const uint16_t *)p, str, len, 1);
+                        utf16_gb((const uint16_t *)p, str, len, BIG_ENDIAN);
                         break;
                 default:
                         memcpy(str, p, len);
