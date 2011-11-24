@@ -11,10 +11,9 @@
 extern "C" {
 #endif
 
-#include <stdint.h>                     /* for uintN_t, etc */
+#include <stdint.h> /* for uintN_t, etc */
 
-typedef struct _ts_pkt_t
-{
+struct ts_pkt {
         uint8_t TS[188]; /* TS data */
         uint8_t *ts; /* NULL means no TS */
 
@@ -33,12 +32,11 @@ typedef struct _ts_pkt_t
         uint8_t DATA[256]; /* other data */
         uint8_t *data; /* NULL means no data */
         uint8_t cnt; /* count of data */
-}
-ts_pkt_t;
+};
 
-int pkt_init(ts_pkt_t *pkt);
-int b2t(void *tbuf, ts_pkt_t *pkt);
-int t2b(ts_pkt_t *pkt, void *tbuf);
+int pkt_init(struct ts_pkt *pkt);
+int b2t(void *tbuf, struct ts_pkt *pkt);
+int t2b(struct ts_pkt *pkt, void *tbuf);
 
 #ifdef __cplusplus
 }

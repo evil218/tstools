@@ -214,8 +214,8 @@ typedef struct _ts_rslt_t
 {
         /* information about current packet */
         uint64_t cnt; /* count of this packet, start from 0 */
-        ts_pkt_t PKT;
-        ts_pkt_t *pkt; /* point to PKT */
+        struct ts_pkt PKT;
+        struct ts_pkt *pkt; /* point to PKT */
         uint64_t lCTS; /* for calc dCTS */
 
         uint16_t concerned_pid; /* used for PSI parsing */

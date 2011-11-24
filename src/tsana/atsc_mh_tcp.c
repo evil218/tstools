@@ -16,14 +16,12 @@
 #define TCP_ECC_LEN                     (20) /* bytes */
 #define BIT(n)                          (1<<n)
 
-typedef struct _signaling_data_t
-{
+typedef struct _signaling_data_t {
         uint8_t packet_frame_number; /* 5 */
         uint8_t mode; /* 1 */
 }sig_data_t;
 
-typedef struct _tx_data_t
-{
+typedef struct _tx_data_t {
         uint16_t tx_address; /* 12 */
         uint16_t tx_identifier_level;/* 3  */
         uint16_t tx_data_inhibit; /* 1 */
@@ -31,8 +29,7 @@ typedef struct _tx_data_t
         uint16_t tx_power; /* 12 */
 }tx_data_t;
 
-typedef struct _tcp_para_t
-{
+typedef struct _tcp_para_t {
         sig_data_t sig_data;
         uint8_t trellis_code_state[TRELLIS_CODE_LEN];
         uint32_t syn_time_stamp;//uint8_t syn_time_stamp_base[3];
@@ -61,8 +58,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
         uint32_t syn_time_stamp_extension;
         uint32_t max_delay_extension;
 
-        if(is_color)
-        {
+        if(is_color) {
                 yellow_on = FYELLOW;
                 color_off = NONE;
         }
@@ -73,8 +69,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
         tcp_param.sig_data.mode = ( (*tcp_data)&BIT(2) )>>2;
         tcp_data++;
 
-        for(i = 0; i < TRELLIS_CODE_LEN; i++)
-        {
+        for(i = 0; i < TRELLIS_CODE_LEN; i++) {
                 tcp_param.trellis_code_state[i] = *tcp_data++;
         }
 
@@ -114,8 +109,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
 
         tcp_param.tx_group_number = *tcp_data++;
 
-        for(i = 0; i < TX_DATA_NUM; i++)
-        {
+        for(i = 0; i < TX_DATA_NUM; i++) {
                 tcp_param.tx_data[i].tx_address = *tcp_data++; 
                 tcp_param.tx_data[i].tx_address <<= 4;
                 tcp_param.tx_data[i].tx_address |= (*tcp_data>>4);
@@ -153,8 +147,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
 
         tcp_data += 32; /* reserved part(263/8=) */
 
-        for(i = 0; i < TCP_ECC_LEN; i++)
-        {
+        for(i = 0; i < TCP_ECC_LEN; i++) {
                 tcp_param.TCP_ECC[i] = *tcp_data++;
         }
 
@@ -208,8 +201,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
 
 #if 0
         fprintf(stdout," #tx_data: ");
-        for(i = 0; i < TX_DATA_NUM; i++)
-        {
+        for(i = 0; i < TX_DATA_NUM; i++) {
                 fprintf(stdout,"  tx_data: \n", i);
                 fprintf(stdout,"tx_address:%04X\n", tcp_param.tx_data[i].tx_address);
                 fprintf(stdout,"tx_identifier_level:%04X\n", tcp_param.tx_data[i].tx_identifier_level);
@@ -221,8 +213,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
 
 #if 0
         fprintf(stdout," #trellis_code_state: ");
-        for(i = 0; i<TRELLIS_CODE_LEN; i++)
-        {
+        for(i = 0; i<TRELLIS_CODE_LEN; i++) {
                 fprintf(stdout,"%s%02X%s ", 
                         yellow_on,
                         tcp_param.trellis_code_state[i],
@@ -231,8 +222,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
         fprintf(stdout,"\n");
 
         fprintf(stdout," #TCP_ECC: ");
-        for(i = 0; i < TCP_ECC_LEN; i++)
-        {
+        for(i = 0; i < TCP_ECC_LEN; i++) {
                 fprintf(stdout,"%s%02X%s ", 
                         yellow_on,
                         tcp_param.TCP_ECC[i],

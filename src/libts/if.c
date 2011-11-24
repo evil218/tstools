@@ -18,8 +18,7 @@
 #define BDWS (-2) /* bad white space */
 
 /* for high speed txt to bin convert */
-static const uint8_t t2b_table_h[256] =
-{
+static const uint8_t t2b_table_h[256] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -37,8 +36,7 @@ static const uint8_t t2b_table_h[256] =
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-static const uint8_t t2b_table_l[256] =
-{
+static const uint8_t t2b_table_l[256] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -58,8 +56,7 @@ static const uint8_t t2b_table_l[256] =
 };
 
 /* for high-speed bin to txt convert */
-static const char *b2t_table[256] =
-{
+static const char *b2t_table[256] = {
         "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "0A", "0B", "0C", "0D", "0E", "0F",
         "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "1A", "1B", "1C", "1D", "1E", "1F",
         "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "2A", "2B", "2C", "2D", "2E", "2F",
@@ -87,10 +84,9 @@ static int txt2byte(uint8_t *byte, char **text);
 static int next_tag(char **tag, char **text);
 static int next_uint(uint64_t *uint, char **text);
 
-int pkt_init(ts_pkt_t *pkt)
+int pkt_init(struct ts_pkt *pkt)
 {
-        if(pkt)
-        {
+        if(pkt) {
                 pkt->ts = NULL;
                 pkt->rs = NULL;
                 pkt->addr = NULL;
@@ -99,21 +95,19 @@ int pkt_init(ts_pkt_t *pkt)
                 pkt->data = NULL;
                 return 0;
         }
-        else
-        {
+        else {
                 return -1;
         }
 }
 
-int b2t(void *tbuf, ts_pkt_t *pkt)
+int b2t(void *tbuf, struct ts_pkt *pkt)
 {
         int i;
         char *text = (char *)tbuf;
         uint8_t *byte;
 
         /* TS */
-        if(NULL != pkt->ts)
-        {
+        if(NULL != pkt->ts) {
                 /* tag */
                 *text++ = 't';
                 *text++ = 's';
@@ -122,8 +116,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
                 /* data */
                 byte = pkt->ts;
                 byte2txt(*byte++, &text);
-                for(i = 1; i < 188; i++)
-                {
+                for(i = 1; i < 188; i++) {
                         *text++ = ' ';
                         byte2txt(*byte++, &text);
                 }
@@ -131,8 +124,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
         }
 
         /* RS */
-        if(NULL != pkt->rs)
-        {
+        if(NULL != pkt->rs) {
                 /* tag */
                 *text++ = 'r';
                 *text++ = 's';
@@ -141,8 +133,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
                 /* data */
                 byte = pkt->rs;
                 byte2txt(*byte++, &text);
-                for(i = 1; i < 16; i++)
-                {
+                for(i = 1; i < 16; i++) {
                         *text++ = ' ';
                         byte2txt(*byte++, &text);
                 }
@@ -150,8 +141,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
         }
 
         /* ADDR */
-        if(NULL != pkt->addr)
-        {
+        if(NULL != pkt->addr) {
                 /* tag */
                 *text++ = 'a';
                 *text++ = 'd';
@@ -165,8 +155,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
         }
 
         /* MTS */
-        if(NULL != pkt->mts)
-        {
+        if(NULL != pkt->mts) {
                 /* tag */
                 *text++ = 'm';
                 *text++ = 't';
@@ -179,8 +168,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
         }
 
         /* STC */
-        if(NULL != pkt->stc)
-        {
+        if(NULL != pkt->stc) {
                 /* tag */
                 *text++ = 's';
                 *text++ = 't';
@@ -193,8 +181,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
         }
 
         /* DATA */
-        if(NULL != pkt->data)
-        {
+        if(NULL != pkt->data) {
                 /* tag */
                 *text++ = 'd';
                 *text++ = 'a';
@@ -205,8 +192,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
                 /* data */
                 byte = pkt->data;
                 byte2txt(*byte++, &text);
-                for(i = 1; i < pkt->cnt; i++)
-                {
+                for(i = 1; i < pkt->cnt; i++) {
                         *text++ = ' ';
                         byte2txt(*byte++, &text);
                 }
@@ -218,7 +204,7 @@ int b2t(void *tbuf, ts_pkt_t *pkt)
         return 0;
 }
 
-int t2b(ts_pkt_t *pkt, void *tbuf)
+int t2b(struct ts_pkt *pkt, void *tbuf)
 {
         int i;
         char *tag;
@@ -227,67 +213,52 @@ int t2b(ts_pkt_t *pkt, void *tbuf)
 
         pkt_init(pkt);
 
-        while(0 == next_tag(&tag, &pt))
-        {
-                if(0 == strcmp(tag, "ts"))
-                {
+        while(0 == next_tag(&tag, &pt)) {
+                if(0 == strcmp(tag, "ts")) {
                         pb = pkt->TS;
-                        for(i = 0; i < 188; i++)
-                        {
+                        for(i = 0; i < 188; i++) {
                                 txt2byte(pb, &pt);
                                 pb++;
                         }
                         pkt->ts = pkt->TS;
                 }
-                else if(0 == strcmp(tag, "rs"))
-                {
+                else if(0 == strcmp(tag, "rs")) {
                         pb = pkt->RS;
-                        for(i = 0; i < 16; i++)
-                        {
+                        for(i = 0; i < 16; i++) {
                                 txt2byte(pb, &pt);
                                 pb++;
                         }
                         pkt->rs = pkt->RS;
                 }
-                else if(0 == strcmp(tag, "addr"))
-                {
-                        if(0 != next_uint(&(pkt->ADDR), &pt))
-                        {
+                else if(0 == strcmp(tag, "addr")) {
+                        if(0 != next_uint(&(pkt->ADDR), &pt)) {
                                 return -1;
                         }
                         pkt->addr = &(pkt->ADDR);
                 }
-                else if(0 == strcmp(tag, "mts"))
-                {
-                        if(0 != next_uint(&(pkt->MTS), &pt))
-                        {
+                else if(0 == strcmp(tag, "mts")) {
+                        if(0 != next_uint(&(pkt->MTS), &pt)) {
                                 return -1;
                         }
                         pkt->mts = &(pkt->MTS);
                 }
-                else if(0 == strcmp(tag, "stc"))
-                {
-                        if(0 != next_uint(&(pkt->STC), &pt))
-                        {
+                else if(0 == strcmp(tag, "stc")) {
+                        if(0 != next_uint(&(pkt->STC), &pt)) {
                                 return -1;
                         }
                         pkt->stc = &(pkt->STC);
                 }
-                else if(0 == strcmp(tag, "data"))
-                {
+                else if(0 == strcmp(tag, "data")) {
                         pb = pkt->DATA;
-                        for(pkt->cnt = 0; pkt->cnt < 256; pkt->cnt++)
-                        {
-                                if(0 != txt2byte(pb, &pt))
-                                {
+                        for(pkt->cnt = 0; pkt->cnt < 256; pkt->cnt++) {
+                                if(0 != txt2byte(pb, &pt)) {
                                         break;
                                 }
                                 pb++;
                         }
                         pkt->data = pkt->DATA;
                 }
-                else
-                {
+                else {
                         return -1;
                 }
         }
@@ -345,34 +316,29 @@ static int txt2byte(uint8_t *byte, char **text)
         uint8_t h, l, s;
 
         h = *(*text);
-        if('\0' == h || 0x0A == h || 0x0D == h)
-        {
+        if('\0' == h || 0x0A == h || 0x0D == h) {
                 return NEOL;
         }
         (*text)++;
 
         l = *(*text);
-        if('\0' == l || 0x0A == l || 0x0D == l)
-        {
+        if('\0' == l || 0x0A == l || 0x0D == l) {
                 fprintf(stderr, "unexpected end of line: 0x%02X\n", (int)l);
                 return UEOL;
         }
         (*text)++;
 
         s = *(*text);
-        if('\0' == s || 0x0A == s || 0x0D == s)
-        {
+        if('\0' == s || 0x0A == s || 0x0D == s) {
                 return NEOL;
         }
         else if((('0' <= s) && (s <= '9')) ||
                 (('A' <= s) && (s <= 'F')) ||
-                (('a' <= s) && (s <= 'f')))
-        {
+                (('a' <= s) && (s <= 'f'))) {
                 fprintf(stderr, "Bad white space: 0x%02X\n", (int)s);
                 return BDWS;
         }
-        else
-        {
+        else {
                 /* other white space, it is OK */
         }
         (*text)++;
@@ -385,47 +351,39 @@ static int next_tag(char **tag, char **text)
 {
         char ch;
 
-        while(1)
-        {
+        while(1) {
                 ch = *(*text);
-                if('\0' == ch || 0x0A == ch || 0x0D == ch)
-                {
+                if('\0' == ch || 0x0A == ch || 0x0D == ch) {
                         /* normal EOL */
                         *(*text) = '\0';
                         return NEOL;
                 }
                 else if((('A' <= ch) && (ch <= 'Z')) ||
-                        (('a' <= ch) && (ch <= 'z')))
-                {
+                        (('a' <= ch) && (ch <= 'z'))) {
                         /* tag head */
                         *tag = *text;
                         (*text)++;
                         break;
                 }
-                else
-                {
+                else {
                         /* white space */
                         (*text)++;
                 }
         }
-        while(1)
-        {
+        while(1) {
                 ch = *(*text);
                 if((('0' <= ch) && (ch <= '9')) ||
                    (('A' <= ch) && (ch <= 'Z')) ||
-                   (('a' <= ch) && (ch <= 'z')))
-                {
+                   (('a' <= ch) && (ch <= 'z'))) {
                         /* tag */
                         (*text)++;
                 }
-                else if('\0' == ch || 0x0A == ch || 0x0D == ch)
-                {
+                else if('\0' == ch || 0x0A == ch || 0x0D == ch) {
                         /* unexpected EOL */
                         *(*text) = '\0';
                         return UEOL;
                 }
-                else
-                {
+                else {
                         /* tag tail */
                         *(*text)++ = '\0';
                         return 0;
@@ -438,31 +396,25 @@ static int next_uint(uint64_t *uint, char **text)
         char ch;
 
         *uint = 0;
-        while(1)
-        {
+        while(1) {
                 ch = *(*text);
-                if(('0' <= ch) && (ch <= '9'))
-                {
+                if(('0' <= ch) && (ch <= '9')) {
                         *uint <<= 4;
                         *uint += (ch - '0');
                 }
-                else if(('A' <= ch) && (ch <= 'F'))
-                {
+                else if(('A' <= ch) && (ch <= 'F')) {
                         *uint <<= 4;
                         *uint += (ch - 'A' + 10);
                 }
-                else if(('a' <= ch) && (ch <= 'f'))
-                {
+                else if(('a' <= ch) && (ch <= 'f')) {
                         *uint <<= 4;
                         *uint += (ch - 'a' + 10);
                 }
-                else if('\0' == ch || 0x0A == ch || 0x0D == ch)
-                {
+                else if('\0' == ch || 0x0A == ch || 0x0D == ch) {
                         /* EOL */
                         return 0;
                 }
-                else
-                {
+                else {
                         /* white space */
                         (*text)++;
                         return 0;

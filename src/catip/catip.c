@@ -15,8 +15,8 @@
 static URL *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static ts_pkt_t PKT;
-static ts_pkt_t *pkt = &PKT;
+static struct ts_pkt PKT;
+static struct ts_pkt *pkt = &PKT;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -27,14 +27,12 @@ int main(int argc, char *argv[])
         unsigned char bbuf[ 204 + 10]; /* bin data buffer */
         char tbuf[1024 + 10]; /* txt data buffer */
 
-        if(0 != deal_with_parameter(argc, argv))
-        {
+        if(0 != deal_with_parameter(argc, argv)) {
                 return -1;
         }
 
         fd_i = url_open(file_i, "rb");
-        if(NULL == fd_i)
-        {
+        if(NULL == fd_i) {
                 DBG(ERR_FOPEN_FAILED, "\n");
                 return -ERR_FOPEN_FAILED;
         }
@@ -44,8 +42,7 @@ int main(int argc, char *argv[])
         pkt->addr = &(pkt->ADDR);
 
         pkt->ADDR = 0;
-        while(1 == url_read(bbuf, npline, 1, fd_i))
-        {
+        while(1 == url_read(bbuf, npline, 1, fd_i)) {
                 b2t(tbuf, pkt);
                 puts(tbuf);
                 pkt->ADDR += npline;
@@ -60,41 +57,32 @@ static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
 
-        if(1 == argc)
-        {
+        if(1 == argc) {
                 /* no parameter */
                 fprintf(stderr, "No URL to process...\n\n");
                 show_help();
                 return -1;
         }
 
-        for(i = 1; i < argc; i++)
-        {
-                if('-' == argv[i][0])
-                {
+        for(i = 1; i < argc; i++) {
+                if('-' == argv[i][0]) {
                         if(0 == strcmp(argv[i], "-h") ||
-                           0 == strcmp(argv[i], "--help")
-                        )
-                        {
+                           0 == strcmp(argv[i], "--help")) {
                                 show_help();
                                 return -1;
                         }
                         else if(0 == strcmp(argv[i], "-v") ||
-                                0 == strcmp(argv[i], "--version")
-                        )
-                        {
+                                0 == strcmp(argv[i], "--version")) {
                                 show_version();
                                 return -1;
                         }
-                        else
-                        {
+                        else {
                                 fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
                                 DBG(ERR_BAD_ARG, "\n");
                                 return -ERR_BAD_ARG;
                         }
                 }
-                else
-                {
+                else {
                         strcpy(file_i, argv[i]);
                 }
         }

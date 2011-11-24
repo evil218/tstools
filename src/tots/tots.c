@@ -22,37 +22,31 @@ static void show_version();
 int main(int argc, char *argv[])
 {
         char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
-        ts_pkt_t PKT;
-        ts_pkt_t *pkt = &PKT;
+        struct ts_pkt PKT;
+        struct ts_pkt *pkt = &PKT;
 
-        if(0 != deal_with_parameter(argc, argv))
-        {
+        if(0 != deal_with_parameter(argc, argv)) {
                 return -1;
         }
 
         fd_o = fopen(file_o, "wb");
-        if(NULL == fd_o)
-        {
+        if(NULL == fd_o) {
                 DBG(ERR_FOPEN_FAILED, "\n");
                 return -ERR_FOPEN_FAILED;
         }
 
-        while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin))
-        {
+        while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
                 t2b(pkt, tbuf);
 
-                if(pkt->ts)
-                {
+                if(pkt->ts) {
                         fwrite(pkt->ts, 188, 1, fd_o);
                 }
 
-                if(pkt->rs)
-                {
+                if(pkt->rs) {
                         fwrite(pkt->rs, 16, 1, fd_o);
                 }
 
-                if(pkt->data)
-                {
+                if(pkt->data) {
                         fwrite(pkt->data, pkt->cnt, 1, fd_o);
                 }
         }
@@ -66,41 +60,32 @@ static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
 
-        if(1 == argc)
-        {
+        if(1 == argc) {
                 /* no parameter */
                 fprintf(stderr, "No binary file to write...\n\n");
                 show_help();
                 return -1;
         }
 
-        for(i = 1; i < argc; i++)
-        {
-                if('-' == argv[i][0])
-                {
+        for(i = 1; i < argc; i++) {
+                if('-' == argv[i][0]) {
                         if(     0 == strcmp(argv[i], "-h") ||
-                                0 == strcmp(argv[i], "--help")
-                        )
-                        {
+                                0 == strcmp(argv[i], "--help")) {
                                 show_help();
                                 return -1;
                         }
                         else if(0 == strcmp(argv[i], "-v") ||
-                                0 == strcmp(argv[i], "--version")
-                        )
-                        {
+                                0 == strcmp(argv[i], "--version")) {
                                 show_version();
                                 return -1;
                         }
-                        else
-                        {
+                        else {
                                 fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
                                 DBG(ERR_BAD_ARG, "\n");
                                 return -ERR_BAD_ARG;
                         }
                 }
-                else
-                {
+                else {
                         strcpy(file_o, argv[i]);
                 }
         }

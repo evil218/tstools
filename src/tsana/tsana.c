@@ -155,24 +155,19 @@ int main(int argc, char *argv[])
         rslt = obj->rslt;
         rslt->aim_interval = obj->aim_interval;
 
-        while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj)))
-        {
-                if(GOT_WRONG_PKT == get_rslt)
-                {
+        while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
+                if(GOT_WRONG_PKT == get_rslt) {
                         break;
                 }
-                if(0 != tsParseTS(obj->ts_id))
-                {
+                if(0 != tsParseTS(obj->ts_id)) {
                         break;
                 }
-                if(rslt->cnt < obj->aim_start)
-                {
+                if(rslt->cnt < obj->aim_start) {
                         continue;
                 }
 
                 tsParseOther(obj->ts_id);
-                switch(obj->state)
-                {
+                switch(obj->state) {
                         case STATE_PARSE_PSI:
                                 state_parse_psi(obj);
                                 break;
@@ -187,25 +182,21 @@ int main(int argc, char *argv[])
                                 break;
                 }
 
-                if(obj->is_dump)
-                {
+                if(obj->is_dump) {
                         show_pkt(obj);
                 }
                 obj->cnt++;
-                if((0 != obj->aim_count) && (obj->cnt >= obj->aim_count))
-                {
+                if((0 != obj->aim_count) && (obj->cnt >= obj->aim_count)) {
                         break;
                 }
         }
 
-        if(!(rslt->is_psi_parse_finished) && !(obj->is_dump))
-        {
+        if(!(rslt->is_psi_parse_finished) && !(obj->is_dump)) {
                 fprintf(stderr, "%sPSI parsing unfinished because of the bad PCR data!%s\n",
                         obj->color_red, obj->color_off);
 
                 rslt->is_psi_parse_finished = 1;
-                switch(obj->mode)
-                {
+                switch(obj->mode) {
                         case MODE_LST:
                                 show_list(obj);
                                 break;
@@ -225,15 +216,12 @@ static void state_parse_psi(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(obj->is_outpsi && rslt->is_psi_si)
-        {
+        if(obj->is_outpsi && rslt->is_psi_si) {
                 fprintf(stdout, "%s", obj->tbuf);
         }
 
-        if(rslt->is_pat_pmt_parsed)
-        {
-                switch(obj->mode)
-                {
+        if(rslt->is_pat_pmt_parsed) {
+                switch(obj->mode) {
                         case MODE_SEC:
                                 print_atp_title(obj);
                                 fprintf(stdout, "section_interval, section_head, section_body\n");
@@ -293,14 +281,12 @@ static void state_parse_each(obj_t *obj)
            obj->mode == MODE_ES         ||
            obj->mode == MODE_ERROR) {
                 /* PID filter */
-                if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-                {
+                if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid) {
                         return;
                 }
 
                 /* table filter */
-                if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table)
-                {
+                if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table) {
                         return;
                 }
         }
@@ -367,8 +353,7 @@ static obj_t *create(int argc, char *argv[])
         obj_t *obj;
 
         obj = (obj_t *)malloc(sizeof(obj_t));
-        if(NULL == obj)
-        {
+        if(NULL == obj) {
                 DBG(ERR_MALLOC_FAILED, "\n");
                 return NULL;
         }
@@ -391,219 +376,172 @@ static obj_t *create(int argc, char *argv[])
         obj->color_red = "";
         obj->color_yellow = "";
 
-        for(i = 1; i < argc; i++)
-        {
-                if('-' == argv[i][0])
-                {
-                        if(0 == strcmp(argv[i], "-lst"))
-                        {
+        for(i = 1; i < argc; i++) {
+                if('-' == argv[i][0]) {
+                        if(0 == strcmp(argv[i], "-lst")) {
                                 obj->mode = MODE_LST;
                         }
-                        else if(0 == strcmp(argv[i], "-psi"))
-                        {
+                        else if(0 == strcmp(argv[i], "-psi")) {
                                 obj->mode = MODE_PSI;
                         }
-                        else if(0 == strcmp(argv[i], "-sec"))
-                        {
+                        else if(0 == strcmp(argv[i], "-sec")) {
                                 obj->mode = MODE_SEC;
                         }
-                        else if(0 == strcmp(argv[i], "-si"))
-                        {
+                        else if(0 == strcmp(argv[i], "-si")) {
                                 obj->mode = MODE_SI;
                         }
-                        else if(0 == strcmp(argv[i], "-tcp"))
-                        {
+                        else if(0 == strcmp(argv[i], "-tcp")) {
                                 obj->mode = MODE_TCP;
                         }
-                        else if(0 == strcmp(argv[i], "-outpsi"))
-                        {
+                        else if(0 == strcmp(argv[i], "-outpsi")) {
                                 obj->is_outpsi = 1;
                                 obj->mode = MODE_EXIT;
                         }
-                        else if(0 == strcmp(argv[i], "-dump"))
-                        {
+                        else if(0 == strcmp(argv[i], "-dump")) {
                                 obj->is_dump = 1;
                         }
-                        else if(0 == strcmp(argv[i], "-prepsi"))
-                        {
+                        else if(0 == strcmp(argv[i], "-prepsi")) {
                                 obj->is_prepsi = 1;
                         }
-                        else if(0 == strcmp(argv[i], "-color"))
-                        {
+                        else if(0 == strcmp(argv[i], "-color")) {
                                 obj->is_color = 1;
                                 obj->color_off = NONE;
                                 obj->color_red = FRED;
                                 obj->color_yellow = FYELLOW;
                         }
-                        else if(0 == strcmp(argv[i], "-pcr"))
-                        {
+                        else if(0 == strcmp(argv[i], "-pcr")) {
                                 obj->mode = MODE_PCR;
                         }
-                        else if(0 == strcmp(argv[i], "-sys-rate"))
-                        {
+                        else if(0 == strcmp(argv[i], "-sys-rate")) {
                                 obj->mode = MODE_SYS_RATE;
                         }
-                        else if(0 == strcmp(argv[i], "-psi-rate"))
-                        {
+                        else if(0 == strcmp(argv[i], "-psi-rate")) {
                                 obj->mode = MODE_PSI_RATE;
                         }
-                        else if(0 == strcmp(argv[i], "-rate"))
-                        {
+                        else if(0 == strcmp(argv[i], "-rate")) {
                                 obj->mode = MODE_RATE;
                         }
-                        else if(0 == strcmp(argv[i], "-err"))
-                        {
+                        else if(0 == strcmp(argv[i], "-err")) {
                                 obj->mode = MODE_ERROR;
                         }
-                        else if(0 == strcmp(argv[i], "-start"))
-                        {
+                        else if(0 == strcmp(argv[i], "-start")) {
                                 int start;
 
                                 i++;
-                                if(i >= argc)
-                                {
+                                if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-start'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &start);
                                 obj->aim_start = start;
                         }
-                        else if(0 == strcmp(argv[i], "-count"))
-                        {
+                        else if(0 == strcmp(argv[i], "-count")) {
                                 int count;
 
                                 i++;
-                                if(i >= argc)
-                                {
+                                if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-count'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &count);
                                 obj->aim_count = count;
                         }
-                        else if(0 == strcmp(argv[i], "-pid"))
-                        {
+                        else if(0 == strcmp(argv[i], "-pid")) {
                                 i++;
-                                if(i >= argc)
-                                {
+                                if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-pid'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(0x0000 <= dat && dat <= 0x2000)
-                                {
+                                if(0x0000 <= dat && dat <= 0x2000) {
                                         obj->aim_pid = (uint16_t)dat;
                                 }
-                                else
-                                {
+                                else {
                                         fprintf(stderr,
                                                 "bad variable for '-pid': 0x%04X, ignore!\n",
                                                 dat);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-table"))
-                        {
+                        else if(0 == strcmp(argv[i], "-table")) {
                                 i++;
-                                if(i >= argc)
-                                {
+                                if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-table'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(0x00 <= dat && dat <= 0xFF)
-                                {
+                                if(0x00 <= dat && dat <= 0xFF) {
                                         obj->aim_table = (uint8_t)dat;
                                 }
-                                else
-                                {
+                                else {
                                         fprintf(stderr,
                                                 "bad variable for '-table': 0x%02X, ignore!\n",
                                                 dat);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-prog"))
-                        {
+                        else if(0 == strcmp(argv[i], "-prog")) {
                                 i++;
-                                if(i >= argc)
-                                {
+                                if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-prog'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(0x0000 <= dat && dat <= 0xFFFF)
-                                {
+                                if(0x0000 <= dat && dat <= 0xFFFF) {
                                         obj->aim_prog = dat;
                                 }
-                                else
-                                {
+                                else {
                                         fprintf(stderr,
                                                 "bad variable for '-prog': %u, ignore!\n",
                                                 dat);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-iv"))
-                        {
+                        else if(0 == strcmp(argv[i], "-iv")) {
                                 i++;
-                                if(i >= argc)
-                                {
+                                if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-interval'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(1 <= dat && dat <= 10000) /* 1ms ~ 10s */
-                                {
+                                if(1 <= dat && dat <= 10000) { /* 1ms ~ 10s */
                                         obj->aim_interval = dat * STC_MS;
                                 }
-                                else
-                                {
+                                else {
                                         fprintf(stderr,
                                                 "bad variable for '-interval': %u, use 1000ms instead!\n",
                                                 dat);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-pes"))
-                        {
+                        else if(0 == strcmp(argv[i], "-pes")) {
                                 obj->mode = MODE_PES;
                         }
-                        else if(0 == strcmp(argv[i], "-es"))
-                        {
+                        else if(0 == strcmp(argv[i], "-es")) {
                                 obj->mode = MODE_ES;
                         }
-                        else if(0 == strcmp(argv[i], "-alles"))
-                        {
+                        else if(0 == strcmp(argv[i], "-alles")) {
                                 obj->mode = MODE_ALLES;
                         }
-                        else if(0 == strcmp(argv[i], "-pts"))
-                        {
+                        else if(0 == strcmp(argv[i], "-pts")) {
                                 obj->mode = MODE_PTSDTS;
                         }
                         else if(0 == strcmp(argv[i], "-h") ||
-                                0 == strcmp(argv[i], "--help")
-                        )
-                        {
+                                0 == strcmp(argv[i], "--help")) {
                                 show_help();
                                 exit(EXIT_SUCCESS);
                         }
                         else if(0 == strcmp(argv[i], "-v") ||
-                                0 == strcmp(argv[i], "--version")
-                        )
-                        {
+                                0 == strcmp(argv[i], "--version")) {
                                 show_version();
                                 exit(EXIT_SUCCESS);
                         }
-                        else if(0 == strcmp(argv[i], "-sex"))
-                        {
+                        else if(0 == strcmp(argv[i], "-sex")) {
                                 fprintf(stderr, "SEX? Try to use a Decoder instead of me!\n");
                                 exit(EXIT_FAILURE);
                         }
-                        else
-                        {
+                        else {
                                 fprintf(stderr, "wrong parameter: '%s'\n", argv[i]);
                                 exit(EXIT_FAILURE);
                         }
                 }
-                else
-                {
+                else {
                         fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
                         exit(EXIT_FAILURE);
                 }
@@ -616,12 +554,10 @@ static obj_t *create(int argc, char *argv[])
 
 static int delete(obj_t *obj)
 {
-        if(NULL == obj)
-        {
+        if(NULL == obj) {
                 return 0;
         }
-        else
-        {
+        else {
                 tsDelete(obj->ts_id);
                 free(obj);
 
@@ -689,8 +625,7 @@ static void show_version()
 
 static int get_one_pkt(obj_t *obj)
 {
-        if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin))
-        {
+        if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
                 return GOT_EOF;
         }
 
@@ -703,8 +638,7 @@ static void show_pkt(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid)
-        {
+        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid) {
                 return;
         }
         fprintf(stdout, "%s", obj->tbak);
@@ -718,19 +652,16 @@ static void show_list(obj_t *obj)
         char *color_yellow;
         char *color_off;
 
-        if(!(rslt->is_psi_parse_finished))
-        {
+        if(!(rslt->is_psi_parse_finished)) {
                 return;
         }
 
         fprintf(stdout, "  PID , abbr, detail\n");
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next)
-        {
+        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
                 pid = (ts_pid_t *)lnode;
                 color_yellow = "";
                 color_off = "";
-                if(NULL != pid->track)
-                {
+                if(NULL != pid->track) {
                         color_yellow = obj->color_yellow;
                         color_off = obj->color_off;
                 }
@@ -751,8 +682,7 @@ static void show_prog(obj_t *obj)
         ts_rslt_t *rslt = obj->rslt;
         lnode_t *lnode;
 
-        if(!(rslt->is_psi_parse_finished))
-        {
+        if(!(rslt->is_psi_parse_finished)) {
                 return;
         }
 
@@ -760,8 +690,7 @@ static void show_prog(obj_t *obj)
                 obj->color_yellow, rslt->transport_stream_id, obj->color_off,
                 rslt->transport_stream_id);
 
-        for(lnode = (lnode_t *)(rslt->prog0); lnode; lnode = lnode->next)
-        {
+        for(lnode = (lnode_t *)(rslt->prog0); lnode; lnode = lnode->next) {
                 int i;
 
                 ts_prog_t *prog = (ts_prog_t *)lnode;
@@ -774,45 +703,39 @@ static void show_prog(obj_t *obj)
                         obj->color_yellow, prog->PCR_PID, obj->color_off);
 
                 /* service_provider */
-                if(prog->service_provider_len)
-                {
+                if(prog->service_provider_len) {
                         fprintf(stdout, "service_provider, %s\"",
                                 obj->color_yellow);
                         coding_string(prog->service_provider, prog->service_provider_len);
                         fprintf(stdout, "\"%s(%02X",
                                 obj->color_off,
                                 prog->service_provider[0]);
-                        for(i = 1; i < prog->service_provider_len; i++)
-                        {
+                        for(i = 1; i < prog->service_provider_len; i++) {
                                 fprintf(stdout, " %02X", prog->service_provider[i]);
                         }
                         fprintf(stdout, "), ");
                 }
 
                 /* service_name */
-                if(prog->service_name_len)
-                {
+                if(prog->service_name_len) {
                         fprintf(stdout, "service_name, %s\"",
                                 obj->color_yellow);
                         coding_string(prog->service_name, prog->service_name_len);
                         fprintf(stdout, "\"%s(%02X",
                                 obj->color_off,
                                 prog->service_name[0]);
-                        for(i = 1; i < prog->service_name_len; i++)
-                        {
+                        for(i = 1; i < prog->service_name_len; i++) {
                                 fprintf(stdout, " %02X", prog->service_name[i]);
                         }
                         fprintf(stdout, "), ");
                 }
 
                 /* program_info */
-                if(prog->program_info_len)
-                {
+                if(prog->program_info_len) {
                         fprintf(stdout, "program_info, %s%02X",
                                 obj->color_yellow,
                                 prog->program_info[0]);
-                        for(i = 1; i < prog->program_info_len; i++)
-                        {
+                        for(i = 1; i < prog->program_info_len; i++) {
                                 fprintf(stdout, " %02X", prog->program_info[i]);
                         }
                         fprintf(stdout, "%s, ", obj->color_off);
@@ -835,8 +758,7 @@ static void show_track(void *PTRACK, uint16_t pcr_pid)
         ts_track_t *track;
         char *color_pid;
 
-        for(lnode = *ptrack; lnode; lnode = lnode->next)
-        {
+        for(lnode = *ptrack; lnode; lnode = lnode->next) {
                 track = (ts_track_t *)lnode;
 
                 color_pid = (track->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
@@ -847,12 +769,10 @@ static void show_track(void *PTRACK, uint16_t pcr_pid)
                 fprintf(stdout, "type, %s%s%s, detail, %s%s%s, ",
                         obj->color_yellow, track->sdes, obj->color_off,
                         obj->color_yellow, track->ldes, obj->color_off);
-                if(track->es_info_len)
-                {
+                if(track->es_info_len) {
                         fprintf(stdout, "ES_info, %s%02X",
                                 obj->color_yellow, track->es_info[0]);
-                        for(i = 1; i < track->es_info_len; i++)
-                        {
+                        for(i = 1; i < track->es_info_len; i++) {
                                 fprintf(stdout, " %02X", track->es_info[i]);
                         }
                         fprintf(stdout, "%s, ", obj->color_off);
@@ -869,8 +789,7 @@ static void show_sec(obj_t *obj)
         ts_psi_t *psi = &(rslt->psi);
         ts_pid_t *pid = rslt->pid;
 
-        if(!(rslt->has_section))
-        {
+        if(!(rslt->has_section)) {
                 return;
         }
 
@@ -880,15 +799,13 @@ static void show_sec(obj_t *obj)
         fprintf(stdout, "%+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
         /* section_head */
-        for(i = 0; i < 7; i++)
-        {
+        for(i = 0; i < 7; i++) {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "%02X, ", pid->section[i++]);
 
         /* section_body */
-        for(; i < psi->section_length + 3; i++)
-        {
+        for(; i < psi->section_length + 3; i++) {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "\n");
@@ -903,8 +820,7 @@ static void show_si(obj_t *obj)
         ts_psi_t *psi = &(rslt->psi);
         ts_pid_t *pid = rslt->pid;
 
-        if(!(rslt->has_section))
-        {
+        if(!(rslt->has_section)) {
                 return;
         }
 
@@ -914,8 +830,7 @@ static void show_si(obj_t *obj)
         fprintf(stdout, "%+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
         /* section_head */
-        for(i = 0; i < 7; i++)
-        {
+        for(i = 0; i < 7; i++) {
                 fprintf(stdout, "%02X ", pid->section[i]);
         }
         fprintf(stdout, "%02X, ", pid->section[i++]);
@@ -1008,8 +923,7 @@ static void show_si(obj_t *obj)
         }
 
         if(is_unknown_table_id) {
-                for(; i < psi->section_length + 3; i++)
-                {
+                for(; i < psi->section_length + 3; i++) {
                         fprintf(stdout, "%02X ", pid->section[i]);
                 }
         }
@@ -1034,8 +948,7 @@ static void show_pcr(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(!(rslt->has_PCR))
-        {
+        if(!(rslt->has_PCR)) {
                 return;
         }
 
@@ -1144,8 +1057,7 @@ static void show_ptsdts(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(!(rslt->has_PTS))
-        {
+        if(!(rslt->has_PTS)) {
                 return;
         }
 
@@ -1155,15 +1067,13 @@ static void show_ptsdts(obj_t *obj)
                 (double)(rslt->PTS_interval) / (90), /* ms */
                 (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
-        if(rslt->has_DTS)
-        {
+        if(rslt->has_DTS) {
                 fprintf(stdout, "%lld, %+8.3f, %+8.3f,\n",
                         rslt->DTS,
                         (double)(rslt->DTS_interval) / (90), /* ms */
                         (double)(rslt->DTS_minus_STC) / (90)); /* ms */
         }
-        else
-        {
+        else {
                 fprintf(stdout, "%lld,         ,         ,\n",
                         rslt->PTS);
         }
@@ -1173,11 +1083,10 @@ static void show_ptsdts(obj_t *obj)
 static void show_pes(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        ts_pkt_t PKT;
-        ts_pkt_t *pkt = &PKT;
+        struct ts_pkt PKT;
+        struct ts_pkt *pkt = &PKT;
 
-        if(0 != rslt->PES_len)
-        {
+        if(0 != rslt->PES_len) {
                 pkt_init(pkt);
                 pkt->data = rslt->PES_buf;
                 pkt->cnt = rslt->PES_len;
@@ -1191,11 +1100,10 @@ static void show_pes(obj_t *obj)
 static void show_es(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
-        ts_pkt_t PKT;
-        ts_pkt_t *pkt = &PKT;
+        struct ts_pkt PKT;
+        struct ts_pkt *pkt = &PKT;
 
-        if(0 != rslt->ES_len)
-        {
+        if(0 != rslt->ES_len) {
                 pkt_init(pkt);
                 pkt->data = rslt->ES_buf;
                 pkt->cnt = rslt->ES_len;
@@ -1210,27 +1118,23 @@ static void all_es(obj_t *obj)
 {
         ts_rslt_t *rslt = obj->rslt;
 
-        if(0 == rslt->ES_len)
-        {
+        if(0 == rslt->ES_len) {
                 return;
         }
 
-        if(NULL == rslt->pid)
-        {
+        if(NULL == rslt->pid) {
                 fprintf(stderr, "Bad pid point!\n");
                 return;
         }
 
-        if(NULL == rslt->pid->fd)
-        {
+        if(NULL == rslt->pid->fd) {
                 char name[100];
 
                 sprintf(name, "%04X.es", rslt->pid->PID);
                 fprintf(stdout, "open file %s\n", name);
                 rslt->pid->fd = fopen(name, "wb");
         }
-        if(NULL == rslt->pid->fd)
-        {
+        if(NULL == rslt->pid->fd) {
                 DBG(ERR_FOPEN_FAILED, "\n");
                 return;
         }
@@ -1245,90 +1149,76 @@ static void show_error(obj_t *obj)
         ts_error_t *err = &(rslt->err);
 
         /* First priority: necessary for de-codability (basic monitoring) */
-        if(err->TS_sync_loss)
-        {
+        if(err->TS_sync_loss) {
                 print_atp_value(obj);
                 fprintf(stdout, "1.1, TS_sync_loss\n");
-                if(err->Sync_byte_error > 10)
-                {
+                if(err->Sync_byte_error > 10) {
                         fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
                         exit(EXIT_FAILURE);
                 }
                 return;
         }
-        if(err->Sync_byte_error == 1)
-        {
+        if(err->Sync_byte_error == 1) {
                 print_atp_value(obj);
                 fprintf(stdout, "1.2 , Sync_byte_error\n");
         }
-        if(err->PAT_error)
-        {
+        if(err->PAT_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "1.3 , PAT_error\n");
                 err->PAT_error = 0;
         }
-        if(err->Continuity_count_error)
-        {
+        if(err->Continuity_count_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "1.4 , Continuity_count_error(%X-%X=%2u)\n",
                         rslt->CC_find, rslt->CC_wait, rslt->CC_lost);
         }
-        if(err->PMT_error)
-        {
+        if(err->PMT_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "1.5 , PMT_error\n");
                 err->PMT_error = 0;
         }
-        if(err->PID_error)
-        {
+        if(err->PID_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "1.6 , PID_error\n");
                 err->PID_error = 0;
         }
 
         /* Second priority: recommended for continuous or periodic monitoring */
-        if(err->Transport_error)
-        {
+        if(err->Transport_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.1 , Transport_error\n");
                 err->Transport_error = 0;
         }
-        if(err->CRC_error)
-        {
+        if(err->CRC_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.2 , CRC_error(0x%08X! 0x%08X?)\n",
                         rslt->pid->CRC_32_calc, rslt->pid->CRC_32);
                 err->CRC_error = 0;
         }
-        if(err->PCR_repetition_error)
-        {
+        if(err->PCR_repetition_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.3a, PCR_repetition_error(%+7.3f ms)\n",
                         (double)(rslt->PCR_interval) / STC_MS);
                 err->PCR_repetition_error = 0;
         }
-        if(err->PCR_discontinuity_indicator_error)
-        {
+        if(err->PCR_discontinuity_indicator_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.3b, PCR_discontinuity_indicator_error(%+7.3f ms)\n",
                         (double)(rslt->PCR_continuity) / STC_MS);
                 err->PCR_discontinuity_indicator_error = 0;
         }
-        if(err->PCR_accuracy_error)
-        {
+        if(err->PCR_accuracy_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.4 , PCR_accuracy_error(%+4.0f ns)\n",
                         (double)(rslt->PCR_jitter) * 1e3 / STC_US);
                 err->PCR_accuracy_error = 0;
         }
-        if(err->PTS_error)
-        {
+        if(err->PTS_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.5 , PTS_error\n");
                 err->PTS_error = 0;
         }
-        if(err->CAT_error)
-        {
+        if(err->CAT_error) {
                 print_atp_value(obj);
                 fprintf(stdout, "2.6 , CAT_error\n");
                 err->CAT_error = 0;
@@ -1353,7 +1243,7 @@ static void print_atp_title(obj_t *obj)
 static void print_atp_value(obj_t *obj)
 {
         ts_rslt_t *rslt;
-        ts_pkt_t *pkt;
+        struct ts_pkt *pkt;
         time_t tp;
         struct tm *lt; /* local time */
         char stime[32];
@@ -1388,8 +1278,7 @@ static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
         /* PAT special */
         p += 5; section_length -= 5;
 
-        while(section_length > 4)
-        {
+        while(section_length > 4) {
                 uint8_t data;
                 uint16_t program_number;
                 uint16_t PID;
@@ -1431,15 +1320,13 @@ static void table_info_CAT(ts_psi_t *psi, uint8_t *section)
         /* CAT special */
         p += 5; section_length -= 5;
         descriptors_loop_length = section_length - 4;
-        while(descriptors_loop_length > 0)
-        {
+        while(descriptors_loop_length > 0) {
                 uint8_t len;
 
                 len = descriptor(&p);
                 descriptors_loop_length -= len;
 
-                if(0 == len)
-                {
+                if(0 == len) {
                         fprintf(stdout, "wrong descriptor, ");
                         return;
                 }
@@ -1484,16 +1371,14 @@ static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
         network_descriptors_length = (*p++) & 0x0F; section_length--;
         network_descriptors_length <<= 8;
         network_descriptors_length |= *p++; section_length--;
-        while(network_descriptors_length > 0)
-        {
+        while(network_descriptors_length > 0) {
                 uint8_t len;
 
                 len = descriptor(&p);
                 network_descriptors_length -= len;
                 section_length -= len;
 
-                if(0 == len)
-                {
+                if(0 == len) {
                         fprintf(stdout, "wrong descriptor, ");
                         return;
                 }
@@ -1503,8 +1388,7 @@ static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
         transport_stream_loop_length = (*p++) & 0x0F; section_length--;
         transport_stream_loop_length <<= 8;
         transport_stream_loop_length |= *p++; section_length--;
-        while(transport_stream_loop_length > 0)
-        {
+        while(transport_stream_loop_length > 0) {
                 uint16_t transport_stream_id;
                 uint16_t original_network_id;
                 uint16_t transport_descriptors_length;
@@ -1529,16 +1413,14 @@ static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
                 transport_stream_loop_length -= 6;
                 transport_stream_loop_length -= transport_descriptors_length;
 
-                while(transport_descriptors_length > 0)
-                {
+                while(transport_descriptors_length > 0) {
                         uint8_t len;
 
                         len = descriptor(&p);
                         transport_descriptors_length -= len;
                         section_length -= len;
 
-                        if(0 == len)
-                        {
+                        if(0 == len) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
@@ -1569,8 +1451,7 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
         p += 1; section_length -= 1;
         /* fprintf(stdout, "section_length(%d), ", section_length); */
 
-        while(section_length > 4)
-        {
+        while(section_length > 4) {
                 uint8_t data;
                 uint16_t service_id;
                 uint8_t rstatus;
@@ -1595,16 +1476,14 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
                         fprintf(stdout, "wrong section, ");
                         return;
                 }
-                while(descriptors_loop_length > 0)
-                {
+                while(descriptors_loop_length > 0) {
                         uint8_t len;
 
                         len = descriptor(&p);
                         descriptors_loop_length -= len;
                         section_length -= len;
 
-                        if(0 == len)
-                        {
+                        if(0 == len) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
@@ -1654,8 +1533,7 @@ static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
         last_table_id = *p++; section_length--;
         fprintf(stdout, "last_table_id: %5d, ", last_table_id);
 
-        while(section_length > 4)
-        {
+        while(section_length > 4) {
                 uint8_t data;
                 uint16_t event_id;
                 uint8_t rstatus;
@@ -1676,16 +1554,14 @@ static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= *p++; section_length--;
 
-                while(descriptors_loop_length > 0)
-                {
+                while(descriptors_loop_length > 0) {
                         uint8_t len;
 
                         len = descriptor(&p);
                         descriptors_loop_length -= len;
                         section_length -= len;
 
-                        if(0 == len)
-                        {
+                        if(0 == len) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
@@ -1731,8 +1607,7 @@ static void table_info_TOT(ts_psi_t *psi, uint8_t *section)
         descriptors_loop_length <<= 8;
         descriptors_loop_length |= *p++;
 
-        while(descriptors_loop_length > 0)
-        {
+        while(descriptors_loop_length > 0) {
                 descriptors_loop_length -= descriptor(&p);
         }
 
@@ -1796,8 +1671,7 @@ static void UTC(uint8_t *buf)
 
 static char *running_status(uint8_t status)
 {
-        switch(status)
-        {
+        switch(status) {
                 case  0: return "undefined";
                 case  1: return "stopped";
                 case  2: return "preparing";

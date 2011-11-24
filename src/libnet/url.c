@@ -19,8 +19,7 @@ URL *url_open(const char *str, char *mode)
         URL *url;
 
         url = (URL *)malloc(sizeof(URL));
-        if(NULL == url)
-        {
+        if(NULL == url) {
                 printf("Alloc %d-byte failed!\n", sizeof(URL));
                 exit(-1);
         }
@@ -31,14 +30,12 @@ URL *url_open(const char *str, char *mode)
 
         parse_url(url, str);
 
-        switch(url->protocol)
-        {
+        switch(url->protocol) {
                 case PRTCL_UDP:
                         url->pbuf = url->buf;
                         url->ts_cnt = 0;
                         url->udp = udp_open(url->ip, url->port);
-                        if(0 == url->udp)
-                        {
+                        if(0 == url->udp) {
                                 printf("Socket error!\n");
                                 free(url);
                                 url = NULL;
@@ -46,8 +43,7 @@ URL *url_open(const char *str, char *mode)
                         break;
                 default: /* PRTCL_FILE */
                         url->fd = fopen(url->filename, mode);
-                        if(NULL == url->fd)
-                        {
+                        if(NULL == url->fd) {
                                 printf("Can not open file \"%s\"!\n", url->filename);
                                 free(url);
                                 url = NULL;
@@ -60,14 +56,12 @@ URL *url_open(const char *str, char *mode)
 
 int url_close(URL *url)
 {
-        if(NULL == url)
-        {
+        if(NULL == url) {
                 printf("Bad parameter!\n");
                 return -1;
         }
 
-        switch(url->protocol)
-        {
+        switch(url->protocol) {
                 case PRTCL_UDP:
                         udp_close(url->udp);
                         break;
@@ -84,14 +78,12 @@ int url_seek(URL *url, long offset, int origin)
 {
         int rslt = 0;
 
-        if(NULL == url)
-        {
+        if(NULL == url) {
                 printf("Bad parameter!\n");
                 return -1;
         }
 
-        switch(url->protocol)
-        {
+        switch(url->protocol) {
                 case PRTCL_UDP:
                         /* do nothing! */
                         break;
@@ -107,14 +99,12 @@ int url_getc(URL *url)
 {
         int rslt;
 
-        if(NULL == url)
-        {
+        if(NULL == url) {
                 printf("Bad parameter!\n");
                 return -1;
         }
 
-        switch(url->protocol)
-        {
+        switch(url->protocol) {
                 case PRTCL_UDP:
                         rslt = 0x47; /* to cheat host */
                         break;
@@ -131,36 +121,30 @@ size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
         size_t cobj; /* the number of objects succeeded in reading */
         size_t byte_needed = size * nobj;
 
-        if(NULL == url)
-        {
+        if(NULL == url) {
                 printf("Bad parameter!\n");
                 return -1;
         }
 
-        switch(url->protocol)
-        {
+        switch(url->protocol) {
                 case PRTCL_UDP:
-                        if(url->ts_cnt == 0)
-                        {
+                        if(url->ts_cnt == 0) {
                                 size_t rslt;
 
                                 rslt = udp_read(url->udp, url->buf);
                                 /*printf("rslt of udp_read() is %d\n", rslt); */
-                                if(rslt > 0)
-                                {
+                                if(rslt > 0) {
                                         url->ts_cnt += rslt;
                                         url->pbuf = url->buf;
                                 }
                         }
-                        if(url->ts_cnt >= byte_needed)
-                        {
+                        if(url->ts_cnt >= byte_needed) {
                                 memcpy(buf, url->pbuf, byte_needed);
                                 url->pbuf += byte_needed;
                                 url->ts_cnt -= byte_needed;
                                 cobj = nobj;
                         }
-                        else
-                        {
+                        else {
                                 memcpy(buf, url->pbuf, url->ts_cnt);
                                 url->pbuf += url->ts_cnt;
                                 url->ts_cnt -= url->ts_cnt;
@@ -179,11 +163,9 @@ static void regcpy(char *des, const char *src)
 {
         char ch;
 
-        do
-        {
+        do {
                 ch = *src++;
-                if(' ' != ch)
-                {
+                if(' ' != ch) {
                         *des++ = ch;
                 }
         }while('\0' != ch);
@@ -194,8 +176,7 @@ static void parse_url(URL *url, const char *str)
         int i;
 
         regcpy(url->url, str);
-        if(0 == memcmp(url->url, "udp://", 6))
-        {
+        if(0 == memcmp(url->url, "udp://", 6)) {
                 i = 7;
                 url->ip = url->url + i;
                 while(':' != *(url->url + i)) {i++;}
@@ -203,8 +184,7 @@ static void parse_url(URL *url, const char *str)
                 url->port = atoi(url->url + i);
                 url->protocol = PRTCL_UDP;
         }
-        else
-        {
+        else {
                 url->filename = url->url;
                 url->protocol = PRTCL_FILE;
         }

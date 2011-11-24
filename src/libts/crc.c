@@ -12,8 +12,7 @@
 
 static uint8_t crc8_table[256];
 
-static uint16_t crc16_table[256] =
-{
+static uint16_t crc16_table[256] = {
         0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
         0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
         0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
@@ -82,8 +81,7 @@ static uint16_t crc16_table[256] =
 #endif
 };
 
-static uint32_t crc32_table[256] =
-{
+static uint32_t crc32_table[256] = {
         0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
         0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988, 0x09B64C2B, 0x7EB17CBD, 0xE7B82D07, 0x90BF1D91,
         0x1DB71064, 0x6AB020F2, 0xF3B97148, 0x84BE41DE, 0x1ADAD47D, 0x6DDDE4EB, 0xF4D4B551, 0x83D385C7,
@@ -135,8 +133,7 @@ uint8_t crc8(void *buf, size_t size)
         uint8_t *data = (uint8_t *)buf;
 
         crc = 0;
-        while(size--)
-        {
+        while(size--) {
                 crc = crc8_table[((crc >> 8) ^ *data++) & 0xFF] ^ (crc << 8); /* FIXME */
         }
 
@@ -151,8 +148,7 @@ uint16_t crc16(void *buf, size_t size)
         uint8_t *data = (uint8_t *)buf;
 
         crc = 0;
-        while(size--)
-        {
+        while(size--) {
                 crc = crc16_table[((crc >> 8) ^ *data++) & 0xFF] ^ (crc << 8);
         }
 
@@ -167,8 +163,7 @@ uint32_t crc32(void *buf, size_t size)
         uint8_t *data = (uint8_t *)buf;
 
         crc = 0xFFFFFFFF;
-        while(size--)
-        {
+        while(size--) {
                 crc = crc32_table[(crc ^ *data++) & 0xFF] ^ (crc >> 8);
         }
 
@@ -184,8 +179,7 @@ uint32_t CRC(void *buf, size_t size, int mode)
         uint32_t msb;
         uint8_t *data = (uint8_t *)buf;
 
-        switch(mode)
-        {
+        switch(mode) {
                 case 8:
                         msb = 0x80;
                         genpoly = 0x07;
@@ -201,18 +195,14 @@ uint32_t CRC(void *buf, size_t size, int mode)
         }
 
         accum = 0;
-        while(size--)
-        {
+        while(size--) {
                 x = *data++;
                 x <<= 8;
-                for(i = 8; i > 0; i--)
-                {
-                        if((x ^ accum) & msb)
-                        {
+                for(i = 8; i > 0; i--) {
+                        if((x ^ accum) & msb) {
                                 accum = (accum << 1) ^ genpoly;
                         }
-                        else
-                        {
+                        else {
                                 accum <<= 1;
                         }
                         x <<= 1;
@@ -240,16 +230,14 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
         int cnt;
         uint32_t crc;
 
-        switch(mode)
-        {
+        switch(mode) {
                 case  8: g = g08; cnt =  8; break;
                 case 16: g = g16; cnt = 16; break;
                 default: g = g32; cnt = 32; break;
         }
 
         /* Initialize shift register's to '1' */
-        for(i = 0; i < cnt; i++)
-        {
+        for(i = 0; i < cnt; i++) {
                 shiftreg[i] = 1;
         }
 
@@ -257,15 +245,13 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
         nrbits = ((int) size) * 8;
         data = buf;
 
-        while(bitcount < nrbits)
-        {
+        while(bitcount < nrbits) {
                 /* Fetch bit from bitstream */
                 databit = (short int) (*data  & (0x80 >> bitinbyte));
                 databit = databit >> (7 - bitinbyte);
                 bitinbyte++;
                 bitcount++;
-                if(bitinbyte == 8)
-                {
+                if(bitinbyte == 8) {
                         bitinbyte = 0;
                         data++;
                 }
@@ -273,14 +259,11 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
                 /* Perform the shift and modula 2 addition */
                 databit ^= shiftreg[cnt - 1];
                 i = cnt - 1;
-                while (i != 0)
-                {
-                        if (g[i])
-                        {
+                while (i != 0) {
+                        if (g[i]) {
                                 shiftreg[i] = shiftreg[i-1] ^ databit;
                         }
-                        else
-                        {
+                        else {
                                 shiftreg[i] = shiftreg[i-1];
                         }
                         i--;
@@ -290,8 +273,7 @@ uint32_t CRC_for_TS(void *buf, size_t size, int mode)
 
         /* make CRC an UIMSBF */
         crc = 0;
-        for(i = 0; i < cnt; i++)
-        {
+        for(i = 0; i < cnt; i++) {
                 crc = (crc << 1) | ((unsigned int) shiftreg[cnt - 1 - i]);
         }
 
@@ -303,17 +285,13 @@ static void init_crc32_table(uint32_t *table)
         uint32_t i,j;
         uint32_t crc;
 
-        for (i = 0; i < 256; i++)
-        {
+        for (i = 0; i < 256; i++) {
                 crc = i;
-                for (j = 0; j < 8; j++)
-                {
-                        if (crc & 1)
-                        {
+                for (j = 0; j < 8; j++) {
+                        if (crc & 1) {
                                 crc = (crc >> 1) ^ 0xEDB88320;
                         }
-                        else
-                        {
+                        else {
                                 crc >>= 1;
                         }
                 }

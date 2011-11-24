@@ -8,8 +8,7 @@
 
 #include "error.h"
 
-static const char *errmsg[] =
-{
+static const char *errmsg[] = {
         "no error",
         "sth. must be wrong",
         "time out",
