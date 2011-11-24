@@ -41,8 +41,7 @@
 #define STC_1S                          (27 * 1000 * 1000) /* do NOT use 1e3  */
 #define STC_OVF                         (STC_BASE_OVF * 300L) /* 2576980377600 */
 
-typedef struct _ts_t
-{
+struct ts {
         uint8_t sync_byte;
         uint8_t transport_error_indicator; /* 1-bit */
         uint8_t payload_unit_start_indicator; /* 1-bit */
@@ -51,11 +50,9 @@ typedef struct _ts_t
         uint8_t transport_scrambling_control; /* 2-bit */
         uint8_t adaption_field_control; /* 2-bit */
         uint8_t continuity_counter; /* 4-bit */
-}
-ts_t;
+};
 
-typedef struct _af_t
-{
+struct af {
         uint8_t adaption_field_length;
         uint8_t discontinuity_indicator; /* 1-bit */
         uint8_t random_access_indicator; /* 1-bit */
@@ -71,11 +68,9 @@ typedef struct _af_t
         uint16_t original_program_clock_reference_extension; /* 9-bit */
         uint8_t splice_countdown;
         /* ... */
-}
-af_t;
+};
 
-typedef struct _pes_t
-{
+struct pes {
         uint32_t packet_start_code_prefix; /* 24-bit */
         uint8_t stream_id;
         uint16_t PES_packet_length;
@@ -117,52 +112,42 @@ typedef struct _pes_t
         uint8_t P_STD_buffer_scale; /* 1-bit */
         uint16_t P_STD_buffer_size; /* 13-bit */
         uint8_t PES_extension_field_length; /* 7-bit */
-}
-pes_t;
+};
 
-typedef struct _pid_type_table_t
-{
+struct pid_type_table {
         char *sdes; /* short description */
         char *ldes; /* long description */
-}
-pid_type_table_t;
+};
 
-typedef struct _ts_pid_table_t
-{
+struct ts_pid_table {
         uint16_t min; /* PID range */
         uint16_t max; /* PID range */
         int     type; /* index of item in PID_TYPE[] */
-}
-ts_pid_table_t;
+};
 
-typedef struct _table_id_table_t
-{
+struct table_id_table {
         uint8_t min; /* table ID range */
         uint8_t max; /* table ID range */
         int check_CRC; /* some table do not need to check CRC_32 */
         int type; /* index of item in PID_TYPE[] */
-}
-table_id_table_t;
+};
 
-typedef struct _stream_type_t
-{
+struct stream_type {
         uint8_t stream_type;
         int   type; /* index of item in PID_TYPE[] */
         char *sdes; /* short description */
         char *ldes; /* long description */
-}
-stream_type_t;
+};
 
-typedef struct _obj_t
-{
+struct obj {
         int is_first_pkt;
 
         uint8_t *p; /* point to rslt.line */
         int len;
 
-        ts_t ts;
-        af_t af;
-        pes_t pes;
+        struct ts ts;
+        struct af af;
+        struct pes pes;
 
         uint32_t pkt_size; /* 188 or 204 */
         int state;
@@ -170,9 +155,8 @@ typedef struct _obj_t
         int is_pes_align; /* met first PES head */
         int is_verbose; /* report key step one by one */
 
-        ts_rslt_t rslt;
-}
-obj_t;
+        struct ts_rslt rslt;
+};
 
 enum PID_TYPE_ENUM {
         /* should be synchronize with PID_TYPE[]! */
@@ -206,7 +190,7 @@ enum PID_TYPE_ENUM {
         BAD_PID
 };
 
-static const pid_type_table_t PID_TYPE[] = {
+static const struct pid_type_table PID_TYPE[] = {
         /* should be synchronize with enum PID_TYPE_ENUM! */
         {" PAT", "program association section"},
         {" CAT", "conditional access section"},
@@ -238,7 +222,7 @@ static const pid_type_table_t PID_TYPE[] = {
         {" BAD", "illegal"}
 };
 
-static const ts_pid_table_t PID_TABLE[] = {
+static const struct ts_pid_table PID_TABLE[] = {
         /* 0*/{0x0000, 0x0000,  PAT_PID},
         /* 1*/{0x0001, 0x0001,  CAT_PID},
         /* 2*/{0x0002, 0x0002, TSDT_PID},
@@ -259,7 +243,7 @@ static const ts_pid_table_t PID_TABLE[] = {
         /*17*/{0x2000, 0xFFFF,  BAD_PID}, /* loop stop condition! */
 };
 
-static const table_id_table_t TABLE_ID_TABLE[] = {
+static const struct table_id_table TABLE_ID_TABLE[] = {
         /* 0*/{0x00, 0x00, 1,  PAT_PID},
         /* 1*/{0x01, 0x01, 1,  CAT_PID},
         /* 2*/{0x02, 0x02, 1,  PMT_PID},
@@ -288,7 +272,7 @@ static const table_id_table_t TABLE_ID_TABLE[] = {
         /*25*/{0xFF, 0xFF, 0,  RSV_PID}, /* loop stop condition! */
 };
 
-static const stream_type_t STREAM_TYPE_TABLE[] = {
+static const struct stream_type STREAM_TYPE_TABLE[] = {
         {0x00, RSV_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
         {0x01, VID_PID, "MPEG-1", "ISO/IEC 11172-2 Video"},
         {0x02, VID_PID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
@@ -333,40 +317,40 @@ enum {
         STATE_NEXT_PKT  /* parse packet with current lists */
 };
 
-static int state_next_pat(obj_t *obj);
-static int state_next_pmt(obj_t *obj);
-static int state_next_pkt(obj_t *obj);
+static int state_next_pat(struct obj *obj);
+static int state_next_pmt(struct obj *obj);
+static int state_next_pkt(struct obj *obj);
 
-static int parse_TS_head(obj_t *obj); /* TS head information */
-static int parse_AF(obj_t *obj); /* Adaption Fields information */
-static int section(obj_t *obj); /* collect PSI/SI section data */
-static int parse_table(obj_t *obj);
-static int parse_PSI_head(ts_psi_t *psi, uint8_t *section);
-static int parse_PAT_load(obj_t *obj, uint8_t *section);
-static int parse_PMT_load(obj_t *obj, uint8_t *section);
-static int parse_SDT_load(obj_t *obj, uint8_t *section);
-static int parse_PES_head(obj_t *obj); /* PES layer information */
-static int parse_PES_head_switch(obj_t *obj);
-static int parse_PES_head_detail(obj_t *obj);
+static int parse_TS_head(struct obj *obj); /* TS head information */
+static int parse_AF(struct obj *obj); /* Adaption Fields information */
+static int section(struct obj *obj); /* collect PSI/SI section data */
+static int parse_table(struct obj *obj);
+static int parse_PSI_head(struct ts_psi *psi, uint8_t *section);
+static int parse_PAT_load(struct obj *obj, uint8_t *section);
+static int parse_PMT_load(struct obj *obj, uint8_t *section);
+static int parse_SDT_load(struct obj *obj, uint8_t *section);
+static int parse_PES_head(struct obj *obj); /* PES layer information */
+static int parse_PES_head_switch(struct obj *obj);
+static int parse_PES_head_detail(struct obj *obj);
 
-static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *pid);
-static ts_pid_t *add_new_pid(obj_t *obj);
-static int is_all_prog_parsed(obj_t *obj);
+static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *pid);
+static struct ts_pid *add_new_pid(struct obj *obj);
+static int is_all_prog_parsed(struct obj *obj);
 static int pid_type(uint16_t pid);
-static const table_id_table_t *table_type(uint8_t id);
-static int track_type(ts_track_t *track);
+static const struct table_id_table *table_type(uint8_t id);
+static int track_type(struct ts_track *track);
 
 static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf);
 static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf);
 
 static int dump(uint8_t *buf, int len); /* for debug */
 
-int tsCreate(ts_rslt_t **rslt)
+int tsCreate(struct ts_rslt **rslt)
 {
-        obj_t *obj;
-        ts_error_t *err;
+        struct obj *obj;
+        struct ts_error *err;
 
-        obj = (obj_t *)malloc(sizeof(obj_t));
+        obj = (struct obj *)malloc(sizeof(struct obj));
         if(!obj) {
                 DBG(ERR_MALLOC_FAILED, "\n");
                 return (int)NULL;
@@ -396,34 +380,34 @@ int tsCreate(ts_rslt_t **rslt)
 
         /* clear error struct */
         err = &((*rslt)->err);
-        memset(err, 0, sizeof(ts_error_t));
+        memset(err, 0, sizeof(struct ts_error));
 
         return (int)obj;
 }
 
 int tsDelete(int id)
 {
-        obj_t *obj;
+        struct obj *obj;
 
-        obj = (obj_t *)id;
+        obj = (struct obj *)id;
         if(!obj) {
                 DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
         }
         else {
-                ts_rslt_t *rslt = &(obj->rslt);
-                lnode_t *lnode;
+                struct ts_rslt *rslt = &(obj->rslt);
+                struct lnode *lnode;
 
-                for(lnode = (lnode_t *)(rslt->prog0); lnode; lnode = lnode->next) {
-                        ts_prog_t *prog = (ts_prog_t *)lnode;
+                for(lnode = (struct lnode *)(rslt->prog0); lnode; lnode = lnode->next) {
+                        struct ts_prog *prog = (struct ts_prog *)lnode;
                         list_free(&(prog->track0));
                         list_free(&(prog->table_02.section0));
                 }
                 list_free(&(rslt->prog0));
                 list_free(&(rslt->pid0));
 
-                for(lnode = (lnode_t *)(rslt->table0); lnode; lnode = lnode->next) {
-                        ts_table_t *table = (ts_table_t *)lnode;
+                for(lnode = (struct lnode *)(rslt->table0); lnode; lnode = lnode->next) {
+                        struct ts_table *table = (struct ts_table *)lnode;
                         list_free(&(table->section0));
                 }
                 list_free(&(rslt->table0));
@@ -436,11 +420,11 @@ int tsDelete(int id)
 
 int tsParseTS(int id)
 {
-        obj_t *obj;
-        ts_rslt_t *rslt;
+        struct obj *obj;
+        struct ts_rslt *rslt;
         struct ts_pkt *pkt;
 
-        obj = (obj_t *)id;
+        obj = (struct obj *)id;
         if(!obj) {
                 DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
@@ -467,9 +451,9 @@ int tsParseTS(int id)
 
 int tsParseOther(int id)
 {
-        obj_t *obj;
+        struct obj *obj;
 
-        obj = (obj_t *)id;
+        obj = (struct obj *)id;
         if(!obj) {
                 DBG(ERR_BAD_ID, "\n");
                 return -ERR_BAD_ID;
@@ -491,10 +475,10 @@ int tsParseOther(int id)
         return 0;
 }
 
-static int state_next_pat(obj_t *obj)
+static int state_next_pat(struct obj *obj)
 {
-        ts_t *ts = &(obj->ts);
-        ts_table_t *table;
+        struct ts *ts = &(obj->ts);
+        struct ts_table *table;
         uint8_t section_number;
 
         if(0x0000 != ts->PID) {
@@ -503,16 +487,16 @@ static int state_next_pat(obj_t *obj)
 
         /* section parse has done in parse_TS_head()! */
         dbg(1, "search 0x00 in table_list");
-        table = (ts_table_t *)list_search(&(obj->rslt.table0), 0x00);
+        table = (struct ts_table *)list_search(&(obj->rslt.table0), 0x00);
         if(!table) {
                 return -1;
         }
         else {
-                lnode_t *lnode;
+                struct lnode *lnode;
 
                 section_number = 0;
-                for(lnode = (lnode_t *)(table->section0); lnode; lnode = lnode->next) {
-                        ts_section_t *section = (ts_section_t *)lnode;
+                for(lnode = (struct lnode *)(table->section0); lnode; lnode = lnode->next) {
+                        struct ts_section *section = (struct ts_section *)lnode;
 
                         if(section_number > table->last_section_number) {
                                 return -1;
@@ -540,13 +524,13 @@ static int state_next_pat(obj_t *obj)
         return 0;
 }
 
-static int state_next_pmt(obj_t *obj)
+static int state_next_pmt(struct obj *obj)
 {
-        ts_t *ts = &(obj->ts);
-        ts_pid_t *pid;
+        struct ts *ts = &(obj->ts);
+        struct ts_pid *pid;
 
         dbg(1, "search 0x%04X in pid_list", ts->PID);
-        pid = (ts_pid_t *)list_search(&(obj->rslt.pid0), ts->PID);
+        pid = (struct ts_pid *)list_search(&(obj->rslt.pid0), ts->PID);
         if((!pid) || (PMT_PID != pid->type)) {
                 return -1; /* not PMT */
         }
@@ -564,15 +548,15 @@ static int state_next_pmt(obj_t *obj)
         return 0;
 }
 
-static int state_next_pkt(obj_t *obj)
+static int state_next_pkt(struct obj *obj)
 {
-        ts_t *ts = &(obj->ts);
-        af_t *af = &(obj->af);
-        ts_rslt_t *rslt = &(obj->rslt);
-        ts_pid_t *pid = rslt->pid;
-        ts_track_t *track = pid->track; /* may be NULL */
-        ts_prog_t *prog = pid->prog; /* may be NULL */
-        ts_error_t *err = &(rslt->err);
+        struct ts *ts = &(obj->ts);
+        struct af *af = &(obj->af);
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_pid *pid = rslt->pid;
+        struct ts_track *track = pid->track; /* may be NULL */
+        struct ts_prog *prog = pid->prog; /* may be NULL */
+        struct ts_error *err = &(rslt->err);
         struct ts_pkt *pkt = rslt->pkt;
 
         /* CC */
@@ -689,10 +673,10 @@ static int state_next_pkt(obj_t *obj)
                                 /* first count clear */
                                 if(is_first_count_clear &&
                                    prog->PCR_PID == rslt->prog0->PCR_PID) {
-                                        lnode_t *lnode;
+                                        struct lnode *lnode;
 
-                                        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                                ts_pid_t *pid_item = (ts_pid_t *)lnode;
+                                        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                                struct ts_pid *pid_item = (struct ts_pid *)lnode;
                                                 if(pid_item->prog == prog) {
                                                         pid_item->lcnt = 0;
                                                         pid_item->cnt = 0;
@@ -717,11 +701,11 @@ static int state_next_pkt(obj_t *obj)
                         if(prog->PCR_PID == rslt->prog0->PCR_PID) {
                                 rslt->interval += lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
                                 if(rslt->interval >= rslt->aim_interval) {
-                                        lnode_t *lnode;
+                                        struct lnode *lnode;
 
                                         /* calc bitrate and clear the packet count */
-                                        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                                ts_pid_t *pid_item = (ts_pid_t *)lnode;
+                                        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                                struct ts_pid *pid_item = (struct ts_pid *)lnode;
                                                 pid_item->lcnt = pid_item->cnt;
                                                 pid_item->cnt = 0;
                                         }
@@ -772,15 +756,15 @@ static int state_next_pkt(obj_t *obj)
         return 0;
 }
 
-static int parse_TS_head(obj_t *obj)
+static int parse_TS_head(struct obj *obj)
 {
         uint8_t dat;
-        ts_t *ts = &(obj->ts);
-        af_t *af = &(obj->af);
-        ts_rslt_t *rslt = &(obj->rslt);
-        ts_error_t *err = &(rslt->err);
-        ts_pid_t *pid; /* may be NULL */
-        ts_prog_t *prog; /* may be NULL */
+        struct ts *ts = &(obj->ts);
+        struct af *af = &(obj->af);
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_error *err = &(rslt->err);
+        struct ts_pid *pid; /* may be NULL */
+        struct ts_prog *prog; /* may be NULL */
         struct ts_pkt *pkt = rslt->pkt;
 
         /* init rslt */
@@ -843,7 +827,7 @@ static int parse_TS_head(obj_t *obj)
 
         rslt->PID = ts->PID; /* record into rslt struct */
         dbg(1, "search 0x%04X in pid_list", rslt->PID);
-        rslt->pid = (ts_pid_t *)list_search(&(obj->rslt.pid0), rslt->PID);
+        rslt->pid = (struct ts_pid *)list_search(&(obj->rslt.pid0), rslt->PID);
         if(!(rslt->pid)) {
                 /* find new PID, add it in pid_list */
                 rslt->pid = add_new_pid(obj);
@@ -892,12 +876,12 @@ static int parse_TS_head(obj_t *obj)
         return 0;
 }
 
-static int parse_AF(obj_t *obj)
+static int parse_AF(struct obj *obj)
 {
         int i;
         uint8_t dat;
-        af_t *af = &(obj->af);
-        ts_rslt_t *rslt = &(obj->rslt);
+        struct af *af = &(obj->af);
+        struct ts_rslt *rslt = &(obj->rslt);
 
         dat = *(obj->p)++; obj->len--;
         af->adaption_field_length = dat;
@@ -986,12 +970,12 @@ static int parse_AF(obj_t *obj)
         return 0;
 }
 
-static int section(obj_t *obj)
+static int section(struct obj *obj)
 {
         uint8_t pointer_field;
-        ts_t *ts = &(obj->ts);
-        ts_psi_t *psi = &(obj->rslt.psi);
-        ts_pid_t *pid = obj->rslt.pid;
+        struct ts *ts = &(obj->ts);
+        struct ts_psi *psi = &(obj->rslt.psi);
+        struct ts_pid *pid = obj->rslt.pid;
 
         /* FIXME: if data after CRC_32 is NOT 0xFF, it's another section! */
         if(0 == pid->section_idx) {
@@ -1042,16 +1026,16 @@ static int section(obj_t *obj)
         return 0;
 }
 
-static int parse_table(obj_t *obj)
+static int parse_table(struct obj *obj)
 {
         uint8_t *p;
-        ts_table_t *table;
-        lnode_t **psection0;
-        ts_section_t *section;
-        ts_rslt_t *rslt = &(obj->rslt);
-        ts_pid_t *pid = rslt->pid;
-        ts_psi_t *psi = &(rslt->psi);
-        ts_error_t *err = &(rslt->err);
+        struct ts_table *table;
+        struct lnode **psection0;
+        struct ts_section *section;
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_pid *pid = rslt->pid;
+        struct ts_psi *psi = &(rslt->psi);
+        struct ts_error *err = &(rslt->err);
         int is_new_version = 0;
 
         /* get psi head info */
@@ -1091,13 +1075,13 @@ static int parse_table(obj_t *obj)
         }
         else {
                 /* other section */
-                lnode_t **ptable0 = (lnode_t **)&(rslt->table0);
+                struct lnode **ptable0 = (struct lnode **)&(rslt->table0);
 
                 dbg(1, "search 0x%02X in table_list", psi->table_id);
-                table = (ts_table_t *)list_search(ptable0, psi->table_id);
+                table = (struct ts_table *)list_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
-                        table = (ts_table_t *)malloc(sizeof(ts_table_t));
+                        table = (struct ts_table *)malloc(sizeof(struct ts_table));
                         if(!table) {
                                 DBG(ERR_MALLOC_FAILED, "\n");
                                 return -ERR_MALLOC_FAILED;
@@ -1113,7 +1097,7 @@ static int parse_table(obj_t *obj)
                         list_insert(ptable0, table);
                 }
         }
-        psection0 = (lnode_t **)&(table->section0);
+        psection0 = (struct lnode **)&(table->section0);
 
         /* new table version? */
         if(table->version_number != psi->version_number) {
@@ -1129,10 +1113,10 @@ static int parse_table(obj_t *obj)
 
         /* get "section" pointer */
         dbg(1, "search 0x%02X in section_list", psi->section_number);
-        section = (ts_section_t *)list_search(psection0, psi->section_number);
+        section = (struct ts_section *)list_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
-                section = (ts_section_t *)malloc(sizeof(ts_section_t));
+                section = (struct ts_section *)malloc(sizeof(struct ts_section));
                 if(!section) {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return -ERR_MALLOC_FAILED;
@@ -1182,10 +1166,10 @@ static int parse_table(obj_t *obj)
         return 0;
 }
 
-static int parse_PSI_head(ts_psi_t *psi, uint8_t *section)
+static int parse_PSI_head(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p;
-        const table_id_table_t *table;
+        const struct table_id_table *table;
 
         p = section;
         psi->table_id = *p++;
@@ -1251,18 +1235,18 @@ static int parse_PSI_head(ts_psi_t *psi, uint8_t *section)
         return 0;
 }
 
-static int parse_PAT_load(obj_t *obj, uint8_t *section)
+static int parse_PAT_load(struct obj *obj, uint8_t *section)
 {
         uint8_t dat;
         uint8_t *p = section + 8;
-        ts_psi_t *psi = &(obj->rslt.psi);
+        struct ts_psi *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
-        ts_prog_t *prog;
-        ts_t *ts = &(obj->ts);
-        ts_rslt_t *rslt = &(obj->rslt);
-        ts_pid_t *pid = rslt->pid;
-        ts_error_t *err = &(rslt->err);
-        ts_pid_t ts_new_pid, *new_pid = &ts_new_pid;
+        struct ts_prog *prog;
+        struct ts *ts = &(obj->ts);
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_pid *pid = rslt->pid;
+        struct ts_error *err = &(rslt->err);
+        struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PAT_error */
         if(pid->section_interval > 500 * STC_MS) {
@@ -1283,7 +1267,7 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add program */
-                prog = (ts_prog_t *)malloc(sizeof(ts_prog_t));
+                prog = (struct ts_prog *)malloc(sizeof(struct ts_prog));
                 if(!prog) {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return -ERR_MALLOC_FAILED;
@@ -1316,15 +1300,15 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
                         free(prog);
                 }
                 else {
-                        lnode_t *lnode;
+                        struct lnode *lnode;
 
                         new_pid->type = PMT_PID;
 
                         if(!(rslt->prog0)) {
                                 /* traverse pid_list */
                                 /* if it des not belong to any program, use prog0 */
-                                for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                        ts_pid_t *pid_item = (ts_pid_t *)lnode;
+                                for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                        struct ts_pid *pid_item = (struct ts_pid *)lnode;
                                         if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF) {
                                                 pid_item->prog = prog;
                                         }
@@ -1374,19 +1358,19 @@ static int parse_PAT_load(obj_t *obj, uint8_t *section)
         return 0;
 }
 
-static int parse_PMT_load(obj_t *obj, uint8_t *section)
+static int parse_PMT_load(struct obj *obj, uint8_t *section)
 {
         uint8_t dat;
         uint8_t *p = section + 8;
-        ts_rslt_t *rslt = &(obj->rslt);
-        ts_psi_t *psi = &(rslt->psi);
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_psi *psi = &(rslt->psi);
         int len = psi->section_length - 5;
-        ts_prog_t *prog;
-        ts_track_t *track;
-        ts_t *ts = &(obj->ts);
-        ts_pid_t *pid = rslt->pid;
-        ts_error_t *err = &(rslt->err);
-        ts_pid_t ts_new_pid, *new_pid = &ts_new_pid;
+        struct ts_prog *prog;
+        struct ts_track *track;
+        struct ts *ts = &(obj->ts);
+        struct ts_pid *pid = rslt->pid;
+        struct ts_error *err = &(rslt->err);
+        struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PMT_error */
         if(pid->section_interval > 500 * STC_MS) {
@@ -1398,7 +1382,7 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
 
         /* in PMT, table_id_extension is program_number */
         dbg(1, "search 0x%04X in prog_list", psi->table_id_extension);
-        prog = (ts_prog_t *)list_search(&(obj->rslt.prog0), psi->table_id_extension);
+        prog = (struct ts_prog *)list_search(&(obj->rslt.prog0), psi->table_id_extension);
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
@@ -1447,7 +1431,7 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add track */
-                track = (ts_track_t *)malloc(sizeof(ts_track_t));
+                track = (struct ts_track *)malloc(sizeof(struct ts_track));
                 if(!track) {
                         fprintf(stderr, "Malloc memory failure!\n");
                         exit(EXIT_FAILURE);
@@ -1513,13 +1497,13 @@ static int parse_PMT_load(obj_t *obj, uint8_t *section)
         return 0;
 }
 
-static int parse_SDT_load(obj_t *obj, uint8_t *section)
+static int parse_SDT_load(struct obj *obj, uint8_t *section)
 {
         uint8_t dat;
         uint8_t *p = section + 8;
-        ts_psi_t *psi = &(obj->rslt.psi);
+        struct ts_psi *psi = &(obj->rslt.psi);
         int len = psi->section_length - 5;
-        ts_rslt_t *rslt = &(obj->rslt);
+        struct ts_rslt *rslt = &(obj->rslt);
         uint16_t original_network_id;
 
         /* in SDT, table_id_extension is transport_stream_id */
@@ -1552,7 +1536,7 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
         dat = *p++; len--; /* reserved_future_use */
 
         while(len > 4) {
-                ts_prog_t *prog;
+                struct ts_prog *prog;
 
                 uint16_t service_id;
                 uint8_t EIT_schedule_flag; /* 1-bit */
@@ -1568,7 +1552,7 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
                 service_id <<= 8;
                 service_id |= dat;
                 dbg(1, "search service_id(0x%04X) in prog_list", service_id);
-                prog = (ts_prog_t *)list_search(&(rslt->prog0), service_id);
+                prog = (struct ts_prog *)list_search(&(rslt->prog0), service_id);
 
                 dat = *p++; len--;
                 EIT_schedule_flag = (dat & BIT(1)) >> 1;
@@ -1614,12 +1598,12 @@ static int parse_SDT_load(obj_t *obj, uint8_t *section)
         return 0;
 }
 
-static int parse_PES_head(obj_t *obj)
+static int parse_PES_head(struct obj *obj)
 {
         uint8_t dat;
-        ts_t *ts = &(obj->ts);
-        pes_t *pes = &(obj->pes);
-        ts_rslt_t *rslt = &(obj->rslt);
+        struct ts *ts = &(obj->ts);
+        struct pes *pes = &(obj->pes);
+        struct ts_rslt *rslt = &(obj->rslt);
 
         /* record PES data */
         if(obj->is_pes_align) { /* FIXME */
@@ -1679,9 +1663,9 @@ static int parse_PES_head(obj_t *obj)
         return 0;
 }
 
-static int parse_PES_head_switch(obj_t *obj)
+static int parse_PES_head_switch(struct obj *obj)
 {
-        pes_t *pes = &(obj->pes);
+        struct pes *pes = &(obj->pes);
 
         switch(pes->stream_id) {
                 case 0xBE: /* padding_stream */
@@ -1712,13 +1696,13 @@ static int parse_PES_head_switch(obj_t *obj)
         return 0;
 }
 
-static int parse_PES_head_detail(obj_t *obj)
+static int parse_PES_head_detail(struct obj *obj)
 {
         int i;
         int header_data_len;
         uint8_t dat;
-        pes_t *pes = &(obj->pes);
-        ts_rslt_t *rslt = &(obj->rslt);
+        struct pes *pes = &(obj->pes);
+        struct ts_rslt *rslt = &(obj->rslt);
 
         dat = *(obj->p)++; obj->len--;
         pes->PES_scrambling_control = (dat & (BIT(5) | BIT(4))) >> 4;
@@ -1984,10 +1968,10 @@ static int parse_PES_head_detail(obj_t *obj)
         return 0;
 }
 
-static ts_pid_t *add_new_pid(obj_t *obj)
+static struct ts_pid *add_new_pid(struct obj *obj)
 {
-        ts_pid_t ts_pid, *pid;
-        ts_rslt_t *rslt = &(obj->rslt);
+        struct ts_pid ts_pid, *pid;
+        struct ts_rslt *rslt = &(obj->rslt);
 
         pid = &ts_pid;
 
@@ -2011,12 +1995,12 @@ static ts_pid_t *add_new_pid(obj_t *obj)
         return add_to_pid_list(&(rslt->pid0), pid); /* other_PID */
 }
 
-static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
+static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_pid)
 {
-        ts_pid_t *pid;
+        struct ts_pid *pid;
 
         dbg(1, "search 0x%04X in pid_list", the_pid->PID);
-        pid = (ts_pid_t *)list_search(phead, the_pid->PID);
+        pid = (struct ts_pid *)list_search(phead, the_pid->PID);
         if(pid) {
                 /* in pid_list already, just update information */
                 pid->PID = the_pid->PID;
@@ -2031,7 +2015,7 @@ static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
                 pid->ldes = the_pid->ldes;
         }
         else {
-                pid = (ts_pid_t *)malloc(sizeof(ts_pid_t));
+                pid = (struct ts_pid *)malloc(sizeof(struct ts_pid));
                 if(!pid) {
                         DBG(ERR_MALLOC_FAILED, "\n");
                         return NULL;
@@ -2057,23 +2041,23 @@ static ts_pid_t *add_to_pid_list(ts_pid_t **phead, ts_pid_t *the_pid)
         return pid;
 }
 
-static int is_all_prog_parsed(obj_t *obj)
+static int is_all_prog_parsed(struct obj *obj)
 {
         uint8_t section_number;
-        lnode_t *lnode_p; /* lnode of program list */
+        struct lnode *lnode_p; /* lnode of program list */
 
-        for(lnode_p = (lnode_t *)(obj->rslt.prog0); lnode_p; lnode_p = lnode_p->next) {
-                ts_prog_t *prog = (ts_prog_t *)lnode_p;
-                ts_table_t *table_02 = &(prog->table_02);
-                lnode_t *lnode_s; /* lnode of section list */
+        for(lnode_p = (struct lnode *)(obj->rslt.prog0); lnode_p; lnode_p = lnode_p->next) {
+                struct ts_prog *prog = (struct ts_prog *)lnode_p;
+                struct ts_table *table_02 = &(prog->table_02);
+                struct lnode *lnode_s; /* lnode of section list */
 
                 if(0xFF == table_02->version_number) {
                         return 0;
                 }
 
                 section_number = 0;
-                for(lnode_s = (lnode_t *)(table_02->section0); lnode_s; lnode_s = lnode_s->next) {
-                        ts_section_t *section = (ts_section_t *)lnode_s;
+                for(lnode_s = (struct lnode *)(table_02->section0); lnode_s; lnode_s = lnode_s->next) {
+                        struct ts_section *section = (struct ts_section *)lnode_s;
 
                         if(section_number > table_02->last_section_number) {
                                 return 0;
@@ -2089,7 +2073,7 @@ static int is_all_prog_parsed(obj_t *obj)
 
 static int pid_type(uint16_t pid)
 {
-        const ts_pid_table_t *p;
+        const struct ts_pid_table *p;
 
         for(p = PID_TABLE; p->type != BAD_PID; p++) {
                 if(p->min <= pid && pid <= p->max) {
@@ -2100,9 +2084,9 @@ static int pid_type(uint16_t pid)
         return p->type;
 }
 
-static const table_id_table_t *table_type(uint8_t id)
+static const struct table_id_table *table_type(uint8_t id)
 {
-        const table_id_table_t *p;
+        const struct table_id_table *p;
 
         for(p = TABLE_ID_TABLE; p->min != 0xFF; p++) {
                 if(p->min <= id && id <= p->max) {
@@ -2113,9 +2097,9 @@ static const table_id_table_t *table_type(uint8_t id)
         return p;
 }
 
-static int track_type(ts_track_t *track)
+static int track_type(struct ts_track *track)
 {
-        const stream_type_t *p;
+        const struct stream_type *p;
 
         for(p = STREAM_TYPE_TABLE; 0xFF != p->stream_type; p++) {
                 if(p->stream_type == track->stream_type) {

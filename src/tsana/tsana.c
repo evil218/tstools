@@ -27,8 +27,7 @@
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
-typedef struct
-{
+struct obj {
         int mode;
         int state;
 
@@ -51,12 +50,10 @@ typedef struct
         char tbak[PKT_TBUF];
 
         int ts_id;
-        ts_rslt_t *rslt;
-}
-obj_t;
+        struct ts_rslt *rslt;
+};
 
-enum
-{
+enum {
         MODE_LST,
         MODE_PSI,
         MODE_SEC,
@@ -74,68 +71,66 @@ enum
         MODE_EXIT
 };
 
-enum
-{
+enum {
         STATE_PARSE_EACH,
         STATE_PARSE_PSI,
         STATE_EXIT
 };
 
-enum
-{
+enum {
         GOT_WRONG_PKT,
         GOT_RIGHT_PKT,
         GOT_EOF
 };
 
-static obj_t *obj = NULL;
+static struct obj *obj = NULL;
 
-static void state_parse_psi(obj_t *obj);
-static void state_parse_each(obj_t *obj);
+static void state_parse_psi(struct obj *obj);
+static void state_parse_each(struct obj *obj);
 
-static obj_t *create(int argc, char *argv[]);
-static int delete(obj_t *obj);
+static struct obj *create(int argc, char *argv[]);
+static int delete(struct obj *obj);
 
 static void show_help();
 static void show_version();
 
-static int get_one_pkt(obj_t *obj);
+static int get_one_pkt(struct obj *obj);
 
-static void show_pkt(obj_t *obj);
-static void show_list(obj_t *obj);
-static void show_prog(obj_t *obj);
+static void show_pkt(struct obj *obj);
+static void show_list(struct obj *obj);
+static void show_prog(struct obj *obj);
 static void show_track(void *PTRACK, uint16_t pcr_pid);
 
-static void show_sec(obj_t *obj);
-static void show_si(obj_t *obj);
-static void show_tcp(obj_t *obj);
-static void show_pcr(obj_t *obj);
-static void show_sys_rate(obj_t *obj);
-static void show_psi_rate(obj_t *obj);
-static void show_rate(obj_t *obj);
-static void show_ptsdts(obj_t *obj);
-static void show_pes(obj_t *obj);
-static void show_es(obj_t *obj);
-static void all_es(obj_t *obj);
-static void show_error(obj_t *obj);
+static void show_sec(struct obj *obj);
+static void show_si(struct obj *obj);
+static void show_tcp(struct obj *obj);
+static void show_pcr(struct obj *obj);
+static void show_sys_rate(struct obj *obj);
+static void show_psi_rate(struct obj *obj);
+static void show_rate(struct obj *obj);
+static void show_ptsdts(struct obj *obj);
+static void show_pes(struct obj *obj);
+static void show_es(struct obj *obj);
+static void all_es(struct obj *obj);
+static void show_error(struct obj *obj);
 
-static void print_atp_title(obj_t *obj); /* atp: address_time_PID */
-static void print_atp_value(obj_t *obj); /* atp: address_time_PID */
+static void print_atp_title(struct obj *obj); /* atp: address_time_PID */
+static void print_atp_value(struct obj *obj); /* atp: address_time_PID */
 
-static void table_info_PAT(ts_psi_t *psi, uint8_t *section);
-static void table_info_CAT(ts_psi_t *psi, uint8_t *section);
-static void table_info_PMT(ts_psi_t *psi, uint8_t *section);
-static void table_info_TSDT(ts_psi_t *psi, uint8_t *section);
-static void table_info_NIT(ts_psi_t *psi, uint8_t *section);
-static void table_info_SDT(ts_psi_t *psi, uint8_t *section);
-static void table_info_BAT(ts_psi_t *psi, uint8_t *section);
-static void table_info_EIT(ts_psi_t *psi, uint8_t *section);
-static void table_info_TDT(ts_psi_t *psi, uint8_t *section);
-static void table_info_RST(ts_psi_t *psi, uint8_t *section);
-static void table_info_ST(ts_psi_t *psi, uint8_t *section);
-static void table_info_TOT(ts_psi_t *psi, uint8_t *section);
-static void table_info_DIT(ts_psi_t *psi, uint8_t *section);
-static void table_info_SIT(ts_psi_t *psi, uint8_t *section);
+static void table_info_PAT(struct ts_psi *psi, uint8_t *section);
+static void table_info_CAT(struct ts_psi *psi, uint8_t *section);
+static void table_info_PMT(struct ts_psi *psi, uint8_t *section);
+static void table_info_TSDT(struct ts_psi *psi, uint8_t *section);
+static void table_info_NIT(struct ts_psi *psi, uint8_t *section);
+static void table_info_SDT(struct ts_psi *psi, uint8_t *section);
+static void table_info_BAT(struct ts_psi *psi, uint8_t *section);
+static void table_info_EIT(struct ts_psi *psi, uint8_t *section);
+static void table_info_TDT(struct ts_psi *psi, uint8_t *section);
+static void table_info_RST(struct ts_psi *psi, uint8_t *section);
+static void table_info_ST(struct ts_psi *psi, uint8_t *section);
+static void table_info_TOT(struct ts_psi *psi, uint8_t *section);
+static void table_info_DIT(struct ts_psi *psi, uint8_t *section);
+static void table_info_SIT(struct ts_psi *psi, uint8_t *section);
 
 static void MJD_UTC(uint8_t *buf);
 static void UTC(uint8_t *buf);
@@ -149,7 +144,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color); /* atsc_mh_tcp.c */
 int main(int argc, char *argv[])
 {
         int get_rslt;
-        ts_rslt_t *rslt;
+        struct ts_rslt *rslt;
 
         obj = create(argc, argv);
         rslt = obj->rslt;
@@ -212,9 +207,9 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
 }
 
-static void state_parse_psi(obj_t *obj)
+static void state_parse_psi(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(obj->is_outpsi && rslt->is_psi_si) {
                 fprintf(stdout, "%s", obj->tbuf);
@@ -267,10 +262,10 @@ static void state_parse_psi(obj_t *obj)
         return;
 }
 
-static void state_parse_each(obj_t *obj)
+static void state_parse_each(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        ts_psi_t *psi = &(rslt->psi);
+        struct ts_rslt *rslt = obj->rslt;
+        struct ts_psi *psi = &(rslt->psi);
 
         /* filter for some mode */
         if(obj->mode == MODE_SEC        ||
@@ -346,13 +341,13 @@ static void state_parse_each(obj_t *obj)
         return;
 }
 
-static obj_t *create(int argc, char *argv[])
+static struct obj *create(int argc, char *argv[])
 {
         int i;
         int dat;
-        obj_t *obj;
+        struct obj *obj;
 
-        obj = (obj_t *)malloc(sizeof(obj_t));
+        obj = (struct obj *)malloc(sizeof(struct obj));
         if(NULL == obj) {
                 DBG(ERR_MALLOC_FAILED, "\n");
                 return NULL;
@@ -403,7 +398,8 @@ static obj_t *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-prepsi")) {
                                 obj->is_prepsi = 1;
                         }
-                        else if(0 == strcmp(argv[i], "-color")) {
+                        else if(0 == strcmp(argv[i], "-c") ||
+                                0 == strcmp(argv[i], "-color")) {
                                 obj->is_color = 1;
                                 obj->color_off = NONE;
                                 obj->color_red = FRED;
@@ -552,7 +548,7 @@ static obj_t *create(int argc, char *argv[])
         return obj;
 }
 
-static int delete(obj_t *obj)
+static int delete(struct obj *obj)
 {
         if(NULL == obj) {
                 return 0;
@@ -589,7 +585,7 @@ static void show_help()
         puts(" -err             output all errors found");
         puts(" -dump            dump cared packet");
         puts("");
-        puts(" -color           enable colour effect to help read, default: mono");
+        puts(" -c -color        enable colour effect to help read, default: mono");
         puts(" -start <x>       analyse from packet(x), default: 0, first packet");
         puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
         puts(" -pid <pid>       set cared PID, default: any PID(0x2000)");
@@ -623,7 +619,7 @@ static void show_version()
         return;
 }
 
-static int get_one_pkt(obj_t *obj)
+static int get_one_pkt(struct obj *obj)
 {
         if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
                 return GOT_EOF;
@@ -634,9 +630,9 @@ static int get_one_pkt(obj_t *obj)
         return GOT_RIGHT_PKT;
 }
 
-static void show_pkt(obj_t *obj)
+static void show_pkt(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid) {
                 return;
@@ -644,11 +640,11 @@ static void show_pkt(obj_t *obj)
         fprintf(stdout, "%s", obj->tbak);
 }
 
-static void show_list(obj_t *obj)
+static void show_list(struct obj *obj)
 {
-        lnode_t *lnode;
-        ts_pid_t *pid;
-        ts_rslt_t *rslt = obj->rslt;
+        struct lnode *lnode;
+        struct ts_pid *pid;
+        struct ts_rslt *rslt = obj->rslt;
         char *color_yellow;
         char *color_off;
 
@@ -657,8 +653,8 @@ static void show_list(obj_t *obj)
         }
 
         fprintf(stdout, "  PID , abbr, detail\n");
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                pid = (ts_pid_t *)lnode;
+        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                pid = (struct ts_pid *)lnode;
                 color_yellow = "";
                 color_off = "";
                 if(NULL != pid->track) {
@@ -677,10 +673,10 @@ static void show_list(obj_t *obj)
         return;
 }
 
-static void show_prog(obj_t *obj)
+static void show_prog(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        lnode_t *lnode;
+        struct ts_rslt *rslt = obj->rslt;
+        struct lnode *lnode;
 
         if(!(rslt->is_psi_parse_finished)) {
                 return;
@@ -690,10 +686,10 @@ static void show_prog(obj_t *obj)
                 obj->color_yellow, rslt->transport_stream_id, obj->color_off,
                 rslt->transport_stream_id);
 
-        for(lnode = (lnode_t *)(rslt->prog0); lnode; lnode = lnode->next) {
+        for(lnode = (struct lnode *)(rslt->prog0); lnode; lnode = lnode->next) {
                 int i;
 
-                ts_prog_t *prog = (ts_prog_t *)lnode;
+                struct ts_prog *prog = (struct ts_prog *)lnode;
                 fprintf(stdout, "program_number, %s%5d%s(0x%04X), "
                         "PMT_PID, %s0x%04X%s, "
                         "PCR_PID, %s0x%04X%s, ",
@@ -753,13 +749,13 @@ static void show_prog(obj_t *obj)
 static void show_track(void *PTRACK, uint16_t pcr_pid)
 {
         uint16_t i;
-        lnode_t **ptrack = (lnode_t **)PTRACK;
-        lnode_t *lnode;
-        ts_track_t *track;
+        struct lnode **ptrack = (struct lnode **)PTRACK;
+        struct lnode *lnode;
+        struct ts_track *track;
         char *color_pid;
 
         for(lnode = *ptrack; lnode; lnode = lnode->next) {
-                track = (ts_track_t *)lnode;
+                track = (struct ts_track *)lnode;
 
                 color_pid = (track->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
                 fprintf(stdout, "track, %s0x%04X%s, "
@@ -782,12 +778,12 @@ static void show_track(void *PTRACK, uint16_t pcr_pid)
         return;
 }
 
-static void show_sec(obj_t *obj)
+static void show_sec(struct obj *obj)
 {
         int i;
-        ts_rslt_t *rslt = obj->rslt;
-        ts_psi_t *psi = &(rslt->psi);
-        ts_pid_t *pid = rslt->pid;
+        struct ts_rslt *rslt = obj->rslt;
+        struct ts_psi *psi = &(rslt->psi);
+        struct ts_pid *pid = rslt->pid;
 
         if(!(rslt->has_section)) {
                 return;
@@ -812,13 +808,13 @@ static void show_sec(obj_t *obj)
         return;
 }
 
-static void show_si(obj_t *obj)
+static void show_si(struct obj *obj)
 {
         int i;
         int is_unknown_table_id = 0;
-        ts_rslt_t *rslt = obj->rslt;
-        ts_psi_t *psi = &(rslt->psi);
-        ts_pid_t *pid = rslt->pid;
+        struct ts_rslt *rslt = obj->rslt;
+        struct ts_psi *psi = &(rslt->psi);
+        struct ts_pid *pid = rslt->pid;
 
         if(!(rslt->has_section)) {
                 return;
@@ -931,9 +927,9 @@ static void show_si(obj_t *obj)
         return;
 }
 
-static void show_tcp(obj_t *obj)
+static void show_tcp(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(0x1FFA != rslt->PID) {
                 return;
@@ -944,9 +940,9 @@ static void show_tcp(obj_t *obj)
         return;
 }
 
-static void show_pcr(obj_t *obj)
+static void show_pcr(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(!(rslt->has_PCR)) {
                 return;
@@ -962,9 +958,9 @@ static void show_pcr(obj_t *obj)
         return;
 }
 
-static void show_sys_rate(obj_t *obj)
+static void show_sys_rate(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(!(rslt->has_rate)) {
                 return;
@@ -979,10 +975,10 @@ static void show_sys_rate(obj_t *obj)
         return;
 }
 
-static void show_psi_rate(obj_t *obj)
+static void show_psi_rate(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        lnode_t *lnode;
+        struct ts_rslt *rslt = obj->rslt;
+        struct lnode *lnode;
 
         if(!(rslt->has_rate)) {
                 return;
@@ -993,8 +989,8 @@ static void show_psi_rate(obj_t *obj)
         fprintf(stdout, "%stotal%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                ts_pid_t *pid_item = (ts_pid_t *)lnode;
+        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                struct ts_pid *pid_item = (struct ts_pid *)lnode;
 
                 if(pid_item->PID >= 0x0020) {
                         /* not psi/si PID */
@@ -1010,10 +1006,10 @@ static void show_psi_rate(obj_t *obj)
         return;
 }
 
-static void show_rate(obj_t *obj)
+static void show_rate(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        lnode_t *lnode;
+        struct ts_rslt *rslt = obj->rslt;
+        struct lnode *lnode;
 
         if(!(rslt->has_rate)) {
                 return;
@@ -1022,8 +1018,8 @@ static void show_rate(obj_t *obj)
         print_atp_value(obj);
         fprintf(stdout, "pid-rate, ");
 
-        for(lnode = (lnode_t *)(rslt->pid0); lnode; lnode = lnode->next) {
-                ts_pid_t *pid_item = (ts_pid_t *)lnode;
+        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                struct ts_pid *pid_item = (struct ts_pid *)lnode;
 
                 if(ANY_PID != obj->aim_pid && pid_item->PID != obj->aim_pid) {
                         /* not cared PID */
@@ -1053,9 +1049,9 @@ static void show_rate(obj_t *obj)
         return;
 }
 
-static void show_ptsdts(obj_t *obj)
+static void show_ptsdts(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(!(rslt->has_PTS)) {
                 return;
@@ -1080,9 +1076,9 @@ static void show_ptsdts(obj_t *obj)
         return;
 }
 
-static void show_pes(obj_t *obj)
+static void show_pes(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
         struct ts_pkt PKT;
         struct ts_pkt *pkt = &PKT;
 
@@ -1097,9 +1093,9 @@ static void show_pes(obj_t *obj)
         return;
 }
 
-static void show_es(obj_t *obj)
+static void show_es(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
         struct ts_pkt PKT;
         struct ts_pkt *pkt = &PKT;
 
@@ -1114,9 +1110,9 @@ static void show_es(obj_t *obj)
         return;
 }
 
-static void all_es(obj_t *obj)
+static void all_es(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
         if(0 == rslt->ES_len) {
                 return;
@@ -1143,10 +1139,10 @@ static void all_es(obj_t *obj)
         return;
 }
 
-static void show_error(obj_t *obj)
+static void show_error(struct obj *obj)
 {
-        ts_rslt_t *rslt = obj->rslt;
-        ts_error_t *err = &(rslt->err);
+        struct ts_rslt *rslt = obj->rslt;
+        struct ts_error *err = &(rslt->err);
 
         /* First priority: necessary for de-codability (basic monitoring) */
         if(err->TS_sync_loss) {
@@ -1230,7 +1226,7 @@ static void show_error(obj_t *obj)
         return;
 }
 
-static void print_atp_title(obj_t *obj)
+static void print_atp_title(struct obj *obj)
 {
         fprintf(stdout,
                 "%shh:mm:ss%s, %saddress%s, address, STC, STC_base, %sPID%s, ",
@@ -1240,9 +1236,9 @@ static void print_atp_title(obj_t *obj)
         return;
 }
 
-static void print_atp_value(obj_t *obj)
+static void print_atp_value(struct obj *obj)
 {
-        ts_rslt_t *rslt;
+        struct ts_rslt *rslt;
         struct ts_pkt *pkt;
         time_t tp;
         struct tm *lt; /* local time */
@@ -1264,7 +1260,7 @@ static void print_atp_value(obj_t *obj)
         return;
 }
 
-static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
+static void table_info_PAT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1308,7 +1304,7 @@ static void table_info_PAT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_CAT(ts_psi_t *psi, uint8_t *section)
+static void table_info_CAT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1335,7 +1331,7 @@ static void table_info_CAT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_PMT(ts_psi_t *psi, uint8_t *section)
+static void table_info_PMT(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1343,7 +1339,7 @@ static void table_info_PMT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TSDT(ts_psi_t *psi, uint8_t *section)
+static void table_info_TSDT(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1351,7 +1347,7 @@ static void table_info_TSDT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
+static void table_info_NIT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1430,7 +1426,7 @@ static void table_info_NIT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
+static void table_info_SDT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1495,7 +1491,7 @@ static void table_info_SDT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_BAT(ts_psi_t *psi, uint8_t *section)
+static void table_info_BAT(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1503,7 +1499,7 @@ static void table_info_BAT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
+static void table_info_EIT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1571,7 +1567,7 @@ static void table_info_EIT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TDT(ts_psi_t *psi, uint8_t *section)
+static void table_info_TDT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
 
@@ -1580,7 +1576,7 @@ static void table_info_TDT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_RST(ts_psi_t *psi, uint8_t *section)
+static void table_info_RST(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1588,7 +1584,7 @@ static void table_info_RST(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_ST(ts_psi_t *psi, uint8_t *section)
+static void table_info_ST(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1596,7 +1592,7 @@ static void table_info_ST(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TOT(ts_psi_t *psi, uint8_t *section)
+static void table_info_TOT(struct ts_psi *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int descriptors_loop_length;
@@ -1614,7 +1610,7 @@ static void table_info_TOT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_DIT(ts_psi_t *psi, uint8_t *section)
+static void table_info_DIT(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1622,7 +1618,7 @@ static void table_info_DIT(ts_psi_t *psi, uint8_t *section)
         return;
 }
 
-static void table_info_SIT(ts_psi_t *psi, uint8_t *section)
+static void table_info_SIT(struct ts_psi *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;

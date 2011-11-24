@@ -16,14 +16,12 @@ extern "C" {
 
 #define MAX_STRING_LENGTH 256
 
-enum
-{
+enum {
         PRTCL_UDP,
         PRTCL_FILE
 };
 
-typedef struct
-{
+struct url {
         char url[MAX_STRING_LENGTH];
         int  protocol; /* PRTCL_XXX */
 
@@ -40,14 +38,13 @@ typedef struct
         char buf[8*188]; /* for UDP data */
         char *pbuf;
         size_t ts_cnt;
-}
-URL;
+};
 
-URL *url_open(const char *str, char *mode);
-int url_close(URL *url);
-int url_seek(URL *url, long offset, int origin);
-int url_getc(URL *url);
-size_t url_read(void *buf, size_t size, size_t nobj, URL *url);
+struct url *url_open(const char *str, char *mode);
+int url_close(struct url *url);
+int url_seek(struct url *url, long offset, int origin);
+int url_getc(struct url *url);
+size_t url_read(void *buf, size_t size, size_t nobj, struct url *url);
 
 #ifdef __cplusplus
 }

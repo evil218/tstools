@@ -12,7 +12,7 @@
 #include "if.h"
 #include "url.h"
 
-static URL *fd_i = NULL;
+static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
 static struct ts_pkt PKT;

@@ -16,21 +16,21 @@
 #define TCP_ECC_LEN                     (20) /* bytes */
 #define BIT(n)                          (1<<n)
 
-typedef struct _signaling_data_t {
+struct signaling_data {
         uint8_t packet_frame_number; /* 5 */
         uint8_t mode; /* 1 */
-}sig_data_t;
+};
 
-typedef struct _tx_data_t {
+struct tx_data {
         uint16_t tx_address; /* 12 */
         uint16_t tx_identifier_level;/* 3  */
         uint16_t tx_data_inhibit; /* 1 */
         uint16_t tx_time_offset; /* 16 */
         uint16_t tx_power; /* 12 */
-}tx_data_t;
+};
 
-typedef struct _tcp_para_t {
-        sig_data_t sig_data;
+struct tcp_para {
+        struct signaling_data sig_data;
         uint8_t trellis_code_state[TRELLIS_CODE_LEN];
         uint32_t syn_time_stamp;//uint8_t syn_time_stamp_base[3];
         uint32_t max_delay;//uint8_t max_delay_base[3];
@@ -40,12 +40,12 @@ typedef struct _tcp_para_t {
         uint16_t packet_number; /* 10 */
         uint32_t adjusted_gps_seconds_count;
         uint8_t tx_group_number;
-        tx_data_t tx_data[TX_DATA_NUM];
+        struct tx_data tx_data[TX_DATA_NUM];
         uint32_t AT_frame_number;
         uint32_t atsc_time_displacement;/* 25-7 */
         uint8_t reserved[32];
         uint8_t TCP_ECC[TCP_ECC_LEN];
-}tcp_pata_t;
+};
 
 void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
 {
@@ -53,8 +53,8 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
         char *yellow_on = "";
         char *color_off = "";
         uint8_t *tcp_data = (uint8_t *)(ts_pack + 5);
-        tcp_pata_t tcp_param; 
-        int tcpLen = sizeof(tcp_pata_t);
+        struct tcp_para tcp_param; 
+        int tcpLen = sizeof(struct tcp_para);
         uint32_t syn_time_stamp_extension;
         uint32_t max_delay_extension;
 

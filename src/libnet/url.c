@@ -12,15 +12,15 @@
 #include "url.h"
 
 static void regcpy(char *des, const char *src);
-static void parse_url(URL *url, const char *str);
+static void parse_url(struct url *url, const char *str);
 
-URL *url_open(const char *str, char *mode)
+struct url *url_open(const char *str, char *mode)
 {
-        URL *url;
+        struct url *url;
 
-        url = (URL *)malloc(sizeof(URL));
+        url = (struct url *)malloc(sizeof(struct url));
         if(NULL == url) {
-                printf("Alloc %d-byte failed!\n", sizeof(URL));
+                printf("Alloc %d-byte failed!\n", sizeof(struct url));
                 exit(-1);
         }
         url->url[0] = '\0';
@@ -54,7 +54,7 @@ URL *url_open(const char *str, char *mode)
         return url;
 }
 
-int url_close(URL *url)
+int url_close(struct url *url)
 {
         if(NULL == url) {
                 printf("Bad parameter!\n");
@@ -74,7 +74,7 @@ int url_close(URL *url)
         return 0;
 }
 
-int url_seek(URL *url, long offset, int origin)
+int url_seek(struct url *url, long offset, int origin)
 {
         int rslt = 0;
 
@@ -95,7 +95,7 @@ int url_seek(URL *url, long offset, int origin)
         return rslt;
 }
 
-int url_getc(URL *url)
+int url_getc(struct url *url)
 {
         int rslt;
 
@@ -116,7 +116,7 @@ int url_getc(URL *url)
         return rslt;
 }
 
-size_t url_read(void *buf, size_t size, size_t nobj, URL *url)
+size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
 {
         size_t cobj; /* the number of objects succeeded in reading */
         size_t byte_needed = size * nobj;
@@ -171,7 +171,7 @@ static void regcpy(char *des, const char *src)
         }while('\0' != ch);
 }
 
-static void parse_url(URL *url, const char *str)
+static void parse_url(struct url *url, const char *str)
 {
         int i;
 

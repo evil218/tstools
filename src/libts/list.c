@@ -23,18 +23,18 @@
 
 void list_free(void *PHEAD)
 {
-        lnode_t **phead;
-        lnode_t *lnode;
+        struct lnode **phead;
+        struct lnode *lnode;
 
         if(!PHEAD) {
                 dbg(1, "free: PHEAD is NULL");
                 return;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
 
         lnode = *phead;
         while(lnode) {
-                lnode_t *temp;
+                struct lnode *temp;
 
                 //dbg(1, "free: 0x%X(key=%d)", (int)lnode, lnode->key);
                 dbg(1, "free: 0x%X", (int)lnode);
@@ -49,20 +49,20 @@ void list_free(void *PHEAD)
 
 void list_delete(void *PHEAD, void *LNODE)
 {
-        lnode_t **phead;
-        lnode_t *lnode;
+        struct lnode **phead;
+        struct lnode *lnode;
 
         if(!PHEAD) {
                 dbg(1, "delete: PHEAD is NULL");
                 return;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "delete: LNODE is NULL");
                 return;
         }
-        lnode = (lnode_t *)LNODE;
+        lnode = (struct lnode *)LNODE;
 
         if(lnode->prev) {
                 lnode->prev->next = lnode->next;
@@ -99,20 +99,20 @@ void list_delete(void *PHEAD, void *LNODE)
 /* to tail */
 void list_push(void *PHEAD, void *LNODE)
 {
-        lnode_t **phead;
-        lnode_t *lnode;
+        struct lnode **phead;
+        struct lnode *lnode;
 
         if(!PHEAD) {
                 dbg(1, "push: PHEAD is NULL");
                 return;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "push: LNODE is NULL");
                 return;
         }
-        lnode = (lnode_t *)LNODE;
+        lnode = (struct lnode *)LNODE;
         lnode->next = NULL;
 
         if(*phead) {
@@ -132,20 +132,20 @@ void list_push(void *PHEAD, void *LNODE)
 /* to head */
 void list_unshift(void *PHEAD, void *LNODE)
 {
-        lnode_t **phead;
-        lnode_t *lnode;
+        struct lnode **phead;
+        struct lnode *lnode;
 
         if(!PHEAD) {
                 dbg(1, "unshift: PHEAD is NULL");
                 return;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "unshift: LNODE is NULL");
                 return;
         }
-        lnode = (lnode_t *)LNODE;
+        lnode = (struct lnode *)LNODE;
         lnode->prev = NULL;
 
         if(*phead) {
@@ -168,14 +168,14 @@ void list_unshift(void *PHEAD, void *LNODE)
 /* from tail, it's up to the caller to free the lnode with free()! */
 void *list_pop(void *PHEAD)
 {
-        lnode_t **phead;
-        lnode_t *tail;
+        struct lnode **phead;
+        struct lnode *tail;
 
         if(!PHEAD) {
                 dbg(1, "pop: PHEAD is NULL");
                 return NULL;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
         tail = (*phead)->tail;
 
         if(!tail) {
@@ -198,14 +198,14 @@ void *list_pop(void *PHEAD)
 /* from head, it's up to the caller to free the lnode with free()! */
 void *list_shift(void *PHEAD)
 {
-        lnode_t **phead;
-        lnode_t *head;
+        struct lnode **phead;
+        struct lnode *head;
 
         if(!PHEAD) {
                 dbg(1, "shift: PHEAD is NULL");
                 return NULL;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
         head = *phead;
 
         if(!head) {
@@ -229,21 +229,21 @@ void *list_shift(void *PHEAD)
 /* sort with key, small key first */
 void list_insert(void *PHEAD, void *LNODE)
 {
-        lnode_t **phead;
-        lnode_t *lnode;
-        lnode_t *x;
+        struct lnode **phead;
+        struct lnode *lnode;
+        struct lnode *x;
 
         if(!PHEAD) {
                 dbg(1, "insert: PHEAD is NULL");
                 return;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "insert: LNODE is NULL");
                 return;
         }
-        lnode = (lnode_t *)LNODE;
+        lnode = (struct lnode *)LNODE;
 
         if(!*phead) {
                 dbg(1, "insert 0x%X into 0x%X(empty)", (int)lnode, (int)phead);
@@ -288,14 +288,14 @@ void list_insert(void *PHEAD, void *LNODE)
 
 void *list_search(void *PHEAD, int key)
 {
-        lnode_t **phead;
-        lnode_t *lnode;
+        struct lnode **phead;
+        struct lnode *lnode;
 
         if(!PHEAD) {
                 dbg(1, "search: PHEAD is NULL");
                 return NULL;
         }
-        phead = (lnode_t **)PHEAD;
+        phead = (struct lnode **)PHEAD;
 
         for(lnode = *phead; lnode; lnode = lnode->next) {
                 if(lnode->key == key) {
@@ -310,13 +310,13 @@ void *list_search(void *PHEAD, int key)
 
 void list_set_key(void *LNODE, int key)
 {
-        lnode_t *lnode;
+        struct lnode *lnode;
 
         if(!LNODE) {
                 dbg(1, "set key: LNODE is NULL");
                 return;
         }
-        lnode = (lnode_t *)LNODE;
+        lnode = (struct lnode *)LNODE;
 
         dbg(1, "set key: %d", key);
         lnode->key = key;
@@ -325,13 +325,13 @@ void list_set_key(void *LNODE, int key)
 
 void list_set_name(void *LNODE, const char *name)
 {
-        lnode_t *lnode;
+        struct lnode *lnode;
 
         if(!LNODE) {
                 dbg(1, "set name: LNODE is NULL");
                 return;
         }
-        lnode = (lnode_t *)LNODE;
+        lnode = (struct lnode *)LNODE;
 
         dbg(1, "set name: %s", name);
         lnode->name = name;

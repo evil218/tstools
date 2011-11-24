@@ -35,8 +35,8 @@ extern "C" {
 #define INFO_LEN_MAX                    (0x0001 << 10) /* pow(2, 10) */
 #define SERVER_STR_MAX                  (188) /* max length of server string */
 
-typedef struct _ts_error_t
-{
+/* TR 101 290 V1.2.1 2001-05 */
+struct ts_error {
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
@@ -74,11 +74,9 @@ typedef struct _ts_error_t
         int TDT_error; /* 3.8 */
         int Empty_buffer_error; /* 3.9 */
         int Data_delay_error; /* 3.10 */
-}
-ts_error_t; /* TR 101 290 V1.2.1 2001-05 */
+};
 
-typedef struct _ts_psi_t
-{
+struct ts_psi {
         uint8_t table_id; /* TABLE_ID_TABLE */
         uint8_t section_syntax_indicator; /* 1-bit */
         uint8_t private_indicator; /* 1-bit */
@@ -93,34 +91,31 @@ typedef struct _ts_psi_t
 
         int check_CRC; /* some table do not need to check CRC_32 */
         int type; /* index of item in PID_TYPE[] */
-}
-ts_psi_t;
+};
 
-typedef struct _ts_section_t
-{
-        lnode_t cvfl; /* common variable for list */
+/* node of section list */
+struct ts_section {
+        struct lnode cvfl; /* common variable for list */
 
         uint8_t section_number;
         uint16_t section_length;
         uint8_t data[4096];
-}
-ts_section_t; /* unit of section list */
+};
 
-typedef struct _ts_table_t
-{
-        lnode_t cvfl; /* common variable for list */
+/* node of PSI/SI table list */
+struct ts_table {
+        struct lnode cvfl; /* common variable for list */
 
         uint8_t table_id; /* 0x00~0xFF except 0x02 */
         uint8_t version_number;
         uint8_t last_section_number;
-        ts_section_t *section0;
+        struct ts_section *section0;
         int64_t STC;
-}
-ts_table_t; /* unit of PSI/SI table list */
+};
 
-typedef struct _ts_track_t
-{
-        lnode_t cvfl; /* common variable for list */
+/* node of track list */
+struct ts_track {
+        struct lnode cvfl; /* common variable for list */
 
         /* PID */
         uint16_t PID; /* 13-bit */
@@ -138,16 +133,15 @@ typedef struct _ts_track_t
         /* for PTS/DTS mark */
         int64_t PTS; /* last PTS */
         int64_t DTS; /* last DTS */
-}
-ts_track_t; /* unit of track list */
+};
 
-typedef struct _ts_prog_t
-{
-        lnode_t cvfl; /* common variable for list */
+/* node of prog list */
+struct ts_prog {
+        struct lnode cvfl; /* common variable for list */
 
         /* PMT section,  */
         int is_parsed;
-        ts_table_t table_02; /* table_id = 0x02 */
+        struct ts_table table_02; /* table_id = 0x02 */
 
         /* program information */
         uint16_t PMT_PID; /* 13-bit */
@@ -163,7 +157,7 @@ typedef struct _ts_prog_t
         uint8_t service_provider[SERVER_STR_MAX];
 
         /* tracks */
-        ts_track_t *track0;
+        struct ts_track *track0;
 
         /* for STC calc */
         uint64_t ADDa; /* PCR packet a: packet address */
@@ -171,12 +165,11 @@ typedef struct _ts_prog_t
         uint64_t ADDb; /* PCR packet b: packet address */
         int64_t PCRb; /* PCR packet b: PCR value */
         int STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
-}
-ts_prog_t; /* unit of prog list */
+};
 
-typedef struct _ts_pid_t
-{
-        lnode_t cvfl; /* common variable for list */
+/* node of pid list */
+struct ts_pid {
+        struct lnode cvfl; /* common variable for list */
 
         /* PID */
         uint16_t PID; /* 13-bit */
@@ -192,8 +185,8 @@ typedef struct _ts_pid_t
         uint32_t CRC_32_calc;
 
          /* point to the node in xxx_list */
-        ts_prog_t *prog; /* should be prog0 if does not belong to any program */
-        ts_track_t *track; /* should be NULL if not video or audio packet */
+        struct ts_prog *prog; /* should be prog0 if does not belong to any program */
+        struct ts_track *track; /* should be NULL if not video or audio packet */
 
         /* for continuity_counter check */
         int is_CC_sync;
@@ -207,11 +200,10 @@ typedef struct _ts_pid_t
 
         /* file for ES dump */
         FILE *fd;
-}
-ts_pid_t; /* unit of pid list */
+};
 
-typedef struct _ts_rslt_t
-{
+/* parse result */
+struct ts_rslt {
         /* information about current packet */
         uint64_t cnt; /* count of this packet, start from 0 */
         struct ts_pkt PKT;
@@ -221,24 +213,24 @@ typedef struct _ts_rslt_t
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
 
-        ts_pid_t *pid; /* point to the node in pid_list */
+        struct ts_pid *pid; /* point to the node in pid_list */
 
         /* error */
-        ts_error_t err;
+        struct ts_error err;
 
         /* PSI/SI table */
-        ts_psi_t psi;
+        struct ts_psi psi;
         int is_pat_pmt_parsed;
         int is_psi_parse_finished;
         int is_psi_si;
         int has_section;
-        ts_table_t *table0; /* PSI/SI table except PMT */
+        struct ts_table *table0; /* PSI/SI table except PMT */
 
         /* TS information */
         int has_got_transport_stream_id;
         uint16_t transport_stream_id;
-        ts_prog_t *prog0; /* program list */
-        ts_pid_t *pid0; /* pid list */
+        struct ts_prog *prog0; /* program list */
+        struct ts_pid *pid0; /* pid list */
 
         /* PMT, PCR, VID and AUD has timestamp according to its PCR */
         /* other PID has timestamp according to the PCR in the 1st program */
@@ -288,10 +280,9 @@ typedef struct _ts_rslt_t
         /* ES data info in this TS */
         uint16_t ES_len;
         uint8_t *ES_buf;
-}
-ts_rslt_t; /* parse result */
+};
 
-int tsCreate(ts_rslt_t **rslt);
+int tsCreate(struct ts_rslt **rslt);
 int tsDelete(int id);
 int tsParseTS(int id);
 int tsParseOther(int id);

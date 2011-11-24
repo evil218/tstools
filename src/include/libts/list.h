@@ -32,17 +32,16 @@
 extern "C" {
 #endif
 
-typedef struct _lnode_t
-{
-        struct _lnode_t *next;
-        struct _lnode_t *prev;
-        struct _lnode_t *tail; /* only head->tail is valid! */
+struct lnode { /* list node */
+        struct lnode *next;
+        struct lnode *prev;
+        struct lnode *tail; /* only head->tail is valid! */
         int key; /* for sort list: use list_set_key() before list_insert()! */
         const char *name; /* for variable type list: use list_set_name() before list_push()! */
-} lnode_t; /* list node */
+};
 
-/* note: PHEAD will be convert to (lnode_t **) type! */
-/* note: LNODE will be convert to (lnode_t  *) type! */
+/* note: PHEAD will be convert to (struct lnode **) type! */
+/* note: LNODE will be convert to (struct lnode  *) type! */
 void list_free(void *PHEAD);
 void list_delete(void *PHEAD, void *LNODE);
 void list_push(void *PHEAD, void *LNODE);

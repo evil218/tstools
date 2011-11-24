@@ -27,22 +27,20 @@
 
 #define UDP_LENGTH_MAX                  1536
 
-typedef struct
-{
+struct udp {
         int sock;
         char addr[32];
         unsigned short port;
-}
-UDP;
+};
 
 int udp_open(char *addr, unsigned short port)
 {
-        UDP *udp;
+        struct udp *udp;
 #if 0
         WSA
 #endif
 
-        udp = (UDP *)malloc(sizeof(UDP));
+        udp = (struct udp *)malloc(sizeof(struct udp));
         if(NULL == udp) {
                 perror("malloc");
                 return (int)NULL;
@@ -100,7 +98,7 @@ int udp_open(char *addr, unsigned short port)
 
 int udp_close(int id)
 {
-        UDP *udp = (UDP *)id;
+        struct udp *udp = (struct udp *)id;
         struct ip_mreq imreq;
 
         if(NULL == udp) {
@@ -124,7 +122,7 @@ int udp_close(int id)
 
 size_t udp_read(int id, char *buf)
 {
-        UDP *udp = (UDP *)id;
+        struct udp *udp = (struct udp *)id;
         size_t rslt = 0;
         fd_set fds;
         struct sockaddr_in remote;
