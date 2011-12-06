@@ -992,7 +992,7 @@ static void show_psi_rate(struct obj *obj)
         for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)lnode;
 
-                if(pid_item->PID >= 0x0020) {
+                if(pid_item->PID >= 0x0020 && pid_item->PID != pid_item->prog->PMT_PID) {
                         /* not psi/si PID */
                         continue;
                 }
@@ -1274,6 +1274,7 @@ static void table_info_PAT(struct ts_psi *psi, uint8_t *section)
         /* PAT special */
         p += 5; section_length -= 5;
 
+        /* each program */
         while(section_length > 4) {
                 uint8_t data;
                 uint16_t program_number;
@@ -1294,10 +1295,10 @@ static void table_info_PAT(struct ts_psi *psi, uint8_t *section)
                 PID |= data;
 
                 if(0 == program_number) {
-                        fprintf(stdout, "network_PID, 0x%04X, ", PID);
+                        fprintf(stdout, "PID 0x%04X, network", PID);
                 }
                 else {
-                        fprintf(stdout, "program %5d, PID 0x%04X, ", program_number, PID);
+                        fprintf(stdout, "PID 0x%04X, program %5d", PID, program_number);
                 }
         }
 
@@ -1333,8 +1334,64 @@ static void table_info_CAT(struct ts_psi *psi, uint8_t *section)
 
 static void table_info_PMT(struct ts_psi *psi, uint8_t *section)
 {
-        //uint8_t *p = section;
-        //int section_length;
+        uint8_t *p = section + 3;
+        int section_length;
+        uint16_t program_number;
+        uint16_t PCR_PID;
+        uint16_t program_info_length;
+
+        /* section head */
+        section_length = psi->section_length;
+        program_number = psi->table_id_extension;
+        fprintf(stdout, "program_number: %5d, ", program_number);
+
+        /* PMT special */
+        p += 5; section_length -= 5;
+
+        /* PCR_PID */
+        PCR_PID = (*p++) & 0x1F; section_length--;
+        PCR_PID <<= 8;
+        PCR_PID |= *p++; section_length--;
+        fprintf(stdout, "PCR_PID: 0x%04X, ", PCR_PID);
+
+        /* program_info */
+        program_info_length = (*p++) & 0x0F; section_length--;
+        program_info_length <<= 8;
+        program_info_length |= *p++; section_length--;
+        if(program_info_length) {
+                fprintf(stdout, "program_info(%4d): ", program_info_length);
+                for(; program_info_length > 0; program_info_length--) {
+                        fprintf(stdout, "%02X ", *p++); section_length--;
+                }
+        }
+
+        /* each ES */
+        while(section_length > 4) {
+                uint8_t stream_type;
+                uint16_t elementary_PID;
+                uint16_t ES_info_length;
+
+                fprintf(stdout, "\n    ");
+
+                stream_type = *p++; section_length--;
+                fprintf(stdout, "stream_type: 0x%02X, ", stream_type);
+
+                elementary_PID = (*p++) & 0x1F; section_length--;
+                elementary_PID <<= 8;
+                elementary_PID |= *p++; section_length--;
+                fprintf(stdout, "elementary_PID: 0x%04X, ", elementary_PID);
+
+                /* ES_info */
+                ES_info_length = (*p++) & 0x0F; section_length--;
+                ES_info_length <<= 8;
+                ES_info_length |= *p++; section_length--;
+                if(ES_info_length) {
+                        fprintf(stdout, "ES_info(%4d): ", ES_info_length);
+                        for(; ES_info_length > 0; ES_info_length--) {
+                                fprintf(stdout, "%02X ", *p++); section_length--;
+                        }
+                }
+        }
 
         return;
 }

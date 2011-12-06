@@ -871,7 +871,7 @@ static int parse_TS_head(struct obj *obj)
         pid->cnt++;
         rslt->sys_cnt++;
         rslt->nul_cnt += ((0x1FFF == ts->PID) ? 1 : 0);
-        if((ts->PID < 0x0020)) { /* || (PMT_PID == pid->type)) */
+        if((ts->PID < 0x0020) || (PMT_PID == pid->type)) {
                 /* PSI/SI packet */
                 rslt->psi_cnt++;
                 rslt->is_psi_si = 1;
@@ -1221,7 +1221,8 @@ static int parse_PSI_head(struct ts_psi *psi, uint8_t *section)
         if(0 == psi->private_indicator) {
                 /* normal section */
                 if(psi->section_length > 1021) {
-                        fprintf(stderr, "normal section, length(%d) overflow!\n",
+                        fprintf(stderr, "normal section(0x%02X), length(%d) overflow!\n",
+                                psi->table_id,
                                 psi->section_length);
                         psi->section_length = 1021;
                         return -1;
@@ -1230,7 +1231,8 @@ static int parse_PSI_head(struct ts_psi *psi, uint8_t *section)
         else {
                 /* private section */
                 if(psi->section_length > 4093) {
-                        fprintf(stderr, "private section, length(%d) overflow!\n",
+                        fprintf(stderr, "private section(0x%02X), length(%d) overflow!\n",
+                                psi->table_id,
                                 psi->section_length);
                         psi->section_length = 4093;
                         return -1;
