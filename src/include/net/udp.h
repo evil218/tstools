@@ -11,7 +11,9 @@
 extern "C" {
 #endif
 
-int udp_open(char *addr, unsigned short port);
+#include <stdint.h> /* for uint?_t, etc */
+
+int udp_open(char *addr, uint16_t port);
 int udp_close(int id);
 size_t udp_read(int id, char *buf);
 

@@ -497,7 +497,7 @@ static struct obj *create(int argc, char *argv[])
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%i" , &dat);
-                                if(1 <= dat && dat <= 10000) { /* 1ms ~ 10s */
+                                if(0 <= dat && dat <= 10000) { /* 1ms ~ 10s */
                                         obj->aim_interval = dat * STC_MS;
                                 }
                                 else {

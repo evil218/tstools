@@ -12,29 +12,35 @@
 extern "C" {
 #endif
 
+#include <stdint.h> /* for uint?_t, etc */
+
 #include "udp.h"
 
 #define MAX_STRING_LENGTH 256
 
-enum {
-        PRTCL_UDP,
-        PRTCL_FILE
+enum scheme {
+        SCH_UDP,  /* udp://... */
+        SCH_FILE, /* file://... */
+        SCH_LFILE /* local file, without "file://" scheme prefix */
 };
 
 struct url {
         char url[MAX_STRING_LENGTH];
-        int  protocol; /* PRTCL_XXX */
 
-        /* for PRTCL_FILE */
-        char *path;
-        char *filename;
+        /* part of URL */
+        int  scheme; /* SCH_XXX */
+        char *user;
+        char *password;
+        char *host;
+        uint16_t port;
+        char *disk;
+        char *path_fname;
+
+        /* id */
         FILE *fd;
-
-        /* for PRTCL_UDP */
-        char *ip;
-        unsigned short port;
         int udp;
 
+        /* data buffer */
         char buf[8*188]; /* for UDP data */
         char *pbuf;
         size_t ts_cnt;

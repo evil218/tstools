@@ -8,11 +8,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h> /* for tolower() */
 
 #include "url.h"
 
-static void regcpy(char *des, const char *src);
-static void parse_url(struct url *url, const char *str);
+#if 0
+#define DEBUG /* print detail info. to debug this module */
+#define dbg(level, ...) \
+        do { \
+                if (level >= 0) { \
+                        fprintf(stderr, "\"%s\", line %d: ",__FILE__, __LINE__); \
+                        fprintf(stderr, __VA_ARGS__); \
+                        fprintf(stderr, "\n"); \
+                } \
+        } while (0)
+#else
+#define dbg(level, ...)
+#endif
+
+static int parse_url(struct url *url, const char *str);
 
 struct url *url_open(const char *str, char *mode)
 {
@@ -24,27 +38,29 @@ struct url *url_open(const char *str, char *mode)
                 exit(-1);
         }
         url->url[0] = '\0';
-        url->path = NULL;
-        url->filename = NULL;
-        url->ip = NULL;
+        url->host = NULL;
+        url->port = 0;
+        url->path_fname = NULL;
 
-        parse_url(url, str);
+        if(0 != parse_url(url, str)) {
+                exit(0);
+        }
 
-        switch(url->protocol) {
-                case PRTCL_UDP:
+        switch(url->scheme) {
+                case SCH_UDP:
                         url->pbuf = url->buf;
                         url->ts_cnt = 0;
-                        url->udp = udp_open(url->ip, url->port);
+                        url->udp = udp_open(url->host, url->port);
                         if(0 == url->udp) {
                                 printf("Socket error!\n");
                                 free(url);
                                 url = NULL;
                         }
                         break;
-                default: /* PRTCL_FILE */
-                        url->fd = fopen(url->filename, mode);
+                default: /* SCH_FILE */
+                        url->fd = fopen(url->path_fname, mode);
                         if(NULL == url->fd) {
-                                printf("Can not open file \"%s\"!\n", url->filename);
+                                printf("Can not open file \"%s\"!\n", url->path_fname);
                                 free(url);
                                 url = NULL;
                         }
@@ -61,11 +77,11 @@ int url_close(struct url *url)
                 return -1;
         }
 
-        switch(url->protocol) {
-                case PRTCL_UDP:
+        switch(url->scheme) {
+                case SCH_UDP:
                         udp_close(url->udp);
                         break;
-                default: /* PRTCL_FILE */
+                default: /* SCH_FILE */
                         fclose(url->fd);
                         break;
         }
@@ -83,11 +99,11 @@ int url_seek(struct url *url, long offset, int origin)
                 return -1;
         }
 
-        switch(url->protocol) {
-                case PRTCL_UDP:
+        switch(url->scheme) {
+                case SCH_UDP:
                         /* do nothing! */
                         break;
-                default: /* PRTCL_FILE */
+                default: /* SCH_FILE */
                         rslt = fseek(url->fd, offset, origin);
                         break;
         }
@@ -104,11 +120,11 @@ int url_getc(struct url *url)
                 return -1;
         }
 
-        switch(url->protocol) {
-                case PRTCL_UDP:
+        switch(url->scheme) {
+                case SCH_UDP:
                         rslt = 0x47; /* to cheat host */
                         break;
-                default: /* PRTCL_FILE */
+                default: /* SCH_FILE */
                         rslt = fgetc(url->fd);
                         break;
         }
@@ -126,8 +142,8 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
                 return -1;
         }
 
-        switch(url->protocol) {
-                case PRTCL_UDP:
+        switch(url->scheme) {
+                case SCH_UDP:
                         if(url->ts_cnt == 0) {
                                 size_t rslt;
 
@@ -151,7 +167,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
                                 cobj = url->ts_cnt;
                         }
                         break;
-                default: /* PRTCL_FILE */
+                default: /* SCH_FILE */
                         cobj = fread(buf, size, nobj, url->fd);
                         break;
         }
@@ -159,33 +175,94 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
         return cobj;
 }
 
-static void regcpy(char *des, const char *src)
+#define RFC1738 "[<scheme>://[[<user>[:<password>]@]<host>[:<port>]]][[/<disk>:]*[/<dir>]/<fname>]"
+static int parse_url(struct url *url, const char *str)
 {
-        char ch;
+        char *ps; /* source */
+        char *pd; /* destination */
+        char *rslt = NULL;
+        char pattern[MAX_STRING_LENGTH] = "";
 
-        do {
-                ch = *src++;
-                if(' ' != ch) {
-                        *des++ = ch;
+        strncpy(url->url, str, MAX_STRING_LENGTH);
+
+        /* pattern */
+        for(ps = url->url, pd = pattern; *ps; ps++) {
+                if(strchr(":/@", *ps)) {
+                        if('*' == *pd) {
+                                pd++;
+                        }
+                        *pd++ = *ps;
                 }
-        }while('\0' != ch);
-}
+                else {
+                        *pd = '*';
+                }
+        }
+        dbg(1, "pattern: %s", pattern);
 
-static void parse_url(struct url *url, const char *str)
-{
-        int i;
+        /* get scheme */
+        if(0 == memcmp(pattern, "*://", 4)) {
+                strtok(url->url, ":");
 
-        regcpy(url->url, str);
-        if(0 == memcmp(url->url, "udp://", 6)) {
-                i = 7;
-                url->ip = url->url + i;
-                while(':' != *(url->url + i)) {i++;}
-                *(url->url + i++) = '\0';
-                url->port = atoi(url->url + i);
-                url->protocol = PRTCL_UDP;
+                /* lower case */
+                for(ps = url->url; *ps; ps++) {
+                        *ps = (char)tolower((int)*ps);
+                }
+
+                dbg(1, "scheme: %s", url->url);
         }
         else {
-                url->filename = url->url;
-                url->protocol = PRTCL_FILE;
+                dbg(1, "scheme: file");
+                url->scheme = SCH_LFILE;
         }
+
+        /* UDP scheme */
+        if(0 == strcmp(url->url, "udp")) {
+                url->scheme = SCH_UDP;
+
+                if(0 == memcmp(pattern, "*://*:*", 7)) { /* udp://host:port */
+                        rslt = strtok(NULL, ":");
+                        url->host = rslt + 2; /* add 2 to pass "//" */
+                        dbg(1, "host: %s", url->host);
+
+                        rslt = strtok(NULL, "/");
+                        url->port = atoi(rslt);
+                        dbg(1, "port: %d", url->port);
+                }
+                else if(0 == memcmp(pattern, "*://@*:*", 8)) { /* udp://@host:port, VLC only */
+                        rslt = strtok(NULL, "@");
+                        dbg(1, "prefix: %s", rslt);
+
+                        rslt = strtok(NULL, ":");
+                        url->host = rslt;
+                        dbg(1, "host: %s", url->host);
+
+                        rslt = strtok(NULL, "/");
+                        url->port = atoi(rslt);
+                        dbg(1, "port: %d", url->port);
+                }
+                else if(0 == memcmp(pattern, "*://:*", 6) ||  /* udp://:port */
+                        0 == memcmp(pattern, "*://@:*", 7)) { /* udp://@:port, VLC only */
+                        rslt = strtok(NULL, ":");
+                        dbg(1, "prefix: %s", rslt);
+                        url->host = "127.0.0.1";
+                        dbg(1, "host: %s", url->host);
+
+                        rslt = strtok(NULL, "/");
+                        url->port = atoi(rslt);
+                        dbg(1, "port: %d", url->port);
+                }
+                else {
+                        fprintf(stderr, "URL syntax error for UDP scheme!\n");
+                        fprintf(stderr, "    " RFC1738 "\n");
+                        return -1;
+                }
+        }
+        else if(0 == strcmp(url->url, "file")) {
+                /* file:///.../stream.ts */
+                /* file:///E:/.../stream.ts */
+                url->scheme = SCH_FILE;
+                url->path_fname = url->url;
+        }
+
+        return 0;
 }

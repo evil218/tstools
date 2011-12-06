@@ -733,6 +733,11 @@ static int state_next_pkt(struct obj *obj)
                 }
         }
 
+        /* for stream without PCR */
+        if(0 == rslt->aim_interval) {
+                rslt->is_psi_parse_finished = 1;
+        }
+
         /* PES head & ES data */
         if(track && (0 == ts->transport_scrambling_control)) {
                 if(AUD_PID == pid->type || AUD_PCR == pid->type ||
