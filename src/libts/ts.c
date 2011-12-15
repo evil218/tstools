@@ -279,7 +279,7 @@ static const struct stream_type STREAM_TYPE_TABLE[] = {
         {0x03, AUD_PID, "MPEG-1", "ISO/IEC 11172-3 Audio"},
         {0x04, AUD_PID, "MPEG-2", "ISO/IEC 13818-3 Audio"},
         {0x05, USR_PID, "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
-        {0x06, AUD_PID, "TT|AC3", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB"},
+        {0x06, AUD_PID, "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"},
         {0x07, USR_PID, "MHEG", "ISO/IEC 13522 MHEG"},
         {0x08, USR_PID, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
         {0x09, USR_PID, "H.222.1", "ITU-T Rec.H.222.1"},
@@ -325,7 +325,7 @@ static int parse_TS_head(struct obj *obj); /* TS head information */
 static int parse_AF(struct obj *obj); /* Adaption Fields information */
 static int section(struct obj *obj); /* collect PSI/SI section data */
 static int parse_table(struct obj *obj);
-static int parse_PSI_head(struct ts_psi *psi, uint8_t *section);
+static int parse_PSI_head(struct obj *obj, uint8_t *section);
 static int parse_PAT_load(struct obj *obj, uint8_t *section);
 static int parse_PMT_load(struct obj *obj, uint8_t *section);
 static int parse_SDT_load(struct obj *obj, uint8_t *section);
@@ -535,8 +535,7 @@ static int state_next_pmt(struct obj *obj)
                 return -1; /* not PMT */
         }
 
-        section(obj);
-
+        /* section parse has done in parse_TS_head()! */
         if(is_all_prog_parsed(obj)) {
                 if(obj->is_verbose) {
                         fprintf(stdout, "all PMT section parsed\n");
@@ -875,6 +874,7 @@ static int parse_TS_head(struct obj *obj)
                 /* PSI/SI packet */
                 rslt->psi_cnt++;
                 rslt->is_psi_si = 1;
+                /*fprintf(stderr, "PSI/SI: 0x%04X\n", ts->PID);*/
                 section(obj);
         }
 
@@ -987,6 +987,8 @@ static int section(struct obj *obj)
                 /* waiting for section head */
                 if(1 == ts->payload_unit_start_indicator) {
                         pointer_field = *(obj->p)++; obj->len--;
+
+                        /* section head */
                         obj->p += pointer_field;
                         obj->len -= pointer_field;
                         memcpy(pid->section, obj->p, obj->len);
@@ -1001,15 +1003,20 @@ static int section(struct obj *obj)
                 /* collect section data */
                 if(1 == ts->payload_unit_start_indicator) {
                         pointer_field = *(obj->p)++; obj->len--;
+
+                        /* section tail */
                         memcpy(pid->section + pid->section_idx, obj->p, pointer_field);
                         pid->section_idx += pointer_field;
                         parse_table(obj);
+
+                        /* section head */
                         obj->p += pointer_field;
                         obj->len -= pointer_field;
                         memcpy(pid->section, obj->p, obj->len);
                         pid->section_idx = obj->len;
                 }
                 else { /* (0 == ts->payload_unit_start_indicator) */
+                        /* section body */
                         memcpy(pid->section + pid->section_idx, obj->p, 184);
                         pid->section_idx += 184;
                 }
@@ -1017,7 +1024,8 @@ static int section(struct obj *obj)
 
         if(pid->section_idx >= 8) {
                 /* PSI head OK */
-                if(0 != parse_PSI_head(psi, pid->section)) {
+                if(0 != parse_PSI_head(obj, pid->section)) {
+                        pid->section_idx = 0;
                         return -1;
                 }
 
@@ -1044,7 +1052,7 @@ static int parse_table(struct obj *obj)
         int is_new_version = 0;
 
         /* get psi head info */
-        if(0 != parse_PSI_head(psi, pid->section)) {
+        if(0 != parse_PSI_head(obj, pid->section)) {
                 return -1;
         }
 
@@ -1064,7 +1072,7 @@ static int parse_table(struct obj *obj)
                 /*pid->CRC_32_calc = crc32(pid->section, 3 + psi->section_length - 4); */
                 if(pid->CRC_32_calc != pid->CRC_32) {
                         err->CRC_error = 1;
-                        /*dump(pid->section, 3 + psi->section_length); */
+                        dump(pid->section, 3 + psi->section_length);
                         return -1;
                 }
         }
@@ -1146,34 +1154,47 @@ static int parse_table(struct obj *obj)
         table->STC = rslt->STC;
 
         /* PAT_error(table_id error) */
-        if(0x0000 == pid->PID) {
-                if(0x00 != psi->table_id) {
-                        err->PAT_error = 1;
-                }
+        if(0x0000 == pid->PID && 0x00 != psi->table_id) {
+                err->PAT_error = 1;
+                dump(obj->rslt.pkt->ts, 188);
+                dump(pid->section, 8);
+                return -1;
         }
 
         /* parse */
         rslt->has_section = 1;
         switch(psi->table_id) {
                 case 0x00:
+                        if(0x0000 != pid->PID) {
+                                fprintf(stderr, "PAT: PID is not 0x0000 but 0x%04X, ignore!\n", pid->PID);
+                                return -1;
+                        }
                         parse_PAT_load(obj, pid->section);
                         break;
                 case 0x02:
+                        if(PMT_PID != pid->type) {
+                                fprintf(stderr, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!\n", pid->PID);
+                                return -1;
+                        }
                         parse_PMT_load(obj, pid->section);
                         break;
                 case 0x42:
+                        if(0x0011 != pid->PID) {
+                                fprintf(stderr, "SDT: PID is not 0x0011 but 0x%04X, ignore!\n", pid->PID);
+                                return -1;
+                        }
                         parse_SDT_load(obj, pid->section);
                         break;
                 default:
                         break;
         }
-
         return 0;
 }
 
-static int parse_PSI_head(struct ts_psi *psi, uint8_t *section)
+static int parse_PSI_head(struct obj *obj, uint8_t *section)
 {
         uint8_t *p;
+        struct ts_psi *psi = &(obj->rslt.psi);
         const struct table_id_table *table;
 
         p = section;
@@ -1225,6 +1246,8 @@ static int parse_PSI_head(struct ts_psi *psi, uint8_t *section)
                                 psi->table_id,
                                 psi->section_length);
                         psi->section_length = 1021;
+                        dump(obj->rslt.pkt->ts, 188);
+                        dump(section, 8);
                         return -1;
                 }
         }
@@ -1235,6 +1258,8 @@ static int parse_PSI_head(struct ts_psi *psi, uint8_t *section)
                                 psi->table_id,
                                 psi->section_length);
                         psi->section_length = 4093;
+                        dump(obj->rslt.pkt->ts, 188);
+                        dump(section, 8);
                         return -1;
                 }
         }
@@ -1611,6 +1636,12 @@ static int parse_PES_head(struct obj *obj)
         struct ts *ts = &(obj->ts);
         struct pes *pes = &(obj->pes);
         struct ts_rslt *rslt = &(obj->rslt);
+
+        /* for some bad stream */
+        if(ts->PID < 0x0020) {
+                fprintf(stderr, "PES: bad PID(0x%04X)!\n", ts->PID);
+                return -1;
+        }
 
         /* record PES data */
         if(obj->is_pes_align) { /* FIXME */
