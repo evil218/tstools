@@ -24,6 +24,10 @@
 #define ANY_TABLE                       0xFF /* any table_id of [0x00,0xFE] */
 #define ANY_PROG                        0x0000 /* any prog of [0x0001,0xFFFF] */
 
+#define TYPE_ANY                        0 /* any PID type */
+#define TYPE_VIDEO                      1 /* video PID */
+#define TYPE_AUDIO                      2 /* audio PID */
+
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
@@ -39,6 +43,7 @@ struct obj {
         uint16_t aim_pid;
         uint8_t aim_table;
         uint16_t aim_prog;
+        uint16_t aim_type; /* 0: any type; 1: video; 2: audio */
         uint64_t aim_interval; /* for rate calc */
         int is_color;
         char *color_off; /*  */
@@ -365,6 +370,7 @@ static struct obj *create(int argc, char *argv[])
         obj->aim_pid = ANY_PID;
         obj->aim_table = ANY_TABLE;
         obj->aim_prog = ANY_PROG;
+        obj->aim_type = TYPE_ANY;
         obj->aim_interval = 1000 * STC_MS;
         obj->is_color = 0;
         obj->color_off = "";
@@ -490,6 +496,22 @@ static struct obj *create(int argc, char *argv[])
                                                 dat);
                                 }
                         }
+                        else if(0 == strcmp(argv[i], "-type")) {
+                                i++;
+                                if(i >= argc) {
+                                        fprintf(stderr, "no parameter for '-type'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &dat);
+                                if(0 <= dat && dat <= 2) {
+                                        obj->aim_type = dat;
+                                }
+                                else {
+                                        fprintf(stderr,
+                                                "bad variable for '-type': %u, ignore!\n",
+                                                dat);
+                                }
+                        }
                         else if(0 == strcmp(argv[i], "-iv")) {
                                 i++;
                                 if(i >= argc) {
@@ -591,6 +613,7 @@ static void show_help()
         puts(" -pid <pid>       set cared PID, default: any PID(0x2000)");
         puts(" -table <id>      set cared table, default: any table(0xFF)");
         puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
+        puts(" -type <type>     set cared PID type, default: any type(0)");
         puts(" -iv <iv>         set cared interval(1ms-10,000ms), default: 1000ms");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
@@ -1037,6 +1060,17 @@ static void show_rate(struct obj *obj)
                         }
                         else if(pid_item->prog->program_number != obj->aim_prog) {
                                 /* not cared program */
+                                continue;
+                        }
+                }
+
+                if(TYPE_ANY != obj->aim_type) {
+                        if(TYPE_VIDEO == obj->aim_type && !(pid_item->is_video)) {
+                                /* not video PID */
+                                continue;
+                        }
+                        if(TYPE_AUDIO == obj->aim_type && !(pid_item->is_audio)) {
+                                /* not audio PID */
                                 continue;
                         }
                 }

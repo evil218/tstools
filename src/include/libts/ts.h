@@ -133,6 +133,8 @@ struct ts_track {
         /* for PTS/DTS mark */
         int64_t PTS; /* last PTS */
         int64_t DTS; /* last DTS */
+
+        int is_pes_align; /* met first PES head */
 };
 
 /* node of prog list */
@@ -174,6 +176,8 @@ struct ts_pid {
         /* PID */
         uint16_t PID; /* 13-bit */
         int type; /* PID type index */
+        int is_video;
+        int is_audio;
         const char *sdes; /* PID type short description */
         const char *ldes; /* PID type long description */
 

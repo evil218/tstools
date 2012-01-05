@@ -152,8 +152,8 @@ struct obj {
         uint32_t pkt_size; /* 188 or 204 */
         int state;
 
-        int is_pes_align; /* met first PES head */
-        int is_verbose; /* report key step one by one */
+        int need_pes_align; /* 0: dot't need; 1: need PES align */
+        int is_verbose; /* 0: shut up; 1: report key step */
 
         struct ts_rslt rslt;
 };
@@ -366,8 +366,8 @@ int tsCreate(struct ts_rslt **rslt)
 
         obj->is_first_pkt = 1;
         obj->state = STATE_NEXT_PAT;
-        obj->is_pes_align = 0; /* PES align(0: need; 1: dot't need) */
-        obj->is_verbose = 0; /* 0: shut up; 1: report key step */
+        obj->need_pes_align = 1;
+        obj->is_verbose = 0;
 
         (*rslt)->cnt = 0;
         (*rslt)->CC_lost = 0;
@@ -1072,6 +1072,8 @@ static int parse_table(struct obj *obj)
                 /*pid->CRC_32_calc = crc32(pid->section, 3 + psi->section_length - 4); */
                 if(pid->CRC_32_calc != pid->CRC_32) {
                         err->CRC_error = 1;
+                        fprintf(stderr, "CRC error(0x%08X! 0x%08X?)\n",
+                                pid->CRC_32_calc, pid->CRC_32);
                         dump(pid->section, 3 + psi->section_length);
                         return -1;
                 }
@@ -1081,7 +1083,7 @@ static int parse_table(struct obj *obj)
         if(0x02 == psi->table_id) {
                 /* PMT section */
                 if(!(pid->prog)) {
-                        DBG(ERR_OTHER, "\n");
+                        DBG(ERR_OTHER, "PMT: pid->prog is NULL!\n");
                         return -1;
                 }
                 table = &(pid->prog->table_02);
@@ -1384,6 +1386,8 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                 new_pid->is_CC_sync = 0;
                 new_pid->sdes = PID_TYPE[new_pid->type].sdes;
                 new_pid->ldes = PID_TYPE[new_pid->type].ldes;
+                new_pid->is_video = 0;
+                new_pid->is_audio = 0;
                 add_to_pid_list(&(rslt->pid0), new_pid); /* NIT or PMT PID */
         }
 
@@ -1440,6 +1444,8 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
         new_pid->is_CC_sync = 1;
         new_pid->sdes = PID_TYPE[new_pid->type].sdes;
         new_pid->ldes = PID_TYPE[new_pid->type].ldes;
+        new_pid->is_video = 0;
+        new_pid->is_audio = 0;
         add_to_pid_list(&(obj->rslt.pid0), new_pid); /* PCR_PID */
 
         /* program_info_length */
@@ -1509,6 +1515,8 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
                 track->PTS = STC_OVF;
                 track->DTS = STC_OVF;
 
+                track->is_pes_align = 0;
+
                 dbg(1, "push 0x%04X in track_list", track->PID);
                 list_push(&(prog->track0), track);
 
@@ -1523,6 +1531,22 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
                 new_pid->is_CC_sync = 0;
                 new_pid->sdes = PID_TYPE[new_pid->type].sdes;
                 new_pid->ldes = PID_TYPE[new_pid->type].ldes;
+                switch(new_pid->type) {
+                        case VID_PID:
+                        case VID_PCR:
+                                new_pid->is_video = 1;
+                                new_pid->is_audio = 0;
+                                break;
+                        case AUD_PID:
+                        case AUD_PCR:
+                                new_pid->is_video = 0;
+                                new_pid->is_audio = 1;
+                                break;
+                        default:
+                                new_pid->is_video = 0;
+                                new_pid->is_audio = 0;
+                                break;
+                }
                 add_to_pid_list(&(obj->rslt.pid0), new_pid); /* elementary_PID */
         }
 
@@ -1636,23 +1660,41 @@ static int parse_PES_head(struct obj *obj)
         struct ts *ts = &(obj->ts);
         struct pes *pes = &(obj->pes);
         struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_pid *pid = rslt->pid;
+        struct ts_track *track = pid->track; /* may be NULL */
 
         /* for some bad stream */
         if(ts->PID < 0x0020) {
                 fprintf(stderr, "PES: bad PID(0x%04X)!\n", ts->PID);
                 return -1;
         }
+        if(!track) {
+                fprintf(stderr, "PES: not track PID(0x%04X)!\n", ts->PID);
+                return -1;
+        }
+
+        /* PES align */
+        if(ts->payload_unit_start_indicator) {
+                track->is_pes_align = 1;
+        }
 
         /* record PES data */
-        if(obj->is_pes_align) { /* FIXME */
+        if(obj->need_pes_align) {
+                if(track->is_pes_align) {
+                        rslt->PES_len = obj->len;
+                        rslt->PES_buf = obj->p;
+                }
+                else {
+                        /* ignore these PES data */
+                }
+        }
+        else {
                 rslt->PES_len = obj->len;
                 rslt->PES_buf = obj->p;
         }
 
+        /* PES head */
         if(ts->payload_unit_start_indicator) {
-                obj->is_pes_align = 1; /* FIXME */
-                rslt->PES_len = obj->len;
-                rslt->PES_buf = obj->p;
 
                 /* PES head start */
                 dat = *(obj->p)++; obj->len--;
@@ -1693,7 +1735,17 @@ static int parse_PES_head(struct obj *obj)
                 parse_PES_head_switch(obj);
         }
 
-        if(obj->is_pes_align) { /* FIXME */
+        /* record ES data */
+        if(obj->need_pes_align) {
+                if(track->is_pes_align) {
+                        rslt->ES_len = obj->len;
+                        rslt->ES_buf = obj->p;
+                }
+                else {
+                        /* ignore these ES data */
+                }
+        }
+        else {
                 rslt->ES_len = obj->len;
                 rslt->ES_buf = obj->p;
         }
@@ -2029,6 +2081,8 @@ static struct ts_pid *add_new_pid(struct obj *obj)
         pid->is_CC_sync = 0;
         pid->sdes = PID_TYPE[pid->type].sdes;
         pid->ldes = PID_TYPE[pid->type].ldes;
+        pid->is_video = 0;
+        pid->is_audio = 0;
 
         return add_to_pid_list(&(rslt->pid0), pid); /* other_PID */
 }
@@ -2045,6 +2099,8 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
                 pid->prog = the_pid->prog;
                 pid->track = the_pid->track;
                 pid->type = the_pid->type;
+                pid->is_video = the_pid->is_video;
+                pid->is_audio = the_pid->is_audio;
                 pid->cnt = the_pid->cnt;
                 pid->lcnt = the_pid->lcnt;
                 pid->CC = the_pid->CC;
@@ -2063,6 +2119,8 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
                 pid->prog = the_pid->prog;
                 pid->track = the_pid->track;
                 pid->type = the_pid->type;
+                pid->is_video = the_pid->is_video;
+                pid->is_audio = the_pid->is_audio;
                 pid->cnt = the_pid->cnt;
                 pid->lcnt = the_pid->lcnt;
                 pid->CC = the_pid->CC;
