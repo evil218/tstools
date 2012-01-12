@@ -67,6 +67,9 @@ struct af {
         uint64_t original_program_clock_reference_base; /* 33-bit */
         uint16_t original_program_clock_reference_extension; /* 9-bit */
         uint8_t splice_countdown;
+        uint8_t transport_private_data_length;
+        uint8_t private_data_byte[256];
+        uint8_t adaption_field_extension_length;
         /* ... */
 };
 
@@ -961,16 +964,25 @@ static int parse_AF(struct obj *obj)
                 af->splice_countdown = dat;
         }
         if(af->transport_private_data_flag) {
-                /*... */
+                dat = *(obj->p)++; obj->len--; af->adaption_field_length--;
+                af->transport_private_data_length = dat;
+
+                for(i = 0; i < af->transport_private_data_length; i++) {
+                        af->private_data_byte[i] = dat;
+                }
         }
         if(af->adaption_field_extension_flag) {
-                /*... */
+                dat = *(obj->p)++; obj->len--; af->adaption_field_length--;
+                af->adaption_field_extension_length = dat;
+
+                /* pass adaption_field_extension part, FIXME */
+                obj->p += af->adaption_field_extension_length;
+                obj->len -= af->adaption_field_extension_length;
         }
 
         /* pass stuffing byte */
-        for(i = af->adaption_field_length; i > 0; i--) {
-                dat = *(obj->p)++; obj->len--;
-        }
+        obj->p += af->adaption_field_length;
+        obj->len -= af->adaption_field_length;
 
         return 0;
 }
@@ -1512,8 +1524,8 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
                                 default:      track->type = UNO_PCR; break;
                         }
                 }
-                track->PTS = STC_OVF;
-                track->DTS = STC_OVF;
+                track->PTS = STC_BASE_OVF;
+                track->DTS = STC_BASE_OVF;
 
                 track->is_pes_align = 0;
 
@@ -2212,12 +2224,9 @@ static int track_type(struct ts_track *track)
 /* rslt(int) = t1(uint) + t2(uint), t belongs to [0, ovf - 1] */
 static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf)
 {
-        if(ovf < 0) {
-                /*fprintf(stderr, "Bad overflow value(%llu)\n", ovf); */
-                return 0;
-        }
+        /* ((0 <= t1 < ovf) && (0 <= t2 < ovf))? */
         if(t1 < 0 || ovf <= t1 || t2 < 0 || ovf <= t2) {
-                /*fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2); */
+                /* fprintf(stderr, "lmt_add: bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2); */
                 return 0;
         }
 
@@ -2230,12 +2239,9 @@ static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf)
 /* rslt(int) = t1(uint) - t2(uint), t belongs to [0, ovf - 1] */
 static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf)
 {
-        if(ovf < 0) {
-                /*fprintf(stderr, "Bad overflow value(%llu)\n", ovf); */
-                return 0;
-        }
+        /* ((0 <= t1 < ovf) && (0 <= t2 < ovf))? */
         if(t1 < 0 || ovf <= t1 || t2 < 0 || ovf <= t2) {
-                /*fprintf(stderr, "Bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2); */
+                /* fprintf(stderr, "lmt_min: bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2); */
                 return 0;
         }
 
