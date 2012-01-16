@@ -631,9 +631,15 @@ static void show_help()
 
 static void show_version()
 {
-        puts("tsana 1.0.0");
+        char str[100];
+
+        sprintf(str, "tsana of tstools %s", TSTOOLS_VERSION);
+        puts(str);
+        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
+        puts(str);
         puts("");
-        puts("Copyright (C) 2009,2010,2011 ZHOU Cheng.");
+        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
+        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
         puts("A PARTICULAR PURPOSE.");

@@ -3,13 +3,13 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: August 2011<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: January 2012<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-tsana - manual page for tsana 1.0.0
+tsana - manual page for tsana of tstools 1.0.0
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
@@ -32,18 +32,18 @@ show PSI tree information
 show SI section data of cared &lt;table&gt;
 <DT><B>-si</B><DD>
 show SI section information of cared &lt;table&gt;
+<DT><B>-tcp</B><DD>
+show TCP(ATSC MH) field information
 <DT><B>-outpsi</B><DD>
 output PSI packet
 <DT><B>-pcr</B><DD>
 output PCR information of cared &lt;pid&gt;
 <DT><B>-sys-rate</B><DD>
-output system bit-rate
+output system, psi-si(total), empty bit-rate
 <DT><B>-psi-rate</B><DD>
-output psi/si bit-rate
-<DT><B>-prog-rate</B><DD>
-output bit-rate of cared &lt;prog&gt;
+output psi-si(total), psi-si(each) bit-rate
 <DT><B>-rate</B><DD>
-output bit-rate of all PID
+output pid(each) bit-rate, filtered by &lt;prog&gt; and &lt;pid&gt;
 <DT><B>-pts</B><DD>
 output PTS and DTS information of cared &lt;pid&gt;
 <DT><B>-pes</B><DD>
@@ -56,18 +56,20 @@ write ES data into different file by PID
 output all errors found
 <DT><B>-dump</B><DD>
 dump cared packet
-<DT><B>-mono</B><DD>
-disable colour effect, default: use colour to help read
+<DT><B>-c</B> <B>-color</B><DD>
+enable colour effect to help read, default: mono
 <DT><B>-start</B> &lt;x&gt;<DD>
 analyse from packet(x), default: 0, first packet
 <DT><B>-count</B> &lt;n&gt;<DD>
 analyse n-packet then stop, default: 0, no stop
 <DT><B>-pid</B> &lt;pid&gt;<DD>
-set cared PID, default: any PID
+set cared PID, default: any PID(0x2000)
 <DT><B>-table</B> &lt;id&gt;<DD>
-set cared table, default: any table
+set cared table, default: any table(0xFF)
 <DT><B>-prog</B> &lt;prog&gt;<DD>
-set cared prog, default: any program
+set cared prog, default: any program(0x0000)
+<DT><B>-type</B> &lt;type&gt;<DD>
+set cared PID type, default: any type(0)
 <DT><B>-iv</B> &lt;iv&gt;<DD>
 set cared interval(1ms-10,000ms), default: 1000ms
 <DT><B>-h</B>, <B>--help</B><DD>
@@ -90,10 +92,16 @@ Written by ZHOU Cheng.
 <H2>REPORTING BUGS</H2>
 
 Report bugs to &lt;<A HREF="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua.org.cn</A>&gt;.
+<P>
+
+<BR>
+
+Build time: Jan 16 2012 16:57:09
 <A NAME="lbAI">&nbsp;</A>
 <H2>COPYRIGHT</H2>
 
-Copyright &#169; 2009,2010,2011 ZHOU Cheng.
+Copyright &#169; 2009,2010,2011,2012 ZHOU Cheng.
+License GPLv3+: GNU GPL version 3 or later &lt;<A HREF="http://gnu.org/licenses/gpl.html">http://gnu.org/licenses/gpl.html</A>&gt;
 <BR>
 
 This is free software; contact author for additional information.
@@ -139,6 +147,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 15:52:48 GMT, August 07, 2011
+Time: 08:58:03 GMT, January 16, 2012
 </BODY>
 </HTML>
