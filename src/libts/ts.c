@@ -343,8 +343,8 @@ static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static int track_type(struct ts_track *track);
 
-static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf);
-static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf);
+static int64_t timestamp_add(int64_t t0, int64_t td, int64_t of);
+static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t of);
 
 static int dump(uint8_t *buf, int len); /* for debug */
 
@@ -618,7 +618,7 @@ static int state_next_pkt(struct obj *obj)
                         }
 
                         /* PCR_interval (PCR packet arrive time interval) */
-                        rslt->PCR_interval = lmt_min(rslt->STC, prog->PCRb, STC_OVF);
+                        rslt->PCR_interval = timestamp_diff(rslt->STC, prog->PCRb, STC_OVF);
                         if((prog->STC_sync) &&
                            !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * STC_MS)) {
                                 /* !(0 < interval < +40ms) */
@@ -626,7 +626,7 @@ static int state_next_pkt(struct obj *obj)
                         }
 
                         /* PCR_continuity (PCR value interval) */
-                        rslt->PCR_continuity = lmt_min(rslt->PCR, prog->PCRb, STC_OVF);
+                        rslt->PCR_continuity = timestamp_diff(rslt->PCR, prog->PCRb, STC_OVF);
                         if((prog->STC_sync) && !(af->discontinuity_indicator) &&
                            !(0 < rslt->PCR_continuity && rslt->PCR_continuity <= 100 * STC_MS)) {
                                 /* !(0 < continuity < +100ms) */
@@ -634,7 +634,7 @@ static int state_next_pkt(struct obj *obj)
                         }
 
                         /* PCR_jitter */
-                        rslt->PCR_jitter = lmt_min(rslt->PCR, rslt->STC, STC_OVF);
+                        rslt->PCR_jitter = timestamp_diff(rslt->PCR, rslt->STC, STC_OVF);
                         if((prog->STC_sync) &&
                            !(-13 <= rslt->PCR_jitter && rslt->PCR_jitter <= +13)) {
                                 /* !(-500ns < jitter < +500ns) */
@@ -701,7 +701,7 @@ static int state_next_pkt(struct obj *obj)
 
                         /* the packet that use PCR of first program */
                         if(prog->PCR_PID == rslt->prog0->PCR_PID) {
-                                rslt->interval += lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
+                                rslt->interval += timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
                                 if(rslt->interval >= rslt->aim_interval) {
                                         struct lnode *lnode;
 
@@ -748,14 +748,14 @@ static int state_next_pkt(struct obj *obj)
                 }
 
                 if(rslt->has_PTS) {
-                        rslt->PTS_interval = lmt_min(rslt->PTS, track->PTS, STC_BASE_OVF);
-                        rslt->PTS_minus_STC = lmt_min(rslt->PTS, rslt->STC_base, STC_BASE_OVF);
+                        rslt->PTS_interval = timestamp_diff(rslt->PTS, track->PTS, STC_BASE_OVF);
+                        rslt->PTS_minus_STC = timestamp_diff(rslt->PTS, rslt->STC_base, STC_BASE_OVF);
                         track->PTS = rslt->PTS; /* record last PTS in track */
                 }
 
                 if(rslt->has_DTS) {
-                        rslt->DTS_interval = lmt_min(rslt->DTS, track->DTS, STC_BASE_OVF);
-                        rslt->DTS_minus_STC = lmt_min(rslt->DTS, rslt->STC_base, STC_BASE_OVF);
+                        rslt->DTS_interval = timestamp_diff(rslt->DTS, track->DTS, STC_BASE_OVF);
+                        rslt->DTS_minus_STC = timestamp_diff(rslt->DTS, rslt->STC_base, STC_BASE_OVF);
                         track->DTS = rslt->DTS; /* record last DTS in track */
                 }
         }
@@ -843,9 +843,9 @@ static int parse_TS_head(struct obj *obj)
 
         /* calc STC, should be as early as possible */
         if(pkt->mts) {
-                int64_t dCTS = lmt_min(pkt->MTS, rslt->lCTS, 0x40000000);
+                int64_t dCTS = timestamp_diff(pkt->MTS, rslt->lCTS, 0x40000000);
 
-                rslt->STC += dCTS; /* got this STC */
+                rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF); /* got this STC */
                 rslt->lCTS = pkt->MTS; /* record last CTS */
         }
         else {
@@ -859,10 +859,10 @@ static int parse_TS_head(struct obj *obj)
                                 /* STCx - PCRb   ADDx - ADDb */
                                 /* ----------- = ----------- */
                                 /* PCRb - PCRa   ADDb - ADDa */
-                                delta = (long double)lmt_min(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
                                 delta *= (pkt->ADDR - prog->ADDb);
                                 delta /= (prog->ADDb - prog->ADDa);
-                                rslt->STC = lmt_add(prog->PCRb, (uint64_t)delta, STC_OVF);
+                                rslt->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
                 }
         }
@@ -1164,7 +1164,7 @@ static int parse_table(struct obj *obj)
         }
 
         /* section_interval */
-        pid->section_interval = lmt_min(rslt->STC, table->STC, STC_OVF);
+        pid->section_interval = timestamp_diff(rslt->STC, table->STC, STC_OVF);
         table->STC = rslt->STC;
 
         /* PAT_error(table_id error) */
@@ -2221,37 +2221,54 @@ static int track_type(struct ts_track *track)
         return 0;
 }
 
-/* rslt(int) = t1(uint) + t2(uint), t belongs to [0, ovf - 1] */
-static int64_t lmt_add(int64_t t1, int64_t t2, int64_t ovf)
+/* funx: t1 = t0 + td, note: of means overflow, of > 0 and of is even
+ *   t0: [0, of)
+ *   t1: [0, of)
+ *   td: [-hof, +hof)
+ */
+static int64_t timestamp_add(int64_t t0, int64_t td, int64_t of)
 {
-        /* ((0 <= t1 < ovf) && (0 <= t2 < ovf))? */
-        if(t1 < 0 || ovf <= t1 || t2 < 0 || ovf <= t2) {
-                /* fprintf(stderr, "lmt_add: bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2); */
-                return 0;
-        }
+        int64_t hof = of >> 1; /* half overflow */
+        int64_t t1; /* t0 + td */
 
-        t1 += t2;
-        t1 -= ((t1 >= ovf) ? ovf : 0);
+        /* assert */
+        of = (hof << 1);                    /* of is even */
+        t0 = ((t0 >=  0) ? t0 : 0);         /* t0 >=  0 */
+        t0 = ((t0 <  of) ? t0 : of - 1);    /* t0 <  of */
+        td = ((td >= -hof) ? td : -hof);    /* td >= -hof */
+        td = ((td <  +hof) ? td : hof - 1); /* td <  +hof */
 
-        return t1;
+        /* calc */
+        t1 = t0 + td;                /* add */
+        t1 += ((t1 >=  0) ? 0 : of); /* t1 >=  0 */
+        t1 -= ((t1 <  of) ? 0 : of); /* t1 <  of */
+
+        return t1; /* [0, of) */
 }
 
-/* rslt(int) = t1(uint) - t2(uint), t belongs to [0, ovf - 1] */
-static int64_t lmt_min(int64_t t1, int64_t t2, int64_t ovf)
+/* funx: td = t1 - t0, note: of means overflow, of > 0 and of is even
+ *   t1: [0, of)
+ *   t0: [0, of)
+ *   td: [-hof, +hof)
+ */
+static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t of)
 {
-        /* ((0 <= t1 < ovf) && (0 <= t2 < ovf))? */
-        if(t1 < 0 || ovf <= t1 || t2 < 0 || ovf <= t2) {
-                /* fprintf(stderr, "lmt_min: bad overflow value(%llu) for %llu and %llu\n", ovf, t1, t2); */
-                return 0;
-        }
+        int64_t hof = of >> 1; /* half overflow */
+        int64_t td; /* t1 - t0 */
 
-        t1 += ((t1 < t2) ? ovf : 0);
-        t1 -= t2;
-        if(t1 >= (ovf >> 1)) {
-                t1 -= ovf;
-        }
+        /* assert */
+        of = (hof << 1);                 /* of is even */
+        t1 = ((t1 >=  0) ? t1 : 0);      /* t1 >=  0 */
+        t1 = ((t1 <  of) ? t1 : of - 1); /* t1 <  of */
+        t0 = ((t0 >=  0) ? t0 : 0);      /* t0 >=  0 */
+        t0 = ((t0 <  of) ? t0 : of - 1); /* t0 <  of */
 
-        return t1;
+        /* calc */
+        td = t1 - t0;                 /* minus */
+        td += ((td >=   0) ? 0 : of); /* special: get the distance from t0 to t1 */
+        td -= ((td <  hof) ? 0 : of); /* special: (distance < hof) means t1 is latter or bigger */
+
+        return td; /* [-hof, +hof) */
 }
 
 static int dump(uint8_t *buf, int len)
