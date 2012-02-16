@@ -1,6 +1,0 @@
-NAME = libts1
-POSTFIX = .lib
-
-SRCS = crc.c error.c if.c list.c ts.c UTF_GB.c
-
-include ../common.msvc.mak

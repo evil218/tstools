@@ -1,9 +1,0 @@
-NAME=toip
-POSTFIX = 
-
-LIBDEPS =  ../libts/libts1.a ../libnet/libnet1.a
-LIBFLAGS =  -L../libts -lts1 -L../libnet -lnet1
-
-SRCS := $(wildcard *.c)
-
-include ../common.linux.mak
