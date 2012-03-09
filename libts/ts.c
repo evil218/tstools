@@ -343,8 +343,8 @@ static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static int track_type(struct ts_track *track);
 
-static int64_t timestamp_add(int64_t t0, int64_t td, int64_t of);
-static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t of);
+static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf);
+static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 static int dump(uint8_t *buf, int len); /* for debug */
 
@@ -2221,54 +2221,61 @@ static int track_type(struct ts_track *track)
         return 0;
 }
 
-/* funx: t1 = t0 + td, note: of means overflow, of > 0 and of is even
- *   t0: [0, of)
- *   t1: [0, of)
- *   td: [-hof, +hof)
+#define timestamp_assert(expr, ...) \
+        do { \
+                if(!(expr)) { \
+                        fprintf(stderr, "\"%s\", line %d: assert (%s) failed: ", \
+                                __FILE__, __LINE__, #expr); \
+                        fprintf(stderr, __VA_ARGS__); \
+                        fprintf(stderr, "\n"); \
+                        return -1; \
+                } \
+        }while(0)
+
+/* funx: t1 = t0 + td, note: ovf means overflow, ovf > 0 and ovf is even
+ *   t0: [0, ovf)
+ *   t1: [0, ovf)
+ *   td: [-hovf, +hovf)
  */
-static int64_t timestamp_add(int64_t t0, int64_t td, int64_t of)
+static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
-        int64_t hof = of >> 1; /* half overflow */
+        int64_t hovf; /* half overflow */
         int64_t t1; /* t0 + td */
 
-        /* assert */
-        of = (hof << 1);                    /* of is even */
-        t0 = ((t0 >=  0) ? t0 : 0);         /* t0 >=  0 */
-        t0 = ((t0 <  of) ? t0 : of - 1);    /* t0 <  of */
-        td = ((td >= -hof) ? td : -hof);    /* td >= -hof */
-        td = ((td <  +hof) ? td : hof - 1); /* td <  +hof */
+        hovf = ovf >> 1;
+        timestamp_assert(0 < ovf, "0 < %lld", ovf);
+        timestamp_assert((hovf << 1) == ovf, "%lld is not even", ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", t0, ovf);
+        timestamp_assert(-hovf <= td && td < +hovf, "%lld <= %lld < %lld", -hovf, td, +hovf);
 
-        /* calc */
-        t1 = t0 + td;                /* add */
-        t1 += ((t1 >=  0) ? 0 : of); /* t1 >=  0 */
-        t1 -= ((t1 <  of) ? 0 : of); /* t1 <  of */
+        t1 = t0 + td; /* add */
+        t1 += ((t1 >=  0) ? 0 : ovf); /* t1 >=  0 */
+        t1 -= ((t1 <  ovf) ? 0 : ovf); /* t1 <  ovf */
 
-        return t1; /* [0, of) */
+        return t1; /* [0, ovf) */
 }
 
-/* funx: td = t1 - t0, note: of means overflow, of > 0 and of is even
- *   t1: [0, of)
- *   t0: [0, of)
- *   td: [-hof, +hof)
+/* funx: td = t1 - t0, note: ovf means overflow, ovf > 0 and ovf is even
+ *   t1: [0, ovf)
+ *   t0: [0, ovf)
+ *   td: [-hovf, +hovf)
  */
-static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t of)
+static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
 {
-        int64_t hof = of >> 1; /* half overflow */
+        int64_t hovf; /* half overflow */
         int64_t td; /* t1 - t0 */
 
-        /* assert */
-        of = (hof << 1);                 /* of is even */
-        t1 = ((t1 >=  0) ? t1 : 0);      /* t1 >=  0 */
-        t1 = ((t1 <  of) ? t1 : of - 1); /* t1 <  of */
-        t0 = ((t0 >=  0) ? t0 : 0);      /* t0 >=  0 */
-        t0 = ((t0 <  of) ? t0 : of - 1); /* t0 <  of */
+        hovf = ovf >> 1;
+        timestamp_assert(0 < ovf, "0 < %lld", ovf);
+        timestamp_assert((hovf << 1) == ovf, "%lld is not even", ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", t0, ovf);
+        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %lld < %lld", t1, ovf);
 
-        /* calc */
-        td = t1 - t0;                 /* minus */
-        td += ((td >=   0) ? 0 : of); /* special: get the distance from t0 to t1 */
-        td -= ((td <  hof) ? 0 : of); /* special: (distance < hof) means t1 is latter or bigger */
+        td = t1 - t0; /* minus */
+        td += ((td >=   0) ? 0 : ovf); /* special: get the distance from t0 to t1 */
+        td -= ((td <  hovf) ? 0 : ovf); /* special: (distance < hovf) means t1 is latter or bigger */
 
-        return td; /* [-hof, +hof) */
+        return td; /* [-hovf, +hovf) */
 }
 
 static int dump(uint8_t *buf, int len)
