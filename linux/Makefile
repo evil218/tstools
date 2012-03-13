@@ -65,7 +65,6 @@ PRJ_AIMS = catts\
 # includes
 INCFLAGS = -I.
 INCFLAGS += -I../include/libts
-INCFLAGS += -I../include/net
 
 # compiler and its options
 CC = gcc

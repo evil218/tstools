@@ -62,10 +62,10 @@ struct af {
         uint8_t splicing_pointer_flag; /* 1-bit */
         uint8_t transport_private_data_flag; /* 1-bit */
         uint8_t adaption_field_extension_flag; /* 1-bit */
-        uint64_t program_clock_reference_base; /* 33-bit */
-        uint16_t program_clock_reference_extension; /* 9-bit */
-        uint64_t original_program_clock_reference_base; /* 33-bit */
-        uint16_t original_program_clock_reference_extension; /* 9-bit */
+        int64_t program_clock_reference_base; /* 33-bit */
+        int16_t program_clock_reference_extension; /* 9-bit */
+        int64_t original_program_clock_reference_base; /* 33-bit */
+        int16_t original_program_clock_reference_extension; /* 9-bit */
         uint8_t splice_countdown;
         uint8_t transport_private_data_length;
         uint8_t private_data_byte[256];
@@ -90,10 +90,10 @@ struct pes {
         uint8_t PES_CRC_flag; /* 1-bit */
         uint8_t PES_extension_flag; /* 1-bit */
         uint8_t PES_header_data_length;
-        uint64_t PTS; /* 33-bit */
-        uint64_t DTS; /* 33-bit */
-        uint64_t ESCR_base; /* 33-bit */
-        uint16_t ESCR_extension; /* 9-bit */
+        int64_t PTS; /* 33-bit */
+        int64_t DTS; /* 33-bit */
+        int64_t ESCR_base; /* 33-bit */
+        int16_t ESCR_extension; /* 9-bit */
         uint32_t ES_rate; /* 22-bit */
         uint8_t trick_mode_control; /* 3-bit */
         uint8_t field_id; /* 2-bit */
@@ -618,19 +618,29 @@ static int state_next_pkt(struct obj *obj)
                         }
 
                         /* PCR_interval (PCR packet arrive time interval) */
-                        rslt->PCR_interval = timestamp_diff(rslt->STC, prog->PCRb, STC_OVF);
-                        if((prog->STC_sync) &&
-                           !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * STC_MS)) {
-                                /* !(0 < interval < +40ms) */
-                                err->PCR_repetition_error = 1;
+                        if(STC_OVF != prog->PCRb) {
+                                rslt->PCR_interval = timestamp_diff(rslt->STC, prog->PCRb, STC_OVF);
+                                if((prog->STC_sync) &&
+                                   !(0 < rslt->PCR_interval && rslt->PCR_interval <= 40 * STC_MS)) {
+                                        /* !(0 < interval < +40ms) */
+                                        err->PCR_repetition_error = 1;
+                                }
+                        }
+                        else {
+                                rslt->PCR_interval = 0;
                         }
 
                         /* PCR_continuity (PCR value interval) */
-                        rslt->PCR_continuity = timestamp_diff(rslt->PCR, prog->PCRb, STC_OVF);
-                        if((prog->STC_sync) && !(af->discontinuity_indicator) &&
-                           !(0 < rslt->PCR_continuity && rslt->PCR_continuity <= 100 * STC_MS)) {
-                                /* !(0 < continuity < +100ms) */
-                                err->PCR_discontinuity_indicator_error = 1;
+                        if(STC_OVF != prog->PCRb) {
+                                rslt->PCR_continuity = timestamp_diff(rslt->PCR, prog->PCRb, STC_OVF);
+                                if((prog->STC_sync) && !(af->discontinuity_indicator) &&
+                                   !(0 < rslt->PCR_continuity && rslt->PCR_continuity <= 100 * STC_MS)) {
+                                        /* !(0 < continuity < +100ms) */
+                                        err->PCR_discontinuity_indicator_error = 1;
+                                }
+                        }
+                        else {
+                                rslt->PCR_continuity = 0;
                         }
 
                         /* PCR_jitter */
@@ -700,7 +710,8 @@ static int state_next_pkt(struct obj *obj)
                         }
 
                         /* the packet that use PCR of first program */
-                        if(prog->PCR_PID == rslt->prog0->PCR_PID) {
+                        if(prog->PCR_PID == rslt->prog0->PCR_PID &&
+                           STC_OVF != prog->PCRa) {
                                 rslt->interval += timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
                                 if(rslt->interval >= rslt->aim_interval) {
                                         struct lnode *lnode;
@@ -748,13 +759,23 @@ static int state_next_pkt(struct obj *obj)
                 }
 
                 if(rslt->has_PTS) {
-                        rslt->PTS_interval = timestamp_diff(rslt->PTS, track->PTS, STC_BASE_OVF);
+                        if(STC_BASE_OVF != track->PTS) {
+                                rslt->PTS_interval = timestamp_diff(rslt->PTS, track->PTS, STC_BASE_OVF);
+                        }
+                        else {
+                                rslt->PTS_interval = 0;
+                        }
                         rslt->PTS_minus_STC = timestamp_diff(rslt->PTS, rslt->STC_base, STC_BASE_OVF);
                         track->PTS = rslt->PTS; /* record last PTS in track */
                 }
 
                 if(rslt->has_DTS) {
-                        rslt->DTS_interval = timestamp_diff(rslt->DTS, track->DTS, STC_BASE_OVF);
+                        if(STC_BASE_OVF != track->DTS) {
+                                rslt->DTS_interval = timestamp_diff(rslt->DTS, track->DTS, STC_BASE_OVF);
+                        }
+                        else {
+                                rslt->DTS_interval = 0;
+                        }
                         rslt->DTS_minus_STC = timestamp_diff(rslt->DTS, rslt->STC_base, STC_BASE_OVF);
                         track->DTS = rslt->DTS; /* record last DTS in track */
                 }

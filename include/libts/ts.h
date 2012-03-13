@@ -162,9 +162,9 @@ struct ts_prog {
         struct ts_track *track0;
 
         /* for STC calc */
-        uint64_t ADDa; /* PCR packet a: packet address */
+        int64_t ADDa; /* PCR packet a: packet address */
         int64_t PCRa; /* PCR packet a: PCR value */
-        uint64_t ADDb; /* PCR packet b: packet address */
+        int64_t ADDb; /* PCR packet b: packet address */
         int64_t PCRb; /* PCR packet b: PCR value */
         int STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
 };
@@ -209,10 +209,10 @@ struct ts_pid {
 /* parse result */
 struct ts_rslt {
         /* information about current packet */
-        uint64_t cnt; /* count of this packet, start from 0 */
+        int64_t cnt; /* count of this packet, start from 0 */
         struct ts_pkt PKT;
         struct ts_pkt *pkt; /* point to PKT */
-        uint64_t lCTS; /* for calc dCTS */
+        int64_t lCTS; /* for calc dCTS */
 
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
@@ -245,15 +245,15 @@ struct ts_rslt {
         /* for bit-rate statistic */
         int64_t aim_interval; /* appointed interval */
         int64_t interval; /* time passed from last rate calc */
-        uint64_t sys_cnt; /* system packet count */
-        uint64_t psi_cnt; /* psi-si packet count */
-        uint64_t nul_cnt; /* empty packet count */
+        int64_t sys_cnt; /* system packet count */
+        int64_t psi_cnt; /* psi-si packet count */
+        int64_t nul_cnt; /* empty packet count */
 
         int has_rate; /* new bit-rate ready */
         int64_t last_interval; /* interval from PCRa to PCRb */
-        uint64_t last_sys_cnt; /* system packet count from PCRa to PCRb */
-        uint64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
-        uint64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
+        int64_t last_sys_cnt; /* system packet count from PCRa to PCRb */
+        int64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
+        int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
 
         int CC_wait;
         int CC_find;
