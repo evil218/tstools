@@ -378,8 +378,8 @@ int tsCreate(struct ts_rslt **rslt)
         (*rslt)->is_psi_parse_finished = 0;
         (*rslt)->concerned_pid = 0x0000; /* PAT_PID */
         (*rslt)->interval = 0;
-        (*rslt)->lCTS = 0L;
-        (*rslt)->STC = 0L;
+        (*rslt)->lCTS = 0L; /* for MTS file only, must init as 0L */
+        (*rslt)->STC = STC_OVF;
 
         /* clear error struct */
         err = &((*rslt)->err);
@@ -866,7 +866,12 @@ static int parse_TS_head(struct obj *obj)
         if(pkt->mts) {
                 int64_t dCTS = timestamp_diff(pkt->MTS, rslt->lCTS, 0x40000000);
 
-                rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF); /* got this STC */
+                if(STC_OVF != rslt->STC) {
+                        rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF);
+                }
+                else {
+                        rslt->STC = timestamp_add(0L, dCTS, STC_OVF);
+                }
                 rslt->lCTS = pkt->MTS; /* record last CTS */
         }
         else {
@@ -1139,7 +1144,7 @@ static int parse_table(struct obj *obj)
                         table->version_number = psi->version_number;
                         table->last_section_number = psi->last_section_number;
                         table->section0 = NULL;
-                        table->STC = 0L;
+                        table->STC = STC_OVF;
                         dbg(1, "insert 0x%02X in table_list", psi->table_id);
                         list_set_key(table, psi->table_id);
                         list_insert(ptable0, table);
@@ -1185,12 +1190,18 @@ static int parse_table(struct obj *obj)
         }
 
         /* section_interval */
-        pid->section_interval = timestamp_diff(rslt->STC, table->STC, STC_OVF);
+        if(STC_OVF != table->STC &&
+           STC_OVF != rslt->STC) {
+                pid->section_interval = timestamp_diff(rslt->STC, table->STC, STC_OVF);
+        }
+        else {
+                pid->section_interval = 0;
+        }
         table->STC = rslt->STC;
 
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != psi->table_id) {
-                err->PAT_error = 1;
+                err->PAT_error = ERR_1_3_1;
                 dump(obj->rslt.pkt->ts, 188);
                 dump(pid->section, 8);
                 return -1;
@@ -1317,10 +1328,10 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
 
         /* PAT_error */
         if(pid->section_interval > 500 * STC_MS) {
-                err->PAT_error = 1;
+                err->PAT_error = ERR_1_3_0;
         }
         if(0x00 != ts->transport_scrambling_control) {
-                err->PAT_error = 1;
+                err->PAT_error = ERR_1_3_2;
         }
 
         /* to avoid stack overflow, FIXME */
@@ -1388,7 +1399,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                         prog->table_02.version_number = 0xFF; /* never reached version */
                         prog->table_02.last_section_number = 0; /* no use */
                         prog->table_02.section0 = NULL;
-                        prog->table_02.STC = 0L;
+                        prog->table_02.STC = STC_OVF;
 
                         /* track list */
                         prog->track0 = NULL;
@@ -1443,10 +1454,10 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
         /* PMT_error */
         if(pid->section_interval > 500 * STC_MS) {
-                err->PMT_error = 1;
+                err->PMT_error = ERR_1_5_0;
         }
         if(0x00 != ts->transport_scrambling_control) {
-                err->PAT_error = 1;
+                err->PMT_error = ERR_1_5_1;
         }
 
         /* in PMT, table_id_extension is program_number */

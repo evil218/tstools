@@ -40,8 +40,13 @@ struct ts_error {
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
+#define ERR_1_3_0 (1<<0)
+#define ERR_1_3_1 (1<<1)
+#define ERR_1_3_2 (1<<2)
         int PAT_error; /* 1.3 ---- 1.3a of TR 101 290 V1.2.1 2001-05 */
         int Continuity_count_error; /* 1.4 */
+#define ERR_1_5_0 (1<<0)
+#define ERR_1_5_1 (1<<1)
         int PMT_error; /* 1.5 ---- 1.5a of TR 101 290 V1.2.1 2001-05 */
         int PID_error; /* 1.6 */
 

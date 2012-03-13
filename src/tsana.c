@@ -1200,7 +1200,15 @@ static void show_error(struct obj *obj)
         }
         if(err->PAT_error) {
                 print_atp_value(obj);
-                fprintf(stdout, "1.3 , PAT_error\n");
+                if((1<<0) & err->PAT_error) {
+                        fprintf(stdout, "1.3 , PAT_error: section_interval > 0.5s\n");
+                }
+                if((1<<1) & err->PAT_error) {
+                        fprintf(stdout, "1.3 , PAT_error: table_id != 0x00\n");
+                }
+                if((1<<2) & err->PAT_error) {
+                        fprintf(stdout, "1.3 , PAT_error: transport_scrambling_field != 0x00\n");
+                }
                 err->PAT_error = 0;
         }
         if(err->Continuity_count_error) {
@@ -1210,7 +1218,12 @@ static void show_error(struct obj *obj)
         }
         if(err->PMT_error) {
                 print_atp_value(obj);
-                fprintf(stdout, "1.5 , PMT_error\n");
+                if((1<<0) & err->PMT_error) {
+                        fprintf(stdout, "1.5 , PMT_error: section_interval > 0.5s\n");
+                }
+                if((1<<1) & err->PMT_error) {
+                        fprintf(stdout, "1.5 , PMT_error: transport_scrambling_field != 0x00\n");
+                }
                 err->PMT_error = 0;
         }
         if(err->PID_error) {
