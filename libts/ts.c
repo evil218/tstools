@@ -765,7 +765,12 @@ static int state_next_pkt(struct obj *obj)
                         else {
                                 rslt->PTS_interval = 0;
                         }
-                        rslt->PTS_minus_STC = timestamp_diff(rslt->PTS, rslt->STC_base, STC_BASE_OVF);
+                        if(STC_BASE_OVF != rslt->STC_base) {
+                                rslt->PTS_minus_STC = timestamp_diff(rslt->PTS, rslt->STC_base, STC_BASE_OVF);
+                        }
+                        else {
+                                rslt->PTS_minus_STC = 0;
+                        }
                         track->PTS = rslt->PTS; /* record last PTS in track */
                 }
 
@@ -776,7 +781,12 @@ static int state_next_pkt(struct obj *obj)
                         else {
                                 rslt->DTS_interval = 0;
                         }
-                        rslt->DTS_minus_STC = timestamp_diff(rslt->DTS, rslt->STC_base, STC_BASE_OVF);
+                        if(STC_BASE_OVF != rslt->STC_base) {
+                                rslt->DTS_minus_STC = timestamp_diff(rslt->DTS, rslt->STC_base, STC_BASE_OVF);
+                        }
+                        else {
+                                rslt->DTS_minus_STC = 0;
+                        }
                         track->DTS = rslt->DTS; /* record last DTS in track */
                 }
         }
