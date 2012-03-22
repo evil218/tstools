@@ -168,18 +168,18 @@ int main(int argc, char *argv[])
 
                 tsParseOther(obj->ts_id);
                 switch(obj->state) {
-                        case STATE_PARSE_PSI:
-                                state_parse_psi(obj);
-                                break;
-                        case STATE_PARSE_EACH:
-                                state_parse_each(obj);
-                                break;
-                        case STATE_EXIT:
-                                break;
-                        default:
-                                fprintf(stderr, "Wrong state(%d)!\n", obj->state);
-                                obj->state = STATE_EXIT;
-                                break;
+                case STATE_PARSE_PSI:
+                        state_parse_psi(obj);
+                        break;
+                case STATE_PARSE_EACH:
+                        state_parse_each(obj);
+                        break;
+                case STATE_EXIT:
+                        break;
+                default:
+                        fprintf(stderr, "Wrong state(%d)!\n", obj->state);
+                        obj->state = STATE_EXIT;
+                        break;
                 }
 
                 if(obj->is_dump) {
@@ -197,14 +197,14 @@ int main(int argc, char *argv[])
 
                 rslt->is_psi_parse_finished = 1;
                 switch(obj->mode) {
-                        case MODE_LST:
-                                show_list(obj);
-                                break;
-                        case MODE_PSI:
-                                show_prog(obj);
-                                break;
-                        default:
-                                break;
+                case MODE_LST:
+                        show_list(obj);
+                        break;
+                case MODE_PSI:
+                        show_prog(obj);
+                        break;
+                default:
+                        break;
                 }
         }
 
@@ -222,46 +222,46 @@ static void state_parse_psi(struct obj *obj)
 
         if(rslt->is_pat_pmt_parsed) {
                 switch(obj->mode) {
-                        case MODE_SEC:
-                                print_atp_title(obj);
-                                fprintf(stdout, "section_interval, section_head, section_body\n");
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_SI:
-                                print_atp_title(obj);
-                                fprintf(stdout, "section_interval, section_head, section_body\n");
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_PCR:
-                                print_atp_title(obj);
-                                fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(ns), \n");
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_PTSDTS:
-                                print_atp_title(obj);
-                                fprintf(stdout, "PTS, PTS_interval(ms), PTS-PCR(ms), DTS, DTS_interval(ms), DTS-PCR(ms), \n");
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_ERROR:
-                                print_atp_title(obj);
-                                fprintf(stdout, "TR-101-290, detail, \n");
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_LST:
-                        case MODE_PSI:
-                        case MODE_TCP:
-                        case MODE_SYS_RATE:
-                        case MODE_PSI_RATE:
-                        case MODE_RATE:
-                        case MODE_PES:
-                        case MODE_ES:
-                        case MODE_ALLES:
-                                obj->state = STATE_PARSE_EACH;
-                                break;
-                        case MODE_EXIT:
-                        default:
-                                obj->state = STATE_EXIT;
-                                break;
+                case MODE_SEC:
+                        print_atp_title(obj);
+                        fprintf(stdout, "section_interval, section_head, section_body\n");
+                        obj->state = STATE_PARSE_EACH;
+                        break;
+                case MODE_SI:
+                        print_atp_title(obj);
+                        fprintf(stdout, "section_interval, section_head, section_body\n");
+                        obj->state = STATE_PARSE_EACH;
+                        break;
+                case MODE_PCR:
+                        print_atp_title(obj);
+                        fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(ns), \n");
+                        obj->state = STATE_PARSE_EACH;
+                        break;
+                case MODE_PTSDTS:
+                        print_atp_title(obj);
+                        fprintf(stdout, "PTS, PTS_interval(ms), PTS-PCR(ms), DTS, DTS_interval(ms), DTS-PCR(ms), \n");
+                        obj->state = STATE_PARSE_EACH;
+                        break;
+                case MODE_ERROR:
+                        print_atp_title(obj);
+                        fprintf(stdout, "TR-101-290, detail, \n");
+                        obj->state = STATE_PARSE_EACH;
+                        break;
+                case MODE_LST:
+                case MODE_PSI:
+                case MODE_TCP:
+                case MODE_SYS_RATE:
+                case MODE_PSI_RATE:
+                case MODE_RATE:
+                case MODE_PES:
+                case MODE_ES:
+                case MODE_ALLES:
+                        obj->state = STATE_PARSE_EACH;
+                        break;
+                case MODE_EXIT:
+                default:
+                        obj->state = STATE_EXIT;
+                        break;
                 }
         }
         return;
@@ -270,6 +270,7 @@ static void state_parse_psi(struct obj *obj)
 static void state_parse_each(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
+        struct ts_pid *pid = rslt->pid;
         struct ts_psi *psi = &(rslt->psi);
 
         /* filter for some mode */
@@ -280,68 +281,76 @@ static void state_parse_each(struct obj *obj)
            obj->mode == MODE_PES        ||
            obj->mode == MODE_ES         ||
            obj->mode == MODE_ERROR) {
-                /* PID filter */
-                if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid) {
+                /* filter: PID */
+                if(ANY_PID != obj->aim_pid &&
+                   rslt->PID != obj->aim_pid) {
                         return;
                 }
 
-                /* table filter */
-                if(ANY_TABLE != obj->aim_table && psi->table_id != obj->aim_table) {
+                /* filter: table_id */
+                if(ANY_TABLE != obj->aim_table &&
+                   psi->table_id != obj->aim_table) {
+                        return;
+                }
+
+                /* filter: program_number */
+                if(ANY_PROG != obj->aim_prog &&
+                   (!(pid->prog) || (pid->prog->program_number != obj->aim_prog))) {
                         return;
                 }
         }
 
         /* show_xxx() */
         switch(obj->mode) {
-                case MODE_LST:
-                        if(!(obj->is_dump)) {
-                                show_list(obj);
-                        }
-                        break;
-                case MODE_PSI:
-                        if(!(obj->is_dump)) {
-                                show_prog(obj);
-                        }
-                        break;
-                case MODE_SEC:
-                        show_sec(obj);
-                        break;
-                case MODE_SI:
-                        show_si(obj);
-                        break;
-                case MODE_TCP:
-                        show_tcp(obj);
-                        break;
-                case MODE_PCR:
-                        show_pcr(obj);
-                        break;
-                case MODE_SYS_RATE:
-                        show_sys_rate(obj);
-                        break;
-                case MODE_PSI_RATE:
-                        show_psi_rate(obj);
-                        break;
-                case MODE_RATE:
-                        show_rate(obj);
-                        break;
-                case MODE_PTSDTS:
-                        show_ptsdts(obj);
-                        break;
-                case MODE_PES:
-                        show_pes(obj);
-                        break;
-                case MODE_ES:
-                        show_es(obj);
-                        break;
-                case MODE_ALLES:
-                        all_es(obj);
-                        break;
-                case MODE_ERROR:
-                        show_error(obj);
-                        break;
-                default:
-                        fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
-                        break;
+        case MODE_LST:
+                if(!(obj->is_dump)) {
+                        show_list(obj);
+                }
+                break;
+        case MODE_PSI:
+                if(!(obj->is_dump)) {
+                        show_prog(obj);
+                }
+                break;
+        case MODE_SEC:
+                show_sec(obj);
+                break;
+        case MODE_SI:
+                show_si(obj);
+                break;
+        case MODE_TCP:
+                show_tcp(obj);
+                break;
+        case MODE_PCR:
+                show_pcr(obj);
+                break;
+        case MODE_SYS_RATE:
+                show_sys_rate(obj);
+                break;
+        case MODE_PSI_RATE:
+                show_psi_rate(obj);
+                break;
+        case MODE_RATE:
+                show_rate(obj);
+                break;
+        case MODE_PTSDTS:
+                show_ptsdts(obj);
+                break;
+        case MODE_PES:
+                show_pes(obj);
+                break;
+        case MODE_ES:
+                show_es(obj);
+                break;
+        case MODE_ALLES:
+                all_es(obj);
+                break;
+        case MODE_ERROR:
+                show_error(obj);
+                break;
+        default:
+                fprintf(stderr, "wrong mode(%d)!\n", obj->mode);
+                break;
         }
         return;
 }
@@ -1055,6 +1064,7 @@ static void show_rate(struct obj *obj)
                         continue;
                 }
 
+                /* filter: program_number */
                 if(ANY_PROG != obj->aim_prog) {
                         if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
                                 /* not program */
@@ -1070,6 +1080,7 @@ static void show_rate(struct obj *obj)
                         }
                 }
 
+                /* filter: type: video or audio */
                 if(TYPE_ANY != obj->aim_type) {
                         if(TYPE_VIDEO == obj->aim_type && !(pid_item->is_video)) {
                                 /* not video PID */
@@ -1778,12 +1789,12 @@ static void UTC(uint8_t *buf)
 static char *running_status(uint8_t status)
 {
         switch(status) {
-                case  0: return "undefined";
-                case  1: return "stopped";
-                case  2: return "preparing";
-                case  3: return "pausing";
-                case  4: return "running";
-                default: return "reserved running status";
+        case  0: return "undefined";
+        case  1: return "stopped";
+        case  2: return "preparing";
+        case  3: return "pausing";
+        case  4: return "running";
+        default: return "reserved running status";
         }
 }
 
@@ -1847,13 +1858,13 @@ static int coding_string(uint8_t *p, int len)
                 p++; len--; /* pass first byte */
         }
         switch(coding) {
-                case 0x11:
-                        utf16_gb((const uint16_t *)p, str, len, BIG_ENDIAN);
-                        break;
-                default:
-                        memcpy(str, p, len);
-                        str[len] = '\0';
-                        break;
+        case 0x11:
+                utf16_gb((const uint16_t *)p, str, len, BIG_ENDIAN);
+                break;
+        default:
+                memcpy(str, p, len);
+                str[len] = '\0';
+                break;
         }
         fprintf(stdout, "%s", str);
         return 0;
