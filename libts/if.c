@@ -140,6 +140,25 @@ int b2t(void *tbuf, struct ts_pkt *pkt)
                 *text++ = ',';
         }
 
+        /* DATA */
+        if(NULL != pkt->data) {
+                /* tag */
+                *text++ = 'd';
+                *text++ = 'a';
+                *text++ = 't';
+                *text++ = 'a';
+                *text++ = ',';
+
+                /* data */
+                byte = pkt->data;
+                byte2txt(*byte++, &text);
+                for(i = 1; i < pkt->cnt; i++) {
+                        *text++ = ' ';
+                        byte2txt(*byte++, &text);
+                }
+                *text++ = ',';
+        }
+
         /* ADDR */
         if(NULL != pkt->addr) {
                 /* tag */
@@ -177,25 +196,6 @@ int b2t(void *tbuf, struct ts_pkt *pkt)
 
                 /* stc */
                 uint2txt(pkt->STC, &text);
-                *text++ = ',';
-        }
-
-        /* DATA */
-        if(NULL != pkt->data) {
-                /* tag */
-                *text++ = 'd';
-                *text++ = 'a';
-                *text++ = 't';
-                *text++ = 'a';
-                *text++ = ',';
-
-                /* data */
-                byte = pkt->data;
-                byte2txt(*byte++, &text);
-                for(i = 1; i < pkt->cnt; i++) {
-                        *text++ = ' ';
-                        byte2txt(*byte++, &text);
-                }
                 *text++ = ',';
         }
 

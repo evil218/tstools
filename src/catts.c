@@ -24,7 +24,7 @@ enum FILE_TYPE
 
 static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
-static int npline = 188; /* data number per line */
+static int npline = 16; /* data number per line */
 static int type = FILE_TS;
 static int aim_start = 0; /* first byte */
 static int aim_stop = 0; /* last byte */
@@ -39,6 +39,7 @@ static int mts_time(uint64_t *mts, uint8_t *bin);
 
 int main(int argc, char *argv[])
 {
+        int cnt;
         unsigned char bbuf[LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
         char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
 
@@ -54,9 +55,8 @@ int main(int argc, char *argv[])
         }
 
         judge_type();
-        while(1 == fread(bbuf, npline, 1, fd_i)) {
+        while(0 < (cnt = fread(bbuf, 1, npline, fd_i))) {
                 pkt_init(pkt);
-
                 switch(type) {
                         case FILE_TS:
                                 pkt->addr = &(pkt->ADDR);
@@ -68,15 +68,24 @@ int main(int argc, char *argv[])
                                 pkt->mts = &(pkt->MTS);
                                 mts_time(pkt->mts, bbuf);
                                 break;
-                        default: /* FILE_TSRS */
+                        case FILE_TSRS:
                                 pkt->addr = &(pkt->ADDR);
                                 pkt->ts = (bbuf + 0);
                                 pkt->rs = (bbuf + 188);
                                 break;
+                        default: /* FILE_BIN */
+                                pkt->addr = &(pkt->ADDR);
+                                pkt->data = (bbuf + 0);
+                                pkt->cnt = cnt;
+                                break;
                 }
                 b2t(tbuf, pkt);
                 puts(tbuf);
-                pkt->ADDR += npline;
+                pkt->ADDR += cnt;
+
+                if(0 != aim_stop && pkt->ADDR > aim_stop) {
+                        break;
+                }
         }
 
         fclose(fd_i);
@@ -87,6 +96,7 @@ int main(int argc, char *argv[])
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
+        int dat;
 
         if(1 == argc) {
                 /* no parameter */
@@ -97,27 +107,56 @@ static int deal_with_parameter(int argc, char *argv[])
 
         for(i = 1; i < argc; i++) {
                 if('-' == argv[i][0]) {
-                        if(0 == strcmp(argv[i], "-start")) {
-                                int start;
-
+                        if(0 == strcmp(argv[i], "-s") ||
+                           0 == strcmp(argv[i], "--start")) {
                                 i++;
                                 if(i >= argc) {
-                                        fprintf(stderr, "no parameter for '-start'!\n");
+                                        fprintf(stderr, "no parameter for 'start'!\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                sscanf(argv[i], "%i" , &start);
-                                aim_start = start;
+                                sscanf(argv[i], "%i" , &dat);
+                                if(0 < dat) {
+                                        aim_start = dat;
+                                }
+                                else {
+                                        fprintf(stderr,
+                                                "bad variable for 'start': %u(0 < x), use 0 instead!\n",
+                                                dat);
+                                }
                         }
-                        else if(0 == strcmp(argv[i], "-stop")) {
-                                int stop;
-
+                        else if(0 == strcmp(argv[i], "-p") ||
+                                0 == strcmp(argv[i], "--stop")) {
                                 i++;
                                 if(i >= argc) {
-                                        fprintf(stderr, "no parameter for '-stop'!\n");
+                                        fprintf(stderr, "no parameter for 'stop'!\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                sscanf(argv[i], "%i" , &stop);
-                                aim_stop = stop;
+                                sscanf(argv[i], "%i" , &dat);
+                                if(0 < dat) {
+                                        aim_stop = dat;
+                                }
+                                else {
+                                        fprintf(stderr,
+                                                "bad variable for 'stop': %u(0 < x), use 0 instead!\n",
+                                                dat);
+                                }
+                        }
+                        else if(0 == strcmp(argv[i], "-w") ||
+                                0 == strcmp(argv[i], "--width")) {
+                                i++;
+                                if(i >= argc) {
+                                        fprintf(stderr, "no parameter for 'width'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &dat);
+                                if(0 < dat && dat < (LINE_LENGTH_MAX / 3)) {
+                                        npline = dat;
+                                }
+                                else {
+                                        fprintf(stderr,
+                                                "bad variable for 'width': %u(0 < x < %u), use 16 instead!\n",
+                                                dat, LINE_LENGTH_MAX / 3);
+                                }
                         }
                         else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")) {
@@ -151,10 +190,9 @@ static int show_help()
         puts("");
         puts("Options:");
         puts("");
-#if 0
-        puts(" -start <a>               cat from a%(file length), default: 0, first byte");
-        puts(" -stop <b>                cat to b%(file length), default: 0, last byte");
-#endif
+        puts(" -w, --width <n>          n-byte per line for FILE_BIN, default: 16");
+        puts(" -s, --start <a>          cat from, default: 0(from first byte)");
+        puts(" -p, --stop <b>           cat to, default: 0(to last byte)");
         puts(" -h, --help               display this information");
         puts(" -v, --version            display my version");
         puts("");
@@ -209,8 +247,9 @@ static int judge_type()
                                 else {
                                         pkt->ADDR++;
                                         if(pkt->ADDR > ASYNC_BYTE) {
-                                                pkt->ADDR = 0;
+                                                pkt->ADDR = aim_start;
                                                 type = FILE_BIN;
+                                                state = FILE_BIN;
                                         }
                                 }
                                 break;
@@ -271,8 +310,9 @@ static int judge_type()
                                         }
                                 }
                                 else {
-                                        pkt->ADDR++;
-                                        state = FILE_UNKNOWN;
+                                        pkt->ADDR = aim_start;
+                                        type = FILE_BIN;
+                                        state = FILE_BIN;
                                 }
                                 break;
                         default:
@@ -280,6 +320,7 @@ static int judge_type()
                                 return -1;
                 }
         }
+
         fseek(fd_i, pkt->ADDR, SEEK_SET);
         if(pkt->ADDR != 0) {
                 fprintf(stderr, "%lld-byte passed\n", pkt->ADDR);
