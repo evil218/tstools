@@ -33,6 +33,7 @@
 
 struct aim {
         int bg;
+        int stc;
         int pcr;
         int pts;
         int pesh;
@@ -62,7 +63,7 @@ struct obj {
         uint8_t aim_table;
         uint16_t aim_prog;
         uint16_t aim_type; /* 0: any type; 1: video; 2: audio */
-        uint64_t aim_interval; /* for rate calc */
+        int64_t aim_interval; /* for rate calc */
         int is_color;
         char *color_off; /*  */
         char *color_red; /*  */
@@ -115,19 +116,21 @@ static void show_psi(struct obj *obj);
 
 static void show_pkt(struct obj *obj);
 static void show_bg(struct obj *obj);
-static void show_sec(struct obj *obj);
-static void show_si(struct obj *obj);
-static void show_tcp(struct obj *obj);
+static void show_stc(struct obj *obj);
 static void show_pcr(struct obj *obj);
-static void show_rats(struct obj *obj);
-static void show_ratp(struct obj *obj);
-static void show_rate(struct obj *obj);
 static void show_pts(struct obj *obj);
 static void show_pesh(struct obj *obj);
 static void show_pes(struct obj *obj);
 static void show_es(struct obj *obj);
-static void all_es(struct obj *obj);
+static void show_sec(struct obj *obj);
+static void show_si(struct obj *obj);
+static void show_rate(struct obj *obj);
+static void show_rats(struct obj *obj);
+static void show_ratp(struct obj *obj);
 static void show_error(struct obj *obj);
+static void show_tcp(struct obj *obj);
+
+static void all_es(struct obj *obj);
 
 static void table_info_PAT(struct ts_psi *psi, uint8_t *section);
 static void table_info_CAT(struct ts_psi *psi, uint8_t *section);
@@ -360,6 +363,9 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.bg && has_report) {
                 show_bg(obj);
         }
+        if(obj->aim.stc && has_report) {
+                show_stc(obj);
+        }
         if(obj->aim.pcr && rslt->has_PCR) {
                 show_pcr(obj);
         }
@@ -462,6 +468,10 @@ static struct obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-bg")) {
                                 obj->aim.bg = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-stc")) {
+                                obj->aim.stc = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-pcr")) {
@@ -684,13 +694,14 @@ static void show_help()
 #endif
         puts(" -dump            dump cared packet");
         puts("");
-        puts(" -bg              output background information of current TS packet");
-        puts(" -pcr             output PCR information of cared <pid>");
-        puts(" -pts             output PTS and DTS information of cared <pid>");
-        puts(" -pesh            output PES head data of cared <pid>");
-        puts(" -pes             output PES data of cared <pid>");
-        puts(" -es              output ES data of cared <pid>");
-        puts(" -sec             show SI section data of cared <table>");
+        puts(" -bg              output background information");
+        puts(" -stc             output STC information");
+        puts(" -pcr             output PCR information");
+        puts(" -pts             output PTS and DTS information");
+        puts(" -pesh            output PES head data");
+        puts(" -pes             output PES data");
+        puts(" -es              output ES data");
+        puts(" -sec             show SI section data");
         puts(" -rate            output pid(each) bit-rate, filtered by <prog> and <pid>");
         puts(" -rats            output system, psi-si(total), empty bit-rate");
         puts(" -ratp            output psi-si(total), psi-si(each) bit-rate");
@@ -924,11 +935,21 @@ static void show_bg(struct obj *obj)
         strftime(stime, 32, "%H:%M:%S", lt);
 
         fprintf(stdout,
-                "[bg], %s%s%s, %s0x%llX%s, %lld, %llu, %llu, %s0x%04X%s, ",
-                obj->color_yellow, stime, obj->color_off,
+                "[bg], %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
+                obj->color_yellow, stime, obj->color_off, rslt->CTS,
                 obj->color_yellow, pkt->ADDR, obj->color_off, pkt->ADDR,
-                rslt->STC, rslt->STC_base,
                 obj->color_yellow, rslt->PID, obj->color_off);
+        return;
+}
+
+static void show_stc(struct obj *obj)
+{
+        struct ts_rslt *rslt;
+
+        rslt = obj->rslt;
+        fprintf(stdout,
+                "[stc], %llu, %llu, ",
+                rslt->STC, rslt->STC_base);
         return;
 }
 

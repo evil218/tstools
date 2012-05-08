@@ -213,19 +213,26 @@ struct ts_pid {
 
 /* parse result */
 struct ts_rslt {
-        /* information about current packet */
         int64_t cnt; /* count of this packet, start from 0 */
         struct ts_pkt PKT;
         struct ts_pkt *pkt; /* point to PKT */
-        int64_t lCTS; /* for calc dCTS */
+
+        int64_t lCTS; /* for calc dCTS in MTS mode */
+        int64_t CTS0;
+        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
+        int64_t CTS_base;
+        int64_t CTS_ext;
 
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
 
         struct ts_pid *pid; /* point to the node in pid_list */
 
-        /* error */
-        struct ts_error err;
+        /* TS information */
+        int has_got_transport_stream_id;
+        uint16_t transport_stream_id;
+        struct ts_prog *prog0; /* program list */
+        struct ts_pid *pid0; /* pid list */
 
         /* PSI/SI table */
         struct ts_psi psi;
@@ -234,18 +241,6 @@ struct ts_rslt {
         int is_psi_si;
         int has_section;
         struct ts_table *table0; /* PSI/SI table except PMT */
-
-        /* TS information */
-        int has_got_transport_stream_id;
-        uint16_t transport_stream_id;
-        struct ts_prog *prog0; /* program list */
-        struct ts_pid *pid0; /* pid list */
-
-        /* PMT, PCR, VID and AUD has timestamp according to its PCR */
-        /* other PID has timestamp according to the PCR in the 1st program */
-        int64_t STC; /* System Time Clock of this packet */
-        int64_t STC_base;
-        int16_t STC_ext;
 
         /* for bit-rate statistic */
         int64_t aim_interval; /* appointed interval */
@@ -260,10 +255,18 @@ struct ts_rslt {
         int64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
         int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
 
+        /* PMT, PCR, VID and AUD has timestamp according to its PCR */
+        /* other PID has timestamp according to the PCR in the 1st program */
+        int64_t STC; /* according to its PCR */
+        int64_t STC_base;
+        int16_t STC_ext;
+
+        /* CC */
         int CC_wait;
         int CC_find;
         int CC_lost; /* lost != 0 means CC wrong */
 
+        /* PCR */
         int has_PCR;
         int64_t PCR;
         int64_t PCR_base;
@@ -272,23 +275,28 @@ struct ts_rslt {
         int64_t PCR_continuity; /* PCR value interval */
         int64_t PCR_jitter;
 
+        /* PTS */
         int has_PTS;
         int64_t PTS;
         int64_t PTS_interval;
         int64_t PTS_minus_STC;
 
+        /* DTS */
         int has_DTS;
         int64_t DTS;
         int64_t DTS_interval;
         int64_t DTS_minus_STC;
 
-        /* PES data info in this TS */
+        /* PES */
         uint16_t PES_len;
         uint8_t *PES_buf;
 
-        /* ES data info in this TS */
+        /* ES */
         uint16_t ES_len;
         uint8_t *ES_buf;
+
+        /* error */
+        struct ts_error err;
 };
 
 int tsCreate(struct ts_rslt **rslt);

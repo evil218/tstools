@@ -378,6 +378,8 @@ int tsCreate(struct ts_rslt **rslt)
         (*rslt)->is_psi_parse_finished = 0;
         (*rslt)->concerned_pid = 0x0000; /* PAT_PID */
         (*rslt)->interval = 0;
+        (*rslt)->CTS = 0L;
+        (*rslt)->CTS0 = 0L;
         (*rslt)->lCTS = 0L; /* for MTS file only, must init as 0L */
         (*rslt)->STC = STC_OVF;
 
@@ -706,38 +708,8 @@ static int state_next_pkt(struct obj *obj)
 
                                         rslt->last_interval = 0;
                                         rslt->interval = 0;
-                                }
-                        }
-
-                        /* the packet that use PCR of first program */
-                        if(prog->PCR_PID == rslt->prog0->PCR_PID &&
-                           STC_OVF != prog->PCRa) {
-                                rslt->interval += timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                if(rslt->interval >= rslt->aim_interval) {
-                                        struct lnode *lnode;
-
-                                        /* calc bitrate and clear the packet count */
-                                        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                                struct ts_pid *pid_item = (struct ts_pid *)lnode;
-                                                pid_item->lcnt = pid_item->cnt;
-                                                pid_item->cnt = 0;
-                                        }
-
-                                        rslt->last_sys_cnt = rslt->sys_cnt;
-                                        rslt->sys_cnt = 0;
-
-                                        rslt->last_psi_cnt = rslt->psi_cnt;
-                                        rslt->psi_cnt = 0;
-
-                                        rslt->last_nul_cnt = rslt->nul_cnt;
-                                        rslt->nul_cnt = 0;
-
-                                        rslt->last_interval = rslt->interval;
-                                        rslt->interval = 0;
-
-                                        rslt->has_rate = 1;
-
-                                        rslt->is_psi_parse_finished = 1;
+                                        rslt->CTS = rslt->PCR;
+                                        rslt->CTS0 = rslt->CTS;
                                 }
                         }
                 }
@@ -746,9 +718,36 @@ static int state_next_pkt(struct obj *obj)
                 }
         }
 
-        /* for stream without PCR */
-        if(0 == rslt->aim_interval) {
-                rslt->is_psi_parse_finished = 1;
+        /* interval and statistic */
+        if(rslt->prog0 && rslt->prog0->STC_sync) {
+                rslt->interval = timestamp_diff(rslt->CTS, rslt->CTS0, STC_OVF);
+                if(rslt->interval >= rslt->aim_interval) {
+                        struct lnode *lnode;
+
+                        /* calc bitrate and clear the packet count */
+                        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
+                                struct ts_pid *pid_item = (struct ts_pid *)lnode;
+                                pid_item->lcnt = pid_item->cnt;
+                                pid_item->cnt = 0;
+                        }
+
+                        rslt->last_sys_cnt = rslt->sys_cnt;
+                        rslt->sys_cnt = 0;
+
+                        rslt->last_psi_cnt = rslt->psi_cnt;
+                        rslt->psi_cnt = 0;
+
+                        rslt->last_nul_cnt = rslt->nul_cnt;
+                        rslt->nul_cnt = 0;
+
+                        rslt->last_interval = rslt->interval;
+                        rslt->interval = 0;
+                        rslt->CTS0 = rslt->CTS;
+
+                        rslt->has_rate = 1;
+
+                        rslt->is_psi_parse_finished = 1;
+                }
         }
 
         /* PES head & ES data */
@@ -872,7 +871,7 @@ static int parse_TS_head(struct obj *obj)
         }
         pid = rslt->pid;
 
-        /* calc STC, should be as early as possible */
+        /* calc STC and CTS, should be as early as possible */
         if(pkt->mts) {
                 int64_t dCTS = timestamp_diff(pkt->MTS, rslt->lCTS, 0x40000000);
 
@@ -883,12 +882,14 @@ static int parse_TS_head(struct obj *obj)
                         rslt->STC = timestamp_add(0L, dCTS, STC_OVF);
                 }
                 rslt->lCTS = pkt->MTS; /* record last CTS */
+
+                rslt->CTS = rslt->STC;
         }
         else {
-                if(pid) {
+                /* STC: according to pid->prog */
+                if(pid && pid->prog) {
                         prog = pid->prog;
-                        if((prog) && 
-                           (prog->STC_sync) &&
+                        if((prog->STC_sync) &&
                            (prog->PCRa != prog->PCRb)) {
                                 long double delta;
 
@@ -901,9 +902,28 @@ static int parse_TS_head(struct obj *obj)
                                 rslt->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
                 }
+
+                /* CTS: according to prog0 */
+                if(rslt->prog0) {
+                        prog = rslt->prog0;
+                        if((prog->STC_sync) &&
+                           (prog->PCRa != prog->PCRb)) {
+                                long double delta;
+
+                                /* CTSx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (pkt->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                rslt->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                        }
+                }
         }
         rslt->STC_base = rslt->STC / 300;
         rslt->STC_ext = rslt->STC % 300;
+        rslt->CTS_base = rslt->CTS / 300;
+        rslt->CTS_ext = rslt->CTS % 300;
 
         /* statistic & PSI/SI section collect */
         pid->cnt++;
