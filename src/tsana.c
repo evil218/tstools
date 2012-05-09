@@ -621,8 +621,8 @@ static struct obj *create(int argc, char *argv[])
                                         fprintf(stderr, "no parameter for '-interval'!\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                sscanf(argv[i], "%i" , &dat);
-                                if(0 <= dat && dat <= 10000) { /* 1ms ~ 10s */
+                                sscanf(argv[i], "%u" , &dat);
+                                if(0 <= dat && dat <= 70000) { /* 1ms ~ 70s */
                                         obj->aim_interval = dat * STC_MS;
                                 }
                                 else {
@@ -715,7 +715,7 @@ static void show_help()
         puts(" -table <id>      set cared table, default: any table(0xFF)");
         puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
         puts(" -type <type>     set cared PID type, default: any type(0)");
-        puts(" -iv <iv>         set cared interval(1ms-10,000ms), default: 1000ms");
+        puts(" -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms");
         puts("");
         puts(" -alles           write ES data into different file by PID");
 #if 0
@@ -1173,10 +1173,19 @@ static void show_rate(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct lnode *lnode;
 
-        fprintf(stdout, "[rate], ");
+        fprintf(stdout, "[rate], %.3f, ", rslt->last_interval / 27000.0);
         for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)lnode;
 
+#if 1
+                /* filter: user PID only */
+                if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
+                        /* not program */
+                        continue;
+                }
+#endif
+
+                /* filter: PID */
                 if(ANY_PID != obj->aim_pid && pid_item->PID != obj->aim_pid) {
                         /* not cared PID */
                         continue;
@@ -1184,11 +1193,11 @@ static void show_rate(struct obj *obj)
 
                 /* filter: program_number */
                 if(ANY_PROG != obj->aim_prog) {
-                        if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
+                        if(!(pid_item->prog)) {
                                 /* not program */
                                 continue;
                         }
-                        else if(!(pid_item->prog)) {
+                        else if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
                                 /* not program */
                                 continue;
                         }
@@ -1221,8 +1230,8 @@ static void show_rats(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[rats], ");
-        fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %sempty%s, %9.6f, ",
+        fprintf(stdout, "[rats], %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %s0x1FFF%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 obj->color_yellow, obj->color_off, rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
@@ -1234,8 +1243,8 @@ static void show_ratp(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct lnode *lnode;
 
-        fprintf(stdout, "[ratp], ");
-        fprintf(stdout, "%stotal%s, %9.6f, ",
+        fprintf(stdout, "[ratp], %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "%spsi-si%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
         for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
