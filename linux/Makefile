@@ -14,6 +14,9 @@
 #
 # 20120212, ZHOU Cheng <zhoucheng@tsinghua.org.cn>
 
+# Do not print "Entering directory ..."
+MAKEFLAGS += --no-print-directory
+
 # env
 ifeq ($(TERM),cygwin)
 PLATFORM = cygwin
@@ -39,24 +42,24 @@ PRJ_SRCDIR = ../src
 INSTALLDIR = /usr/local/bin
 
 # files
-LIB_DEP  = $(TYPE)_$(PLATFORM)_lib.d
-LIB_OBJS = $(TYPE)_$(PLATFORM)_lib_crc.o\
-		   $(TYPE)_$(PLATFORM)_lib_error.o\
-		   $(TYPE)_$(PLATFORM)_lib_if.o\
-		   $(TYPE)_$(PLATFORM)_lib_list.o\
-		   $(TYPE)_$(PLATFORM)_lib_UTF_GB.o\
-		   $(TYPE)_$(PLATFORM)_lib_ts.o
-LIB_SRCS = $(subst .o,.c,$(subst $(TYPE)_$(PLATFORM)_lib_,$(LIB_SRCDIR)/,$(LIB_OBJS)))
+LIB_DEP  = lib.d
+LIB_OBJS = lib_crc.o\
+		   lib_error.o\
+		   lib_if.o\
+		   lib_list.o\
+		   lib_UTF_GB.o\
+		   lib_ts.o
+LIB_SRCS = $(subst .o,.c,$(subst lib_,$(LIB_SRCDIR)/,$(LIB_OBJS)))
 
-PRJ_DEP  = $(TYPE)_$(PLATFORM)_prj.d
-PRJ_OBJS = $(TYPE)_$(PLATFORM)_prj_udp.o\
-		   $(TYPE)_$(PLATFORM)_prj_url.o\
-		   $(TYPE)_$(PLATFORM)_prj_catts.o\
-		   $(TYPE)_$(PLATFORM)_prj_catip.o\
-		   $(TYPE)_$(PLATFORM)_prj_tots.o\
-		   $(TYPE)_$(PLATFORM)_prj_atsc_mh_tcp.o\
-		   $(TYPE)_$(PLATFORM)_prj_tsana.o
-PRJ_SRCS = $(subst .o,.c,$(subst $(TYPE)_$(PLATFORM)_prj_,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
+PRJ_DEP  = prj.d
+PRJ_OBJS = prj_udp.o\
+		   prj_url.o\
+		   prj_catts.o\
+		   prj_catip.o\
+		   prj_tots.o\
+		   prj_atsc_mh_tcp.o\
+		   prj_tsana.o
+PRJ_SRCS = $(subst .o,.c,$(subst prj_,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 PRJ_AIMS = catts\
 		   catip\
 		   tots\
@@ -92,7 +95,8 @@ lib: lib_dep $(LIB_NAME)
 prj: prj_dep $(PRJ_AIMS)
 
 clean:
-	-rm -f $(LIB_NAME) $(PRJ_AIMS) $(TYPE)_$(PLATFORM)_*
+	-rm -f lib.d $(LIB_NAME) $(LIB_OBJS)
+	-rm -f prj.d $(PRJ_AIMS) $(PRJ_OBJS)
 
 rebuild: clean all
 
@@ -121,10 +125,10 @@ $(PRJ_DEP): $(PRJ_SRCS)
 	@$(CC) $(INCFLAGS) -MM $(PRJ_SRCS) > $@
 
 # rule for compilation
-$(TYPE)_$(PLATFORM)_lib_%.o: $(LIB_SRCDIR)/%.c
+lib_%.o: $(LIB_SRCDIR)/%.c
 	$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
 
-$(TYPE)_$(PLATFORM)_prj_%.o: $(PRJ_SRCDIR)/%.c
+prj_%.o: $(PRJ_SRCDIR)/%.c
 	$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
 
 # creates the aim
@@ -132,26 +136,26 @@ $(LIB_NAME): $(LIB_OBJS) $(LIB_DEP)
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 
 catts: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ $(TYPE)_$(PLATFORM)_prj_$@.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)
 
 catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ $(TYPE)_$(PLATFORM)_prj_$@.o $(LIBS)\
-		$(TYPE)_$(PLATFORM)_prj_udp.o\
-		$(TYPE)_$(PLATFORM)_prj_url.o
+	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)\
+		prj_udp.o\
+		prj_url.o
 
 tots: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ $(TYPE)_$(PLATFORM)_prj_$@.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ $(TYPE)_$(PLATFORM)_prj_$@.o $(LIBS)\
-		$(TYPE)_$(PLATFORM)_prj_atsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)\
+		prj_atsc_mh_tcp.o
 
 # install
 $(INSTALLDIR)/%: %
 	-cp $< $@
 
 # Source dependencies
-#-include $(LIB_DEP)
-#-include $(PRJ_DEP)
+-include $(LIB_DEP)
+-include $(PRJ_DEP)
 
 # THE END

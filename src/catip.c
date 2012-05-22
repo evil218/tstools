@@ -16,8 +16,7 @@
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static struct ts_pkt PKT;
-static struct ts_pkt *pkt = &PKT;
+static uint64_t pkt_addr = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -38,15 +37,15 @@ int main(int argc, char *argv[])
                 return -ERR_FOPEN_FAILED;
         }
 
-        pkt_init(pkt);
-        pkt->ts = (bbuf + 0);
-        pkt->addr = &(pkt->ADDR);
-
-        pkt->ADDR = 0;
+        pkt_addr = 0;
         while(1 == url_read(bbuf, npline, 1, fd_i)) {
-                b2t(tbuf, pkt);
-                puts(tbuf);
-                pkt->ADDR += npline;
+                fprintf(stdout, "*ts, ");
+                b2t(tbuf, bbuf, 188);
+                fprintf(stdout, "%s", tbuf);
+
+                fprintf(stdout, "*addr, %llX, \n", pkt_addr);
+
+                pkt_addr += npline;
         }
 
         url_close(fd_i);

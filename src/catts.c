@@ -28,8 +28,8 @@ static int npline = 16; /* data number per line */
 static int type = FILE_TS;
 static int aim_start = 0; /* first byte */
 static int aim_stop = 0; /* last byte */
-static struct ts_pkt PKT;
-static struct ts_pkt *pkt = &PKT;
+static uint64_t pkt_addr = 0;
+static uint64_t pkt_mts = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static int show_help();
@@ -56,34 +56,46 @@ int main(int argc, char *argv[])
 
         judge_type();
         while(0 < (cnt = fread(bbuf, 1, npline, fd_i))) {
-                pkt_init(pkt);
                 switch(type) {
                         case FILE_TS:
-                                pkt->addr = &(pkt->ADDR);
-                                pkt->ts = (bbuf + 0);
+                                fprintf(stdout, "*ts, ");
+                                b2t(tbuf, bbuf, 188);
+                                fprintf(stdout, "%s", tbuf);
+
+                                fprintf(stdout, "*addr, %llX, \n", pkt_addr);
                                 break;
                         case FILE_MTS:
-                                pkt->addr = &(pkt->ADDR);
-                                pkt->ts = (bbuf + 4);
-                                pkt->mts = &(pkt->MTS);
-                                mts_time(pkt->mts, bbuf);
+                                fprintf(stdout, "*ts, ");
+                                b2t(tbuf, bbuf + 4, 188);
+                                fprintf(stdout, "%s", tbuf);
+
+                                fprintf(stdout, "*addr, %llX, ", pkt_addr);
+
+                                mts_time(&pkt_mts, bbuf);
+                                fprintf(stdout, "*mts, %llX, \n", pkt_mts);
                                 break;
                         case FILE_TSRS:
-                                pkt->addr = &(pkt->ADDR);
-                                pkt->ts = (bbuf + 0);
-                                pkt->rs = (bbuf + 188);
+                                fprintf(stdout, "*ts, ");
+                                b2t(tbuf, bbuf, 188);
+                                fprintf(stdout, "%s", tbuf);
+
+                                fprintf(stdout, "*rs, ");
+                                b2t(tbuf, bbuf + 188, 16);
+                                fprintf(stdout, "%s", tbuf);
+
+                                fprintf(stdout, "*addr, %llX, \n", pkt_addr);
                                 break;
                         default: /* FILE_BIN */
-                                pkt->addr = &(pkt->ADDR);
-                                pkt->data = (bbuf + 0);
-                                pkt->cnt = cnt;
+                                fprintf(stdout, "*data, ");
+                                b2t(tbuf, bbuf, cnt);
+                                fprintf(stdout, "%s", tbuf);
+
+                                fprintf(stdout, "*addr, %llX, \n", pkt_addr);
                                 break;
                 }
-                b2t(tbuf, pkt);
-                puts(tbuf);
-                pkt->ADDR += cnt;
+                pkt_addr += cnt;
 
-                if(0 != aim_stop && pkt->ADDR > aim_stop) {
+                if(0 != aim_stop && pkt_addr > aim_stop) {
                         break;
                 }
         }
@@ -231,12 +243,12 @@ static int judge_type()
         int sync_cnt = 0;
         int state = FILE_UNKNOWN;
 
-        pkt->ADDR = 0;
+        pkt_addr = 0;
         type = FILE_UNKNOWN;
         while(FILE_UNKNOWN == type) {
                 switch(state) {
                         case FILE_UNKNOWN:
-                                fseek(fd_i, pkt->ADDR, SEEK_SET);
+                                fseek(fd_i, pkt_addr, SEEK_SET);
                                 if(1 != fread(&dat, 1, 1, fd_i)) {
                                         return -1;
                                 }
@@ -245,9 +257,9 @@ static int judge_type()
                                         state = FILE_TS;
                                 }
                                 else {
-                                        pkt->ADDR++;
-                                        if(pkt->ADDR > ASYNC_BYTE) {
-                                                pkt->ADDR = aim_start;
+                                        pkt_addr++;
+                                        if(pkt_addr > ASYNC_BYTE) {
+                                                pkt_addr = aim_start;
                                                 type = FILE_BIN;
                                                 state = FILE_BIN;
                                         }
@@ -266,7 +278,7 @@ static int judge_type()
                                         }
                                 }
                                 else {
-                                        fseek(fd_i, pkt->ADDR + 1, SEEK_SET);
+                                        fseek(fd_i, pkt_addr + 1, SEEK_SET);
                                         sync_cnt = 1;
                                         state = FILE_MTS;
                                 }
@@ -279,20 +291,20 @@ static int judge_type()
                                 if(0x47 == dat) {
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
-                                                if(pkt->ADDR < 4) {
-                                                        fseek(fd_i, pkt->ADDR + 1, SEEK_SET);
+                                                if(pkt_addr < 4) {
+                                                        fseek(fd_i, pkt_addr + 1, SEEK_SET);
                                                         sync_cnt = 1;
                                                         state = FILE_TSRS;
                                                 }
                                                 else {
-                                                        pkt->ADDR -= 4;
+                                                        pkt_addr -= 4;
                                                         npline = 192;
                                                         type = FILE_MTS;
                                                 }
                                         }
                                 }
                                 else {
-                                        fseek(fd_i, pkt->ADDR + 1, SEEK_SET);
+                                        fseek(fd_i, pkt_addr + 1, SEEK_SET);
                                         sync_cnt = 1;
                                         state = FILE_TSRS;
                                 }
@@ -310,7 +322,7 @@ static int judge_type()
                                         }
                                 }
                                 else {
-                                        pkt->ADDR = aim_start;
+                                        pkt_addr = aim_start;
                                         type = FILE_BIN;
                                         state = FILE_BIN;
                                 }
@@ -321,9 +333,9 @@ static int judge_type()
                 }
         }
 
-        fseek(fd_i, pkt->ADDR, SEEK_SET);
-        if(pkt->ADDR != 0) {
-                fprintf(stderr, "%lld-byte passed\n", pkt->ADDR);
+        fseek(fd_i, pkt_addr, SEEK_SET);
+        if(pkt_addr != 0) {
+                fprintf(stderr, "%lld-byte passed\n", pkt_addr);
         }
         return 0;
 }

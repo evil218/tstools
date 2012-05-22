@@ -232,28 +232,6 @@ static void state_parse_psi(struct obj *obj)
 
         if(rslt->is_pat_pmt_parsed) {
                 obj->state = STATE_PARSE_EACH;
-#if 0
-                if(obj->aim.sec) {
-                        print_atp_title(obj);
-                        fprintf(stdout, "section_interval, section_head, section_body\n");
-                }
-                if(obj->aim.si) {
-                        print_atp_title(obj);
-                        fprintf(stdout, "section_interval, section_head, section_body\n");
-                }
-                if(obj->aim.pcr) {
-                        print_atp_title(obj);
-                        fprintf(stdout, "PCR, BASE, EXT, interval(ms), jitter(ns), \n");
-                }
-                if(obj->aim.pts) {
-                        print_atp_title(obj);
-                        fprintf(stdout, "PTS, PTS_interval(ms), PTS-PCR(ms), DTS, DTS_interval(ms), DTS-PCR(ms), \n");
-                }
-                if(obj->aim.err) {
-                        print_atp_title(obj);
-                        fprintf(stdout, "TR-101-290, detail, \n");
-                }
-#endif
                 if(MODE_EXIT == obj->mode) {
                         obj->state = STATE_EXIT;
                 }
@@ -320,10 +298,10 @@ static void state_parse_each(struct obj *obj)
 
         /* report for this TS packet? */
         has_report = 0;
-        if(obj->aim.pcr && rslt->has_PCR) {
+        if(obj->aim.pts && rslt->has_PTS) {
                 has_report = 1;
         }
-        if(obj->aim.pts && rslt->has_PTS) {
+        if(obj->aim.pcr && rslt->has_PCR) {
                 has_report = 1;
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
@@ -366,11 +344,11 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.stc && has_report) {
                 show_stc(obj);
         }
-        if(obj->aim.pcr && rslt->has_PCR) {
-                show_pcr(obj);
-        }
         if(obj->aim.pts && rslt->has_PTS) {
                 show_pts(obj);
+        }
+        if(obj->aim.pcr && rslt->has_PCR) {
+                show_pcr(obj);
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
                 show_pesh(obj);
@@ -688,24 +666,24 @@ static void show_help()
         puts(" -lst             show PID list information, default option");
         puts(" -psi             show PSI tree information");
         puts("");
-        puts(" -outpsi          output PSI packet");
 #if 0
+        puts(" -outpsi          output PSI packet");
         puts(" -prepsi <file>   get PSI information from <file> first");
 #endif
         puts(" -dump            dump cared packet");
         puts("");
         puts(" -bg              output background information");
-        puts(" -stc             output STC information");
-        puts(" -pcr             output PCR information");
-        puts(" -pts             output PTS and DTS information");
-        puts(" -pesh            output PES head data");
-        puts(" -pes             output PES data");
-        puts(" -es              output ES data");
-        puts(" -sec             show SI section data");
-        puts(" -rate            output pid(each) bit-rate, filtered by <prog> and <pid>");
-        puts(" -rats            output system, psi-si(total), empty bit-rate");
-        puts(" -ratp            output psi-si(total), psi-si(each) bit-rate");
-        puts(" -err             output all errors found");
+        puts(" -stc             \"*stc, STC, BASE, \"");
+        puts(" -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"");
+        puts(" -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"");
+        puts(" -pesh            \"*pesh, xx, ..., xx, \"");
+        puts(" -pes             \"*pes, xx, ..., xx, \"");
+        puts(" -es              \"*es, xx, ..., xx, \"");
+        puts(" -sec             \"*sec, interval(ms), head, body, \"");
+        puts(" -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"");
+        puts(" -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"");
+        puts(" -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"");
+        puts(" -err             \"*err, TR-101-290, datail, \"");
         puts(" -tcp             show TCP(ATSC MH) field information");
         puts("");
         puts(" -c -color        enable colour effect to help read, default: mono");
@@ -720,7 +698,6 @@ static void show_help()
         puts(" -alles           write ES data into different file by PID");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
-        puts(" -es              output ES data of cared <pid>");
         puts(" -si              show SI section information of cared <table>");
 #endif
         puts("");
@@ -935,7 +912,7 @@ static void show_bg(struct obj *obj)
         strftime(stime, 32, "%H:%M:%S", lt);
 
         fprintf(stdout,
-                "[bg], %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
+                "*bg, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
                 obj->color_yellow, stime, obj->color_off, rslt->CTS,
                 obj->color_yellow, pkt->ADDR, obj->color_off, pkt->ADDR,
                 obj->color_yellow, rslt->PID, obj->color_off);
@@ -948,7 +925,7 @@ static void show_stc(struct obj *obj)
 
         rslt = obj->rslt;
         fprintf(stdout,
-                "[stc], %llu, %llu, ",
+                "*stc, %llu, %llu, ",
                 rslt->STC, rslt->STC_base);
         return;
 }
@@ -957,7 +934,7 @@ static void show_pcr(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[pcr], %lld, %lld, %3d, %+7.3f, %+4.0f, ",
+        fprintf(stdout, "*pcr, %lld, %lld, %3d, %+7.3f, %+4.0f, ",
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
@@ -970,7 +947,7 @@ static void show_pts(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[pts], %lld, %+8.3f, %+8.3f, ",
+        fprintf(stdout, "*pts, %lld, %+8.3f, %+8.3f, ",
                 rslt->PTS,
                 (double)(rslt->PTS_interval) / (90), /* ms */
                 (double)(rslt->PTS_minus_STC) / (90)); /* ms */
@@ -990,88 +967,73 @@ static void show_pts(struct obj *obj)
 
 static void show_pesh(struct obj *obj)
 {
-        int i;
+        char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[pesh], ");
-
-        /* PES head */
-        for(i = 0; i < rslt->PES_len - rslt->ES_len - 1; i++) {
-                fprintf(stdout, "%02X ", rslt->PES_buf[i]);
-        }
-        fprintf(stdout, "%02X, ", rslt->PES_buf[i]);
+        fprintf(stdout, "*pesh, ");
+        b2t(str, rslt->PES_buf, rslt->PES_len - rslt->ES_len);
+        fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_pes(struct obj *obj)
 {
-        int i;
+        char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[pes], ");
-
-        /* ES */
-        for(i = 0; i < rslt->PES_len - 1; i++) {
-                fprintf(stdout, "%02X ", rslt->PES_buf[i]);
-        }
-        fprintf(stdout, "%02X, ", rslt->PES_buf[i]);
+        fprintf(stdout, "*pes, ");
+        b2t(str, rslt->PES_buf, rslt->PES_len);
+        fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_es(struct obj *obj)
 {
-        int i;
+        char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[es], ");
-
-        /* ES */
-        for(i = 0; i < rslt->ES_len - 1; i++) {
-                fprintf(stdout, "%02X ", rslt->ES_buf[i]);
-        }
-        fprintf(stdout, "%02X, ", rslt->ES_buf[i]);
+        fprintf(stdout, "*es, ");
+        b2t(str, rslt->ES_buf, rslt->ES_len);
+        fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_sec(struct obj *obj)
 {
-        int i;
+        char str[3 * 4096 + 3];
         struct ts_rslt *rslt = obj->rslt;
         struct ts_psi *psi = &(rslt->psi);
         struct ts_pid *pid = rslt->pid;
 
         /* section_interval */
-        fprintf(stdout, "[sec], %+9.3f, ", (double)(pid->section_interval) / STC_MS);
+        fprintf(stdout, "*sec, %+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
         /* section_head */
-        for(i = 0; i < 7; i++) {
-                fprintf(stdout, "%02X ", pid->section[i]);
-        }
-        fprintf(stdout, "%02X, ", pid->section[i++]);
+        b2t(str, pid->section, 8);
+        fprintf(stdout, "%s", str);
 
         /* section_body */
-        for(; i < psi->section_length + 3; i++) {
-                fprintf(stdout, "%02X ", pid->section[i]);
-        }
+        b2t(str, pid->section + 8, psi->section_length + 3 - 8);
+        fprintf(stdout, "%s", str);
+
         return;
 }
 
 static void show_si(struct obj *obj)
 {
         int i;
+        char str[3 * 8 + 3];
         int is_unknown_table_id = 0;
         struct ts_rslt *rslt = obj->rslt;
         struct ts_psi *psi = &(rslt->psi);
         struct ts_pid *pid = rslt->pid;
 
         /* section_interval */
-        fprintf(stdout, "[si], %+9.3f, ", (double)(pid->section_interval) / STC_MS);
+        fprintf(stdout, "*si, %+9.3f, ", (double)(pid->section_interval) / STC_MS);
 
         /* section_head */
-        for(i = 0; i < 7; i++) {
-                fprintf(stdout, "%02X ", pid->section[i]);
-        }
-        fprintf(stdout, "%02X, ", pid->section[i++]);
+        b2t(str, pid->section, 8);
+        fprintf(stdout, "%s", str);
 
         /* section_body */
         if(     0x00 == psi->table_id) {
@@ -1173,17 +1135,15 @@ static void show_rate(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct lnode *lnode;
 
-        fprintf(stdout, "[rate], %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "*rate, %.3f, ", rslt->last_interval / 27000.0);
         for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)lnode;
 
-#if 1
                 /* filter: user PID only */
                 if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
                         /* not program */
                         continue;
                 }
-#endif
 
                 /* filter: PID */
                 if(ANY_PID != obj->aim_pid && pid_item->PID != obj->aim_pid) {
@@ -1194,10 +1154,6 @@ static void show_rate(struct obj *obj)
                 /* filter: program_number */
                 if(ANY_PROG != obj->aim_prog) {
                         if(!(pid_item->prog)) {
-                                /* not program */
-                                continue;
-                        }
-                        else if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
                                 /* not program */
                                 continue;
                         }
@@ -1230,7 +1186,7 @@ static void show_rats(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[rats], %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "*rats, %.3f, ", rslt->last_interval / 27000.0);
         fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %s0x1FFF%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
@@ -1243,7 +1199,7 @@ static void show_ratp(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct lnode *lnode;
 
-        fprintf(stdout, "[ratp], %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "*ratp, %.3f, ", rslt->last_interval / 27000.0);
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
@@ -1268,7 +1224,7 @@ static void show_error(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct ts_error *err = &(rslt->err);
 
-        fprintf(stdout, "[err], ");
+        fprintf(stdout, "*err, ");
 
         /* First priority: necessary for de-codability (basic monitoring) */
         if(err->TS_sync_loss) {
@@ -1356,22 +1312,10 @@ static void show_tcp(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "[tcp], ");
+        fprintf(stdout, "*tcp, ");
         atsc_mh_tcp(rslt->pkt->ts, obj->is_color);
         return;
 }
-
-#if 0
-static void print_atp_title(struct obj *obj)
-{
-        fprintf(stdout,
-                "%shh:mm:ss%s, %saddress%s, address, STC, STC_base, %sPID%s, ",
-                obj->color_yellow, obj->color_off,
-                obj->color_yellow, obj->color_off,
-                obj->color_yellow, obj->color_off);
-        return;
-}
-#endif
 
 static void all_es(struct obj *obj)
 {

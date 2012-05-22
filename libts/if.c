@@ -78,8 +78,6 @@ static const char *b2t_table[256] = {
 /* for high-speed bin to txt convert */
 static const char b2t_string[] = "0123456789ABCDEF";
 
-static int uint2txt(uint64_t uint, char **text);
-static int byte2txt(uint8_t byte, char **text);
 static int txt2byte(uint8_t *byte, char **text);
 static int next_tag(char **tag, char **text);
 static int next_uint(uint64_t *uint, char **text);
@@ -100,106 +98,27 @@ int pkt_init(struct ts_pkt *pkt)
         }
 }
 
-int b2t(void *tbuf, struct ts_pkt *pkt)
+int b2t(char *DST, const uint8_t *PTR, int len)
 {
         int i;
-        char *text = (char *)tbuf;
-        uint8_t *byte;
+        char *dst = DST;
+        const uint8_t *ptr = PTR;
+        const char *ch;
 
-        /* TS */
-        if(NULL != pkt->ts) {
-                /* tag */
-                *text++ = 't';
-                *text++ = 's';
-                *text++ = ',';
-
-                /* data */
-                byte = pkt->ts;
-                byte2txt(*byte++, &text);
-                for(i = 1; i < 188; i++) {
-                        *text++ = ' ';
-                        byte2txt(*byte++, &text);
-                }
-                *text++ = ',';
+        for(i = 0; i < len - 1; i++) {
+                ch = b2t_table[*ptr++];
+                *dst++ = *ch++;
+                *dst++ = *ch;
+                *dst++ = ' ';
         }
 
-        /* RS */
-        if(NULL != pkt->rs) {
-                /* tag */
-                *text++ = 'r';
-                *text++ = 's';
-                *text++ = ',';
+        ch = b2t_table[*ptr++];
+        *dst++ = *ch++;
+        *dst++ = *ch;
 
-                /* data */
-                byte = pkt->rs;
-                byte2txt(*byte++, &text);
-                for(i = 1; i < 16; i++) {
-                        *text++ = ' ';
-                        byte2txt(*byte++, &text);
-                }
-                *text++ = ',';
-        }
-
-        /* DATA */
-        if(NULL != pkt->data) {
-                /* tag */
-                *text++ = 'd';
-                *text++ = 'a';
-                *text++ = 't';
-                *text++ = 'a';
-                *text++ = ',';
-
-                /* data */
-                byte = pkt->data;
-                byte2txt(*byte++, &text);
-                for(i = 1; i < pkt->cnt; i++) {
-                        *text++ = ' ';
-                        byte2txt(*byte++, &text);
-                }
-                *text++ = ',';
-        }
-
-        /* ADDR */
-        if(NULL != pkt->addr) {
-                /* tag */
-                *text++ = 'a';
-                *text++ = 'd';
-                *text++ = 'd';
-                *text++ = 'r';
-                *text++ = ',';
-
-                /* address */
-                uint2txt(pkt->ADDR, &text);
-                *text++ = ',';
-        }
-
-        /* MTS */
-        if(NULL != pkt->mts) {
-                /* tag */
-                *text++ = 'm';
-                *text++ = 't';
-                *text++ = 's';
-                *text++ = ',';
-
-                /* stc */
-                uint2txt(pkt->MTS, &text);
-                *text++ = ',';
-        }
-
-        /* STC */
-        if(NULL != pkt->stc) {
-                /* tag */
-                *text++ = 's';
-                *text++ = 't';
-                *text++ = 'c';
-                *text++ = ',';
-
-                /* stc */
-                uint2txt(pkt->STC, &text);
-                *text++ = ',';
-        }
-
-        *text = '\0';
+        *dst++ = ',';
+        *dst++ = ' ';
+        *dst++ = '\0';
 
         return 0;
 }
@@ -214,7 +133,7 @@ int t2b(struct ts_pkt *pkt, void *tbuf)
         pkt_init(pkt);
 
         while(0 == next_tag(&tag, &pt)) {
-                if(0 == strcmp(tag, "ts")) {
+                if(0 == strcmp(tag, "*ts")) {
                         pb = pkt->TS;
                         for(i = 0; i < 188; i++) {
                                 txt2byte(pb, &pt);
@@ -222,7 +141,7 @@ int t2b(struct ts_pkt *pkt, void *tbuf)
                         }
                         pkt->ts = pkt->TS;
                 }
-                else if(0 == strcmp(tag, "rs")) {
+                else if(0 == strcmp(tag, "*rs")) {
                         pb = pkt->RS;
                         for(i = 0; i < 16; i++) {
                                 txt2byte(pb, &pt);
@@ -230,25 +149,28 @@ int t2b(struct ts_pkt *pkt, void *tbuf)
                         }
                         pkt->rs = pkt->RS;
                 }
-                else if(0 == strcmp(tag, "addr")) {
+                else if(0 == strcmp(tag, "*addr")) {
+                        pt++;
                         if(0 != next_uint(&(pkt->ADDR), &pt)) {
                                 return -1;
                         }
                         pkt->addr = &(pkt->ADDR);
                 }
-                else if(0 == strcmp(tag, "mts")) {
+                else if(0 == strcmp(tag, "*mts")) {
+                        pt++;
                         if(0 != next_uint(&(pkt->MTS), &pt)) {
                                 return -1;
                         }
                         pkt->mts = &(pkt->MTS);
                 }
-                else if(0 == strcmp(tag, "stc")) {
+                else if(0 == strcmp(tag, "*stc")) {
+                        pt++;
                         if(0 != next_uint(&(pkt->STC), &pt)) {
                                 return -1;
                         }
                         pkt->stc = &(pkt->STC);
                 }
-                else if(0 == strcmp(tag, "data")) {
+                else if(0 == strcmp(tag, "*data")) {
                         pb = pkt->DATA;
                         for(pkt->cnt = 0; pkt->cnt < 256; pkt->cnt++) {
                                 if(0 != txt2byte(pb, &pt)) {
@@ -266,68 +188,11 @@ int t2b(struct ts_pkt *pkt, void *tbuf)
         return 0;
 }
 
-/* support 8-byte max */
-static int uint2txt(uint64_t uint, char **text)
-{
-        int i;
-        int shift;
-        uint64_t mask;
-
-        /* init */
-        i = 16;
-        shift = 60;
-        mask = (uint64_t)0x0F;
-        mask <<= shift;
-
-        /* right move and check */
-        while(i > 1) { /* at least 1-char */
-                if(uint & mask) {
-                        break;
-                }
-                i--;
-                mask >>= 4;
-                shift -= 4;
-        }
-
-        /* data */
-        while(i > 0) {
-                *(*text)++ = b2t_string[(uint & mask) >> shift];
-                i--;
-                mask >>= 4;
-                shift -= 4;
-        }
-
-        return 0;
-}
-
-static int byte2txt(uint8_t byte, char **text)
-{
-        const char *ch;
-
-        ch = b2t_table[byte];
-        *(*text)++ = *ch++;
-        *(*text)++ = *ch;
-
-        return 0;
-}
-
 static int txt2byte(uint8_t *byte, char **text)
 {
-        uint8_t h, l, s;
+        uint8_t s, h, l;
 
-        h = *(*text);
-        if('\0' == h || 0x0A == h || 0x0D == h) {
-                return NEOL;
-        }
-        (*text)++;
-
-        l = *(*text);
-        if('\0' == l || 0x0A == l || 0x0D == l) {
-                fprintf(stderr, "unexpected end of line: 0x%02X\n", (int)l);
-                return UEOL;
-        }
-        (*text)++;
-
+        /* space */
         s = *(*text);
         if('\0' == s || 0x0A == s || 0x0D == s) {
                 return NEOL;
@@ -340,6 +205,21 @@ static int txt2byte(uint8_t *byte, char **text)
         }
         else {
                 /* other white space, it is OK */
+        }
+        (*text)++;
+
+        /* hi */
+        h = *(*text);
+        if('\0' == h || 0x0A == h || 0x0D == h) {
+                return NEOL;
+        }
+        (*text)++;
+
+        /* lo */
+        l = *(*text);
+        if('\0' == l || 0x0A == l || 0x0D == l) {
+                fprintf(stderr, "unexpected end of line: 0x%02X\n", (int)l);
+                return UEOL;
         }
         (*text)++;
 
@@ -358,7 +238,8 @@ static int next_tag(char **tag, char **text)
                         *(*text) = '\0';
                         return NEOL;
                 }
-                else if((('A' <= ch) && (ch <= 'Z')) ||
+                else if('*' == ch ||
+                        (('A' <= ch) && (ch <= 'Z')) ||
                         (('a' <= ch) && (ch <= 'z'))) {
                         /* tag head */
                         *tag = *text;
