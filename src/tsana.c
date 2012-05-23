@@ -730,6 +730,57 @@ static void show_version()
         return;
 }
 
+static int t2b(struct ts_pkt *pkt, void *tbuf)
+{
+        char *tag;
+        uint8_t *pb;
+        char *pt = (char *)tbuf;
+
+        if(pkt) {
+                pkt->ts = NULL;
+                pkt->rs = NULL;
+                pkt->addr = NULL;
+                pkt->mts = NULL;
+                pkt->stc = NULL;
+                pkt->data = NULL;
+        }
+
+        while(0 == next_tag(&tag, &pt)) {
+                if(0 == strcmp(tag, "*ts")) {
+                        pb = pkt->TS;
+                        next_nbyte_hex(pb, &pt, 188);
+                        pkt->ts = pkt->TS;
+                }
+                else if(0 == strcmp(tag, "*rs")) {
+                        pb = pkt->RS;
+                        next_nbyte_hex(pb, &pt, 16);
+                        pkt->rs = pkt->RS;
+                }
+                else if(0 == strcmp(tag, "*addr")) {
+                        next_nuint_hex(&(pkt->ADDR), &pt, 1);
+                        pkt->addr = &(pkt->ADDR);
+                }
+                else if(0 == strcmp(tag, "*mts")) {
+                        next_nuint_hex(&(pkt->MTS), &pt, 1);
+                        pkt->mts = &(pkt->MTS);
+                }
+                else if(0 == strcmp(tag, "*stc")) {
+                        next_nuint_hex(&(pkt->STC), &pt, 1);
+                        pkt->stc = &(pkt->STC);
+                }
+                else if(0 == strcmp(tag, "*data")) {
+                        pb = pkt->DATA;
+                        pkt->cnt = next_nbyte_hex(pb, &pt, 256);
+                        pkt->data = pkt->DATA;
+                }
+                else {
+                        return -1;
+                }
+        }
+
+        return 0;
+}
+
 static int get_one_pkt(struct obj *obj)
 {
         if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {

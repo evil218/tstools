@@ -1,7 +1,6 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: if.c
- * funx: packet struct <-> txt data convert
+ * funx: data <-> text line convert
  * To build: gcc -std-c99 -c if.c
  */
 
@@ -9,13 +8,35 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error.h"
 #include "if.h"
 
 /* for function to_byte() */
 #define NEOL (+1) /* normal end of line */
 #define UEOL (-1) /* unexpected end of line */
 #define BDWS (-2) /* bad white space */
+
+/* for high-speed bin to txt convert */
+static const char *b2t_table[256] = {
+        "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "0A", "0B", "0C", "0D", "0E", "0F",
+        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "1A", "1B", "1C", "1D", "1E", "1F",
+        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "2A", "2B", "2C", "2D", "2E", "2F",
+        "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "3A", "3B", "3C", "3D", "3E", "3F",
+        "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "4A", "4B", "4C", "4D", "4E", "4F",
+        "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "5A", "5B", "5C", "5D", "5E", "5F",
+        "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "6A", "6B", "6C", "6D", "6E", "6F",
+        "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "7A", "7B", "7C", "7D", "7E", "7F",
+        "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "8A", "8B", "8C", "8D", "8E", "8F",
+        "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "9A", "9B", "9C", "9D", "9E", "9F",
+        "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "AA", "AB", "AC", "AD", "AE", "AF",
+        "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "BA", "BB", "BC", "BD", "BE", "BF",
+        "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "CA", "CB", "CC", "CD", "CE", "CF",
+        "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "DA", "DB", "DC", "DD", "DE", "DF",
+        "E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "EA", "EB", "EC", "ED", "EE", "EF",
+        "F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "FA", "FB", "FC", "FD", "FE", "FF"
+};
+
+/* for high-speed bin to txt convert */
+static const char b2t_string[] = "0123456789ABCDEF";
 
 /* for high speed txt to bin convert */
 static const uint8_t t2b_table_h[256] = {
@@ -55,251 +76,154 @@ static const uint8_t t2b_table_l[256] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-/* for high-speed bin to txt convert */
-static const char *b2t_table[256] = {
-        "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "0A", "0B", "0C", "0D", "0E", "0F",
-        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "1A", "1B", "1C", "1D", "1E", "1F",
-        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "2A", "2B", "2C", "2D", "2E", "2F",
-        "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "3A", "3B", "3C", "3D", "3E", "3F",
-        "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "4A", "4B", "4C", "4D", "4E", "4F",
-        "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "5A", "5B", "5C", "5D", "5E", "5F",
-        "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "6A", "6B", "6C", "6D", "6E", "6F",
-        "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "7A", "7B", "7C", "7D", "7E", "7F",
-        "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "8A", "8B", "8C", "8D", "8E", "8F",
-        "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "9A", "9B", "9C", "9D", "9E", "9F",
-        "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "AA", "AB", "AC", "AD", "AE", "AF",
-        "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "BA", "BB", "BC", "BD", "BE", "BF",
-        "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "CA", "CB", "CC", "CD", "CE", "CF",
-        "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "DA", "DB", "DC", "DD", "DE", "DF",
-        "E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "EA", "EB", "EC", "ED", "EE", "EF",
-        "F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "FA", "FB", "FC", "FD", "FE", "FF"
-};
-
-/* for high-speed bin to txt convert */
-static const char b2t_string[] = "0123456789ABCDEF";
-
-static int txt2byte(uint8_t *byte, char **text);
-static int next_tag(char **tag, char **text);
-static int next_uint(uint64_t *uint, char **text);
-
-int pkt_init(struct ts_pkt *pkt)
-{
-        if(pkt) {
-                pkt->ts = NULL;
-                pkt->rs = NULL;
-                pkt->addr = NULL;
-                pkt->mts = NULL;
-                pkt->stc = NULL;
-                pkt->data = NULL;
-                return 0;
-        }
-        else {
-                return -1;
-        }
-}
-
-int b2t(char *DST, const uint8_t *PTR, int len)
+/* from uint8_t buffer to "xx xx ... xx xx, \0" */
+int b2t(char *DST, const uint8_t *SRC, int len)
 {
         int i;
-        char *dst = DST;
-        const uint8_t *ptr = PTR;
         const char *ch;
+        char *dst = DST;
+        const uint8_t *src = SRC;
 
         for(i = 0; i < len - 1; i++) {
-                ch = b2t_table[*ptr++];
+                ch = b2t_table[*src++];
                 *dst++ = *ch++;
                 *dst++ = *ch;
                 *dst++ = ' ';
         }
 
-        ch = b2t_table[*ptr++];
+        ch = b2t_table[*src++];
         *dst++ = *ch++;
         *dst++ = *ch;
-
         *dst++ = ',';
         *dst++ = ' ';
+
         *dst++ = '\0';
-
         return 0;
 }
 
-int t2b(struct ts_pkt *pkt, void *tbuf)
-{
-        int i;
-        char *tag;
-        uint8_t *pb;
-        char *pt = (char *)tbuf;
-
-        pkt_init(pkt);
-
-        while(0 == next_tag(&tag, &pt)) {
-                if(0 == strcmp(tag, "*ts")) {
-                        pb = pkt->TS;
-                        for(i = 0; i < 188; i++) {
-                                txt2byte(pb, &pt);
-                                pb++;
-                        }
-                        pkt->ts = pkt->TS;
-                }
-                else if(0 == strcmp(tag, "*rs")) {
-                        pb = pkt->RS;
-                        for(i = 0; i < 16; i++) {
-                                txt2byte(pb, &pt);
-                                pb++;
-                        }
-                        pkt->rs = pkt->RS;
-                }
-                else if(0 == strcmp(tag, "*addr")) {
-                        pt++;
-                        if(0 != next_uint(&(pkt->ADDR), &pt)) {
-                                return -1;
-                        }
-                        pkt->addr = &(pkt->ADDR);
-                }
-                else if(0 == strcmp(tag, "*mts")) {
-                        pt++;
-                        if(0 != next_uint(&(pkt->MTS), &pt)) {
-                                return -1;
-                        }
-                        pkt->mts = &(pkt->MTS);
-                }
-                else if(0 == strcmp(tag, "*stc")) {
-                        pt++;
-                        if(0 != next_uint(&(pkt->STC), &pt)) {
-                                return -1;
-                        }
-                        pkt->stc = &(pkt->STC);
-                }
-                else if(0 == strcmp(tag, "*data")) {
-                        pb = pkt->DATA;
-                        for(pkt->cnt = 0; pkt->cnt < 256; pkt->cnt++) {
-                                if(0 != txt2byte(pb, &pt)) {
-                                        break;
-                                }
-                                pb++;
-                        }
-                        pkt->data = pkt->DATA;
-                }
-                else {
-                        return -1;
-                }
-        }
-
-        return 0;
-}
-
-static int txt2byte(uint8_t *byte, char **text)
-{
-        uint8_t s, h, l;
-
-        /* space */
-        s = *(*text);
-        if('\0' == s || 0x0A == s || 0x0D == s) {
-                return NEOL;
-        }
-        else if((('0' <= s) && (s <= '9')) ||
-                (('A' <= s) && (s <= 'F')) ||
-                (('a' <= s) && (s <= 'f'))) {
-                fprintf(stderr, "Bad white space: 0x%02X\n", (int)s);
-                return BDWS;
-        }
-        else {
-                /* other white space, it is OK */
-        }
-        (*text)++;
-
-        /* hi */
-        h = *(*text);
-        if('\0' == h || 0x0A == h || 0x0D == h) {
-                return NEOL;
-        }
-        (*text)++;
-
-        /* lo */
-        l = *(*text);
-        if('\0' == l || 0x0A == l || 0x0D == l) {
-                fprintf(stderr, "unexpected end of line: 0x%02X\n", (int)l);
-                return UEOL;
-        }
-        (*text)++;
-
-        *byte = (t2b_table_h[h] | t2b_table_l[l]);
-        return 0;
-}
-
-static int next_tag(char **tag, char **text)
+/* match ".*\*.*,?", change ',' to '\0', stop at '?' */
+int next_tag(char **tag, char **text)
 {
         char ch;
 
+        /* search head('*') */
         while(1) {
                 ch = *(*text);
-                if('\0' == ch || 0x0A == ch || 0x0D == ch) {
-                        /* normal EOL */
-                        *(*text) = '\0';
-                        return NEOL;
-                }
-                else if('*' == ch ||
-                        (('A' <= ch) && (ch <= 'Z')) ||
-                        (('a' <= ch) && (ch <= 'z'))) {
+                if('*' == ch) {
                         /* tag head */
                         *tag = *text;
                         (*text)++;
                         break;
                 }
-                else {
-                        /* white space */
-                        (*text)++;
+                if('\0' == ch || 0x0A == ch || 0x0D == ch) {
+                        /* normal EOL */
+                        *(*text) = '\0';
+                        return NEOL;
                 }
+                (*text)++;
         }
+
+        /* search tail(',') */
         while(1) {
                 ch = *(*text);
-                if((('0' <= ch) && (ch <= '9')) ||
-                   (('A' <= ch) && (ch <= 'Z')) ||
-                   (('a' <= ch) && (ch <= 'z'))) {
-                        /* tag */
-                        (*text)++;
+                if(',' == ch) {
+                        /* tag tail */
+                        *(*text) = '\0';
+                        (*text)++; /* point to ' ' after ',' */
+                        return 0;
                 }
-                else if('\0' == ch || 0x0A == ch || 0x0D == ch) {
+                if('\0' == ch || 0x0A == ch || 0x0D == ch) {
                         /* unexpected EOL */
                         *(*text) = '\0';
                         return UEOL;
                 }
-                else {
-                        /* tag tail */
-                        *(*text)++ = '\0';
-                        return 0;
-                }
+                (*text)++;
         }
 }
 
-static int next_uint(uint64_t *uint, char **text)
+/* match " XX XX ... XX XX,?", stop at ? */
+int next_nbyte_hex(uint8_t *byte, char **text, int max)
 {
-        char ch;
+        int cnt;
 
-        *uint = 0;
-        while(1) {
-                ch = *(*text);
-                if(('0' <= ch) && (ch <= '9')) {
-                        *uint <<= 4;
-                        *uint += (ch - '0');
+        for(cnt = 0; cnt < max; cnt++) {
+                uint8_t s, h, l;
+
+                /* white space */
+                s = *(*text);
+                if('\0' == s || 0x0A == s || 0x0D == s) {
+                        break;
                 }
-                else if(('A' <= ch) && (ch <= 'F')) {
-                        *uint <<= 4;
-                        *uint += (ch - 'A' + 10);
-                }
-                else if(('a' <= ch) && (ch <= 'f')) {
-                        *uint <<= 4;
-                        *uint += (ch - 'a' + 10);
-                }
-                else if('\0' == ch || 0x0A == ch || 0x0D == ch) {
-                        /* EOL */
-                        return 0;
-                }
-                else {
-                        /* white space */
+                if(',' == s) {
+                        /* data end */
                         (*text)++;
-                        return 0;
+                        break;
                 }
                 (*text)++;
+
+                /* hi */
+                h = *(*text);
+                if('\0' == h || 0x0A == h || 0x0D == h) {
+                        break;
+                }
+                (*text)++;
+
+                /* lo */
+                l = *(*text);
+                if('\0' == l || 0x0A == l || 0x0D == l) {
+                        break;
+                }
+                (*text)++;
+
+                *byte++ = (t2b_table_h[h] | t2b_table_l[l]);
         }
+
+        return cnt;
+}
+
+/* match " XX...XX,?", stop at ? */
+int next_nuint_hex(uint64_t *uint, char **text, int max)
+{
+        int cnt;
+
+        for(cnt = 0; cnt < max; cnt++) {
+                uint8_t s, x;
+                uint64_t dat = 0;
+
+                /* white space */
+                s = *(*text);
+                if('\0' == s || 0x0A == s || 0x0D == s) {
+                        break;
+                }
+                if(',' == s) {
+                        /* array end */
+                        (*text)++;
+                        break;
+                }
+                (*text)++;
+
+                while(1) {
+                        x = *(*text);
+                        if('\0' == x || 0x0A == x || 0x0D == x) {
+                                break;
+                        }
+                        else if(('0' <= x) && (x <= '9')) {
+                                dat = (dat << 4) + (x - '0');
+                        }
+                        else if(('A' <= x) && (x <= 'F')) {
+                                dat = (dat << 4) + (x - 'A' + 10);
+                        }
+                        else if(('a' <= x) && (x <= 'f')) {
+                                dat = (dat << 4) + (x - 'a' + 10);
+                        }
+                        else {
+                                /* data end */
+                                *uint++ = dat;
+                                break;
+                        }
+                        (*text)++;
+                }
+        }
+
+        return cnt;
 }

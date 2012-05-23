@@ -54,9 +54,10 @@ struct ts_pkt {
         uint8_t DATA[256]; /* other data */
 };
 
-int pkt_init(struct ts_pkt *pkt);
 int b2t(char *DST, const uint8_t *PTR, int len);
-int t2b(struct ts_pkt *pkt, void *tbuf);
+int next_tag(char **tag, char **text);
+int next_nbyte_hex(uint8_t *byte, char **text, int max);
+int next_nuint_hex(uint64_t *uint, char **text, int max);
 
 #ifdef __cplusplus
 }

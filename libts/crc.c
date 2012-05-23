@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: crc.c
  * funx: Calculate 16-bit or 32-bit CRC for several 8-bit data
  */
