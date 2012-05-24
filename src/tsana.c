@@ -298,10 +298,10 @@ static void state_parse_each(struct obj *obj)
 
         /* report for this TS packet? */
         has_report = 0;
-        if(obj->aim.pts && rslt->has_PTS) {
+        if(obj->aim.pts && rslt->pts) {
                 has_report = 1;
         }
-        if(obj->aim.pcr && rslt->has_PCR) {
+        if(obj->aim.pcr && rslt->pcr) {
                 has_report = 1;
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
@@ -344,10 +344,10 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.stc && has_report) {
                 show_stc(obj);
         }
-        if(obj->aim.pts && rslt->has_PTS) {
+        if(obj->aim.pts && rslt->pts) {
                 show_pts(obj);
         }
-        if(obj->aim.pcr && rslt->has_PCR) {
+        if(obj->aim.pcr && rslt->pcr) {
                 show_pcr(obj);
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
@@ -730,48 +730,45 @@ static void show_version()
         return;
 }
 
-static int t2b(struct ts_pkt *pkt, void *tbuf)
+static int t2b(struct ts_rslt *rslt, void *tbuf)
 {
         char *tag;
-        uint8_t *pb;
         char *pt = (char *)tbuf;
 
-        if(pkt) {
-                pkt->ts = NULL;
-                pkt->rs = NULL;
-                pkt->addr = NULL;
-                pkt->mts = NULL;
-                pkt->stc = NULL;
-                pkt->data = NULL;
-        }
+        rslt->date = NULL;
+        rslt->time = NULL;
+        rslt->ts = NULL;
+        rslt->af = NULL;
+        rslt->pes = NULL;
+        rslt->es = NULL;
+        rslt->rs = NULL;
+        rslt->addr = NULL;
+        rslt->mts = NULL;
+        rslt->cts = NULL;
+        rslt->pcr = NULL;
+        rslt->pts = NULL;
+        rslt->dts = NULL;
 
         while(0 == next_tag(&tag, &pt)) {
                 if(0 == strcmp(tag, "*ts")) {
-                        pb = pkt->TS;
-                        next_nbyte_hex(pb, &pt, 188);
-                        pkt->ts = pkt->TS;
+                        next_nbyte_hex(rslt->TS, &pt, 188);
+                        rslt->ts = rslt->TS;
                 }
                 else if(0 == strcmp(tag, "*rs")) {
-                        pb = pkt->RS;
-                        next_nbyte_hex(pb, &pt, 16);
-                        pkt->rs = pkt->RS;
+                        next_nbyte_hex(rslt->RS, &pt, 16);
+                        rslt->rs = rslt->RS;
                 }
                 else if(0 == strcmp(tag, "*addr")) {
-                        next_nuint_hex(&(pkt->ADDR), &pt, 1);
-                        pkt->addr = &(pkt->ADDR);
+                        next_nuint_hex(&(rslt->ADDR), &pt, 1);
+                        rslt->addr = &(rslt->ADDR);
                 }
                 else if(0 == strcmp(tag, "*mts")) {
-                        next_nuint_hex(&(pkt->MTS), &pt, 1);
-                        pkt->mts = &(pkt->MTS);
+                        next_nuint_hex(&(rslt->MTS), &pt, 1);
+                        rslt->mts = &(rslt->MTS);
                 }
-                else if(0 == strcmp(tag, "*stc")) {
-                        next_nuint_hex(&(pkt->STC), &pt, 1);
-                        pkt->stc = &(pkt->STC);
-                }
-                else if(0 == strcmp(tag, "*data")) {
-                        pb = pkt->DATA;
-                        pkt->cnt = next_nbyte_hex(pb, &pt, 256);
-                        pkt->data = pkt->DATA;
+                else if(0 == strcmp(tag, "*cts")) {
+                        next_nuint_hex(&(rslt->CTS), &pt, 1);
+                        rslt->cts = &(rslt->CTS);
                 }
                 else {
                         return -1;
@@ -788,7 +785,7 @@ static int get_one_pkt(struct obj *obj)
         }
 
         strcpy(obj->tbak, obj->tbuf); /* for dump */
-        t2b(obj->rslt->pkt, obj->tbuf);
+        t2b(obj->rslt, obj->tbuf);
         return GOT_RIGHT_PKT;
 }
 
@@ -950,22 +947,19 @@ static void show_psi(struct obj *obj)
 static void show_bg(struct obj *obj)
 {
         struct ts_rslt *rslt;
-        struct ts_pkt *pkt;
         time_t tp;
         struct tm *lt; /* local time */
-        char stime[32];
 
         rslt = obj->rslt;
-        pkt = rslt->pkt;
 
         time(&tp);
         lt = localtime(&tp);
-        strftime(stime, 32, "%H:%M:%S", lt);
+        strftime(rslt->TIME, 32, "%H:%M:%S", lt);
 
         fprintf(stdout,
                 "*bg, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
-                obj->color_yellow, stime, obj->color_off, rslt->CTS,
-                obj->color_yellow, pkt->ADDR, obj->color_off, pkt->ADDR,
+                obj->color_yellow, rslt->TIME, obj->color_off, rslt->CTS,
+                obj->color_yellow, rslt->ADDR, obj->color_off, rslt->ADDR,
                 obj->color_yellow, rslt->PID, obj->color_off);
         return;
 }
@@ -1003,7 +997,7 @@ static void show_pts(struct obj *obj)
                 (double)(rslt->PTS_interval) / (90), /* ms */
                 (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
-        if(rslt->has_DTS) {
+        if(rslt->dts) {
                 fprintf(stdout, "%lld, %+8.3f, %+8.3f, ",
                         rslt->DTS,
                         (double)(rslt->DTS_interval) / (90), /* ms */
@@ -1022,7 +1016,7 @@ static void show_pesh(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "*pesh, ");
-        b2t(str, rslt->PES_buf, rslt->PES_len - rslt->ES_len);
+        b2t(str, rslt->pes, rslt->PES_len - rslt->ES_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1033,7 +1027,7 @@ static void show_pes(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "*pes, ");
-        b2t(str, rslt->PES_buf, rslt->PES_len);
+        b2t(str, rslt->pes, rslt->PES_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1044,7 +1038,7 @@ static void show_es(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "*es, ");
-        b2t(str, rslt->ES_buf, rslt->ES_len);
+        b2t(str, rslt->es, rslt->ES_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1364,7 +1358,7 @@ static void show_tcp(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "*tcp, ");
-        atsc_mh_tcp(rslt->pkt->ts, obj->is_color);
+        atsc_mh_tcp(rslt->TS, obj->is_color);
         return;
 }
 
@@ -1389,7 +1383,7 @@ static void all_es(struct obj *obj)
                 return;
         }
 
-        fwrite(rslt->ES_buf, rslt->ES_len, 1, rslt->pid->fd);
+        fwrite(rslt->es, rslt->ES_len, 1, rslt->pid->fd);
         return;
 }
 

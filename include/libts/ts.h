@@ -213,15 +213,75 @@ struct ts_pid {
 
 /* parse result */
 struct ts_rslt {
+        /* buffer */
+        char DATE[16]; /* "2009-06-17" */
+        char TIME[16]; /* "12:38:00" */
+        uint8_t TS[188]; /* TS data */
+        uint8_t RS[16]; /* RS data */
+        int64_t ADDR; /* address of sync-byte(unit: byte) */
+        int64_t MTS; /* MTS Time Stamp */
         int64_t cnt; /* count of this packet, start from 0 */
-        struct ts_pkt PKT;
-        struct ts_pkt *pkt; /* point to PKT */
 
-        int64_t lCTS; /* for calc dCTS in MTS mode */
-        int64_t CTS0;
+        /* NULL means the item is absent */
+        char *date; /* NULL or point to DATE */
+        char *time; /* NULL or point to TIME */
+        uint8_t *ts; /* TS packet */
+        uint8_t *af; /* NULL or point to adaptation_fields */
+        uint8_t *pes; /* NULL or point to PES fragment */
+        uint8_t *es; /* NULL or point to ES fragment */
+        uint8_t *rs; /* NULL or point to RS data */
+        int64_t *addr; /* NULL or point to ADDR */
+        int64_t *mts; /* NULL or point to MTS */
+        int64_t *cts; /* NULL or point to CTS */
+        int64_t *pcr; /* NULL or point to PCR */
+        int64_t *pts; /* NULL or point to PTS */
+        int64_t *dts; /* NULL or point to DTS */
+
+        /* CTS */
         int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
         int64_t CTS_base;
         int64_t CTS_ext;
+        int64_t lCTS; /* for calc dCTS in MTS mode */
+        int64_t CTS0;
+
+        /* STC */
+        /* PMT, PCR, VID and AUD has timestamp according to its PCR */
+        /* other PID has timestamp according to the PCR of program0 */
+        int64_t STC;
+        int64_t STC_base;
+        int16_t STC_ext;
+
+        /* CC */
+        int CC_wait;
+        int CC_find;
+        int CC_lost; /* lost != 0 means CC wrong */
+
+        /* AF */
+        int AF_len;
+
+        /* PCR */
+        int64_t PCR;
+        int64_t PCR_base;
+        int16_t PCR_ext;
+        int64_t PCR_interval; /* PCR packet arrive time interval */
+        int64_t PCR_continuity; /* PCR value interval */
+        int64_t PCR_jitter;
+
+        /* PES */
+        int PES_len;
+
+        /* PTS */
+        int64_t PTS;
+        int64_t PTS_interval;
+        int64_t PTS_minus_STC;
+
+        /* DTS */
+        int64_t DTS;
+        int64_t DTS_interval;
+        int64_t DTS_minus_STC;
+
+        /* ES */
+        int ES_len;
 
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
@@ -254,46 +314,6 @@ struct ts_rslt {
         int64_t last_sys_cnt; /* system packet count from PCRa to PCRb */
         int64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
         int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
-
-        /* PMT, PCR, VID and AUD has timestamp according to its PCR */
-        /* other PID has timestamp according to the PCR in the 1st program */
-        int64_t STC; /* according to its PCR */
-        int64_t STC_base;
-        int16_t STC_ext;
-
-        /* CC */
-        int CC_wait;
-        int CC_find;
-        int CC_lost; /* lost != 0 means CC wrong */
-
-        /* PCR */
-        int has_PCR;
-        int64_t PCR;
-        int64_t PCR_base;
-        int16_t PCR_ext;
-        int64_t PCR_interval; /* PCR packet arrive time interval */
-        int64_t PCR_continuity; /* PCR value interval */
-        int64_t PCR_jitter;
-
-        /* PTS */
-        int has_PTS;
-        int64_t PTS;
-        int64_t PTS_interval;
-        int64_t PTS_minus_STC;
-
-        /* DTS */
-        int has_DTS;
-        int64_t DTS;
-        int64_t DTS_interval;
-        int64_t DTS_minus_STC;
-
-        /* PES */
-        uint16_t PES_len;
-        uint8_t *PES_buf;
-
-        /* ES */
-        uint16_t ES_len;
-        uint8_t *ES_buf;
 
         /* error */
         struct ts_error err;

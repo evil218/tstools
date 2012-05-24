@@ -360,7 +360,6 @@ int tsCreate(struct ts_rslt **rslt)
         }
 
         *rslt = &(obj->rslt);
-        (*rslt)->pkt = &((*rslt)->PKT);
         (*rslt)->table0 = NULL;
         (*rslt)->has_got_transport_stream_id = 0;
         (*rslt)->transport_stream_id = 0;
@@ -427,7 +426,6 @@ int tsParseTS(int id)
 {
         struct obj *obj;
         struct ts_rslt *rslt;
-        struct ts_pkt *pkt;
 
         obj = (struct obj *)id;
         if(!obj) {
@@ -435,11 +433,10 @@ int tsParseTS(int id)
                 return -ERR_BAD_ID;
         }
         rslt = &(obj->rslt);
-        pkt = rslt->pkt;
 
-        obj->p = pkt->ts;
+        obj->p = rslt->TS;
         obj->len = 188;
-        /*dump(pkt->ts, 188); */
+        /*dump(rslt->TS, 188); */
 
         /* packet count */
         if(obj->is_first_pkt) {
@@ -450,7 +447,7 @@ int tsParseTS(int id)
                 rslt->cnt++;
         }
 
-        /*fprintf(stderr, "cnt: %lld, addr: %lld\n", rslt->cnt, pkt->ADDR); */
+        /*fprintf(stderr, "cnt: %lld, addr: %lld\n", rslt->cnt, rslt->ADDR); */
         return parse_TS_head(obj);
 }
 
@@ -561,7 +558,6 @@ static int state_next_pkt(struct obj *obj)
         struct ts_track *track = pid->track; /* may be NULL */
         struct ts_prog *prog = pid->prog; /* may be NULL */
         struct ts_error *err = &(rslt->err);
-        struct ts_pkt *pkt = rslt->pkt;
 
         /* CC */
         if(pid->is_CC_sync) {
@@ -603,7 +599,7 @@ static int state_next_pkt(struct obj *obj)
         }
 
         /* PCR flush */
-        if(rslt->has_PCR) {
+        if(rslt->pcr) {
                 rslt->PCR_base = af->program_clock_reference_base;
                 rslt->PCR_ext  = af->program_clock_reference_extension;
 
@@ -659,13 +655,13 @@ static int state_next_pkt(struct obj *obj)
 
                         /* PCRb: last PCR packet */
                         prog->PCRb = rslt->PCR;
-                        prog->ADDb = pkt->ADDR;
+                        prog->ADDb = rslt->ADDR;
 
                         /* STC_sync */
                         if(!prog->STC_sync) {
                                 int is_first_count_clear = 0;
 
-                                if(pkt->mts) {
+                                if(rslt->mts) {
                                         /* clear count after 1st PCR */
                                         is_first_count_clear = 1;
 
@@ -757,7 +753,7 @@ static int state_next_pkt(struct obj *obj)
                         parse_PES_head(obj);
                 }
 
-                if(rslt->has_PTS) {
+                if(rslt->pts) {
                         if(STC_BASE_OVF != track->PTS) {
                                 rslt->PTS_interval = timestamp_diff(rslt->PTS, track->PTS, STC_BASE_OVF);
                         }
@@ -773,7 +769,7 @@ static int state_next_pkt(struct obj *obj)
                         track->PTS = rslt->PTS; /* record last PTS in track */
                 }
 
-                if(rslt->has_DTS) {
+                if(rslt->dts) {
                         if(STC_BASE_OVF != track->DTS) {
                                 rslt->DTS_interval = timestamp_diff(rslt->DTS, track->DTS, STC_BASE_OVF);
                         }
@@ -802,16 +798,14 @@ static int parse_TS_head(struct obj *obj)
         struct ts_error *err = &(rslt->err);
         struct ts_pid *pid; /* may be NULL */
         struct ts_prog *prog; /* may be NULL */
-        struct ts_pkt *pkt = rslt->pkt;
 
-        /* init rslt */
+        /* init */
+        rslt->pcr = NULL; /* no PCR */
+        rslt->pts = NULL; /* no PTS */
+        rslt->dts = NULL; /* no DTS */
         rslt->is_psi_si = 0;
         rslt->has_section = 0;
-        rslt->pid = NULL;
         rslt->has_rate = 0;
-        rslt->has_PCR = 0;
-        rslt->has_PTS = 0;
-        rslt->has_DTS = 0;
         rslt->PES_len = 0; /* clear PES length */
         rslt->ES_len = 0; /* clear ES length */
 
@@ -824,7 +818,7 @@ static int parse_TS_head(struct obj *obj)
                         err->TS_sync_loss++;
                 }
                 fprintf(stderr, "sync_byte(0x%02X) error!\n", ts->sync_byte);
-                dump(obj->rslt.pkt->ts, 188);
+                dump(rslt->TS, 188);
         }
         else {
                 err->TS_sync_loss = 0;
@@ -864,7 +858,7 @@ static int parse_TS_head(struct obj *obj)
 
         rslt->PID = ts->PID; /* record into rslt struct */
         dbg(1, "search 0x%04X in pid_list", rslt->PID);
-        rslt->pid = (struct ts_pid *)list_search(&(obj->rslt.pid0), rslt->PID);
+        rslt->pid = (struct ts_pid *)list_search(&(rslt->pid0), rslt->PID);
         if(!(rslt->pid)) {
                 /* find new PID, add it in pid_list */
                 rslt->pid = add_new_pid(obj);
@@ -872,8 +866,8 @@ static int parse_TS_head(struct obj *obj)
         pid = rslt->pid;
 
         /* calc STC and CTS, should be as early as possible */
-        if(pkt->mts) {
-                int64_t dCTS = timestamp_diff(pkt->MTS, rslt->lCTS, 0x40000000);
+        if(rslt->mts) {
+                int64_t dCTS = timestamp_diff(rslt->MTS, rslt->lCTS, 0x40000000);
 
                 if(STC_OVF != rslt->STC) {
                         rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF);
@@ -881,7 +875,7 @@ static int parse_TS_head(struct obj *obj)
                 else {
                         rslt->STC = timestamp_add(0L, dCTS, STC_OVF);
                 }
-                rslt->lCTS = pkt->MTS; /* record last CTS */
+                rslt->lCTS = rslt->MTS; /* record last CTS */
 
                 rslt->CTS = rslt->STC;
         }
@@ -897,7 +891,7 @@ static int parse_TS_head(struct obj *obj)
                                 /* ----------- = ----------- */
                                 /* PCRb - PCRa   ADDb - ADDa */
                                 delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                delta *= (pkt->ADDR - prog->ADDb);
+                                delta *= (rslt->ADDR - prog->ADDb);
                                 delta /= (prog->ADDb - prog->ADDa);
                                 rslt->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
@@ -914,7 +908,7 @@ static int parse_TS_head(struct obj *obj)
                                 /* ----------- = ----------- */
                                 /* PCRb - PCRa   ADDb - ADDa */
                                 delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                delta *= (pkt->ADDR - prog->ADDb);
+                                delta *= (rslt->ADDR - prog->ADDb);
                                 delta /= (prog->ADDb - prog->ADDa);
                                 rslt->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
@@ -988,7 +982,7 @@ static int parse_AF(struct obj *obj)
                 af->program_clock_reference_extension <<= 8;
                 af->program_clock_reference_extension |= dat;
 
-                rslt->has_PCR = 1;
+                rslt->pcr = &(rslt->PCR);
         }
         if(af->OPCR_flag) {
                 dat = *(obj->p)++; obj->len--; af->adaption_field_length--;
@@ -1232,7 +1226,7 @@ static int parse_table(struct obj *obj)
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != psi->table_id) {
                 err->PAT_error = ERR_1_3_1;
-                dump(obj->rslt.pkt->ts, 188);
+                dump(rslt->TS, 188);
                 dump(pid->section, 8);
                 return -1;
         }
@@ -1270,7 +1264,8 @@ static int parse_table(struct obj *obj)
 static int parse_PSI_head(struct obj *obj, uint8_t *section)
 {
         uint8_t *p;
-        struct ts_psi *psi = &(obj->rslt.psi);
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct ts_psi *psi = &(rslt->psi);
         const struct table_id_table *table;
 
         p = section;
@@ -1322,7 +1317,7 @@ static int parse_PSI_head(struct obj *obj, uint8_t *section)
                                 psi->table_id,
                                 psi->section_length);
                         psi->section_length = 1021;
-                        dump(obj->rslt.pkt->ts, 188);
+                        dump(rslt->TS, 188);
                         dump(section, 8);
                         return -1;
                 }
@@ -1334,7 +1329,7 @@ static int parse_PSI_head(struct obj *obj, uint8_t *section)
                                 psi->table_id,
                                 psi->section_length);
                         psi->section_length = 4093;
-                        dump(obj->rslt.pkt->ts, 188);
+                        dump(rslt->TS, 188);
                         dump(section, 8);
                         return -1;
                 }
@@ -1756,7 +1751,7 @@ static int parse_PES_head(struct obj *obj)
         if(obj->need_pes_align) {
                 if(track->is_pes_align) {
                         rslt->PES_len = obj->len;
-                        rslt->PES_buf = obj->p;
+                        rslt->pes = obj->p;
                 }
                 else {
                         /* ignore these PES data */
@@ -1764,7 +1759,7 @@ static int parse_PES_head(struct obj *obj)
         }
         else {
                 rslt->PES_len = obj->len;
-                rslt->PES_buf = obj->p;
+                rslt->pes = obj->p;
         }
 
         /* PES head */
@@ -1785,7 +1780,7 @@ static int parse_PES_head(struct obj *obj)
                 if(0x000001 != pes->packet_start_code_prefix) {
                         fprintf(stderr, "PES packet start code prefix(0x%06X) NOT 0x000001!\n",
                                 pes->packet_start_code_prefix);
-                        dump(obj->rslt.pkt->ts, 188);
+                        dump(rslt->TS, 188);
 #if 0
                         return -1;
 #endif
@@ -1813,7 +1808,7 @@ static int parse_PES_head(struct obj *obj)
         if(obj->need_pes_align) {
                 if(track->is_pes_align) {
                         rslt->ES_len = obj->len;
-                        rslt->ES_buf = obj->p;
+                        rslt->es = obj->p;
                 }
                 else {
                         /* ignore these ES data */
@@ -1821,7 +1816,7 @@ static int parse_PES_head(struct obj *obj)
         }
         else {
                 rslt->ES_len = obj->len;
-                rslt->ES_buf = obj->p;
+                rslt->es = obj->p;
         }
 
         return 0;
@@ -1917,7 +1912,7 @@ static int parse_PES_head_detail(struct obj *obj)
                 pes->PTS <<= 7;
                 pes->PTS |= dat;
 
-                rslt->has_PTS = 1;
+                rslt->pts = &(rslt->PTS);
                 rslt->PTS = pes->PTS;
         }
         else if(0x03 == pes->PTS_DTS_flags) { /* '11' */
@@ -1943,7 +1938,7 @@ static int parse_PES_head_detail(struct obj *obj)
                 pes->PTS <<= 7;
                 pes->PTS |= dat;
 
-                rslt->has_PTS = 1;
+                rslt->pts = &(rslt->PTS);
                 rslt->PTS = pes->PTS;
 
                 /* DTS */
@@ -1968,12 +1963,12 @@ static int parse_PES_head_detail(struct obj *obj)
                 pes->DTS <<= 7;
                 pes->DTS |= dat;
 
-                rslt->has_DTS = 1;
+                rslt->dts = &(rslt->DTS);
                 rslt->DTS = pes->DTS;
         }
         else if(0x01 == pes->PTS_DTS_flags) { /* '01' */
                 fprintf(stderr, "PTS_DTS_flags error!\n");
-                dump(obj->rslt.pkt->ts, 188);
+                dump(rslt->TS, 188);
                 return -1;
         }
         else {
