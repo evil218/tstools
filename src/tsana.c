@@ -65,9 +65,15 @@ struct obj {
         uint16_t aim_type; /* 0: any type; 1: video; 2: audio */
         int64_t aim_interval; /* for rate calc */
         int is_color;
-        char *color_off; /*  */
-        char *color_red; /*  */
-        char *color_yellow; /*  */
+        char *color_off;
+        char *color_gray;
+        char *color_red;
+        char *color_green;
+        char *color_yellow;
+        char *color_blue;
+        char *color_purple;
+        char *color_cyan;
+        char *color_white;
 
         uint64_t cnt; /* packet analysed */
         char tbuf[PKT_TBUF];
@@ -419,8 +425,14 @@ static struct obj *create(int argc, char *argv[])
         obj->aim_interval = 1000 * STC_MS;
         obj->is_color = 0;
         obj->color_off = "";
+        obj->color_gray = "";
         obj->color_red = "";
+        obj->color_green = "";
         obj->color_yellow = "";
+        obj->color_blue = "";
+        obj->color_purple = "";
+        obj->color_cyan = "";
+        obj->color_white = "";
 
         for(i = 1; i < argc; i++) {
                 if('-' == argv[i][0]) {
@@ -504,8 +516,14 @@ static struct obj *create(int argc, char *argv[])
                                 0 == strcmp(argv[i], "-color")) {
                                 obj->is_color = 1;
                                 obj->color_off = NONE;
+                                obj->color_gray = FGRAY;
                                 obj->color_red = FRED;
+                                obj->color_green = FGREEN;
                                 obj->color_yellow = FYELLOW;
+                                obj->color_blue = FBLUE;
+                                obj->color_purple = FPURPLE;
+                                obj->color_cyan = FCYAN;
+                                obj->color_white = FWHITE;
                         }
                         else if(0 == strcmp(argv[i], "-start")) {
                                 int start;
@@ -957,7 +975,8 @@ static void show_bg(struct obj *obj)
         strftime(rslt->TIME, 32, "%H:%M:%S", lt);
 
         fprintf(stdout,
-                "*bg, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
+                "%s*bg%s, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
+                obj->color_green, obj->color_off,
                 obj->color_yellow, rslt->TIME, obj->color_off, rslt->CTS,
                 obj->color_yellow, rslt->ADDR, obj->color_off, rslt->ADDR,
                 obj->color_yellow, rslt->PID, obj->color_off);
@@ -970,7 +989,8 @@ static void show_stc(struct obj *obj)
 
         rslt = obj->rslt;
         fprintf(stdout,
-                "*stc, %llu, %llu, ",
+                "%s*stc%s, %llu, %llu, ",
+                obj->color_green, obj->color_off,
                 rslt->STC, rslt->STC_base);
         return;
 }
@@ -979,7 +999,8 @@ static void show_pcr(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*pcr, %lld, %lld, %3d, %+7.3f, %+4.0f, ",
+        fprintf(stdout, "%s*pcr%s, %lld, %lld, %3d, %+7.3f, %+4.0f, ",
+                obj->color_green, obj->color_off,
                 rslt->PCR,
                 rslt->PCR_base,
                 rslt->PCR_ext,
@@ -992,7 +1013,8 @@ static void show_pts(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*pts, %lld, %+8.3f, %+8.3f, ",
+        fprintf(stdout, "%s*pts%s, %lld, %+8.3f, %+8.3f, ",
+                obj->color_green, obj->color_off,
                 rslt->PTS,
                 (double)(rslt->PTS_interval) / (90), /* ms */
                 (double)(rslt->PTS_minus_STC) / (90)); /* ms */
@@ -1015,7 +1037,8 @@ static void show_pesh(struct obj *obj)
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*pesh, ");
+        fprintf(stdout, "%s*pesh%s, ",
+                obj->color_green, obj->color_off);
         b2t(str, rslt->pes, rslt->PES_len - rslt->ES_len);
         fprintf(stdout, "%s", str);
         return;
@@ -1026,7 +1049,8 @@ static void show_pes(struct obj *obj)
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*pes, ");
+        fprintf(stdout, "%s*pes%s, ",
+                obj->color_green, obj->color_off);
         b2t(str, rslt->pes, rslt->PES_len);
         fprintf(stdout, "%s", str);
         return;
@@ -1037,7 +1061,8 @@ static void show_es(struct obj *obj)
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*es, ");
+        fprintf(stdout, "%s*es%s, ",
+                obj->color_green, obj->color_off);
         b2t(str, rslt->es, rslt->ES_len);
         fprintf(stdout, "%s", str);
         return;
@@ -1051,7 +1076,9 @@ static void show_sec(struct obj *obj)
         struct ts_pid *pid = rslt->pid;
 
         /* section_interval */
-        fprintf(stdout, "*sec, %+9.3f, ", (double)(pid->section_interval) / STC_MS);
+        fprintf(stdout, "%s*sec%s, %+9.3f, ",
+                obj->color_green, obj->color_off,
+                (double)(pid->section_interval) / STC_MS);
 
         /* section_head */
         b2t(str, pid->section, 8);
@@ -1074,7 +1101,9 @@ static void show_si(struct obj *obj)
         struct ts_pid *pid = rslt->pid;
 
         /* section_interval */
-        fprintf(stdout, "*si, %+9.3f, ", (double)(pid->section_interval) / STC_MS);
+        fprintf(stdout, "%s*si%s, %+9.3f, ",
+                obj->color_green, obj->color_off,
+                (double)(pid->section_interval) / STC_MS);
 
         /* section_head */
         b2t(str, pid->section, 8);
@@ -1180,7 +1209,9 @@ static void show_rate(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct lnode *lnode;
 
-        fprintf(stdout, "*rate, %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "%s*rate%s, %.3f, ",
+                obj->color_green, obj->color_off,
+                rslt->last_interval / 27000.0);
         for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)lnode;
 
@@ -1231,7 +1262,9 @@ static void show_rats(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*rats, %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "%s*rats%s, %.3f, ",
+                obj->color_green, obj->color_off,
+                rslt->last_interval / 27000.0);
         fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %s0x1FFF%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
@@ -1244,7 +1277,9 @@ static void show_ratp(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct lnode *lnode;
 
-        fprintf(stdout, "*ratp, %.3f, ", rslt->last_interval / 27000.0);
+        fprintf(stdout, "%s*ratp%s, %.3f, ",
+                obj->color_green, obj->color_off,
+                rslt->last_interval / 27000.0);
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
@@ -1269,7 +1304,8 @@ static void show_error(struct obj *obj)
         struct ts_rslt *rslt = obj->rslt;
         struct ts_error *err = &(rslt->err);
 
-        fprintf(stdout, "*err, ");
+        fprintf(stdout, "%s*err%s, ",
+                obj->color_green, obj->color_off);
 
         /* First priority: necessary for de-codability (basic monitoring) */
         if(err->TS_sync_loss) {
@@ -1357,7 +1393,8 @@ static void show_tcp(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "*tcp, ");
+        fprintf(stdout, "%s*tcp%s, ",
+                obj->color_green, obj->color_off);
         atsc_mh_tcp(rslt->TS, obj->is_color);
         return;
 }

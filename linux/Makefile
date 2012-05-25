@@ -135,13 +135,10 @@ catts: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)
 
 catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)\
-		prj_udp.o\
-		prj_url.o
+	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS) prj_udp.o prj_url.o
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)\
-		prj_atsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS) prj_atsc_mh_tcp.o
 
 tots: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)

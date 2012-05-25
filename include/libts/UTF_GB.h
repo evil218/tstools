@@ -11,7 +11,35 @@
 extern "C" {
 #endif
 
-#include <endian.h> /* for htole16(), le16toh(), BIG_ENDIAN, LITTLE_ENDIAN etc */
+#ifndef BIG_ENDIAN
+# define BIG_ENDIAN 4321
+#endif
+#ifndef LITTLE_ENDIAN
+# define LITTLE_ENDIAN 1234
+#endif
+
+#ifndef __BYTE_ORDER
+# define __BYTE_ORDER LITTLE_ENDIAN /* WARNING: depend on your system! */
+
+#if __BYTE_ORDER == LITTLE_ENDIAN
+
+#define htobe16(x) ((x >> 8) | (x << 8))
+#define be16toh(x) ((x >> 8) | (x << 8))
+#define htole16(x) (x)
+#define le16toh(x) (x)
+
+#endif /* __BYTE_ORDER == LITTLE_ENDIAN*/
+
+#if __BYTE_ORDER == BIG_ENDIAN
+
+#define htobe16(x) (x)
+#define be16toh(x) (x)
+#define htole16(x) ((x >> 8) | (x << 8))
+#define le16toh(x) ((x >> 8) | (x << 8))
+
+#endif /* __BYTE_ORDER == BIG_ENDIAN*/
+
+#endif
 
 /*
  * brief        convert string between utf8, utf16, utf16be and gb

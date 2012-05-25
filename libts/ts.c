@@ -1111,7 +1111,9 @@ static int parse_table(struct obj *obj)
         struct ts_pid *pid = rslt->pid;
         struct ts_psi *psi = &(rslt->psi);
         struct ts_error *err = &(rslt->err);
+#if 0
         int is_new_version = 0;
+#endif
 
         /* get psi head info */
         if(0 != parse_PSI_head(obj, pid->section)) {
@@ -1185,7 +1187,9 @@ static int parse_table(struct obj *obj)
                 table->version_number = psi->version_number;
                 table->last_section_number = psi->last_section_number;
                 list_free(psection0);
+#if 0
                 is_new_version = 1;
+#endif
         }
 
         /* get "section" pointer */
@@ -1664,10 +1668,12 @@ static int parse_SDT_load(struct obj *obj, uint8_t *section)
                 struct ts_prog *prog;
 
                 uint16_t service_id;
+#if 0
                 uint8_t EIT_schedule_flag; /* 1-bit */
                 uint8_t EIT_present_following_flag; /* 1-bit */
                 uint8_t running_status; /* 3-bit */
                 uint8_t free_CA_mode; /* 1-bit */
+#endif
                 uint16_t descriptors_loop_length; /* 12-bit */
 
                 dat = *p++; len--;
@@ -1680,12 +1686,16 @@ static int parse_SDT_load(struct obj *obj, uint8_t *section)
                 prog = (struct ts_prog *)list_search(&(rslt->prog0), service_id);
 
                 dat = *p++; len--;
+#if 0
                 EIT_schedule_flag = (dat & BIT(1)) >> 1;
                 EIT_present_following_flag = (dat & BIT(0)) >> 0;
+#endif
 
                 dat = *p++; len--;
+#if 0
                 running_status = (dat & 0xE0) >> 5;
                 free_CA_mode = (dat & BIT(4)) >> 4;
+#endif
                 descriptors_loop_length = (dat & 0x0F);
 
                 dat = *p++; len--;
@@ -1703,10 +1713,9 @@ static int parse_SDT_load(struct obj *obj, uint8_t *section)
                         }
                         if(0x48 == tag && prog) {
                                 uint8_t *pt = p;
-                                uint8_t type;
 
                                 /* service_descriptor */
-                                type = *pt++; /* ignore */
+                                pt++; /* ignore type */
                                 prog->service_provider_len = *pt++;
                                 memcpy(prog->service_provider, pt, prog->service_provider_len);
                                 prog->service_provider[prog->service_provider_len] = '\0';
@@ -2296,14 +2305,15 @@ static int track_type(struct ts_track *track)
  */
 static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
-        int64_t hovf; /* half overflow */
         int64_t t1; /* t0 + td */
+#if 1
+        int64_t hovf = ovf >> 1; /* half overflow */
 
-        hovf = ovf >> 1;
         timestamp_assert(0 < ovf, "0 < %lld", ovf);
         timestamp_assert((hovf << 1) == ovf, "%lld is not even", ovf);
         timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", t0, ovf);
         timestamp_assert(-hovf <= td && td < +hovf, "%lld <= %lld < %lld", -hovf, td, +hovf);
+#endif
 
         t1 = t0 + td; /* add */
         t1 += ((t1 >=  0) ? 0 : ovf); /* t1 >=  0 */
@@ -2319,14 +2329,15 @@ static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
  */
 static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
 {
-        int64_t hovf; /* half overflow */
         int64_t td; /* t1 - t0 */
+        int64_t hovf = ovf >> 1; /* half overflow */
 
-        hovf = ovf >> 1;
+#if 1
         timestamp_assert(0 < ovf, "0 < %lld", ovf);
         timestamp_assert((hovf << 1) == ovf, "%lld is not even", ovf);
         timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", t0, ovf);
         timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %lld < %lld", t1, ovf);
+#endif
 
         td = t1 - t0; /* minus */
         td += ((td >=   0) ? 0 : ovf); /* special: get the distance from t0 to t1 */
