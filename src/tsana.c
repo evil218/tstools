@@ -1093,7 +1093,6 @@ static void show_sec(struct obj *obj)
 
 static void show_si(struct obj *obj)
 {
-        int i;
         char str[3 * 8 + 3];
         int is_unknown_table_id = 0;
         struct ts_rslt *rslt = obj->rslt;
@@ -1197,7 +1196,7 @@ static void show_si(struct obj *obj)
         }
 
         if(is_unknown_table_id) {
-                for(; i < psi->section_length + 3; i++) {
+                for(int i = 0; i < psi->section_length + 3; i++) {
                         fprintf(stdout, "%02X ", pid->section[i]);
                 }
         }

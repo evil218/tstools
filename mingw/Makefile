@@ -1,4 +1,4 @@
-# Makefile for linux and cygwin
+# Makefile for mingw
 #
 # Take a look at the beginning,
 # modify the variables to suit your environment.
@@ -12,17 +12,13 @@
 #   make install
 #   make uninstall
 #
-# 20120212, ZHOU Cheng <zhoucheng@tsinghua.org.cn>
+# 20120528, ZHOU Cheng <zhoucheng@tsinghua.org.cn>
 
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory
 
 # env
-ifeq ($(TERM),cygwin)
-PLATFORM = cygwin
-else
-PLATFORM = linux
-endif
+PLATFORM = mingw
 
 ifeq ($(DEBUG),1)
 TYPE = debug
@@ -52,16 +48,14 @@ LIB_OBJS = lib_crc.o\
 LIB_SRCS = $(subst .o,.c,$(subst lib_,$(LIB_SRCDIR)/,$(LIB_OBJS)))
 
 PRJ_DEP  = prj.d
-PRJ_OBJS = prj_udp.o\
+PRJ_OBJS = prj_catts.o\
 		   prj_url.o\
-		   prj_catts.o\
-		   prj_catip.o\
 		   prj_tsana.o\
 		   prj_atsc_mh_tcp.o
 PRJ_SRCS = $(subst .o,.c,$(subst prj_,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
-PRJ_AIMS = catts\
-		   catip\
-		   tsana\
+
+PRJ_AIMS = catts.exe\
+		   tsana.exe\
 
 # includes
 INCFLAGS = -I.
@@ -131,17 +125,17 @@ prj_%.o: $(PRJ_SRCDIR)/%.c
 $(LIB_NAME): $(LIB_OBJS) $(LIB_DEP)
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 
-catts: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)
+catts.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj_catts.o $(LIBS)
 
-catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS) prj_udp.o prj_url.o
+catip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj_catip.o $(LIBS) prj_udp.o prj_url.o
 
-tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS) prj_atsc_mh_tcp.o
+tsana.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj_tsana.o $(LIBS) prj_atsc_mh_tcp.o
 
-tots: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_$@.o $(LIBS)
+tots.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj_tots.o $(LIBS)
 
 # install
 $(INSTALLDIR)/%: %
