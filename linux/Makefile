@@ -52,16 +52,16 @@ LIB_OBJS = lib_crc.o\
 LIB_SRCS = $(subst .o,.c,$(subst lib_,$(LIB_SRCDIR)/,$(LIB_OBJS)))
 
 PRJ_DEP  = prj.d
-PRJ_OBJS = prj_udp.o\
-		   prj_url.o\
-		   prj_catts.o\
-		   prj_catip.o\
+PRJ_OBJS = prj_catts.o\
 		   prj_tsana.o\
+		   prj_udp.o\
+		   prj_url.o\
+		   prj_catip.o\
 		   prj_atsc_mh_tcp.o
 PRJ_SRCS = $(subst .o,.c,$(subst prj_,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 PRJ_AIMS = catts\
-		   catip\
 		   tsana\
+		   catip
 
 # includes
 INCFLAGS = -I.
@@ -69,7 +69,9 @@ INCFLAGS += -I../include/libts
 
 # compiler and its options
 CC = gcc
-CFLAGS += -Wall -Werror -std=c99
+CFLAGS += -Wall -Werror
+CFLAGS += -std=c99
+CFLAGS += -DPLATFORM_$(PLATFORM)
 ifeq ($(DEBUG),1)
 CFLAGS += -D_DEBUG -g
 else

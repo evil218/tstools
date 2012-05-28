@@ -49,13 +49,16 @@ LIB_SRCS = $(subst .o,.c,$(subst lib_,$(LIB_SRCDIR)/,$(LIB_OBJS)))
 
 PRJ_DEP  = prj.d
 PRJ_OBJS = prj_catts.o\
-		   prj_url.o\
 		   prj_tsana.o\
+		   prj_udp.o\
+		   prj_url.o\
+		   prj_catip.o\
 		   prj_atsc_mh_tcp.o
 PRJ_SRCS = $(subst .o,.c,$(subst prj_,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 
 PRJ_AIMS = catts.exe\
 		   tsana.exe\
+		   catip.exe
 
 # includes
 INCFLAGS = -I.
@@ -63,7 +66,9 @@ INCFLAGS += -I../include/libts
 
 # compiler and its options
 CC = gcc
-CFLAGS += -Wall -Werror -std=c99
+CFLAGS += -Wall -Werror
+CFLAGS += -std=c99
+CFLAGS += -DPLATFORM_$(PLATFORM)
 ifeq ($(DEBUG),1)
 CFLAGS += -D_DEBUG -g
 else
@@ -129,7 +134,7 @@ catts.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj_catts.o $(LIBS)
 
 catip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj_catip.o $(LIBS) prj_udp.o prj_url.o
+	$(LD) $(LDFLAGS) -o $@ prj_catip.o $(LIBS) prj_udp.o prj_url.o -lwsock32
 
 tsana.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj_tsana.o $(LIBS) prj_atsc_mh_tcp.o
