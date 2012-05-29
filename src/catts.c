@@ -28,14 +28,14 @@ static int npline = 16; /* data number per line */
 static int type = FILE_TS;
 static int aim_start = 0; /* first byte */
 static int aim_stop = 0; /* last byte */
-static uint64_t pkt_addr = 0;
-static uint64_t pkt_mts = 0;
+static long long int pkt_addr = 0;
+static long long int pkt_mts = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static int show_help();
 static int show_version();
 static int judge_type();
-static int mts_time(uint64_t *mts, uint8_t *bin);
+static int mts_time(long long int *mts, uint8_t *bin);
 
 int main(int argc, char *argv[])
 {
@@ -340,7 +340,7 @@ static int judge_type()
         return 0;
 }
 
-static int mts_time(uint64_t *mts, uint8_t *bin)
+static int mts_time(long long int *mts, uint8_t *bin)
 {
         int i;
 

@@ -16,7 +16,7 @@
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static uint64_t pkt_addr = 0;
+static long long int pkt_addr = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();

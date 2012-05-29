@@ -800,6 +800,8 @@ static int parse_TS_head(struct obj *obj)
         struct ts_prog *prog; /* may be NULL */
 
         /* init */
+        rslt->cts = NULL; /* no CTS */
+        rslt->stc = NULL; /* no STC */
         rslt->pcr = NULL; /* no PCR */
         rslt->pts = NULL; /* no PTS */
         rslt->dts = NULL; /* no DTS */
@@ -894,6 +896,7 @@ static int parse_TS_head(struct obj *obj)
                                 delta *= (rslt->ADDR - prog->ADDb);
                                 delta /= (prog->ADDb - prog->ADDa);
                                 rslt->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                rslt->stc = &(rslt->STC);
                         }
                 }
 
@@ -911,6 +914,7 @@ static int parse_TS_head(struct obj *obj)
                                 delta *= (rslt->ADDR - prog->ADDb);
                                 delta /= (prog->ADDb - prog->ADDa);
                                 rslt->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                rslt->cts = &(rslt->CTS);
                         }
                 }
         }

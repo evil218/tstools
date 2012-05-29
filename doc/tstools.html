@@ -697,7 +697,7 @@ Unix的小工具思想太强大了！</p></div>
 <div class="paragraph"><p>为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
 在上一节数据文本化的基础上规定：
 每行文本中除了传输1个TS包的数据段外，还可以有多个数据段提供与该包相关的附加信息，
-所有数据段采用“[标签],数据,”的格式。</p></div>
+所有数据段采用“*标签,数据,”的格式。</p></div>
 <div class="tableblock">
 <table rules="all"
 width="100%"
@@ -719,6 +719,27 @@ cellspacing="0" cellpadding="4">
 </thead>
 <tbody>
 <tr>
+<td align="left" valign="top"><p class="table">date</p></td>
+<td align="left" valign="top"><p class="table">日期</p></td>
+<td align="left" valign="top"><p class="table">字符串</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">YYYY-MM-DD</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">time</p></td>
+<td align="left" valign="top"><p class="table">时间</p></td>
+<td align="left" valign="top"><p class="table">字符串</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">hh:mm:ss</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">tsh</p></td>
+<td align="left" valign="top"><p class="table">TS包头数据</p></td>
+<td align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">4-byte</p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table">ts</p></td>
 <td align="left" valign="top"><p class="table">TS包数据</p></td>
 <td align="left" valign="top"><p class="table">字节序列</p></td>
@@ -726,67 +747,11 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">188-byte</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">rs</p></td>
-<td align="left" valign="top"><p class="table">RS校验数据</p></td>
+<td align="left" valign="top"><p class="table">af</p></td>
+<td align="left" valign="top"><p class="table">AF数据</p></td>
 <td align="left" valign="top"><p class="table">字节序列</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">16-byte</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">addr</p></td>
-<td align="left" valign="top"><p class="table">地址</p></td>
-<td align="left" valign="top"><p class="table">无符号整数</p></td>
-<td align="left" valign="top"><p class="table">byte</p></td>
-<td align="left" valign="top"><p class="table">包头距第1包头的字节数</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">mts</p></td>
-<td align="left" valign="top"><p class="table">MTS时间戳</p></td>
-<td align="left" valign="top"><p class="table">无符号整数</p></td>
-<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
-<td align="left" valign="top"><p class="table">本包接收时的时间戳，满0x40000000溢出回0</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">stc</p></td>
-<td align="left" valign="top"><p class="table">系统时间计数值</p></td>
-<td align="left" valign="top"><p class="table">无符号整数</p></td>
-<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
-<td align="left" valign="top"><p class="table">本包接收时的时间戳，满2576980377600溢出回0</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">rtp</p></td>
-<td align="left" valign="top"><p class="table">RTP包数据</p></td>
-<td align="left" valign="top"><p class="table">字节序列</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">将来可支持RTP包的分析</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">src</p></td>
-<td align="left" valign="top"><p class="table">本包来源</p></td>
-<td align="left" valign="top"><p class="table">字节序列</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">将来用于复用</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">bg</p></td>
-<td align="left" valign="top"><p class="table">背景信息</p></td>
-<td align="left" valign="top"><p class="table">逗号分隔</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">本TS包的背景信息：时间,地址,STC,PID</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">pcr</p></td>
-<td align="left" valign="top"><p class="table">PCR信息</p></td>
-<td align="left" valign="top"><p class="table">逗号分隔</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">PCR,BASE,EXT,间隔,抖动</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">pts</p></td>
-<td align="left" valign="top"><p class="table">PTS/DTS信息</p></td>
-<td align="left" valign="top"><p class="table">逗号分隔</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">PTS,间隔,PTS-PCR,DTS,间隔,DTS-PCR</p></td>
+<td align="left" valign="top"><p class="table">调整字段数据</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">pesh</p></td>
@@ -810,11 +775,67 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table"></p></td>
 </tr>
 <tr>
+<td align="left" valign="top"><p class="table">rs</p></td>
+<td align="left" valign="top"><p class="table">RS校验数据</p></td>
+<td align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">16-byte</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">addr</p></td>
+<td align="left" valign="top"><p class="table">地址</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">byte</p></td>
+<td align="left" valign="top"><p class="table">包头距第1包头的字节数</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">mts</p></td>
+<td align="left" valign="top"><p class="table">MTS时间戳</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
+<td align="left" valign="top"><p class="table">发送时间戳，满0x40000000溢出回0</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">cts</p></td>
+<td align="left" valign="top"><p class="table">CTS计数值</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
+<td align="left" valign="top"><p class="table">捕捉时间戳，满2576980377600溢出回0</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">stc</p></td>
+<td align="left" valign="top"><p class="table">STC计数值</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
+<td align="left" valign="top"><p class="table">节目时间戳，满2576980377600溢出回0</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">pcr</p></td>
+<td align="left" valign="top"><p class="table">PCR信息</p></td>
+<td align="left" valign="top"><p class="table">逗号分隔</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">PCR,BASE,EXT,间隔,抖动</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">pts</p></td>
+<td align="left" valign="top"><p class="table">PTS/DTS信息</p></td>
+<td align="left" valign="top"><p class="table">逗号分隔</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">PTS,间隔,PTS-PCR,DTS,间隔,DTS-PCR</p></td>
+</tr>
+<tr>
 <td align="left" valign="top"><p class="table">sec</p></td>
 <td align="left" valign="top"><p class="table">section数据</p></td>
 <td align="left" valign="top"><p class="table">字节序列</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table">段间隔,段头,段体</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">bg</p></td>
+<td align="left" valign="top"><p class="table">背景信息</p></td>
+<td align="left" valign="top"><p class="table">逗号分隔</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">时间,地址,STC,PID</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">rate</p></td>
@@ -828,28 +849,42 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">系统码率</p></td>
 <td align="left" valign="top"><p class="table">逗号分隔</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">sys,码率,psi-si,码率,empty,码率</p></td>
+<td align="left" valign="top"><p class="table">sys,码率,psi-si,码率,0x1FFF,码率</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">ratp</p></td>
 <td align="left" valign="top"><p class="table">PSI/SI码率</p></td>
 <td align="left" valign="top"><p class="table">逗号分隔</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">total,码率,PID,码率&#8230;&#8230;</p></td>
+<td align="left" valign="top"><p class="table">psi-si,码率,PID,码率,PID,码率&#8230;&#8230;</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">err</p></td>
 <td align="left" valign="top"><p class="table">错误信息</p></td>
 <td align="left" valign="top"><p class="table">逗号分隔</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">错误号,说明,错误号,说明&#8230;&#8230;</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">si</p></td>
+<td align="left" valign="top"><p class="table">section信息</p></td>
+<td align="left" valign="top"><p class="table">逗号分隔</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">PSI/SI的section内容解析</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">tcp</p></td>
 <td align="left" valign="top"><p class="table">TCP字段信息</p></td>
 <td align="left" valign="top"><p class="table">逗号分隔</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">ATSC MH流的TCP解析信息</p></td>
+<td align="left" valign="top"><p class="table">ATSC MH流的TCP包字段解析</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">src</p></td>
+<td align="left" valign="top"><p class="table">本包来源</p></td>
+<td align="left" valign="top"><p class="table">字节序列</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">将来用于复用</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">其它</p></td>
@@ -862,8 +897,8 @@ cellspacing="0" cellpadding="4">
 实际的传输内容是这样的（TS包太长，中间的内容省略了）：</p></div>
 <div class="listingblock">
 <div class="content">
-<pre><tt>[ts],47 00 32 12 ... AD 3F 43 4C,[addr],0,
-[ts],47 00 32 13 ... BA 44 39 4A,[addr],188,</tt></pre>
+<pre><tt>*ts,47 00 32 12 ... AD 3F 43 4C,*addr,0,
+*ts,47 00 32 13 ... BA 44 39 4A,*addr,188,</tt></pre>
 </div></div>
 <div class="paragraph"><p>地址（addr）是输入环节的重要信息：
 对于文件，通过地址可以定位数据，找到错误发生的位置；
@@ -1207,7 +1242,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2012-05-08 13:26:22    
+Last updated 2012-05-29 09:01:25 CST
 </div>
 </div>
 </body>

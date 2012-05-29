@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: tsana.c
  * funx: analyse character of ts stream
  * 2009-00-00, ZHOU Cheng, init
@@ -36,6 +35,8 @@ struct aim {
         int stc;
         int pcr;
         int pts;
+        int tsh;
+        int ts;
         int pesh;
         int pes;
         int es;
@@ -125,6 +126,8 @@ static void show_bg(struct obj *obj);
 static void show_stc(struct obj *obj);
 static void show_pcr(struct obj *obj);
 static void show_pts(struct obj *obj);
+static void show_tsh(struct obj *obj);
+static void show_ts(struct obj *obj);
 static void show_pesh(struct obj *obj);
 static void show_pes(struct obj *obj);
 static void show_es(struct obj *obj);
@@ -344,17 +347,24 @@ static void state_parse_each(struct obj *obj)
                 has_report = 1;
         }
 
+        /* report */
         if(obj->aim.bg && has_report) {
                 show_bg(obj);
         }
         if(obj->aim.stc && has_report) {
                 show_stc(obj);
         }
-        if(obj->aim.pts && rslt->pts) {
+        if(obj->aim.pts && has_report) {
                 show_pts(obj);
         }
-        if(obj->aim.pcr && rslt->pcr) {
+        if(obj->aim.pcr && has_report) {
                 show_pcr(obj);
+        }
+        if(obj->aim.tsh && has_report) {
+                show_tsh(obj);
+        }
+        if(obj->aim.ts && has_report) {
+                show_ts(obj);
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
                 show_pesh(obj);
@@ -470,6 +480,14 @@ static struct obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-pts")) {
                                 obj->aim.pts = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-tsh")) {
+                                obj->aim.tsh = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-ts")) {
+                                obj->aim.ts = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-pesh")) {
@@ -694,6 +712,8 @@ static void show_help()
         puts(" -stc             \"*stc, STC, BASE, \"");
         puts(" -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"");
         puts(" -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"");
+        puts(" -tsh             \"*tsh, 47, xx, xx, xx, \"");
+        puts(" -ts              \"*ts, 47, ..., xx, \"");
         puts(" -pesh            \"*pesh, xx, ..., xx, \"");
         puts(" -pes             \"*pes, xx, ..., xx, \"");
         puts(" -es              \"*es, xx, ..., xx, \"");
@@ -748,24 +768,23 @@ static void show_version()
         return;
 }
 
-static int t2b(struct ts_rslt *rslt, void *tbuf)
+static int get_one_pkt(struct obj *obj)
 {
         char *tag;
-        char *pt = (char *)tbuf;
+        char *pt = (char *)(obj->tbuf);
+        struct ts_rslt *rslt = obj->rslt;
 
-        rslt->date = NULL;
-        rslt->time = NULL;
+        if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
+                return GOT_EOF;
+        }
+
+        strcpy(obj->tbak, obj->tbuf); /* for dump */
+
         rslt->ts = NULL;
-        rslt->af = NULL;
-        rslt->pes = NULL;
-        rslt->es = NULL;
         rslt->rs = NULL;
         rslt->addr = NULL;
         rslt->mts = NULL;
         rslt->cts = NULL;
-        rslt->pcr = NULL;
-        rslt->pts = NULL;
-        rslt->dts = NULL;
 
         while(0 == next_tag(&tag, &pt)) {
                 if(0 == strcmp(tag, "*ts")) {
@@ -789,21 +808,9 @@ static int t2b(struct ts_rslt *rslt, void *tbuf)
                         rslt->cts = &(rslt->CTS);
                 }
                 else {
-                        return -1;
+                        fprintf(stderr, "wrong tag: \"%s\"\n", tag);
                 }
         }
-
-        return 0;
-}
-
-static int get_one_pkt(struct obj *obj)
-{
-        if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
-                return GOT_EOF;
-        }
-
-        strcpy(obj->tbak, obj->tbuf); /* for dump */
-        t2b(obj->rslt, obj->tbuf);
         return GOT_RIGHT_PKT;
 }
 
@@ -964,11 +971,9 @@ static void show_psi(struct obj *obj)
 
 static void show_bg(struct obj *obj)
 {
-        struct ts_rslt *rslt;
+        struct ts_rslt *rslt = obj->rslt;
         time_t tp;
         struct tm *lt; /* local time */
-
-        rslt = obj->rslt;
 
         time(&tp);
         lt = localtime(&tp);
@@ -985,13 +990,19 @@ static void show_bg(struct obj *obj)
 
 static void show_stc(struct obj *obj)
 {
-        struct ts_rslt *rslt;
+        struct ts_rslt *rslt = obj->rslt;
 
-        rslt = obj->rslt;
-        fprintf(stdout,
-                "%s*stc%s, %llu, %llu, ",
-                obj->color_green, obj->color_off,
-                rslt->STC, rslt->STC_base);
+        if(rslt->stc) {
+                fprintf(stdout,
+                        "%s*stc%s, %13llu, %10llu, ",
+                        obj->color_green, obj->color_off,
+                        rslt->STC, rslt->STC_base);
+        }
+        else {
+                fprintf(stdout,
+                        "%s*stc%s,              ,           , ",
+                        obj->color_green, obj->color_off);
+        }
         return;
 }
 
@@ -999,13 +1010,19 @@ static void show_pcr(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "%s*pcr%s, %lld, %lld, %3d, %+7.3f, %+4.0f, ",
-                obj->color_green, obj->color_off,
-                rslt->PCR,
-                rslt->PCR_base,
-                rslt->PCR_ext,
-                (double)(rslt->PCR_interval) / STC_MS,
-                (double)(rslt->PCR_jitter) * 1e3 / STC_US);
+        if(rslt->pcr) {
+                fprintf(stdout, "%s*pcr%s, %13lld, %10lld, %3d, %+7.3f, %+4.0f, ",
+                        obj->color_green, obj->color_off,
+                        rslt->PCR,
+                        rslt->PCR_base,
+                        rslt->PCR_ext,
+                        (double)(rslt->PCR_interval) / STC_MS,
+                        (double)(rslt->PCR_jitter) * 1e3 / STC_US);
+        }
+        else {
+                fprintf(stdout, "%s*pcr%s,              ,           ,    ,        ,     , ",
+                        obj->color_green, obj->color_off);
+        }
         return;
 }
 
@@ -1013,22 +1030,56 @@ static void show_pts(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
-        fprintf(stdout, "%s*pts%s, %lld, %+8.3f, %+8.3f, ",
-                obj->color_green, obj->color_off,
-                rslt->PTS,
-                (double)(rslt->PTS_interval) / (90), /* ms */
-                (double)(rslt->PTS_minus_STC) / (90)); /* ms */
+        if(rslt->pts) {
+                fprintf(stdout, "%s*pts%s, %10lld, %+8.3f, %+8.3f, ",
+                        obj->color_green, obj->color_off,
+                        rslt->PTS,
+                        (double)(rslt->PTS_interval) / (90), /* ms */
+                        (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
-        if(rslt->dts) {
-                fprintf(stdout, "%lld, %+8.3f, %+8.3f, ",
-                        rslt->DTS,
-                        (double)(rslt->DTS_interval) / (90), /* ms */
-                        (double)(rslt->DTS_minus_STC) / (90)); /* ms */
+                if(rslt->dts) {
+                        fprintf(stdout, "%s*dts%s, %10lld, %+8.3f, %+8.3f, ",
+                                obj->color_green, obj->color_off,
+                                rslt->DTS,
+                                (double)(rslt->DTS_interval) / (90), /* ms */
+                                (double)(rslt->DTS_minus_STC) / (90)); /* ms */
+                }
+                else {
+                        fprintf(stdout, "%s*dts%s, %10lld,         ,         , ",
+                                obj->color_green, obj->color_off,
+                                rslt->PTS);
+                }
         }
         else {
-                fprintf(stdout, "%lld,         ,         , ",
-                        rslt->PTS);
+                fprintf(stdout, "%s*pts%s,           ,         ,         , ",
+                        obj->color_green, obj->color_off);
+                fprintf(stdout, "%s*dts%s,           ,         ,         , ",
+                        obj->color_green, obj->color_off);
         }
+        return;
+}
+
+static void show_tsh(struct obj *obj)
+{
+        char str[3 * 4 + 3]; /* part of one TS packet */
+        struct ts_rslt *rslt = obj->rslt;
+
+        fprintf(stdout, "%s*tsh%s, ",
+                obj->color_green, obj->color_off);
+        b2t(str, rslt->ts, 4);
+        fprintf(stdout, "%s", str);
+        return;
+}
+
+static void show_ts(struct obj *obj)
+{
+        char str[3 * 188 + 3]; /* part of one TS packet */
+        struct ts_rslt *rslt = obj->rslt;
+
+        fprintf(stdout, "%s*ts%s, ",
+                obj->color_green, obj->color_off);
+        b2t(str, rslt->ts, 188);
+        fprintf(stdout, "%s", str);
         return;
 }
 

@@ -129,26 +129,23 @@ image:pic_recorder.jpg[录流]
 [options="header"]
 |=====================================================================
 | 标签  |含义          |类型       |单位      |说明
-|  ip   |IP包数据      |字节序列   |          |
-| rtp   |RTP包数据     |字节序列   |          |
-| rtcp  |RTCP包数据    |字节序列   |          |
+| date  |日期          |字符串     |          |YYYY-MM-DD
+| time  |时间          |字符串     |          |hh:mm:ss
 | tsh   |TS包头数据    |字节序列   |          |4-byte
 |  ts   |TS包数据      |字节序列   |          |188-byte
-|  rs   |RS校验数据    |字节序列   |          |16-byte
 |  af   |AF数据        |字节序列   |          |调整字段数据
 | pesh  |PES头数据     |字节序列   |          |
 | pes   |PES数据       |字节序列   |          |
 |  es   |ES数据        |字节序列   |          |
-| sec   |section数据   |字节序列   |          |段间隔,段头,段体
-|  bg   |背景信息      |逗号分隔   |          |时间,地址,STC,PID
-| date  |日期          |字符串     |          |YYYY-MM-DD
-| time  |时间          |字符串     |          |hh:mm:ss
+|  rs   |RS校验数据    |字节序列   |          |16-byte
+| addr  |地址          |无符号整数 |byte      |包头距第1包头的字节数
 | mts   |MTS时间戳     |无符号整数 |(1/27M)秒 |发送时间戳，满0x40000000溢出回0
 | cts   |CTS计数值     |无符号整数 |(1/27M)秒 |捕捉时间戳，满2576980377600溢出回0
 | stc   |STC计数值     |无符号整数 |(1/27M)秒 |节目时间戳，满2576980377600溢出回0
-| addr  |地址          |无符号整数 |byte      |包头距第1包头的字节数
 | pcr   |PCR信息       |逗号分隔   |          |PCR,BASE,EXT,间隔,抖动
 | pts   |PTS/DTS信息   |逗号分隔   |          |PTS,间隔,PTS-PCR,DTS,间隔,DTS-PCR
+| sec   |section数据   |字节序列   |          |段间隔,段头,段体
+|  bg   |背景信息      |逗号分隔   |          |时间,地址,STC,PID
 | rate  |码率统计      |逗号分隔   |          |PID,码率,PID,码率......
 | rats  |系统码率      |逗号分隔   |          |sys,码率,psi-si,码率,0x1FFF,码率
 | ratp  |PSI/SI码率    |逗号分隔   |          |psi-si,码率,PID,码率,PID,码率......

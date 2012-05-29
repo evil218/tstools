@@ -233,6 +233,7 @@ struct ts_rslt {
         int64_t *addr; /* NULL or point to ADDR */
         int64_t *mts; /* NULL or point to MTS */
         int64_t *cts; /* NULL or point to CTS */
+        int64_t *stc; /* NULL or point to STC */
         int64_t *pcr; /* NULL or point to PCR */
         int64_t *pts; /* NULL or point to PTS */
         int64_t *dts; /* NULL or point to DTS */
