@@ -120,10 +120,10 @@ $(PRJ_DEP): $(PRJ_SRCS)
 
 # rule for compilation
 lib_%.o: $(LIB_SRCDIR)/%.c
-	$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
+	-$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
 
 prj_%.o: $(PRJ_SRCDIR)/%.c
-	$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
+	-$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
 
 # creates the aim
 $(LIB_NAME): $(LIB_OBJS) $(LIB_DEP)

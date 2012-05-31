@@ -182,13 +182,13 @@ int next_nbyte_hex(uint8_t *byte, char **text, int max)
 }
 
 /* match " XX...XX,?", stop at ? */
-int next_nuint_hex(int64_t *sint, char **text, int max)
+int next_nuint_hex(long long int *sint, char **text, int max)
 {
         int cnt;
 
         for(cnt = 0; cnt < max; cnt++) {
                 uint8_t s, x;
-                uint64_t dat = 0;
+                unsigned long long int dat = 0;
 
                 /* white space */
                 s = *(*text);
@@ -218,7 +218,7 @@ int next_nuint_hex(int64_t *sint, char **text, int max)
                         }
                         else {
                                 /* data end */
-                                *sint++ = (int64_t)dat;
+                                *sint++ = (long long int)dat;
                                 break;
                         }
                         (*text)++;

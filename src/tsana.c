@@ -774,6 +774,7 @@ static int get_one_pkt(struct obj *obj)
         char *tag;
         char *pt = (char *)(obj->tbuf);
         struct ts_rslt *rslt = obj->rslt;
+        long long int data;
 
         if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
                 return GOT_EOF;
@@ -797,15 +798,18 @@ static int get_one_pkt(struct obj *obj)
                         rslt->rs = rslt->RS;
                 }
                 else if(0 == strcmp(tag, "*addr")) {
-                        next_nuint_hex(&(rslt->ADDR), &pt, 1);
+                        next_nuint_hex(&data, &pt, 1);
+                        rslt->ADDR = data;
                         rslt->addr = &(rslt->ADDR);
                 }
                 else if(0 == strcmp(tag, "*mts")) {
-                        next_nuint_hex(&(rslt->MTS), &pt, 1);
+                        next_nuint_hex(&data, &pt, 1);
+                        rslt->MTS = (int64_t)data;
                         rslt->mts = &(rslt->MTS);
                 }
                 else if(0 == strcmp(tag, "*cts")) {
-                        next_nuint_hex(&(rslt->CTS), &pt, 1);
+                        next_nuint_hex(&data, &pt, 1);
+                        rslt->CTS = (int64_t)data;
                         rslt->cts = &(rslt->CTS);
                 }
                 else {
@@ -983,7 +987,7 @@ static void show_bg(struct obj *obj)
         fprintf(stdout,
                 "%s*bg%s, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
                 obj->color_green, obj->color_off,
-                obj->color_yellow, rslt->TIME, obj->color_off, rslt->CTS,
+                obj->color_yellow, rslt->TIME, obj->color_off, (long long int)rslt->CTS,
                 obj->color_yellow, rslt->ADDR, obj->color_off, rslt->ADDR,
                 obj->color_yellow, rslt->PID, obj->color_off);
         return;
@@ -997,7 +1001,7 @@ static void show_stc(struct obj *obj)
                 fprintf(stdout,
                         "%s*stc%s, %13llu, %10llu, ",
                         obj->color_green, obj->color_off,
-                        rslt->STC, rslt->STC_base);
+                        (long long int)rslt->STC, (long long int)rslt->STC_base);
         }
         else {
                 fprintf(stdout,
@@ -1014,8 +1018,8 @@ static void show_pcr(struct obj *obj)
         if(rslt->pcr) {
                 fprintf(stdout, "%s*pcr%s, %13lld, %10lld, %3d, %+7.3f, %+4.0f, ",
                         obj->color_green, obj->color_off,
-                        rslt->PCR,
-                        rslt->PCR_base,
+                        (long long int)rslt->PCR,
+                        (long long int)rslt->PCR_base,
                         rslt->PCR_ext,
                         (double)(rslt->PCR_interval) / STC_MS,
                         (double)(rslt->PCR_jitter) * 1e3 / STC_US);
@@ -1034,21 +1038,21 @@ static void show_pts(struct obj *obj)
         if(rslt->pts) {
                 fprintf(stdout, "%s*pts%s, %10lld, %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
-                        rslt->PTS,
+                        (long long int)rslt->PTS,
                         (double)(rslt->PTS_interval) / (90), /* ms */
                         (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
                 if(rslt->dts) {
                         fprintf(stdout, "%s*dts%s, %10lld, %+8.3f, %+8.3f, ",
                                 obj->color_green, obj->color_off,
-                                rslt->DTS,
+                                (long long int)rslt->DTS,
                                 (double)(rslt->DTS_interval) / (90), /* ms */
                                 (double)(rslt->DTS_minus_STC) / (90)); /* ms */
                 }
                 else {
                         fprintf(stdout, "%s*dts%s, %10lld,         ,         , ",
                                 obj->color_green, obj->color_off,
-                                rslt->PTS);
+                                (long long int)rslt->PTS);
                 }
         }
         else {

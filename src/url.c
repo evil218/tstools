@@ -22,7 +22,7 @@ struct url *url_open(const char *str, char *mode)
 
         url = (struct url *)malloc(sizeof(struct url));
         if(NULL == url) {
-                rpt(RPT_ERR, "alloc %d-byte failed\n", sizeof(struct url));
+                rpt(RPT_ERR, "malloc 'struct url' failed\n");
                 exit(-1);
         }
         url->url[0] = '\0';

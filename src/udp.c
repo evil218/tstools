@@ -62,6 +62,7 @@ intptr_t udp_open(char *addr, unsigned short port)
         /* reuse address */
         {
                 int reuseaddr = 1; /* nonzero means enable */
+
                 setsockopt(udp->sock, SOL_SOCKET, SO_REUSEADDR,
                            (char *)&reuseaddr, sizeof(int));
         }
@@ -69,6 +70,7 @@ intptr_t udp_open(char *addr, unsigned short port)
         /* name the socket */
         {
                 struct sockaddr_in local;
+
                 local.sin_family = AF_INET;
                 local.sin_addr.s_addr = htonl(INADDR_ANY);
                 local.sin_port = htons(udp->port);
@@ -84,6 +86,7 @@ intptr_t udp_open(char *addr, unsigned short port)
         /* manage multicast */
         {
                 struct ip_mreq imreq;
+
                 imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                 if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr))) {
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -163,15 +166,17 @@ int udp_close(intptr_t id)
         }
 
 #ifndef PLATFORM_mingw
-        struct ip_mreq imreq;
-
         /* manage multicast */
-        imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
-        if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr))) {
-                imreq.imr_interface.s_addr = htonl(INADDR_ANY);
-                if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-                              (char *)&imreq, sizeof(imreq)) < 0) {
-                        perror("quit multicast membership");
+        {
+                struct ip_mreq imreq;
+
+                imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
+                if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr))) {
+                        imreq.imr_interface.s_addr = htonl(INADDR_ANY);
+                        if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+                                      (char *)&imreq, sizeof(imreq)) < 0) {
+                                perror("quit multicast membership");
+                        }
                 }
         }
 
@@ -179,18 +184,20 @@ int udp_close(intptr_t id)
 #endif
 
 #ifdef PLATFORM_mingw
-        struct ip_mreq multicast;
-
-        // manage multicast
-        multicast.imr_multiaddr.s_addr = inet_addr(udp->addr);
-        if(0xE0 == (multicast.imr_multiaddr.s_net & 0xF0))
+        /* manage multicast */
         {
-                multicast.imr_interface.s_addr = htonl(INADDR_ANY);
-                if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-                              (char *)&multicast, sizeof(multicast)) < 0)
+                struct ip_mreq multicast;
+
+                multicast.imr_multiaddr.s_addr = inet_addr(udp->addr);
+                if(0xE0 == (multicast.imr_multiaddr.s_net & 0xF0))
                 {
-                        int err = WSAGetLastError();
-                        printf("quit multicast membership error: %d!\n", err);
+                        multicast.imr_interface.s_addr = htonl(INADDR_ANY);
+                        if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+                                      (char *)&multicast, sizeof(multicast)) < 0)
+                        {
+                                int err = WSAGetLastError();
+                                printf("quit multicast membership error: %d!\n", err);
+                        }
                 }
         }
 
