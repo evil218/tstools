@@ -8,6 +8,9 @@
 #include <string.h>
 
 #ifndef PLATFORM_mingw
+
+#define __USE_GNU /* for 'struct ip_mreq' in CentOS x64 */
+
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
