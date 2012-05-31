@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: url.c
  * funx: URL access
  * 2009-00-00, ZHOU Cheng, init
@@ -10,21 +9,10 @@
 #include <string.h>
 #include <ctype.h> /* for tolower() */
 
+#include "common.h"
 #include "url.h"
 
-#if 0
-#define DEBUG /* print detail info. to debug this module */
-#define dbg(level, ...) \
-        do { \
-                if (level >= 0) { \
-                        fprintf(stderr, "\"%s\", line %d: ",__FILE__, __LINE__); \
-                        fprintf(stderr, __VA_ARGS__); \
-                        fprintf(stderr, "\n"); \
-                } \
-        } while (0)
-#else
-#define dbg(level, ...)
-#endif
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 static int parse_url(struct url *url, const char *str);
 
@@ -34,7 +22,7 @@ struct url *url_open(const char *str, char *mode)
 
         url = (struct url *)malloc(sizeof(struct url));
         if(NULL == url) {
-                printf("Alloc %d-byte failed!\n", sizeof(struct url));
+                rpt(RPT_ERR, "alloc %d-byte failed\n", sizeof(struct url));
                 exit(-1);
         }
         url->url[0] = '\0';
@@ -197,7 +185,7 @@ static int parse_url(struct url *url, const char *str)
                         *pd = '*';
                 }
         }
-        dbg(1, "pattern: %s", pattern);
+        rpt(RPT_DBG, "pattern: %s", pattern);
 
         /* get scheme */
         if(0 == memcmp(pattern, "*://", 4)) {
@@ -208,10 +196,10 @@ static int parse_url(struct url *url, const char *str)
                         *ps = (char)tolower((int)*ps);
                 }
 
-                dbg(1, "scheme: %s", url->url);
+                rpt(RPT_DBG, "scheme: %s", url->url);
         }
         else {
-                dbg(1, "scheme: file");
+                rpt(RPT_DBG, "scheme: file");
                 url->scheme = SCH_LFILE;
         }
 
@@ -222,34 +210,34 @@ static int parse_url(struct url *url, const char *str)
                 if(0 == memcmp(pattern, "*://*:*", 7)) { /* udp://host:port */
                         rslt = strtok(NULL, ":");
                         url->host = rslt + 2; /* add 2 to pass "//" */
-                        dbg(1, "host: %s", url->host);
+                        rpt(RPT_DBG, "host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
-                        dbg(1, "port: %d", url->port);
+                        rpt(RPT_DBG, "port: %d", url->port);
                 }
                 else if(0 == memcmp(pattern, "*://@*:*", 8)) { /* udp://@host:port, VLC only */
                         rslt = strtok(NULL, "@");
-                        dbg(1, "prefix: %s", rslt);
+                        rpt(RPT_DBG, "prefix: %s", rslt);
 
                         rslt = strtok(NULL, ":");
                         url->host = rslt;
-                        dbg(1, "host: %s", url->host);
+                        rpt(RPT_DBG, "host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
-                        dbg(1, "port: %d", url->port);
+                        rpt(RPT_DBG, "port: %d", url->port);
                 }
                 else if(0 == memcmp(pattern, "*://:*", 6) ||  /* udp://:port */
                         0 == memcmp(pattern, "*://@:*", 7)) { /* udp://@:port, VLC only */
                         rslt = strtok(NULL, ":");
-                        dbg(1, "prefix: %s", rslt);
+                        rpt(RPT_DBG, "prefix: %s", rslt);
                         url->host = "127.0.0.1";
-                        dbg(1, "host: %s", url->host);
+                        rpt(RPT_DBG, "host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
-                        dbg(1, "port: %d", url->port);
+                        rpt(RPT_DBG, "port: %d", url->port);
                 }
                 else {
                         fprintf(stderr, "URL syntax error for UDP scheme!\n");

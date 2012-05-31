@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: url.h
  * funx: URL access
  * 2009-00-00, ZHOU Cheng, init
@@ -38,7 +37,7 @@ struct url {
 
         /* id */
         FILE *fd;
-        int udp;
+        intptr_t udp;
 
         /* data buffer */
         char buf[8*188]; /* for UDP data */

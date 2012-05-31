@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: catts.c
  * funx: generate text line with bin ts file
  */
@@ -10,8 +9,9 @@
 #include <stdint.h> /* for uintN_t, etc */
 
 #include "common.h"
-#include "error.h"
 #include "if.h"
+
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 enum FILE_TYPE
 {
@@ -49,9 +49,8 @@ int main(int argc, char *argv[])
 
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i) {
-                fprintf(stderr, "%s ", file_i);
-                DBG(ERR_FOPEN_FAILED, "\n");
-                return -ERR_FOPEN_FAILED;
+                rpt(RPT_ERR, "open \"%s\" failed\n", file_i);
+                return -1;
         }
 
         judge_type();
@@ -181,9 +180,8 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                                DBG(ERR_BAD_ARG, "\n");
-                                return -ERR_BAD_ARG;
+                                rpt(RPT_ERR, "Wrong parameter: %s\n", argv[i]);
+                                return -1;
                         }
                 }
                 else {
@@ -328,7 +326,7 @@ static int judge_type()
                                 }
                                 break;
                         default:
-                                DBG(ERR_BAD_CASE, "%d\n", state);
+                                rpt(RPT_ERR, "bad state: %d\n", state);
                                 return -1;
                 }
         }

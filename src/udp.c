@@ -23,8 +23,10 @@
 # include <sys/timeb.h>
 #endif
 
-#include "error.h"
+#include "common.h"
 #include "udp.h"
+
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 #define UDP_LENGTH_MAX                  1536
 
@@ -34,14 +36,14 @@ struct udp {
         unsigned short port;
 };
 
-int udp_open(char *addr, unsigned short port)
+intptr_t udp_open(char *addr, unsigned short port)
 {
         struct udp *udp;
 
         udp = (struct udp *)malloc(sizeof(struct udp));
         if(NULL == udp) {
-                perror("malloc");
-                return (int)NULL;
+                rpt(RPT_ERR, "malloc failed\n");
+                return (intptr_t)NULL;
         }
 
         strcpy(udp->addr, addr);
@@ -51,7 +53,7 @@ int udp_open(char *addr, unsigned short port)
         /* build socket */
         if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
                 perror("socket");
-                return (int)NULL;
+                return (intptr_t)NULL;
         }
 
         /* nonblock mode */
@@ -75,7 +77,7 @@ int udp_open(char *addr, unsigned short port)
                         perror("bind");
                         fprintf(stderr, "    addr: %s\n", inet_ntoa(local.sin_addr));
                         fprintf(stderr, "    port: %d\n", ntohs(local.sin_port));
-                        return (int)NULL;
+                        return (intptr_t)NULL;
                 }
         }
 
@@ -98,7 +100,7 @@ int udp_open(char *addr, unsigned short port)
         if(WSAStartup(MAKEWORD(1,1), &wsaData) == SOCKET_ERROR)
         {
                 printf("WSAStartup error!\n");
-                return (int)NULL;
+                return (intptr_t)NULL;
         }
 
         // build socket
@@ -106,7 +108,7 @@ int udp_open(char *addr, unsigned short port)
         {
                 int err = WSAGetLastError();
                 printf("open a datagram socket error: %d!\n", err);
-                return (int)NULL;
+                return (intptr_t)NULL;
         }
 
         // nonblock mode
@@ -130,7 +132,7 @@ int udp_open(char *addr, unsigned short port)
                 printf("initiate a connection to the socket error: %d!\n", err);
                 //printf("addr: %s\n", inet_ntoa(local.sin_addr));
                 //printf("port: %d\n", ntohs(local.sin_port));
-                return (int)NULL;
+                return (intptr_t)NULL;
         }
 
         // manage multicast
@@ -148,16 +150,16 @@ int udp_open(char *addr, unsigned short port)
         }
 #endif
 
-        return (int)udp;
+        return (intptr_t)udp;
 }
 
-int udp_close(int id)
+int udp_close(intptr_t id)
 {
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-            DBG(ERR_BAD_ID, "\r\n");
-            return -ERR_BAD_ID;
+                rpt(RPT_ERR, "bad id\n");
+                return -1;
         }
 
 #ifndef PLATFORM_mingw
@@ -198,13 +200,13 @@ int udp_close(int id)
         return 0;
 }
 
-size_t udp_read(int id, char *buf)
+size_t udp_read(intptr_t id, char *buf)
 {
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-            DBG(ERR_BAD_ID, "\r\n");
-            return -ERR_BAD_ID;
+                rpt(RPT_ERR, "bad id\n");
+                return -1;
         }
 
 #ifndef PLATFORM_mingw

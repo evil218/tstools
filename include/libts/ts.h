@@ -218,9 +218,9 @@ struct ts_rslt {
         char TIME[16]; /* "12:38:00" */
         uint8_t TS[188]; /* TS data */
         uint8_t RS[16]; /* RS data */
-        int64_t ADDR; /* address of sync-byte(unit: byte) */
+        long long int ADDR; /* address of sync-byte(unit: byte) */
         int64_t MTS; /* MTS Time Stamp */
-        int64_t cnt; /* count of this packet, start from 0 */
+        long long int cnt; /* count of this packet, start from 0 */
 
         /* NULL means the item is absent */
         char *date; /* NULL or point to DATE */
@@ -230,7 +230,7 @@ struct ts_rslt {
         uint8_t *pes; /* NULL or point to PES fragment */
         uint8_t *es; /* NULL or point to ES fragment */
         uint8_t *rs; /* NULL or point to RS data */
-        int64_t *addr; /* NULL or point to ADDR */
+        long long int *addr; /* NULL or point to ADDR */
         int64_t *mts; /* NULL or point to MTS */
         int64_t *cts; /* NULL or point to CTS */
         int64_t *stc; /* NULL or point to STC */
@@ -320,10 +320,10 @@ struct ts_rslt {
         struct ts_error err;
 };
 
-int tsCreate(struct ts_rslt **rslt);
-int tsDelete(int id);
-int tsParseTS(int id);
-int tsParseOther(int id);
+intptr_t tsCreate(struct ts_rslt **rslt);
+int tsDelete(intptr_t id);
+int tsParseTS(intptr_t id);
+int tsParseOther(intptr_t id);
 
 #ifdef __cplusplus
 }

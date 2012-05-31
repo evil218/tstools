@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: udp.h
  * funx: UDP access
  */
@@ -13,9 +12,9 @@ extern "C" {
 
 #include <stdint.h> /* for uint?_t, etc */
 
-int udp_open(char *addr, uint16_t port);
-int udp_close(int id);
-size_t udp_read(int id, char *buf);
+intptr_t udp_open(char *addr, uint16_t port);
+int udp_close(intptr_t id);
+size_t udp_read(intptr_t id, char *buf);
 
 #ifdef __cplusplus
 }

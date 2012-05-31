@@ -11,10 +11,11 @@
 #include <stdint.h> /* for uint?_t, etc */
 
 #include "common.h"
-#include "error.h"
 #include "if.h"
 #include "ts.h" /* has "list.h" already */
 #include "UTF_GB.h"
+
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
@@ -414,7 +415,7 @@ static struct obj *create(int argc, char *argv[])
 
         obj = (struct obj *)malloc(sizeof(struct obj));
         if(NULL == obj) {
-                DBG(ERR_MALLOC_FAILED, "\n");
+                rpt(RPT_ERR, "malloc failed\n");
                 return NULL;
         }
 
@@ -1464,10 +1465,10 @@ static void all_es(struct obj *obj)
                 sprintf(name, "%04X.es", rslt->pid->PID);
                 fprintf(stdout, "open file %s\n", name);
                 rslt->pid->fd = fopen(name, "wb");
-        }
-        if(NULL == rslt->pid->fd) {
-                DBG(ERR_FOPEN_FAILED, "\n");
-                return;
+                if(NULL == rslt->pid->fd) {
+                        rpt(RPT_ERR, "open \"%s\" failed", name);
+                        return;
+                }
         }
 
         fwrite(rslt->es, rslt->ES_len, 1, rslt->pid->fd);

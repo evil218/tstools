@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: ts.c
  * funx: analyse ts stream
  */
@@ -9,26 +8,11 @@
 #include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
 
-#include "error.h"
+#include "common.h"
 #include "crc.h"
 #include "ts.h"
 
-#if 0
-#define DEBUG /* print detail info. to debug ts module */
-#endif
-
-#ifdef DEBUG
-#define dbg(level, ...) \
-        do { \
-                if (level >= 0) { \
-                        fprintf(stderr, "\"%s\", line %d: ",__FILE__, __LINE__); \
-                        fprintf(stderr, __VA_ARGS__); \
-                        fprintf(stderr, "\n"); \
-                } \
-        } while (0)
-#else
-#define dbg(level, ...)
-#endif /* DEBUG */
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 #define BIT(n)                          (1<<(n))
 
@@ -348,15 +332,15 @@ static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 static int dump(uint8_t *buf, int len); /* for debug */
 
-int tsCreate(struct ts_rslt **rslt)
+intptr_t tsCreate(struct ts_rslt **rslt)
 {
         struct obj *obj;
         struct ts_error *err;
 
         obj = (struct obj *)malloc(sizeof(struct obj));
         if(!obj) {
-                DBG(ERR_MALLOC_FAILED, "\n");
-                return (int)NULL;
+                rpt(RPT_ERR, "malloc failed\n");
+                return (intptr_t)NULL;
         }
 
         *rslt = &(obj->rslt);
@@ -386,51 +370,50 @@ int tsCreate(struct ts_rslt **rslt)
         err = &((*rslt)->err);
         memset(err, 0, sizeof(struct ts_error));
 
-        return (int)obj;
+        return (intptr_t)obj;
 }
 
-int tsDelete(int id)
+int tsDelete(intptr_t id)
 {
         struct obj *obj;
 
         obj = (struct obj *)id;
         if(!obj) {
-                DBG(ERR_BAD_ID, "\n");
-                return -ERR_BAD_ID;
+                rpt(RPT_ERR, "bad id\n");
+                return -1;
         }
-        else {
-                struct ts_rslt *rslt = &(obj->rslt);
-                struct lnode *lnode;
 
-                for(lnode = (struct lnode *)(rslt->prog0); lnode; lnode = lnode->next) {
-                        struct ts_prog *prog = (struct ts_prog *)lnode;
-                        list_free(&(prog->track0));
-                        list_free(&(prog->table_02.section0));
-                }
-                list_free(&(rslt->prog0));
-                list_free(&(rslt->pid0));
+        struct ts_rslt *rslt = &(obj->rslt);
+        struct lnode *lnode;
 
-                for(lnode = (struct lnode *)(rslt->table0); lnode; lnode = lnode->next) {
-                        struct ts_table *table = (struct ts_table *)lnode;
-                        list_free(&(table->section0));
-                }
-                list_free(&(rslt->table0));
-
-                free(obj);
-
-                return 0;
+        for(lnode = (struct lnode *)(rslt->prog0); lnode; lnode = lnode->next) {
+                struct ts_prog *prog = (struct ts_prog *)lnode;
+                list_free(&(prog->track0));
+                list_free(&(prog->table_02.section0));
         }
+        list_free(&(rslt->prog0));
+        list_free(&(rslt->pid0));
+
+        for(lnode = (struct lnode *)(rslt->table0); lnode; lnode = lnode->next) {
+                struct ts_table *table = (struct ts_table *)lnode;
+                list_free(&(table->section0));
+        }
+        list_free(&(rslt->table0));
+
+        free(obj);
+
+        return 0;
 }
 
-int tsParseTS(int id)
+int tsParseTS(intptr_t id)
 {
         struct obj *obj;
         struct ts_rslt *rslt;
 
         obj = (struct obj *)id;
         if(!obj) {
-                DBG(ERR_BAD_ID, "\n");
-                return -ERR_BAD_ID;
+                rpt(RPT_ERR, "bad id\n");
+                return -1;
         }
         rslt = &(obj->rslt);
 
@@ -451,14 +434,14 @@ int tsParseTS(int id)
         return parse_TS_head(obj);
 }
 
-int tsParseOther(int id)
+int tsParseOther(intptr_t id)
 {
         struct obj *obj;
 
         obj = (struct obj *)id;
         if(!obj) {
-                DBG(ERR_BAD_ID, "\n");
-                return -ERR_BAD_ID;
+                rpt(RPT_ERR, "bad id\n");
+                return -1;
         }
 
         switch(obj->state) {
@@ -488,7 +471,7 @@ static int state_next_pat(struct obj *obj)
         }
 
         /* section parse has done in parse_TS_head()! */
-        dbg(1, "search 0x00 in table_list");
+        rpt(RPT_DBG, "search 0x00 in table_list");
         table = (struct ts_table *)list_search(&(obj->rslt.table0), 0x00);
         if(!table) {
                 return -1;
@@ -531,7 +514,7 @@ static int state_next_pmt(struct obj *obj)
         struct ts *ts = &(obj->ts);
         struct ts_pid *pid;
 
-        dbg(1, "search 0x%04X in pid_list", ts->PID);
+        rpt(RPT_DBG, "search 0x%04X in pid_list", ts->PID);
         pid = (struct ts_pid *)list_search(&(obj->rslt.pid0), ts->PID);
         if((!pid) || (PMT_PID != pid->type)) {
                 return -1; /* not PMT */
@@ -859,7 +842,7 @@ static int parse_TS_head(struct obj *obj)
         }
 
         rslt->PID = ts->PID; /* record into rslt struct */
-        dbg(1, "search 0x%04X in pid_list", rslt->PID);
+        rpt(RPT_DBG, "search 0x%04X in pid_list", rslt->PID);
         rslt->pid = (struct ts_pid *)list_search(&(rslt->pid0), rslt->PID);
         if(!(rslt->pid)) {
                 /* find new PID, add it in pid_list */
@@ -1151,7 +1134,7 @@ static int parse_table(struct obj *obj)
         if(0x02 == psi->table_id) {
                 /* PMT section */
                 if(!(pid->prog)) {
-                        DBG(ERR_OTHER, "PMT: pid->prog is NULL!\n");
+                        rpt(RPT_WARNING, "PMT: pid->prog is NULL\n");
                         return -1;
                 }
                 table = &(pid->prog->table_02);
@@ -1160,14 +1143,14 @@ static int parse_table(struct obj *obj)
                 /* other section */
                 struct lnode **ptable0 = (struct lnode **)&(rslt->table0);
 
-                dbg(1, "search 0x%02X in table_list", psi->table_id);
+                rpt(RPT_DBG, "search 0x%02X in table_list", psi->table_id);
                 table = (struct ts_table *)list_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
                         table = (struct ts_table *)malloc(sizeof(struct ts_table));
                         if(!table) {
-                                DBG(ERR_MALLOC_FAILED, "\n");
-                                return -ERR_MALLOC_FAILED;
+                                rpt(RPT_ERR, "malloc failed\n");
+                                return -1;
                         }
 
                         table->table_id = psi->table_id;
@@ -1175,7 +1158,7 @@ static int parse_table(struct obj *obj)
                         table->last_section_number = psi->last_section_number;
                         table->section0 = NULL;
                         table->STC = STC_OVF;
-                        dbg(1, "insert 0x%02X in table_list", psi->table_id);
+                        rpt(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
                         list_set_key(table, psi->table_id);
                         list_insert(ptable0, table);
                 }
@@ -1185,7 +1168,7 @@ static int parse_table(struct obj *obj)
         /* new table version? */
         if(table->version_number != psi->version_number) {
                 /* clear psection0 and update table parameter */
-                dbg(1, "version_number(%d -> %d), free section",
+                rpt(RPT_DBG, "version_number(%d -> %d), free section",
                     table->version_number,
                     psi->version_number);
                 table->version_number = psi->version_number;
@@ -1197,20 +1180,20 @@ static int parse_table(struct obj *obj)
         }
 
         /* get "section" pointer */
-        dbg(1, "search 0x%02X in section_list", psi->section_number);
+        rpt(RPT_DBG, "search 0x%02X in section_list", psi->section_number);
         section = (struct ts_section *)list_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
                 section = (struct ts_section *)malloc(sizeof(struct ts_section));
                 if(!section) {
-                        DBG(ERR_MALLOC_FAILED, "\n");
-                        return -ERR_MALLOC_FAILED;
+                        rpt(RPT_ERR, "malloc failed\n");
+                        return -1;
                 }
 
                 section->section_number = psi->section_number;
                 section->section_length = psi->section_length;
                 memcpy(section->data, pid->section, 3 + psi->section_length);
-                dbg(1, "insert 0x%02X in section_list", psi->section_number);
+                rpt(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
                 list_set_key(section, psi->section_number);
                 list_insert(psection0, section);
         }
@@ -1380,8 +1363,8 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                 /* add program */
                 prog = (struct ts_prog *)malloc(sizeof(struct ts_prog));
                 if(!prog) {
-                        DBG(ERR_MALLOC_FAILED, "\n");
-                        return -ERR_MALLOC_FAILED;
+                        rpt(RPT_ERR, "malloc failed\n");
+                        return -1;
                 }
 
                 dat = *p++; len--;
@@ -1450,7 +1433,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                         prog->service_provider_len = 0;
                         prog->service_provider[0] = '\0';
 
-                        dbg(1, "insert 0x%04X in prog_list", prog->program_number);
+                        rpt(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         list_set_key(prog, prog->program_number);
                         list_insert(&(rslt->prog0), prog);
                 }
@@ -1494,7 +1477,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
         }
 
         /* in PMT, table_id_extension is program_number */
-        dbg(1, "search 0x%04X in prog_list", psi->table_id_extension);
+        rpt(RPT_DBG, "search 0x%04X in prog_list", psi->table_id_extension);
         prog = (struct ts_prog *)list_search(&(obj->rslt.prog0), psi->table_id_extension);
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
@@ -1594,7 +1577,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
                 track->is_pes_align = 0;
 
-                dbg(1, "push 0x%04X in track_list", track->PID);
+                rpt(RPT_DBG, "push 0x%04X in track_list", track->PID);
                 list_push(&(prog->track0), track);
 
                 /* add track PID */
@@ -1686,7 +1669,7 @@ static int parse_SDT_load(struct obj *obj, uint8_t *section)
                 dat = *p++; len--;
                 service_id <<= 8;
                 service_id |= dat;
-                dbg(1, "search service_id(0x%04X) in prog_list", service_id);
+                rpt(RPT_DBG, "search service_id(0x%04X) in prog_list", service_id);
                 prog = (struct ts_prog *)list_search(&(rslt->prog0), service_id);
 
                 dat = *p++; len--;
@@ -2173,7 +2156,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
 {
         struct ts_pid *pid;
 
-        dbg(1, "search 0x%04X in pid_list", the_pid->PID);
+        rpt(RPT_DBG, "search 0x%04X in pid_list", the_pid->PID);
         pid = (struct ts_pid *)list_search(phead, the_pid->PID);
         if(pid) {
                 /* in pid_list already, just update information */
@@ -2193,7 +2176,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
         else {
                 pid = (struct ts_pid *)malloc(sizeof(struct ts_pid));
                 if(!pid) {
-                        DBG(ERR_MALLOC_FAILED, "\n");
+                        rpt(RPT_ERR, "malloc failed\n");
                         return NULL;
                 }
 
@@ -2212,7 +2195,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
                 pid->section_idx = 0; /* wait to sync with section head */
                 pid->fd = NULL;
 
-                dbg(1, "insert 0x%04X in pid_list", the_pid->PID);
+                rpt(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
                 list_set_key(pid, the_pid->PID);
                 list_insert(phead, pid);
         }
@@ -2313,10 +2296,11 @@ static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 #if 1
         int64_t hovf = ovf >> 1; /* half overflow */
 
-        timestamp_assert(0 < ovf, "0 < %lld", ovf);
-        timestamp_assert((hovf << 1) == ovf, "%lld is not even", ovf);
-        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", t0, ovf);
-        timestamp_assert(-hovf <= td && td < +hovf, "%lld <= %lld < %lld", -hovf, td, +hovf);
+        timestamp_assert(0 < ovf, "0 < %lld", (long long int)ovf);
+        timestamp_assert((hovf << 1) == ovf, "%lld is not even", (long long int)ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", (long long int)t0, (long long int)ovf);
+        timestamp_assert(-hovf <= td && td < +hovf, "%lld <= %lld < %lld",
+                         (long long int)-hovf, (long long int)td, (long long int)+hovf);
 #endif
 
         t1 = t0 + td; /* add */
@@ -2337,10 +2321,10 @@ static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
         int64_t hovf = ovf >> 1; /* half overflow */
 
 #if 1
-        timestamp_assert(0 < ovf, "0 < %lld", ovf);
-        timestamp_assert((hovf << 1) == ovf, "%lld is not even", ovf);
-        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", t0, ovf);
-        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %lld < %lld", t1, ovf);
+        timestamp_assert(0 < ovf, "0 < %lld", (long long int)ovf);
+        timestamp_assert((hovf << 1) == ovf, "%lld is not even", (long long int)ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", (long long int)t0, (long long int)ovf);
+        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %lld < %lld", (long long int)t1, (long long int)ovf);
 #endif
 
         td = t1 - t0; /* minus */

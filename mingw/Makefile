@@ -40,7 +40,6 @@ INSTALLDIR = /usr/local/bin
 # files
 LIB_DEP  = lib.d
 LIB_OBJS = lib_crc.o\
-		   lib_error.o\
 		   lib_if.o\
 		   lib_list.o\
 		   lib_UTF_GB.o\

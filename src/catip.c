@@ -9,9 +9,10 @@
 #include <string.h> /* for strcmp, etc */
 
 #include "common.h"
-#include "error.h"
 #include "if.h"
 #include "url.h"
+
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
@@ -33,8 +34,8 @@ int main(int argc, char *argv[])
 
         fd_i = url_open(file_i, "rb");
         if(NULL == fd_i) {
-                DBG(ERR_FOPEN_FAILED, "\n");
-                return -ERR_FOPEN_FAILED;
+                rpt(RPT_ERR, "open \"%s\" failed\n", file_i);
+                return -1;
         }
 
         pkt_addr = 0;
@@ -77,9 +78,8 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                                DBG(ERR_BAD_ARG, "\n");
-                                return -ERR_BAD_ARG;
+                                rpt(RPT_ERR, "wrong parameter: %s\n", argv[i]);
+                                return -1;
                         }
                 }
                 else {

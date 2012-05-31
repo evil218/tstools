@@ -39,6 +39,25 @@ extern "C" {
 #define CLRSCR                          "\033[2J" /* clear screan */
 #define CLRLIN                          "\033[K" /* clear to line end */
 
+/* report micro */
+#define RPT_EMERG       (1) // 紧急：系统崩溃前最后一句话
+#define RPT_ALERT       (2) // 报告：必须立即采取措施
+#define RPT_CRIT        (3) // 临界：严重的硬件或软件操作失败
+#define RPT_ERR         (4) // 错误：硬件错误
+#define RPT_WARNING     (5) // 警告：可能出现问题的情况
+#define RPT_NOTICE      (6) // 提醒：正常但又重要的条件
+#define RPT_INFO        (7) // 提示：驱动程序启动、硬件信息
+#define RPT_DBG         (8) // 调试：运行中的各个步骤
+
+#define rpt(level, ...) \
+        do { \
+                if (level <= RPT_LEVEL) { \
+                        fprintf(stderr, "\"%s\", line %d: ",__FILE__, __LINE__); \
+                        fprintf(stderr, __VA_ARGS__); \
+                        fprintf(stderr, "\n"); \
+                } \
+        } while (0)
+
 #ifdef __cplusplus
 }
 #endif
