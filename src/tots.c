@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: tots.c
  * funx: generate bin ts file with text data in stdin
  */
@@ -9,8 +8,9 @@
 #include <string.h> /* for strcmp, etc */
 
 #include "common.h"
-#include "error.h"
 #include "if.h"
+
+#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
@@ -21,9 +21,11 @@ static void show_version();
 
 int main(int argc, char *argv[])
 {
+        int cnt;
         char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
-        struct ts_pkt PKT;
-        struct ts_pkt *pkt = &PKT;
+        uint8_t bbuf[LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
+        char *tag;
+        char *pt;
 
         if(0 != deal_with_parameter(argc, argv)) {
                 return -1;
@@ -31,23 +33,33 @@ int main(int argc, char *argv[])
 
         fd_o = fopen(file_o, "wb");
         if(NULL == fd_o) {
-                DBG(ERR_FOPEN_FAILED, "\n");
-                return -ERR_FOPEN_FAILED;
+                rpt(RPT_ERR, "open \"%s\" failed\n", file_o);
+                return -1;
         }
 
         while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
-                t2b(pkt, tbuf);
-
-                if(pkt->ts) {
-                        fwrite(pkt->ts, 188, 1, fd_o);
-                }
-
-                if(pkt->rs) {
-                        fwrite(pkt->rs, 16, 1, fd_o);
-                }
-
-                if(pkt->data) {
-                        fwrite(pkt->data, pkt->cnt, 1, fd_o);
+                pt = tbuf;
+                while(0 == next_tag(&tag, &pt)) {
+                        if(0 == strcmp(tag, "*ts")) {
+                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
+                                //fprintf(stderr, "ts: %d\n", cnt);
+                                fwrite(bbuf, cnt, 1, fd_o);
+                        }
+                        if(0 == strcmp(tag, "*rs")) {
+                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
+                                //fprintf(stderr, "rs: %d\n", cnt);
+                                fwrite(bbuf, cnt, 1, fd_o);
+                        }
+                        if(0 == strcmp(tag, "*pes")) {
+                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
+                                //fprintf(stderr, "pes: %d\n", cnt);
+                                fwrite(bbuf, cnt, 1, fd_o);
+                        }
+                        if(0 == strcmp(tag, "*es")) {
+                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
+                                //fprintf(stderr, "es: %d\n", cnt);
+                                fwrite(bbuf, cnt, 1, fd_o);
+                        }
                 }
         }
 
@@ -80,9 +92,8 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                                DBG(ERR_BAD_ARG, "\n");
-                                return -ERR_BAD_ARG;
+                                rpt(RPT_ERR, "Wrong parameter: %s\n", argv[i]);
+                                return -1;
                         }
                 }
                 else {

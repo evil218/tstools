@@ -52,12 +52,14 @@ PRJ_OBJS = prj_catts.o\
 		   prj_udp.o\
 		   prj_url.o\
 		   prj_catip.o\
-		   prj_atsc_mh_tcp.o
+		   prj_atsc_mh_tcp.o\
+		   prj_tots.o
 PRJ_SRCS = $(subst .o,.c,$(subst prj_,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 
 PRJ_AIMS = catts.exe\
 		   tsana.exe\
-		   catip.exe
+		   catip.exe\
+		   tots.exe
 
 # includes
 INCFLAGS = -I.
