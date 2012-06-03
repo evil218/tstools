@@ -123,7 +123,7 @@ int next_tag(char **tag, char **text)
                 (*text)++;
         }
 
-        /* search tail(',') */
+        /* search tail(',' or '\033') */
         while(1) {
                 ch = *(*text);
                 if(',' == ch) {
@@ -131,6 +131,10 @@ int next_tag(char **tag, char **text)
                         *(*text) = '\0';
                         (*text)++; /* point to ' ' after ',' */
                         return 0;
+                }
+                if('\033' == ch) {
+                        /* tag tail, it is color tags */
+                        *(*text) = '\0';
                 }
                 if('\0' == ch || 0x0A == ch || 0x0D == ch) {
                         /* unexpected EOL */

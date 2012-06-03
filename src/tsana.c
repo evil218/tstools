@@ -344,9 +344,6 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.tcp && 0x1FFA == rslt->PID) {
                 has_report = 1;
         }
-        if(obj->aim.alles && rslt->ES_len) {
-                has_report = 1;
-        }
 
         /* report */
         if(obj->aim.bg && has_report) {

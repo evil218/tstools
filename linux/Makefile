@@ -103,7 +103,8 @@ rebuild: clean all
 
 install: $(INSTALLDIR)/catts\
 	$(INSTALLDIR)/catip\
-	$(INSTALLDIR)/tsana
+	$(INSTALLDIR)/tsana\
+	$(INSTALLDIR)/tots
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts

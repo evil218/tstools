@@ -40,24 +40,11 @@ int main(int argc, char *argv[])
         while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
                 pt = tbuf;
                 while(0 == next_tag(&tag, &pt)) {
-                        if(0 == strcmp(tag, "*ts")) {
+                        if(0 == strcmp(tag, "*ts") ||
+                           0 == strcmp(tag, "*rs") ||
+                           0 == strcmp(tag, "*pes") ||
+                           0 == strcmp(tag, "*es")) {
                                 cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
-                                //fprintf(stderr, "ts: %d\n", cnt);
-                                fwrite(bbuf, cnt, 1, fd_o);
-                        }
-                        if(0 == strcmp(tag, "*rs")) {
-                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
-                                //fprintf(stderr, "rs: %d\n", cnt);
-                                fwrite(bbuf, cnt, 1, fd_o);
-                        }
-                        if(0 == strcmp(tag, "*pes")) {
-                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
-                                //fprintf(stderr, "pes: %d\n", cnt);
-                                fwrite(bbuf, cnt, 1, fd_o);
-                        }
-                        if(0 == strcmp(tag, "*es")) {
-                                cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
-                                //fprintf(stderr, "es: %d\n", cnt);
                                 fwrite(bbuf, cnt, 1, fd_o);
                         }
                 }
