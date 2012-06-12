@@ -15,7 +15,7 @@
 #include "ts.h" /* has "list.h" already */
 #include "UTF_GB.h"
 
-#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
+#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
@@ -412,7 +412,7 @@ static struct obj *create(int argc, char *argv[])
 
         obj = (struct obj *)malloc(sizeof(struct obj));
         if(NULL == obj) {
-                rpt(RPT_ERR, "malloc failed\n");
+                RPT(RPT_ERR, "malloc failed");
                 return NULL;
         }
 
@@ -1467,7 +1467,7 @@ static void all_es(struct obj *obj)
                 fprintf(stdout, "open file %s\n", name);
                 rslt->pid->fd = fopen(name, "wb");
                 if(NULL == rslt->pid->fd) {
-                        rpt(RPT_ERR, "open \"%s\" failed", name);
+                        RPT(RPT_ERR, "open \"%s\" failed", name);
                         return;
                 }
         }

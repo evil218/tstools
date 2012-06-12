@@ -41,8 +41,7 @@ extern "C" {
 
 #endif
 
-/*
- * brief        convert string between utf8, utf16, utf16be and gb
+/* brief        convert string between utf8, utf16, utf16be and gb
  * param        cnt     max byte count of source if no '\0'
  *              endian  BIG_ENDIAN or LITTLE_ENDIAN for utf16 data
  *              utf8    utf8 buffer, '\0' end or cnt-byte

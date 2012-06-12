@@ -1,5 +1,4 @@
-/*
- * vim: set tabstop=8 shiftwidth=8:
+/* vim: set tabstop=8 shiftwidth=8:
  * name: catip.c
  * funx: generate text data file with bin data file
  */
@@ -12,7 +11,7 @@
 #include "if.h"
 #include "url.h"
 
-#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
+#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
 
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
@@ -34,7 +33,7 @@ int main(int argc, char *argv[])
 
         fd_i = url_open(file_i, "rb");
         if(NULL == fd_i) {
-                rpt(RPT_ERR, "open \"%s\" failed\n", file_i);
+                RPT(RPT_ERR, "open \"%s\" failed", file_i);
                 return -1;
         }
 
@@ -78,7 +77,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                rpt(RPT_ERR, "wrong parameter: %s\n", argv[i]);
+                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }

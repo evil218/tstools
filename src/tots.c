@@ -10,7 +10,7 @@
 #include "common.h"
 #include "if.h"
 
-#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
+#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
         fd_o = fopen(file_o, "wb");
         if(NULL == fd_o) {
-                rpt(RPT_ERR, "open \"%s\" failed\n", file_o);
+                RPT(RPT_ERR, "open \"%s\" failed", file_o);
                 return -1;
         }
 
@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
                 while(0 == next_tag(&tag, &pt)) {
                         if(0 == strcmp(tag, "*ts") ||
                            0 == strcmp(tag, "*rs") ||
+                           0 == strcmp(tag, "*data") ||
                            0 == strcmp(tag, "*pes") ||
                            0 == strcmp(tag, "*es")) {
                                 cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
@@ -79,7 +80,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                rpt(RPT_ERR, "Wrong parameter: %s\n", argv[i]);
+                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }

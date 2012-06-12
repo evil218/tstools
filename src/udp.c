@@ -29,7 +29,7 @@
 #include "common.h"
 #include "udp.h"
 
-#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
+#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
 
 #define UDP_LENGTH_MAX                  1536
 
@@ -45,7 +45,7 @@ intptr_t udp_open(char *addr, unsigned short port)
 
         udp = (struct udp *)malloc(sizeof(struct udp));
         if(NULL == udp) {
-                rpt(RPT_ERR, "malloc failed\n");
+                RPT(RPT_ERR, "malloc failed");
                 return (intptr_t)NULL;
         }
 
@@ -164,7 +164,7 @@ int udp_close(intptr_t id)
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-                rpt(RPT_ERR, "bad id\n");
+                RPT(RPT_ERR, "bad id");
                 return -1;
         }
 
@@ -215,7 +215,7 @@ size_t udp_read(intptr_t id, char *buf)
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-                rpt(RPT_ERR, "bad id\n");
+                RPT(RPT_ERR, "bad id");
                 return -1;
         }
 

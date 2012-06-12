@@ -12,7 +12,7 @@
 #include "crc.h"
 #include "ts.h"
 
-#define RPT_LEVEL       RPT_WARNING /* report level: RPT_OK(0) to RPT_EMERG(-8) */
+#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
 
 #define BIT(n)                          (1<<(n))
 
@@ -339,7 +339,7 @@ intptr_t tsCreate(struct ts_rslt **rslt)
 
         obj = (struct obj *)malloc(sizeof(struct obj));
         if(!obj) {
-                rpt(RPT_ERR, "malloc failed\n");
+                RPT(RPT_ERR, "malloc failed");
                 return (intptr_t)NULL;
         }
 
@@ -379,7 +379,7 @@ int tsDelete(intptr_t id)
 
         obj = (struct obj *)id;
         if(!obj) {
-                rpt(RPT_ERR, "bad id\n");
+                RPT(RPT_ERR, "bad id");
                 return -1;
         }
 
@@ -412,7 +412,7 @@ int tsParseTS(intptr_t id)
 
         obj = (struct obj *)id;
         if(!obj) {
-                rpt(RPT_ERR, "bad id\n");
+                RPT(RPT_ERR, "bad id");
                 return -1;
         }
         rslt = &(obj->rslt);
@@ -440,7 +440,7 @@ int tsParseOther(intptr_t id)
 
         obj = (struct obj *)id;
         if(!obj) {
-                rpt(RPT_ERR, "bad id\n");
+                RPT(RPT_ERR, "bad id");
                 return -1;
         }
 
@@ -471,7 +471,7 @@ static int state_next_pat(struct obj *obj)
         }
 
         /* section parse has done in parse_TS_head()! */
-        rpt(RPT_DBG, "search 0x00 in table_list");
+        RPT(RPT_DBG, "search 0x00 in table_list");
         table = (struct ts_table *)list_search(&(obj->rslt.table0), 0x00);
         if(!table) {
                 return -1;
@@ -514,7 +514,7 @@ static int state_next_pmt(struct obj *obj)
         struct ts *ts = &(obj->ts);
         struct ts_pid *pid;
 
-        rpt(RPT_DBG, "search 0x%04X in pid_list", ts->PID);
+        RPT(RPT_DBG, "search 0x%04X in pid_list", ts->PID);
         pid = (struct ts_pid *)list_search(&(obj->rslt.pid0), ts->PID);
         if((!pid) || (PMT_PID != pid->type)) {
                 return -1; /* not PMT */
@@ -842,7 +842,7 @@ static int parse_TS_head(struct obj *obj)
         }
 
         rslt->PID = ts->PID; /* record into rslt struct */
-        rpt(RPT_DBG, "search 0x%04X in pid_list", rslt->PID);
+        RPT(RPT_DBG, "search 0x%04X in pid_list", rslt->PID);
         rslt->pid = (struct ts_pid *)list_search(&(rslt->pid0), rslt->PID);
         if(!(rslt->pid)) {
                 /* find new PID, add it in pid_list */
@@ -1134,7 +1134,7 @@ static int parse_table(struct obj *obj)
         if(0x02 == psi->table_id) {
                 /* PMT section */
                 if(!(pid->prog)) {
-                        rpt(RPT_WARNING, "PMT: pid->prog is NULL\n");
+                        RPT(RPT_WRN, "PMT: pid->prog is NULL");
                         return -1;
                 }
                 table = &(pid->prog->table_02);
@@ -1143,13 +1143,13 @@ static int parse_table(struct obj *obj)
                 /* other section */
                 struct lnode **ptable0 = (struct lnode **)&(rslt->table0);
 
-                rpt(RPT_DBG, "search 0x%02X in table_list", psi->table_id);
+                RPT(RPT_DBG, "search 0x%02X in table_list", psi->table_id);
                 table = (struct ts_table *)list_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
                         table = (struct ts_table *)malloc(sizeof(struct ts_table));
                         if(!table) {
-                                rpt(RPT_ERR, "malloc failed\n");
+                                RPT(RPT_ERR, "malloc failed");
                                 return -1;
                         }
 
@@ -1158,7 +1158,7 @@ static int parse_table(struct obj *obj)
                         table->last_section_number = psi->last_section_number;
                         table->section0 = NULL;
                         table->STC = STC_OVF;
-                        rpt(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
+                        RPT(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
                         list_set_key(table, psi->table_id);
                         list_insert(ptable0, table);
                 }
@@ -1168,7 +1168,7 @@ static int parse_table(struct obj *obj)
         /* new table version? */
         if(table->version_number != psi->version_number) {
                 /* clear psection0 and update table parameter */
-                rpt(RPT_DBG, "version_number(%d -> %d), free section",
+                RPT(RPT_DBG, "version_number(%d -> %d), free section",
                     table->version_number,
                     psi->version_number);
                 table->version_number = psi->version_number;
@@ -1180,20 +1180,20 @@ static int parse_table(struct obj *obj)
         }
 
         /* get "section" pointer */
-        rpt(RPT_DBG, "search 0x%02X in section_list", psi->section_number);
+        RPT(RPT_DBG, "search 0x%02X in section_list", psi->section_number);
         section = (struct ts_section *)list_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
                 section = (struct ts_section *)malloc(sizeof(struct ts_section));
                 if(!section) {
-                        rpt(RPT_ERR, "malloc failed\n");
+                        RPT(RPT_ERR, "malloc failed");
                         return -1;
                 }
 
                 section->section_number = psi->section_number;
                 section->section_length = psi->section_length;
                 memcpy(section->data, pid->section, 3 + psi->section_length);
-                rpt(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
+                RPT(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
                 list_set_key(section, psi->section_number);
                 list_insert(psection0, section);
         }
@@ -1363,7 +1363,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                 /* add program */
                 prog = (struct ts_prog *)malloc(sizeof(struct ts_prog));
                 if(!prog) {
-                        rpt(RPT_ERR, "malloc failed\n");
+                        RPT(RPT_ERR, "malloc failed");
                         return -1;
                 }
 
@@ -1433,7 +1433,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                         prog->service_provider_len = 0;
                         prog->service_provider[0] = '\0';
 
-                        rpt(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
+                        RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         list_set_key(prog, prog->program_number);
                         list_insert(&(rslt->prog0), prog);
                 }
@@ -1477,7 +1477,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
         }
 
         /* in PMT, table_id_extension is program_number */
-        rpt(RPT_DBG, "search 0x%04X in prog_list", psi->table_id_extension);
+        RPT(RPT_DBG, "search 0x%04X in prog_list", psi->table_id_extension);
         prog = (struct ts_prog *)list_search(&(obj->rslt.prog0), psi->table_id_extension);
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
@@ -1577,7 +1577,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
                 track->is_pes_align = 0;
 
-                rpt(RPT_DBG, "push 0x%04X in track_list", track->PID);
+                RPT(RPT_DBG, "push 0x%04X in track_list", track->PID);
                 list_push(&(prog->track0), track);
 
                 /* add track PID */
@@ -1669,7 +1669,7 @@ static int parse_SDT_load(struct obj *obj, uint8_t *section)
                 dat = *p++; len--;
                 service_id <<= 8;
                 service_id |= dat;
-                rpt(RPT_DBG, "search service_id(0x%04X) in prog_list", service_id);
+                RPT(RPT_DBG, "search service_id(0x%04X) in prog_list", service_id);
                 prog = (struct ts_prog *)list_search(&(rslt->prog0), service_id);
 
                 dat = *p++; len--;
@@ -2156,7 +2156,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
 {
         struct ts_pid *pid;
 
-        rpt(RPT_DBG, "search 0x%04X in pid_list", the_pid->PID);
+        RPT(RPT_DBG, "search 0x%04X in pid_list", the_pid->PID);
         pid = (struct ts_pid *)list_search(phead, the_pid->PID);
         if(pid) {
                 /* in pid_list already, just update information */
@@ -2176,7 +2176,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
         else {
                 pid = (struct ts_pid *)malloc(sizeof(struct ts_pid));
                 if(!pid) {
-                        rpt(RPT_ERR, "malloc failed\n");
+                        RPT(RPT_ERR, "malloc failed");
                         return NULL;
                 }
 
@@ -2195,7 +2195,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
                 pid->section_idx = 0; /* wait to sync with section head */
                 pid->fd = NULL;
 
-                rpt(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
+                RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
                 list_set_key(pid, the_pid->PID);
                 list_insert(phead, pid);
         }
