@@ -15,7 +15,7 @@
 #include "ts.h" /* has "list.h" already */
 #include "UTF_GB.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)

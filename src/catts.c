@@ -11,7 +11,7 @@
 #include "common.h"
 #include "if.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 enum FILE_TYPE
 {

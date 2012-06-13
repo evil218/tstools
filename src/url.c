@@ -12,7 +12,7 @@
 #include "common.h"
 #include "url.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 static int parse_url(struct url *url, const char *str);
 

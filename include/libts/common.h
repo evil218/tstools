@@ -39,20 +39,28 @@ extern "C" {
 #define CLRLIN                          "\033[K" /* clear to line end */
 
 /* report level */
-#define RPT_ERR         (1) // error, system error
-#define RPT_WRN         (2) // warning, maybe wrong, maybe OK
-#define RPT_INF         (3) // important information
-#define RPT_DBG         (4) // debug information
+#define RPT_ERR (1) // error, system error
+#define RPT_WRN (2) // warning, maybe wrong, maybe OK
+#define RPT_INF (3) // important information
+#define RPT_DBG (4) // debug information
 
 /* report micro */
 #define RPT(lvl, ...) \
         do { \
-                if (lvl <= RPT_LVL) { \
-                        fprintf(stderr, "\"%s\", line %d: ",__FILE__, __LINE__); \
+                if(lvl <= rpt_lvl) { \
+                        const char *str; \
+                        switch(lvl) { \
+                        case RPT_ERR: str = "err"; break; \
+                        case RPT_WRN: str = "wrn"; break; \
+                        case RPT_INF: str = "inf"; break; \
+                        case RPT_DBG: str = "dbg"; break; \
+                        default:      str = "???"; break; \
+                        } \
+                        fprintf(stderr, "\"%s\" line %d [%s]: ", __FILE__, __LINE__, str); \
                         fprintf(stderr, __VA_ARGS__); \
                         fprintf(stderr, "\n"); \
                 } \
-        } while (0)
+        } while(0)
 
 #ifdef __cplusplus
 }

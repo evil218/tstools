@@ -29,9 +29,9 @@
 #include "common.h"
 #include "udp.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-#define UDP_LENGTH_MAX                  1536
+#define UDP_LENGTH_MAX                  (1536)
 
 struct udp {
         int sock;

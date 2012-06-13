@@ -12,7 +12,7 @@
 #include "crc.h"
 #include "ts.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define BIT(n)                          (1<<(n))
 

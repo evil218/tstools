@@ -11,7 +11,7 @@
 #include "if.h"
 #include "url.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";

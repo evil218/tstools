@@ -10,7 +10,7 @@
 #include "common.h"
 #include "if.h"
 
-#define RPT_LVL         RPT_WRN /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
