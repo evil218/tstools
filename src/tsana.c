@@ -10,6 +10,7 @@
 #include <time.h> /* for localtime(), etc */
 #include <stdint.h> /* for uint?_t, etc */
 
+#include "version.h"
 #include "common.h"
 #include "if.h"
 #include "ts.h" /* has "list.h" already */
@@ -751,7 +752,7 @@ static void show_version()
 {
         char str[100];
 
-        sprintf(str, "tsana of tstools %s", TSTOOLS_VERSION);
+        sprintf(str, "catts of tstools v%s.%s.%s", VER_MAJOR, VER_MINOR, VER_RELEA);
         puts(str);
         sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
         puts(str);

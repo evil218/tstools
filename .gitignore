@@ -2,10 +2,12 @@ tags
 cscope.out
 *.swp
 
-*/catbin
+version.h
+
+*/catts
 */catip
 */tsana
-*/tobin
+*/tots
 */toip
 
 */*.exe

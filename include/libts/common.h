@@ -11,7 +11,6 @@ extern "C" {
 #endif
 
 #define LINE_LENGTH_MAX                 (32767) /* max line length in txt file */
-#define TSTOOLS_VERSION                 "1.0.0"
 
 /* ANSI control for printf */
 #define NONE                            "\033[00m" /* recover all */

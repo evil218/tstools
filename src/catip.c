@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
+#include "version.h"
 #include "common.h"
 #include "if.h"
 #include "url.h"
@@ -112,7 +113,7 @@ static void show_version()
 {
         char str[100];
 
-        sprintf(str, "catip of tstools %s", TSTOOLS_VERSION);
+        sprintf(str, "catts of tstools v%s.%s.%s", VER_MAJOR, VER_MINOR, VER_RELEA);
         puts(str);
         sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
         puts(str);
