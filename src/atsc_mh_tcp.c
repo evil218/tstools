@@ -47,7 +47,7 @@ struct tcp_para {
         uint8_t TCP_ECC[TCP_ECC_LEN];
 };
 
-void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
+void atsc_mh_tcp(uint8_t *ts_pack)
 {
         int i;
         char *yellow_on = "";
@@ -58,7 +58,7 @@ void atsc_mh_tcp(uint8_t *ts_pack, int is_color)
         uint32_t syn_time_stamp_extension;
         uint32_t max_delay_extension;
 
-        if(is_color) {
+        if(1) {
                 yellow_on = FYELLOW;
                 color_off = NONE;
         }

@@ -35,7 +35,7 @@ LIB_SRCDIR = ../libts
 PRJ_NAME = tstools
 PRJ_SRCDIR = ../src
 
-INSTALLDIR = /usr/local/bin
+INSTALLDIR = /mingw/bin
 
 # files
 LIB_DEP  = lib.d
@@ -62,7 +62,7 @@ PRJ_AIMS = catts.exe\
 		   tots.exe
 
 # includes
-INCFLAGS = -I.
+INCFLAGS = -I. -I..
 INCFLAGS += -I../include/libts
 
 # compiler and its options
@@ -93,21 +93,21 @@ lib: libdep $(LIB_NAME)
 prj: prjdep $(PRJ_AIMS)
 
 clean:
-	-rm -f version.h
 	-rm -f lib.d $(LIB_NAME) $(LIB_OBJS)
 	-rm -f prj.d $(PRJ_AIMS) $(PRJ_OBJS)
 
 rebuild: clean all
 
-install: $(INSTALLDIR)/catts\
-	$(INSTALLDIR)/catip\
-	$(INSTALLDIR)/tsana\
-	$(INSTALLDIR)/tots
+install: $(INSTALLDIR)/catts.exe\
+	$(INSTALLDIR)/catip.exe\
+	$(INSTALLDIR)/tsana.exe\
+	$(INSTALLDIR)/tots.exe
 
 uninstall:
-	-rm -f $(INSTALLDIR)/catts
-	-rm -f $(INSTALLDIR)/catip
-	-rm -f $(INSTALLDIR)/tsana
+	-rm -f $(INSTALLDIR)/catts.exe
+	-rm -f $(INSTALLDIR)/catip.exe
+	-rm -f $(INSTALLDIR)/tsana.exe
+	-rm -f $(INSTALLDIR)/tots.exe
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -119,9 +119,11 @@ $(LIB_DEP): $(LIB_SRCS)
 prjdep: $(PRJ_DEP)
 
 $(PRJ_DEP): $(PRJ_SRCS)
-	../version.sh
 	@echo make $@ for $(PRJ_SRCS)
 	@$(CC) $(INCFLAGS) -MM $(PRJ_SRCS) > $@
+
+version:
+	../version.sh > ../version.h
 
 # rule for compilation
 lib%.o: $(LIB_SRCDIR)/%.c

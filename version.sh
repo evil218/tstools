@@ -1,8 +1,5 @@
 #!/bin/bash
 
-FILE=version.h
-
-rm -f $FILE
 git rev-list HEAD | sort > config.git-hash
 LOCALVER=`wc -l config.git-hash | awk '{print $1}'`
 if [ $LOCALVER \> 1 ] ; then
@@ -11,9 +8,9 @@ if [ $LOCALVER \> 1 ] ; then
         VER="$VER+$(($LOCALVER-$VER))"
     fi
     if git status | grep -q "modified:" ; then
-        VER="${VER}+"
+        VER="${VER}m"
     fi
-    VER="$VER $(git rev-list HEAD -n 1 | cut -c 1-7)"
+    VER="$VER $(git rev-list HEAD -n 1 | cut -c 1-8)"
     GIT_VERSION=$VER
 else
     GIT_VERSION=
@@ -21,9 +18,9 @@ else
 fi
 rm -f config.git-hash
  
-echo "#ifndef VERSION_H" > $FILE
-echo "#define VERSION_H" >> $FILE
-echo "#define VER_MAJOR \"1\"" >> $FILE
-echo "#define VER_MINOR \"0\"" >> $FILE
-echo "#define VER_RELEA \"$GIT_VERSION\"" >> $FILE
-echo "#endif /* VERSION_H */" >> $FILE
+echo "#ifndef VERSION_H"
+echo "#define VERSION_H"
+echo "#define VER_MAJOR \"1\""
+echo "#define VER_MINOR \"0\""
+echo "#define VER_RELEA \"$GIT_VERSION\""
+echo "#endif /* VERSION_H */"

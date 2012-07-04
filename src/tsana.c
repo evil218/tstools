@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h> /*  for isatty() */
 #include <string.h> /* for strcmp, etc */
 #include <time.h> /* for localtime(), etc */
 #include <stdint.h> /* for uint?_t, etc */
@@ -67,7 +68,6 @@ struct obj {
         uint16_t aim_prog;
         uint16_t aim_type; /* 0: any type; 1: video; 2: audio */
         int64_t aim_interval; /* for rate calc */
-        int is_color;
         char *color_off;
         char *color_gray;
         char *color_red;
@@ -165,7 +165,7 @@ static char *running_status(uint8_t status);
 static int descriptor(uint8_t **buf);
 static int coding_string(uint8_t *p, int len);
 
-void atsc_mh_tcp(uint8_t *ts_pack, int is_color); /* atsc_mh_tcp.c */
+void atsc_mh_tcp(uint8_t *ts_pack); /* atsc_mh_tcp.c */
 
 int main(int argc, char *argv[])
 {
@@ -432,7 +432,6 @@ static struct obj *create(int argc, char *argv[])
         obj->aim_prog = ANY_PROG;
         obj->aim_type = TYPE_ANY;
         obj->aim_interval = 1000 * STC_MS;
-        obj->is_color = 0;
         obj->color_off = "";
         obj->color_gray = "";
         obj->color_red = "";
@@ -531,16 +530,21 @@ static struct obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-c") ||
                                 0 == strcmp(argv[i], "-color")) {
-                                obj->is_color = 1;
-                                obj->color_off = NONE;
-                                obj->color_gray = FGRAY;
-                                obj->color_red = FRED;
-                                obj->color_green = FGREEN;
-                                obj->color_yellow = FYELLOW;
-                                obj->color_blue = FBLUE;
-                                obj->color_purple = FPURPLE;
-                                obj->color_cyan = FCYAN;
-                                obj->color_white = FWHITE;
+#ifdef PLATFORM_mingw
+                                fprintf(stderr, "do not support color in MinGW\n");
+#else
+                                if(isatty(fileno(stdout))) {
+                                        obj->color_off = NONE;
+                                        obj->color_gray = FGRAY;
+                                        obj->color_red = FRED;
+                                        obj->color_green = FGREEN;
+                                        obj->color_yellow = FYELLOW;
+                                        obj->color_blue = FBLUE;
+                                        obj->color_purple = FPURPLE;
+                                        obj->color_cyan = FCYAN;
+                                        obj->color_white = FWHITE;
+                                }
+#endif
                         }
                         else if(0 == strcmp(argv[i], "-start")) {
                                 int start;
@@ -1448,7 +1452,7 @@ static void show_tcp(struct obj *obj)
 
         fprintf(stdout, "%s*tcp%s, ",
                 obj->color_green, obj->color_off);
-        atsc_mh_tcp(rslt->TS, obj->is_color);
+        atsc_mh_tcp(rslt->TS);
         return;
 }
 

@@ -65,13 +65,13 @@ PRJ_AIMS = catts\
 		   tots
 
 # includes
-INCFLAGS = -I.
+INCFLAGS = -I. -I..
 INCFLAGS += -I../include/libts
 
 # compiler and its options
 CC = gcc
 CFLAGS += -Wall -Werror
-CFLAGS += -std=c99
+CFLAGS += -std=gnu99
 CFLAGS += -DPLATFORM_$(PLATFORM)
 ifeq ($(DEBUG),1)
 CFLAGS += -D_DEBUG -g
@@ -96,7 +96,6 @@ lib: libdep $(LIB_NAME)
 prj: prjdep $(PRJ_AIMS)
 
 clean:
-	-rm -f version.h
 	-rm -f lib.d $(LIB_NAME) $(LIB_OBJS)
 	-rm -f prj.d $(PRJ_AIMS) $(PRJ_OBJS)
 
@@ -111,6 +110,7 @@ uninstall:
 	-rm -f $(INSTALLDIR)/catts
 	-rm -f $(INSTALLDIR)/catip
 	-rm -f $(INSTALLDIR)/tsana
+	-rm -f $(INSTALLDIR)/tots
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -122,9 +122,11 @@ $(LIB_DEP): $(LIB_SRCS)
 prjdep: $(PRJ_DEP)
 
 $(PRJ_DEP): $(PRJ_SRCS)
-	../version.sh
 	@echo make $@ for $(PRJ_SRCS)
 	@$(CC) $(INCFLAGS) -MM $(PRJ_SRCS) > $@
+
+version:
+	../version.sh > ../version.h
 
 # rule for compilation
 lib%.o: $(LIB_SRCDIR)/%.c
