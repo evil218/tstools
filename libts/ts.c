@@ -737,6 +737,7 @@ static int state_next_pkt(struct obj *obj)
                 }
 
                 if(rslt->pts) {
+                        /* PTS */
                         if(STC_BASE_OVF != track->PTS) {
                                 rslt->PTS_interval = timestamp_diff(rslt->PTS, track->PTS, STC_BASE_OVF);
                         }
@@ -750,9 +751,8 @@ static int state_next_pkt(struct obj *obj)
                                 rslt->PTS_minus_STC = 0;
                         }
                         track->PTS = rslt->PTS; /* record last PTS in track */
-                }
 
-                if(rslt->dts) {
+                        /* DTS, if no DTS, DTS = PTS */
                         if(STC_BASE_OVF != track->DTS) {
                                 rslt->DTS_interval = timestamp_diff(rslt->DTS, track->DTS, STC_BASE_OVF);
                         }
@@ -1910,6 +1910,9 @@ static int parse_PES_head_detail(struct obj *obj)
 
                 rslt->pts = &(rslt->PTS);
                 rslt->PTS = pes->PTS;
+
+                /* DTS */
+                rslt->DTS = pes->PTS; /* no DTS, DTS = PTS */
         }
         else if(0x03 == pes->PTS_DTS_flags) { /* '11' */
                 /* PTS */

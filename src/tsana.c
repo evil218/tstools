@@ -1052,9 +1052,11 @@ static void show_pts(struct obj *obj)
                                 (double)(rslt->DTS_minus_STC) / (90)); /* ms */
                 }
                 else {
-                        fprintf(stdout, "%s*dts%s, %10lld,         ,         , ",
+                        /* no DTS in PES head, DTS = PTS */
+                        fprintf(stdout, "%s*dts%s, %10lld, %+8.3f,         , ",
                                 obj->color_green, obj->color_off,
-                                (long long int)rslt->PTS);
+                                (long long int)rslt->DTS,
+                                (double)(rslt->DTS_interval) / (90)); /* ms */
                 }
         }
         else {
