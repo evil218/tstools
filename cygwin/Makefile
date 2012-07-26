@@ -1,4 +1,4 @@
-# Makefile for linux
+# Makefile for cygwin
 #
 # Take a look at the beginning,
 # modify the variables to suit your environment.
@@ -18,7 +18,7 @@
 MAKEFLAGS += --no-print-directory
 
 # env
-PLATFORM = linux
+PLATFORM = cygwin
 
 ifeq ($(DEBUG),1)
 TYPE = debug

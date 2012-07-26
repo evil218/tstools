@@ -18,9 +18,9 @@ else
 fi
 rm -f config.git-hash
  
-echo "#ifndef VERSION_H"
-echo "#define VERSION_H"
+echo "#ifndef _VERSION_H"
+echo "#define _VERSION_H"
 echo "#define VER_MAJOR \"1\""
 echo "#define VER_MINOR \"0\""
 echo "#define VER_RELEA \"$GIT_VERSION\""
-echo "#endif /* VERSION_H */"
+echo "#endif /* _VERSION_H */"
