@@ -53,12 +53,14 @@ PRJ_OBJS = prjcatts.o\
 		   prjurl.o\
 		   prjcatip.o\
 		   prjatsc_mh_tcp.o\
-		   prjtots.o
+		   prjtobin.o\
+		   prjdtsdi.o
 PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 PRJ_AIMS = catts\
 		   tsana\
 		   catip\
-		   tots
+		   tobin\
+		   dtsdi
 
 # includes
 INCFLAGS = -I. -I..
@@ -100,13 +102,15 @@ rebuild: clean all
 install: $(INSTALLDIR)/catts\
 	$(INSTALLDIR)/catip\
 	$(INSTALLDIR)/tsana\
-	$(INSTALLDIR)/tots
+	$(INSTALLDIR)/tobin\
+	$(INSTALLDIR)/dtsdi
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts
 	-rm -f $(INSTALLDIR)/catip
 	-rm -f $(INSTALLDIR)/tsana
-	-rm -f $(INSTALLDIR)/tots
+	-rm -f $(INSTALLDIR)/tobin
+	-rm -f $(INSTALLDIR)/dtsdi
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -144,7 +148,10 @@ catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjatsc_mh_tcp.o
 
-tots: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
+
+dtsdi: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
 
 # install

@@ -3,13 +3,13 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: January 2012<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: September 2012<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-tsana - manual page for tsana of tstools 1.0.0
+tsana - manual page for tsana of tstools v1.0.233m f374624c
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
@@ -28,34 +28,38 @@ tsana - manual page for tsana of tstools 1.0.0
 show PID list information, default option
 <DT><B>-psi</B><DD>
 show PSI tree information
-<DT><B>-sec</B><DD>
-show SI section data of cared &lt;table&gt;
-<DT><B>-si</B><DD>
-show SI section information of cared &lt;table&gt;
-<DT><B>-tcp</B><DD>
-show TCP(ATSC MH) field information
-<DT><B>-outpsi</B><DD>
-output PSI packet
-<DT><B>-pcr</B><DD>
-output PCR information of cared &lt;pid&gt;
-<DT><B>-sys-rate</B><DD>
-output system, psi-si(total), empty bit-rate
-<DT><B>-psi-rate</B><DD>
-output psi-si(total), psi-si(each) bit-rate
-<DT><B>-rate</B><DD>
-output pid(each) bit-rate, filtered by &lt;prog&gt; and &lt;pid&gt;
-<DT><B>-pts</B><DD>
-output PTS and DTS information of cared &lt;pid&gt;
-<DT><B>-pes</B><DD>
-output PES data of cared &lt;pid&gt;
-<DT><B>-es</B><DD>
-output ES data of cared &lt;pid&gt;
-<DT><B>-alles</B><DD>
-write ES data into different file by PID
-<DT><B>-err</B><DD>
-output all errors found
 <DT><B>-dump</B><DD>
 dump cared packet
+<DT><B>-bg</B><DD>
+output background information
+<DT><B>-stc</B><DD>
+&quot;*stc, STC, BASE, &quot;
+<DT><B>-pcr</B><DD>
+&quot;*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), &quot;
+<DT><B>-pts</B><DD>
+&quot;*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), &quot;
+<DT><B>-tsh</B><DD>
+&quot;*tsh, 47, xx, xx, xx, &quot;
+<DT><B>-ts</B><DD>
+&quot;*ts, 47, ..., xx, &quot;
+<DT><B>-pesh</B><DD>
+&quot;*pesh, xx, ..., xx, &quot;
+<DT><B>-pes</B><DD>
+&quot;*pes, xx, ..., xx, &quot;
+<DT><B>-es</B><DD>
+&quot;*es, xx, ..., xx, &quot;
+<DT><B>-sec</B><DD>
+&quot;*sec, interval(ms), head, body, &quot;
+<DT><B>-rate</B><DD>
+&quot;*rate, interval(ms), PID, rate, ..., PID, rate, &quot;
+<DT><B>-rats</B><DD>
+&quot;*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, &quot;
+<DT><B>-ratp</B><DD>
+&quot;*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, &quot;
+<DT><B>-err</B><DD>
+&quot;*err, TR-101-290, datail, &quot;
+<DT><B>-tcp</B><DD>
+show TCP(ATSC MH) field information
 <DT><B>-c</B> <B>-color</B><DD>
 enable colour effect to help read, default: mono
 <DT><B>-start</B> &lt;x&gt;<DD>
@@ -71,7 +75,9 @@ set cared prog, default: any program(0x0000)
 <DT><B>-type</B> &lt;type&gt;<DD>
 set cared PID type, default: any type(0)
 <DT><B>-iv</B> &lt;iv&gt;<DD>
-set cared interval(1ms-10,000ms), default: 1000ms
+set cared interval(1ms-70,000ms), default: 1000ms
+<DT><B>-alles</B><DD>
+write ES data into different file by PID
 <DT><B>-h</B>, <B>--help</B><DD>
 display this information
 <DT><B>-v</B>, <B>--version</B><DD>
@@ -82,7 +88,7 @@ display my version
 
 <DL COMPACT>
 <DT><DD>
-&quot;bincat xxx.ts | tsana <B>-err</B>&quot; <B>--</B> report all error information
+&quot;catts xxx.ts | tsana <B>-c</B> <B>-bg</B> <B>-pcr</B> <B>-pts</B>&quot; <B>--</B> report all PCR/PTS/DTS information
 </DL>
 <A NAME="lbAG">&nbsp;</A>
 <H2>AUTHOR</H2>
@@ -96,7 +102,7 @@ Report bugs to &lt;<A HREF="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua
 
 <BR>
 
-Build time: Jan 16 2012 16:57:09
+Build time: Sep 13 2012 20:39:13
 <A NAME="lbAI">&nbsp;</A>
 <H2>COPYRIGHT</H2>
 
@@ -147,6 +153,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 08:58:03 GMT, January 16, 2012
+Time: 12:39:29 GMT, September 13, 2012
 </BODY>
 </HTML>

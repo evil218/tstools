@@ -11,4 +11,4 @@
 )
 
 @echo transfer %SOURCE% to %FILE_NAME%
-catip %SOURCE% | tots %FILE_NAME%
+catip %SOURCE% | tobin %FILE_NAME%

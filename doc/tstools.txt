@@ -109,8 +109,8 @@ image:pic_pipe.jpg[管道]
 当TS包变成文本行时，我忽然发现除了tsana，还可以直接使用Unix下的很多工具直接处理catts的输出：
 可以用grep过滤出指定PID的TS包，可以用sed修改某些数据，可以用vim快速定位目标数据......它们都支持强大的正规表达式。
 最后一个问题：这些工具的输出还是文本格式，如果想回到二进制格式呢？
-于是我设计了tots工具，把符合上述格式的文本转换回二进制文件（阴阳平衡很重要）。
-当tots出现时，我发现用“catip + tots”立刻就能实现实时流的录制功能（用VLC录流是需要一点技巧的）。
+于是我设计了tobin工具，把符合上述格式的文本转换回二进制文件（阴阳平衡很重要）。
+当tobin出现时，我发现用“catip + tobin”立刻就能实现实时流的录制功能（用VLC录流是需要一点技巧的）。
 Unix的小工具思想太强大了！
 
 image:pic_recorder.jpg[录流]
@@ -188,8 +188,8 @@ catip::
 link:catip.html[接收UDP包，拆成TS包转换成TXT格式发送到stdout]
 tsana::
 link:tsana.html[从stdin接收TXT格式的TS包，按照参数要求分析，并以TXT格式输出到stdout]
-tots::
-link:tots.html[从stdin接收TXT格式的数据，转换成二进制写入指定文件]
+tobin::
+link:tobin.html[从stdin接收TXT格式的数据，转换成二进制写入指定文件]
 toip::
 link:toip.html[从stdin接收TXT格式的数据，转换成二进制，打成UDP包，按照正确的码率发送出去（尚未实现）]
 
@@ -304,13 +304,13 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
 ==== 导出PES数据 ====
 
 ----
-语法：catts xxx.ts | tsana -pes [-pid 0x0032] | tots 32.pes
+语法：catts xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes
 ----
 
 ==== 导出ES数据 ====
 
 ----
-语法：catts xxx.ts | tsana -es [-pid 0x0032] | tots 32.es
+语法：catts xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es
 ----
 
 ==== 导出ES数据到对应的二进制文件 ====
@@ -322,8 +322,8 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
 ==== 实时流录制 ====
 
 ----
-语法：catip udp://@:1234 | tots xxx.ts
-语法：catip udp://@224.165.54.31:1234 | tots xxx.ts
+语法：catip udp://@:1234 | tobin xxx.ts
+语法：catip udp://@224.165.54.31:1234 | tobin xxx.ts
 ----
 
 == 深入了解TStools ==

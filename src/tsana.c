@@ -6,8 +6,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h> /*  for isatty() */
-#include <string.h> /* for strcmp, etc */
+#include <unistd.h> /* for isatty() */
+#include <string.h> /* for strcmp(), etc */
 #include <time.h> /* for localtime(), etc */
 #include <stdint.h> /* for uint?_t, etc */
 
@@ -22,13 +22,13 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
 
-#define ANY_PID                         0x2000 /* any PID of [0x0000,0x1FFF] */
-#define ANY_TABLE                       0xFF /* any table_id of [0x00,0xFE] */
-#define ANY_PROG                        0x0000 /* any prog of [0x0001,0xFFFF] */
+#define ANY_PID                         (0x2000) /* any PID of [0x0000,0x1FFF] */
+#define ANY_TABLE                       (0xFF) /* any table_id of [0x00,0xFE] */
+#define ANY_PROG                        (0x0000) /* any prog of [0x0001,0xFFFF] */
 
-#define TYPE_ANY                        0 /* any PID type */
-#define TYPE_VIDEO                      1 /* video PID */
-#define TYPE_AUDIO                      2 /* audio PID */
+#define TYPE_ANY                        (0) /* any PID type */
+#define TYPE_VIDEO                      (1) /* video PID */
+#define TYPE_AUDIO                      (2) /* audio PID */
 
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
@@ -756,7 +756,7 @@ static void show_version()
 {
         char str[100];
 
-        sprintf(str, "catts of tstools v%s.%s.%s", VER_MAJOR, VER_MINOR, VER_RELEA);
+        sprintf(str, "tsana of tstools v%s.%s.%s", VER_MAJOR, VER_MINOR, VER_RELEA);
         puts(str);
         sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
         puts(str);
