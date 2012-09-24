@@ -288,9 +288,20 @@ static const struct stream_type STREAM_TYPE_TABLE[] = {
         {0x19, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"},
         {0x1A, USR_PID, "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"},
         {0x1B, VID_PID, "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"},
+        {0x1C, AUD_PID, "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"},
+        {0x1D, USR_PID, "MPEG-4", "ISO/IEC 14496-17 Text"},
+        {0x1E, VID_PID, "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"},
         {0x42, VID_PID, "AVS", "Advanced Video Standard"},
         {0x7F, USR_PID, "IPMP", "IPMP stream"},
+        {0x80, VID_PID, "SVAC", "SVAC"},
         {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
+        {0x82, AUD_PID, "DTS", "DTS Audio"},
+        {0x90, AUD_PID, "G.711", "G.711(A)"},
+        {0x92, AUD_PID, "G.722.1", "G.722.1"},
+        {0x93, AUD_PID, "G.723.1", "G.723.1"},
+        {0x99, AUD_PID, "G.729", "G.729"},
+        {0x9A, AUD_PID, "AMR-NB", "AMR-NB"},
+        {0x9B, AUD_PID, "SVAC", "SVAC"},
         {0xFF, UNO_PID, "UNKNOWN", "Unknown stream"}, /* loop stop condition! */
 };
 
