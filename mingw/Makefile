@@ -38,33 +38,39 @@ PRJ_SRCDIR = ../src
 INSTALLDIR = /mingw/bin
 
 # files
-LIB_DEP  = lib.d
-LIB_OBJS = libcrc.o\
-		   libif.o\
-		   liblist.o\
-		   libUTF_GB.o\
-		   libts.o
+LIB_DEP = lib.d
+
+LIB_OBJS  = libcrc.o
+LIB_OBJS += libif.o
+LIB_OBJS += liblist.o
+LIB_OBJS += libUTF_GB.o
+LIB_OBJS += libts.o
+
 LIB_SRCS = $(subst .o,.c,$(subst lib,$(LIB_SRCDIR)/,$(LIB_OBJS)))
 
-PRJ_DEP  = prj.d
-PRJ_OBJS = prjcatts.o\
-		   prjtsana.o\
-		   prjudp.o\
-		   prjurl.o\
-		   prjcatip.o\
-		   prjatsc_mh_tcp.o\
-		   prjtobin.o\
-		   prjdtsdi.o
+PRJ_DEP = prj.d
+
+PRJ_OBJS  = prjudp.o
+PRJ_OBJS += prjurl.o
+PRJ_OBJS += prjcatts.o
+PRJ_OBJS += prjcatip.o
+PRJ_OBJS += prjtsana.o
+PRJ_OBJS += prjtobin.o
+PRJ_OBJS += prjdtsdi.o
+PRJ_OBJS += prjtopcm.o
+PRJ_OBJS += prjatsc_mh_tcp.o
+
 PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 
-PRJ_AIMS = catts.exe\
-		   tsana.exe\
-		   catip.exe\
-		   tobin.exe\
-		   dtsdi.exe
+PRJ_AIMS  = catts.exe
+PRJ_AIMS += catip.exe
+PRJ_AIMS += tsana.exe
+PRJ_AIMS += tobin.exe
+PRJ_AIMS += dtsdi.exe
+PRJ_AIMS += topcm.exe
 
 # includes
-INCFLAGS = -I. -I..
+INCFLAGS  = -I. -I..
 INCFLAGS += -I../include/libts
 
 # compiler and its options
@@ -100,11 +106,13 @@ clean:
 
 rebuild: clean all
 
-install: $(INSTALLDIR)/catts.exe\
-	$(INSTALLDIR)/catip.exe\
-	$(INSTALLDIR)/tsana.exe\
-	$(INSTALLDIR)/tobin.exe\
-	$(INSTALLDIR)/dtsdi.exe
+install:
+	-cp catts.exe $(INSTALLDIR)
+	-cp catip.exe $(INSTALLDIR)
+	-cp tsana.exe $(INSTALLDIR)
+	-cp tobin.exe $(INSTALLDIR)
+	-cp dtsdi.exe $(INSTALLDIR)
+	-cp topcm.exe $(INSTALLDIR)
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts.exe
@@ -112,6 +120,7 @@ uninstall:
 	-rm -f $(INSTALLDIR)/tsana.exe
 	-rm -f $(INSTALLDIR)/tobin.exe
 	-rm -f $(INSTALLDIR)/dtsdi.exe
+	-rm -f $(INSTALLDIR)/topcm.exe
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -155,9 +164,8 @@ tobin.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 dtsdi.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjdtsdi.o $(LIBS)
 
-# install
-$(INSTALLDIR)/%: %
-	-cp $< $@
+topcm.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prjtopcm.o $(LIBS)
 
 # Source dependencies
 -include $(LIB_DEP)

@@ -38,32 +38,39 @@ PRJ_SRCDIR = ../src
 INSTALLDIR = /usr/local/bin
 
 # files
-LIB_DEP  = lib.d
-LIB_OBJS = libcrc.o\
-		   libif.o\
-		   liblist.o\
-		   libUTF_GB.o\
-		   libts.o
+LIB_DEP = lib.d
+
+LIB_OBJS  = libcrc.o
+LIB_OBJS += libif.o
+LIB_OBJS += liblist.o
+LIB_OBJS += libUTF_GB.o
+LIB_OBJS += libts.o
+
 LIB_SRCS = $(subst .o,.c,$(subst lib,$(LIB_SRCDIR)/,$(LIB_OBJS)))
 
-PRJ_DEP  = prj.d
-PRJ_OBJS = prjcatts.o\
-		   prjtsana.o\
-		   prjudp.o\
-		   prjurl.o\
-		   prjcatip.o\
-		   prjatsc_mh_tcp.o\
-		   prjtobin.o\
-		   prjdtsdi.o
+PRJ_DEP = prj.d
+
+PRJ_OBJS  = prjudp.o
+PRJ_OBJS += prjurl.o
+PRJ_OBJS += prjcatts.o
+PRJ_OBJS += prjcatip.o
+PRJ_OBJS += prjtsana.o
+PRJ_OBJS += prjtobin.o
+PRJ_OBJS += prjdtsdi.o
+PRJ_OBJS += prjtopcm.o
+PRJ_OBJS += prjatsc_mh_tcp.o
+
 PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
-PRJ_AIMS = catts\
-		   tsana\
-		   catip\
-		   tobin\
-		   dtsdi
+
+PRJ_AIMS  = catts
+PRJ_AIMS += catip
+PRJ_AIMS += tsana
+PRJ_AIMS += tobin
+PRJ_AIMS += dtsdi
+PRJ_AIMS += topcm
 
 # includes
-INCFLAGS = -I. -I..
+INCFLAGS  = -I. -I..
 INCFLAGS += -I../include/libts
 
 # compiler and its options
@@ -99,11 +106,13 @@ clean:
 
 rebuild: clean all
 
-install: $(INSTALLDIR)/catts\
-	$(INSTALLDIR)/catip\
-	$(INSTALLDIR)/tsana\
-	$(INSTALLDIR)/tobin\
-	$(INSTALLDIR)/dtsdi
+install:
+	-cp catts $(INSTALLDIR)
+	-cp catip $(INSTALLDIR)
+	-cp tsana $(INSTALLDIR)
+	-cp tobin $(INSTALLDIR)
+	-cp dtsdi $(INSTALLDIR)
+	-cp topcm $(INSTALLDIR)
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts
@@ -111,6 +120,7 @@ uninstall:
 	-rm -f $(INSTALLDIR)/tsana
 	-rm -f $(INSTALLDIR)/tobin
 	-rm -f $(INSTALLDIR)/dtsdi
+	-rm -f $(INSTALLDIR)/topcm
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -154,9 +164,8 @@ tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 dtsdi: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
 
-# install
-$(INSTALLDIR)/%: %
-	-cp $< $@
+topcm: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
 
 # Source dependencies
 -include $(LIB_DEP)
