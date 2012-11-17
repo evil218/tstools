@@ -7,23 +7,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef PLATFORM_mingw
-
-#define __USE_GNU /* for 'struct ip_mreq' in CentOS x64 */
-
-# include <sys/types.h>
-# include <sys/socket.h>
-# include <netinet/in.h>
-# include <arpa/inet.h>                 /* for inet_ntoa(), inet_addr(), etc */
-# include <unistd.h>                    /* for close() */
-# include <fcntl.h>                     /* for fcntl(), O_NONBLOCK, etc */
-# include <sys/select.h>                /* for select(), etc */
-#endif
-
 #ifdef PLATFORM_mingw
-# include <winsock.h>
-# include <sys/types.h>
-# include <sys/timeb.h>
+#       include <winsock.h>
+#       define IN_CLASSD(a)    ((((long)(a)) & 0xF0000000) == 0xE0000000)
+#       define IN_MULTICAST(a) IN_CLASSD(a)
+typedef int socklen_t;
+#else /* unix-like PLATFORM */
+#       include <sys/types.h>
+#       include <sys/socket.h>
+#       include <netinet/in.h>
+#       include <arpa/inet.h> /* for inet_ntoa(), inet_addr(), etc */
+#       include <unistd.h> /* for close() */
+#       include <fcntl.h> /* for fcntl(), O_NONBLOCK, etc */
+#       include <sys/select.h> /* for select(), etc */
+#       include <errno.h>
+#       define __USE_GNU /* for 'struct ip_mreq' in CentOS x64 */
 #endif
 
 #include "common.h"
@@ -31,15 +29,19 @@
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-#define UDP_LENGTH_MAX                  (1536)
+#define UDP_LENGTH_MAX (1536)
 
 struct udp {
         int sock;
+        struct sockaddr_in remote;
+        socklen_t socklen;
+
         char addr[32];
-        unsigned short port;
 };
 
-intptr_t udp_open(char *addr, unsigned short port)
+static int report(const char *str);
+
+intptr_t udp_open(char *addr, unsigned short port, char *mode)
 {
         struct udp *udp;
 
@@ -50,17 +52,33 @@ intptr_t udp_open(char *addr, unsigned short port)
         }
 
         strcpy(udp->addr, addr);
-        udp->port = port;
 
-#ifndef PLATFORM_mingw
+#ifdef PLATFORM_mingw
+        WSADATA wsaData;
+        if(WSAStartup(MAKEWORD(1,1), &wsaData) == SOCKET_ERROR)
+        {
+                RPT(RPT_ERR, "WSAStartup error");
+                return (intptr_t)NULL;
+        }
+#endif
+
         /* build socket */
         if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-                perror("socket");
+                report("socket failed");
                 return (intptr_t)NULL;
         }
 
         /* nonblock mode */
-        fcntl(udp->sock, F_SETFL, O_NONBLOCK);
+#ifdef PLATFORM_mingw
+        {
+                unsigned long opt = 1;
+                ioctlsocket(udp->sock, FIONBIO, &opt);
+        }
+#else
+        {
+                fcntl(udp->sock, F_SETFL, O_NONBLOCK);
+        }
+#endif
 
         /* reuse address */
         {
@@ -76,86 +94,40 @@ intptr_t udp_open(char *addr, unsigned short port)
 
                 local.sin_family = AF_INET;
                 local.sin_addr.s_addr = htonl(INADDR_ANY);
-                local.sin_port = htons(udp->port);
+                local.sin_port = ('r' == mode[0]) ? htons(port) : 0;
 
                 if(bind(udp->sock, (struct sockaddr *)&local, sizeof(struct sockaddr)) < 0) {
-                        perror("bind");
-                        fprintf(stderr, "    addr: %s\n", inet_ntoa(local.sin_addr));
-                        fprintf(stderr, "    port: %d\n", ntohs(local.sin_port));
+                        report("bind failed");
+                        fprintf(stderr, "addr: %s, port: %d\n",
+                            inet_ntoa(local.sin_addr),
+                            ntohs(local.sin_port));
                         return (intptr_t)NULL;
                 }
+        }
+
+        /* set the remote */
+        if('w' == mode[0])
+        {
+                udp->remote.sin_family = AF_INET;
+                udp->remote.sin_addr.s_addr = inet_addr(addr);
+                udp->remote.sin_port = htons(port);
         }
 
         /* manage multicast */
         {
                 struct ip_mreq imreq;
 
-                imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
+                imreq.imr_multiaddr.s_addr = inet_addr(addr);
                 if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr))) {
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                                       (char *)&imreq, sizeof(imreq)) < 0) {
-                                perror("join multicast membership");
+                                report("join multicast membership failed");
                         }
                 }
         }
-#endif
 
-#ifdef PLATFORM_mingw
-        WSADATA wsaData;
-        if(WSAStartup(MAKEWORD(1,1), &wsaData) == SOCKET_ERROR)
-        {
-                printf("WSAStartup error!\n");
-                return (intptr_t)NULL;
-        }
-
-        // build socket
-        if((udp->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-        {
-                int err = WSAGetLastError();
-                printf("open a datagram socket error: %d!\n", err);
-                return (intptr_t)NULL;
-        }
-
-        // nonblock mode
-        unsigned long opt = 1;
-        ioctlsocket(udp->sock, FIONBIO, &opt);
-
-        // reuse address
-        int reuseaddr = 1; // nonzero means enable
-        setsockopt(udp->sock, SOL_SOCKET, SO_REUSEADDR,
-                   (char *)&reuseaddr, sizeof(int));
-
-        // name the socket
-        struct sockaddr_in local;
-        local.sin_family = AF_INET;
-        local.sin_addr.s_addr = htonl(INADDR_ANY);
-        local.sin_port = htons(port);
-
-        if(bind(udp->sock, (struct sockaddr *)&local, sizeof(struct sockaddr)) < 0)
-        {
-                int err = WSAGetLastError();
-                printf("initiate a connection to the socket error: %d!\n", err);
-                //printf("addr: %s\n", inet_ntoa(local.sin_addr));
-                //printf("port: %d\n", ntohs(local.sin_port));
-                return (intptr_t)NULL;
-        }
-
-        // manage multicast
-        struct ip_mreq multicast;
-        multicast.imr_multiaddr.s_addr = inet_addr(addr);
-        if(0xE0 == (multicast.imr_multiaddr.s_net & 0xF0))
-        {
-                multicast.imr_interface.s_addr = htonl(INADDR_ANY);
-                if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                              (char *)&multicast, sizeof(multicast)) < 0)
-                {
-                        int err = WSAGetLastError();
-                        printf("join multicast membership error: %d!\n", err);
-                }
-        }
-#endif
-
+        udp->socklen = sizeof(struct sockaddr_in);
         return (intptr_t)udp;
 }
 
@@ -168,7 +140,6 @@ int udp_close(intptr_t id)
                 return -1;
         }
 
-#ifndef PLATFORM_mingw
         /* manage multicast */
         {
                 struct ip_mreq imreq;
@@ -178,39 +149,24 @@ int udp_close(intptr_t id)
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
                                       (char *)&imreq, sizeof(imreq)) < 0) {
-                                perror("quit multicast membership");
+                                report("quit multicast membership failed");
                         }
                 }
         }
 
+        /* close socket*/
+#ifdef PLATFORM_mingw
+        closesocket(udp->sock);
+        WSACleanup();
+#else
         close(udp->sock);
 #endif
 
-#ifdef PLATFORM_mingw
-        /* manage multicast */
-        {
-                struct ip_mreq multicast;
-
-                multicast.imr_multiaddr.s_addr = inet_addr(udp->addr);
-                if(0xE0 == (multicast.imr_multiaddr.s_net & 0xF0))
-                {
-                        multicast.imr_interface.s_addr = htonl(INADDR_ANY);
-                        if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-                                      (char *)&multicast, sizeof(multicast)) < 0)
-                        {
-                                int err = WSAGetLastError();
-                                printf("quit multicast membership error: %d!\n", err);
-                        }
-                }
-        }
-
-        closesocket(udp->sock);
-        WSACleanup();
-#endif
+        free(udp);
         return 0;
 }
 
-size_t udp_read(intptr_t id, char *buf)
+size_t udp_read(intptr_t id, void *buf)
 {
         struct udp *udp = (struct udp *)id;
 
@@ -219,63 +175,51 @@ size_t udp_read(intptr_t id, char *buf)
                 return -1;
         }
 
-#ifndef PLATFORM_mingw
         size_t rslt = 0;
         fd_set fds;
-        struct sockaddr_in remote;
-        socklen_t socklen = sizeof(struct sockaddr_in);
 
         FD_ZERO(&fds);
-        FD_SET(0, &fds);
         FD_SET(udp->sock, &fds);
         if(select(udp->sock + 1, &fds, NULL, NULL, NULL) < 0) {
-                perror("select");
+                report("select failed");
+                return 0;
         }
-        else if(FD_ISSET(udp->sock, &fds)) {
-                rslt = recvfrom(udp->sock, buf, UDP_LENGTH_MAX, 0,
-                                (struct sockaddr *)&remote,
-                                &socklen);
-        }
-        else if(FD_ISSET(0, &fds)) {
-                /*printf("Key pressed.\n"); */
-        }
-        else {
-                fprintf(stderr, "%s:%d: bad branches\n", __FILE__, __LINE__);
-        }
-#endif
 
-#ifdef PLATFORM_mingw
-        size_t rslt = 0;
-        fd_set fds;
-        struct sockaddr_in remote;
-        int socklen = sizeof(struct sockaddr_in);
-
-        FD_ZERO(&fds);
-        FD_SET(udp->sock, &fds);
-        if(select(udp->sock + 1, &fds, NULL, NULL, NULL) == SOCKET_ERROR)
-        {
-                printf("Select() return SOCKET_ERROR.\n");
-                int err = WSAGetLastError();
-                printf("Error No.: %d.\n", err);
-                rslt = 0;
-        }
-        else if(FD_ISSET(udp->sock, &fds))
-        {
+        if(FD_ISSET(udp->sock, &fds)) {
                 rslt = recvfrom(udp->sock, buf, UDP_LENGTH_MAX, 0,
-                                (struct sockaddr *)&remote,
-                                &socklen);
-                //printf("Recvfrom() got %d-byte.\n", rslt);
+                                (struct sockaddr *)&(udp->remote),
+                                &(udp->socklen));
         }
-        else if(FD_ISSET(0, &fds))
-        {
-                printf("Key pressed.\n");
-                rslt = 0;
-        }
-        else
-        {
-                // never reached code
-        }
-#endif
 
         return rslt;
+}
+
+size_t udp_write(intptr_t id, const void *buf, int len)
+{
+        struct udp *udp = (struct udp *)id;
+
+        if(NULL == udp) {
+                RPT(RPT_ERR, "bad id");
+                return -1;
+        }
+
+        size_t rslt = 0;
+        rslt = sendto(udp->sock, buf, len, 0,
+                        (struct sockaddr *)&(udp->remote),
+                        udp->socklen);
+
+        return rslt;
+}
+
+static int report(const char *str)
+{
+        int err;
+
+#ifdef PLATFORM_mingw
+        err = WSAGetLastError();
+#else
+        err = errno;
+#endif
+        RPT(RPT_ERR, "%s, errno: %d", str, err);
+        return 0;
 }

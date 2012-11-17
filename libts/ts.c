@@ -341,8 +341,6 @@ static int track_type(struct ts_track *track);
 static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf);
 static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
-static int dump(uint8_t *buf, int len); /* for debug */
-
 intptr_t tsCreate(struct ts_rslt **rslt)
 {
         struct obj *obj;
@@ -2346,17 +2344,4 @@ static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
         td -= ((td <  hovf) ? 0 : ovf); /* special: (distance < hovf) means t1 is latter or bigger */
 
         return td; /* [-hovf, +hovf) */
-}
-
-static int dump(uint8_t *buf, int len)
-{
-        uint8_t *p = buf;
-        int i;
-
-        for(i = 0; i < len; i++) {
-                fprintf(stderr, "%02X ", *p++);
-        }
-        fprintf(stderr, "\n");
-
-        return 0;
 }

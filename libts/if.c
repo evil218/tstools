@@ -231,3 +231,16 @@ int next_nuint_hex(long long int *sint, char **text, int max)
 
         return cnt;
 }
+
+int dump(uint8_t *buf, int len)
+{
+        uint8_t *p = buf;
+        int i;
+
+        for(i = 0; i < len; i++) {
+                fprintf(stderr, "%02X ", *p++);
+        }
+        fprintf(stderr, "\n");
+
+        return 0;
+}

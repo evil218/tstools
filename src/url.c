@@ -38,7 +38,7 @@ struct url *url_open(const char *str, char *mode)
                 case SCH_UDP:
                         url->pbuf = url->buf;
                         url->ts_cnt = 0;
-                        url->udp = udp_open(url->host, url->port);
+                        url->udp = udp_open(url->host, url->port, mode);
                         if(0 == url->udp) {
                                 printf("Socket error!\n");
                                 free(url);
@@ -136,7 +136,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
                                 size_t rslt;
 
                                 rslt = udp_read(url->udp, url->buf);
-                                /*printf("rslt of udp_read() is %d\n", rslt); */
+                                RPT(RPT_INF, "read %d-byte", rslt);
                                 if(rslt > 0) {
                                         url->ts_cnt += rslt;
                                         url->pbuf = url->buf;
@@ -161,6 +161,11 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
         }
 
         return cobj;
+}
+
+size_t url_write(const void *buf, size_t size, size_t nobj, struct url *url)
+{
+        return udp_write(url->udp, buf, size * nobj);
 }
 
 #define RFC1738 "[<scheme>://[[<user>[:<password>]@]<host>[:<port>]]][[/<disk>:]*[/<dir>]/<fname>]"

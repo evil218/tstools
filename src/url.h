@@ -50,6 +50,7 @@ int url_close(struct url *url);
 int url_seek(struct url *url, long offset, int origin);
 int url_getc(struct url *url);
 size_t url_read(void *buf, size_t size, size_t nobj, struct url *url);
+size_t url_write(const void *buf, size_t size, size_t nobj, struct url *url);
 
 #ifdef __cplusplus
 }

@@ -56,6 +56,7 @@ PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
 PRJ_OBJS += prjtobin.o
+PRJ_OBJS += prjtoip.o
 PRJ_OBJS += prjdtsdi.o
 PRJ_OBJS += prjtopcm.o
 PRJ_OBJS += prjatsc_mh_tcp.o
@@ -66,6 +67,7 @@ PRJ_AIMS  = catts
 PRJ_AIMS += catip
 PRJ_AIMS += tsana
 PRJ_AIMS += tobin
+PRJ_AIMS += toip
 PRJ_AIMS += dtsdi
 PRJ_AIMS += topcm
 
@@ -111,6 +113,7 @@ install:
 	-cp catip $(INSTALLDIR)
 	-cp tsana $(INSTALLDIR)
 	-cp tobin $(INSTALLDIR)
+	-cp toip $(INSTALLDIR)
 	-cp dtsdi $(INSTALLDIR)
 	-cp topcm $(INSTALLDIR)
 
@@ -119,6 +122,7 @@ uninstall:
 	-rm -f $(INSTALLDIR)/catip
 	-rm -f $(INSTALLDIR)/tsana
 	-rm -f $(INSTALLDIR)/tobin
+	-rm -f $(INSTALLDIR)/toip
 	-rm -f $(INSTALLDIR)/dtsdi
 	-rm -f $(INSTALLDIR)/topcm
 
@@ -160,6 +164,9 @@ tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 
 tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
+
+toip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjudp.o prjurl.o
 
 dtsdi: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
