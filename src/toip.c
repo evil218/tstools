@@ -6,11 +6,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
+#include <sys/time.h> /* for gettimeofday(), etc */
+#include <sys/select.h> /* for select(), etc */
 
 #include "version.h"
 #include "common.h"
 #include "if.h"
 #include "url.h"
+#include "ts.h"
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
@@ -30,6 +33,14 @@ int main(int argc, char *argv[])
         char *pt;
         uint8_t *pb = bbuf;
 
+        struct timeval tv_pkt; /* packet time */
+        struct timeval tv_cur; /* current time */
+
+        long long int data;
+        int64_t lMTS = 0L; /* last MTS */
+        int64_t MTS = 0L; /* current MTS */
+        int64_t *mts = NULL; /* NULL means without MTS data */
+
         if(0 != deal_with_parameter(argc, argv)) {
                 return -1;
         }
@@ -40,22 +51,76 @@ int main(int argc, char *argv[])
                 return -1;
         }
 
+        /* init time */
+        gettimeofday(&tv_pkt, NULL);
+        gettimeofday(&tv_cur, NULL);
+        fgets(tbuf, LINE_LENGTH_MAX, stdin);
+        pt = tbuf;
+        mts = NULL;
+        while(0 == next_tag(&tag, &pt)) {
+                if(0 == strcmp(tag, "*mts")) {
+                        next_nuint_hex(&data, &pt, 1);
+                        MTS = (int64_t)data;
+                        mts = &MTS;
+                        lMTS = MTS;
+                }
+        }
+        if(!mts) {
+                RPT(RPT_ERR, "no MTS");
+                url_close(fd_o);
+                return -1;
+        }
+
+        /* run */
         while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
                 pt = tbuf;
+                mts = NULL;
                 while(0 == next_tag(&tag, &pt)) {
                         if(0 == strcmp(tag, "*ts")) {
                                 cnt = next_nbyte_hex(pb, &pt, LINE_LENGTH_MAX / 3);
                                 pb += cnt;
-                                if((pb - bbuf) >= (188 * 7)) {
-                                        url_write(bbuf, pb - bbuf, 1, fd_o);
-                                        pb = bbuf;
+                        }
+                        if(0 == strcmp(tag, "*mts")) {
+                                int64_t dMTS;
+                                struct timeval dtv;
+                                struct timeval tv_new;
+
+                                next_nuint_hex(&data, &pt, 1);
+                                MTS = (int64_t)data;
+                                mts = &MTS;
+                                dMTS = timestamp_diff(MTS, lMTS, MTS_OVF);
+                                dtv.tv_sec = dMTS / MTS_1S;
+                                dtv.tv_usec = (dMTS % MTS_1S) / MTS_US;
+                                timeradd(&tv_pkt, &dtv, &tv_new);
+                                tv_pkt = tv_new;
+                                lMTS = MTS;
+
+                                if(!(-100 * MTS_MS < dMTS && dMTS < +100 * MTS_MS)) {
+                                        RPT(RPT_WRN, "dMTS too big: %lld", dMTS);
+                                        gettimeofday(&tv_pkt, NULL);
                                 }
+                        }
+                }
+                if(!mts) {
+                        RPT(RPT_ERR, "no MTS");
+                        url_close(fd_o);
+                        return -1;
+                }
+                if((pb - bbuf) >= (188 * 7)) {
+                        url_write(bbuf, pb - bbuf, 1, fd_o);
+                        pb = bbuf;
+                        if(timercmp(&tv_pkt, &tv_cur, >)) {
+                                struct timeval delay; /* send interval */
+
+                                delay.tv_sec = 0;
+                                delay.tv_usec = 5000; /* us */
+                                select(0, NULL, NULL, NULL, &delay); /* sleep */
+                                gettimeofday(&tv_cur, NULL);
                         }
                 }
         }
 
         url_close(fd_o);
-
         return 0;
 }
 
@@ -73,7 +138,7 @@ static int deal_with_parameter(int argc, char *argv[])
         for(i = 1; i < argc; i++) {
                 if('-' == argv[i][0]) {
                         if(0 == strcmp(argv[i], "-h") ||
-                                0 == strcmp(argv[i], "--help")) {
+                           0 == strcmp(argv[i], "--help")) {
                                 show_help();
                                 return -1;
                         }
@@ -97,7 +162,7 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'toip' read from stdin, translate 'XY ' to 0xXY, send to IP.");
+        puts("'toip' read from stdin, convert to UDP, send to IP according to MTS.");
         puts("");
         puts("Usage: toip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
         puts("");
@@ -107,8 +172,9 @@ static void show_help()
         puts(" -v, --version    print my version, then exit");
         puts("");
         puts("Examples:");
-        puts("  toip udp://@:1234");
-        puts("  toip udp://@224.165.54.210:1234");
+        puts("  catts *.mts | toip udp://@:1234");
+        puts("  catts *.mts | toip udp://@224.165.54.210:1234");
+        puts("  catts *.ts | tsana -ts -mts | toip udp://@:1234");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;

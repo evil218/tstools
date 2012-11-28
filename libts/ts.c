@@ -14,16 +14,7 @@
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-#define BIT(n)                          (1<<(n))
-
-#define STC_BASE_MS                     (90) /* 90 clk == 1(ms) */
-#define STC_BASE_1S                     (90 * 1000) /* do NOT use 1e3 */
-#define STC_BASE_OVF                    (1LL << 33)         /* 0x0200000000 */
-
-#define STC_US                          (27)               /* 27 clk == 1(us) */
-#define STC_MS                          (27 * 1000)        /* do NOT use 1e3  */
-#define STC_1S                          (27 * 1000 * 1000) /* do NOT use 1e3  */
-#define STC_OVF                         (STC_BASE_OVF * 300L) /* 2576980377600 */
+#define BIT(n) (1<<(n))
 
 struct ts {
         uint8_t sync_byte;
@@ -337,9 +328,6 @@ static int is_all_prog_parsed(struct obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static int track_type(struct ts_track *track);
-
-static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf);
-static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 intptr_t tsCreate(struct ts_rslt **rslt)
 {
@@ -861,7 +849,7 @@ static int parse_TS_head(struct obj *obj)
 
         /* calc STC and CTS, should be as early as possible */
         if(rslt->mts) {
-                int64_t dCTS = timestamp_diff(rslt->MTS, rslt->lCTS, 0x40000000);
+                int64_t dCTS = timestamp_diff(rslt->MTS, rslt->lCTS, MTS_OVF);
 
                 if(STC_OVF != rslt->STC) {
                         rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF);
@@ -2297,12 +2285,7 @@ static int track_type(struct ts_track *track)
                 } \
         }while(0)
 
-/* funx: t1 = t0 + td, note: ovf means overflow, ovf > 0 and ovf is even
- *   t0: [0, ovf)
- *   t1: [0, ovf)
- *   td: [-hovf, +hovf)
- */
-static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
+int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
         int64_t t1; /* t0 + td */
 #if 1
@@ -2322,12 +2305,7 @@ static int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
         return t1; /* [0, ovf) */
 }
 
-/* funx: td = t1 - t0, note: ovf means overflow, ovf > 0 and ovf is even
- *   t1: [0, ovf)
- *   t0: [0, ovf)
- *   td: [-hovf, +hovf)
- */
-static int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
+int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
 {
         int64_t td; /* t1 - t0 */
         int64_t hovf = ovf >> 1; /* half overflow */

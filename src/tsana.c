@@ -35,11 +35,13 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 struct aim {
         int bg;
+        int cts;
         int stc;
         int pcr;
         int pts;
         int tsh;
         int ts;
+        int mts;
         int pesh;
         int pes;
         int es;
@@ -125,11 +127,13 @@ static void show_psi(struct obj *obj);
 
 static void show_pkt(struct obj *obj);
 static void show_bg(struct obj *obj);
+static void show_cts(struct obj *obj);
 static void show_stc(struct obj *obj);
 static void show_pcr(struct obj *obj);
 static void show_pts(struct obj *obj);
 static void show_tsh(struct obj *obj);
 static void show_ts(struct obj *obj);
+static void show_mts(struct obj *obj);
 static void show_pesh(struct obj *obj);
 static void show_pes(struct obj *obj);
 static void show_es(struct obj *obj);
@@ -315,6 +319,9 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.pcr && rslt->pcr) {
                 has_report = 1;
         }
+        if(obj->aim.ts) {
+                has_report = 1;
+        }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
                 has_report = 1;
         }
@@ -350,6 +357,9 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.bg && has_report) {
                 show_bg(obj);
         }
+        if(obj->aim.cts && has_report) {
+                show_cts(obj);
+        }
         if(obj->aim.stc && has_report) {
                 show_stc(obj);
         }
@@ -364,6 +374,9 @@ static void state_parse_each(struct obj *obj)
         }
         if(obj->aim.ts && has_report) {
                 show_ts(obj);
+        }
+        if(obj->aim.mts && has_report) {
+                show_mts(obj);
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
                 show_pesh(obj);
@@ -468,6 +481,10 @@ static struct obj *create(int argc, char *argv[])
                                 obj->aim.bg = 1;
                                 obj->mode = MODE_ALL;
                         }
+                        else if(0 == strcmp(argv[i], "-cts")) {
+                                obj->aim.cts = 1;
+                                obj->mode = MODE_ALL;
+                        }
                         else if(0 == strcmp(argv[i], "-stc")) {
                                 obj->aim.stc = 1;
                                 obj->mode = MODE_ALL;
@@ -486,6 +503,10 @@ static struct obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-ts")) {
                                 obj->aim.ts = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-mts")) {
+                                obj->aim.mts = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-pesh")) {
@@ -712,11 +733,13 @@ static void show_help()
         puts(" -dump            dump cared packet");
         puts("");
         puts(" -bg              output background information");
+        puts(" -cts             \"*cts, CTS, BASE, \"");
         puts(" -stc             \"*stc, STC, BASE, \"");
         puts(" -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"");
         puts(" -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"");
         puts(" -tsh             \"*tsh, 47, xx, xx, xx, \"");
         puts(" -ts              \"*ts, 47, ..., xx, \"");
+        puts(" -mts             \"*mts, 3F4BD, \"");
         puts(" -pesh            \"*pesh, xx, ..., xx, \"");
         puts(" -pes             \"*pes, xx, ..., xx, \"");
         puts(" -es              \"*es, xx, ..., xx, \"");
@@ -995,6 +1018,24 @@ static void show_bg(struct obj *obj)
         return;
 }
 
+static void show_cts(struct obj *obj)
+{
+        struct ts_rslt *rslt = obj->rslt;
+
+        if(rslt->cts) {
+                fprintf(stdout,
+                        "%s*cts%s, %13llu, %10llu, ",
+                        obj->color_green, obj->color_off,
+                        (long long int)rslt->CTS, (long long int)rslt->CTS_base);
+        }
+        else {
+                fprintf(stdout,
+                        "%s*cts%s,              ,           , ",
+                        obj->color_green, obj->color_off);
+        }
+        return;
+}
+
 static void show_stc(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
@@ -1089,6 +1130,16 @@ static void show_ts(struct obj *obj)
                 obj->color_green, obj->color_off);
         b2t(str, rslt->ts, 188);
         fprintf(stdout, "%s", str);
+        return;
+}
+
+static void show_mts(struct obj *obj)
+{
+        struct ts_rslt *rslt = obj->rslt;
+
+        fprintf(stdout, "%s*mts%s, %llX, ",
+                obj->color_green, obj->color_off,
+                rslt->CTS & 0x3FFFFFFF);
         return;
 }
 

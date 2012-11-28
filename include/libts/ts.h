@@ -31,8 +31,22 @@ extern "C" {
 #include "if.h"
 #include "list.h"
 
-#define INFO_LEN_MAX                    (0x0001 << 10) /* pow(2, 10) */
-#define SERVER_STR_MAX                  (188) /* max length of server string */
+#define STC_BASE_MS  (90)        /* 90 clk == 1(ms) */
+#define STC_BASE_1S  (90 * 1000) /* do NOT use 1e3 */
+#define STC_BASE_OVF (1LL << 33) /* 0x0200000000 */
+
+#define STC_US  (27)               /* 27 clk == 1(us) */
+#define STC_MS  (27 * 1000)        /* do NOT use 1e3  */
+#define STC_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
+#define STC_OVF (STC_BASE_OVF * 300L) /* 2576980377600 */
+
+#define MTS_US  (27)               /* 27 clk == 1(us) */
+#define MTS_MS  (27 * 1000)        /* do NOT use 1e3  */
+#define MTS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
+#define MTS_OVF (1LL << 30)        /* 0x40000000 */
+
+#define INFO_LEN_MAX (1 << 10) /* pow(2, 10) */
+#define SERVER_STR_MAX (188) /* max length of server string */
 
 /* TR 101 290 V1.2.1 2001-05 */
 struct ts_error {
@@ -323,6 +337,20 @@ intptr_t tsCreate(struct ts_rslt **rslt);
 int tsDelete(intptr_t id);
 int tsParseTS(intptr_t id);
 int tsParseOther(intptr_t id);
+
+/* funx: t1 = t0 + td, note: ovf means overflow, ovf > 0 and ovf is even
+ *   t0: [0, ovf)
+ *   t1: [0, ovf)
+ *   td: [-hovf, +hovf)
+ */
+int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf);
+
+/* funx: td = t1 - t0, note: ovf means overflow, ovf > 0 and ovf is even
+ *   t1: [0, ovf)
+ *   t0: [0, ovf)
+ *   td: [-hovf, +hovf)
+ */
+int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 #ifdef __cplusplus
 }
