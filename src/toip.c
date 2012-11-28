@@ -7,7 +7,22 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 #include <sys/time.h> /* for gettimeofday(), etc */
-#include <sys/select.h> /* for select(), etc */
+
+#ifdef PLATFORM_mingw
+#       include <winsock.h>
+#       define timeradd(a, b, result) \
+                do { \
+                        (result)->tv_sec = (a)->tv_sec + (b)->tv_sec; \
+                        (result)->tv_usec = (a)->tv_usec + (b)->tv_usec; \
+                        if ((result)->tv_usec >= 1000000) \
+                        { \
+	                        ++(result)->tv_sec; \
+	                        (result)->tv_usec -= 1000000; \
+                        } \
+                } while (0)
+#else /* unix-like PLATFORM */
+#       include <sys/select.h> /* for select(), etc */
+#endif
 
 #include "version.h"
 #include "common.h"

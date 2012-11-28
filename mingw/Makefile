@@ -56,6 +56,7 @@ PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
 PRJ_OBJS += prjtobin.o
+PRJ_OBJS += prjtoip.o
 PRJ_OBJS += prjdtsdi.o
 PRJ_OBJS += prjtopcm.o
 PRJ_OBJS += prjatsc_mh_tcp.o
@@ -66,6 +67,7 @@ PRJ_AIMS  = catts.exe
 PRJ_AIMS += catip.exe
 PRJ_AIMS += tsana.exe
 PRJ_AIMS += tobin.exe
+PRJ_AIMS += toip.exe
 PRJ_AIMS += dtsdi.exe
 PRJ_AIMS += topcm.exe
 
@@ -111,6 +113,7 @@ install:
 	-cp catip.exe $(INSTALLDIR)
 	-cp tsana.exe $(INSTALLDIR)
 	-cp tobin.exe $(INSTALLDIR)
+	-cp toip.exe $(INSTALLDIR)
 	-cp dtsdi.exe $(INSTALLDIR)
 	-cp topcm.exe $(INSTALLDIR)
 
@@ -119,6 +122,7 @@ uninstall:
 	-rm -f $(INSTALLDIR)/catip.exe
 	-rm -f $(INSTALLDIR)/tsana.exe
 	-rm -f $(INSTALLDIR)/tobin.exe
+	-rm -f $(INSTALLDIR)/toip.exe
 	-rm -f $(INSTALLDIR)/dtsdi.exe
 	-rm -f $(INSTALLDIR)/topcm.exe
 
@@ -160,6 +164,9 @@ tsana.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 
 tobin.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjtobin.o $(LIBS)
+
+toip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prjtoip.o $(LIBS) prjudp.o prjurl.o -lwsock32
 
 dtsdi.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjdtsdi.o $(LIBS)
