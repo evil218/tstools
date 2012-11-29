@@ -52,8 +52,9 @@ int main(int argc, char *argv[])
         struct timeval tv_cur; /* current time */
 
         long long int data;
-        int64_t lMTS = 0L; /* last MTS */
-        int64_t MTS = 0L; /* current MTS */
+        int64_t lMTS = 0LL; /* last MTS */
+        int64_t MTS = 0LL; /* current MTS */
+        int64_t dMTS = 0LL; /* delta MTS */
         int64_t *mts = NULL; /* NULL means without MTS data */
 
         if(0 != deal_with_parameter(argc, argv)) {
@@ -66,24 +67,30 @@ int main(int argc, char *argv[])
                 return -1;
         }
 
-        /* init time */
+        /* init time, then wait until delta MTS OK */
         gettimeofday(&tv_pkt, NULL);
         gettimeofday(&tv_cur, NULL);
-        fgets(tbuf, LINE_LENGTH_MAX, stdin);
-        pt = tbuf;
-        mts = NULL;
-        while(0 == next_tag(&tag, &pt)) {
-                if(0 == strcmp(tag, "*mts")) {
-                        next_nuint_hex(&data, &pt, 1);
-                        MTS = (int64_t)data;
-                        mts = &MTS;
-                        lMTS = MTS;
+        while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
+                pt = tbuf;
+                mts = NULL;
+                while(0 == next_tag(&tag, &pt)) {
+                        if(0 == strcmp(tag, "*mts")) {
+                                next_nuint_hex(&data, &pt, 1);
+                                MTS = (int64_t)data;
+                                mts = &MTS;
+                                dMTS = timestamp_diff(MTS, lMTS, MTS_OVF);
+                                lMTS = MTS;
+                        }
                 }
-        }
-        if(!mts) {
-                RPT(RPT_ERR, "no MTS");
-                url_close(fd_o);
-                return -1;
+                if(!mts) {
+                        RPT(RPT_ERR, "TS packet without MTS");
+                        url_close(fd_o);
+                        return -1;
+                }
+                if(0 < dMTS && dMTS < 100 * MTS_MS) {
+                        /* delta MTS is OK now */
+                        break;
+                }
         }
 
         /* run */
@@ -96,7 +103,6 @@ int main(int argc, char *argv[])
                                 pb += cnt;
                         }
                         if(0 == strcmp(tag, "*mts")) {
-                                int64_t dMTS;
                                 struct timeval dtv;
                                 struct timeval tv_new;
 
@@ -104,20 +110,24 @@ int main(int argc, char *argv[])
                                 MTS = (int64_t)data;
                                 mts = &MTS;
                                 dMTS = timestamp_diff(MTS, lMTS, MTS_OVF);
-                                dtv.tv_sec = dMTS / MTS_1S;
-                                dtv.tv_usec = (dMTS % MTS_1S) / MTS_US;
-                                timeradd(&tv_pkt, &dtv, &tv_new);
-                                tv_pkt = tv_new;
-                                lMTS = MTS;
-
-                                if(!(-100 * MTS_MS < dMTS && dMTS < +100 * MTS_MS)) {
-                                        RPT(RPT_WRN, "dMTS too big: %lld", dMTS);
+                                if(0 < dMTS && dMTS < 100 * MTS_MS) {
+                                        dtv.tv_sec = dMTS / MTS_1S;
+                                        dMTS %= MTS_1S;
+                                        dtv.tv_usec = dMTS / MTS_US;
+                                        dMTS %= MTS_US;
+                                        timeradd(&tv_pkt, &dtv, &tv_new);
+                                        tv_pkt = tv_new;
+                                        lMTS = timestamp_add(MTS, -dMTS, MTS_OVF);
+                                }
+                                else {
+                                        RPT(RPT_WRN, "!(0 < dMTS < 100ms): %lld", dMTS);
                                         gettimeofday(&tv_pkt, NULL);
+                                        lMTS = MTS;
                                 }
                         }
                 }
                 if(!mts) {
-                        RPT(RPT_ERR, "no MTS");
+                        RPT(RPT_ERR, "TS packet without MTS");
                         url_close(fd_o);
                         return -1;
                 }

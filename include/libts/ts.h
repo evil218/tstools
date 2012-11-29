@@ -35,17 +35,17 @@ extern "C" {
 #define STC_BASE_1S  (90 * 1000) /* do NOT use 1e3 */
 #define STC_BASE_OVF (1LL << 33) /* 0x0200000000 */
 
-#define STC_US  (27)               /* 27 clk == 1(us) */
-#define STC_MS  (27 * 1000)        /* do NOT use 1e3  */
-#define STC_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
-#define STC_OVF (STC_BASE_OVF * 300L) /* 2576980377600 */
+#define STC_US  (27)                 /* 27 clk == 1(us) */
+#define STC_MS  (27 * 1000)          /* do NOT use 1e3  */
+#define STC_1S  (27 * 1000 * 1000)   /* do NOT use 1e3  */
+#define STC_OVF (STC_BASE_OVF * 300) /* 2576980377600 */
 
 #define MTS_US  (27)               /* 27 clk == 1(us) */
 #define MTS_MS  (27 * 1000)        /* do NOT use 1e3  */
 #define MTS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
-#define MTS_OVF (1LL << 30)        /* 0x40000000 */
+#define MTS_OVF (1<<30)            /* 0x40000000 */
 
-#define INFO_LEN_MAX (1 << 10) /* pow(2, 10) */
+#define INFO_LEN_MAX (1<<10) /* pow(2, 10) */
 #define SERVER_STR_MAX (188) /* max length of server string */
 
 /* TR 101 290 V1.2.1 2001-05 */
