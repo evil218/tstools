@@ -284,15 +284,23 @@ static const struct stream_type STREAM_TYPE_TABLE[] = {
         {0x1E, VID_PID, "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"},
         {0x42, VID_PID, "AVS", "Advanced Video Standard"},
         {0x7F, USR_PID, "IPMP", "IPMP stream"},
-        {0x80, VID_PID, "SVAC", "SVAC"},
+        {0x80, VID_PID, "SVAC|LPCM", "SVAC, LPCM of ATSC"},
         {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
         {0x82, AUD_PID, "DTS", "DTS Audio"},
+        {0x83, AUD_PID, "MLP", "MLP"},
+        {0x84, AUD_PID, "DDP", "Dolby Digital Plus"},
+        {0x85, AUD_PID, "DTSHD", "DTSHD"},
+        {0x86, AUD_PID, "DTSHD_XLL", "DTSHD_XLL"},
         {0x90, AUD_PID, "G.711", "G.711(A)"},
         {0x92, AUD_PID, "G.722.1", "G.722.1"},
         {0x93, AUD_PID, "G.723.1", "G.723.1"},
         {0x99, AUD_PID, "G.729", "G.729"},
         {0x9A, AUD_PID, "AMR-NB", "AMR-NB"},
         {0x9B, AUD_PID, "SVAC", "SVAC"},
+        {0xA1, AUD_PID, "DDP_2", "Dolby Digital Plus"},
+        {0xA2, AUD_PID, "DTSHD_2", "DTSHD_2"},
+        {0xEA, VID_PID, "VC1", "VC1"},
+        {0xEA, AUD_PID, "WMA", "WMA"},
         {0xFF, UNO_PID, "UNKNOWN", "Unknown stream"}, /* loop stop condition! */
 };
 
@@ -788,6 +796,7 @@ static int parse_TS_head(struct obj *obj)
         rslt->is_psi_si = 0;
         rslt->has_section = 0;
         rslt->has_rate = 0;
+        rslt->AF_len = 0; /* clear PES length */
         rslt->PES_len = 0; /* clear PES length */
         rslt->ES_len = 0; /* clear ES length */
 
@@ -925,8 +934,10 @@ static int parse_AF(struct obj *obj)
         struct af *af = &(obj->af);
         struct ts_rslt *rslt = &(obj->rslt);
 
+        rslt->af = obj->p;
         dat = *(obj->p)++; obj->len--;
         af->adaption_field_length = dat;
+        rslt->AF_len = af->adaption_field_length + 1; /* add length itself */
         if(0x00 == af->adaption_field_length) {
                 return 0;
         }

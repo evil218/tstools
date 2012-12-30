@@ -42,6 +42,7 @@ struct aim {
         int tsh;
         int ts;
         int mts;
+        int af;
         int pesh;
         int pes;
         int es;
@@ -134,6 +135,7 @@ static void show_pts(struct obj *obj);
 static void show_tsh(struct obj *obj);
 static void show_ts(struct obj *obj);
 static void show_mts(struct obj *obj);
+static void show_af(struct obj *obj);
 static void show_pesh(struct obj *obj);
 static void show_pes(struct obj *obj);
 static void show_es(struct obj *obj);
@@ -268,6 +270,7 @@ static void state_parse_each(struct obj *obj)
            obj->aim.si          ||
            obj->aim.pcr         ||
            obj->aim.pts         ||
+           obj->aim.af          ||
            obj->aim.pesh        ||
            obj->aim.pes         ||
            obj->aim.es          ||
@@ -320,6 +323,9 @@ static void state_parse_each(struct obj *obj)
                 has_report = 1;
         }
         if(obj->aim.ts) {
+                has_report = 1;
+        }
+        if(obj->aim.af && rslt->AF_len) {
                 has_report = 1;
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
@@ -377,6 +383,9 @@ static void state_parse_each(struct obj *obj)
         }
         if(obj->aim.mts && has_report) {
                 show_mts(obj);
+        }
+        if(obj->aim.af && rslt->AF_len) {
+                show_af(obj);
         }
         if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
                 show_pesh(obj);
@@ -507,6 +516,10 @@ static struct obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-mts")) {
                                 obj->aim.mts = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-af")) {
+                                obj->aim.af = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-pesh")) {
@@ -740,6 +753,7 @@ static void show_help()
         puts(" -tsh             \"*tsh, 47, xx, xx, xx, \"");
         puts(" -ts              \"*ts, 47, ..., xx, \"");
         puts(" -mts             \"*mts, 3F4BD, \"");
+        puts(" -af              \"*af, xx, ..., xx, \"");
         puts(" -pesh            \"*pesh, xx, ..., xx, \"");
         puts(" -pes             \"*pes, xx, ..., xx, \"");
         puts(" -es              \"*es, xx, ..., xx, \"");
@@ -1140,6 +1154,18 @@ static void show_mts(struct obj *obj)
         fprintf(stdout, "%s*mts%s, %llX, ",
                 obj->color_green, obj->color_off,
                 rslt->CTS & 0x3FFFFFFF);
+        return;
+}
+
+static void show_af(struct obj *obj)
+{
+        char str[3 * 188 + 3]; /* part of one TS packet */
+        struct ts_rslt *rslt = obj->rslt;
+
+        fprintf(stdout, "%s*af%s, ",
+                obj->color_green, obj->color_off);
+        b2t(str, rslt->af, rslt->AF_len);
+        fprintf(stdout, "%s", str);
         return;
 }
 
