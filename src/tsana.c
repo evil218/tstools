@@ -798,7 +798,7 @@ static void show_version()
         sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
         puts(str);
         puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
+        puts("Copyright (C) 2009,2010,2011,2012,2013 ZHOU Cheng.");
         puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
         puts("This is free software; contact author for additional information.");
         puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
@@ -1099,20 +1099,11 @@ static void show_pts(struct obj *obj)
                         (double)(rslt->PTS_interval) / (90), /* ms */
                         (double)(rslt->PTS_minus_STC) / (90)); /* ms */
 
-                if(rslt->dts) {
-                        fprintf(stdout, "%s*dts%s, %10lld, %+8.3f, %+8.3f, ",
-                                obj->color_green, obj->color_off,
-                                (long long int)rslt->DTS,
-                                (double)(rslt->DTS_interval) / (90), /* ms */
-                                (double)(rslt->DTS_minus_STC) / (90)); /* ms */
-                }
-                else {
-                        /* no DTS in PES head, DTS = PTS */
-                        fprintf(stdout, "%s*dts%s, %10lld, %+8.3f,         , ",
-                                obj->color_green, obj->color_off,
-                                (long long int)rslt->DTS,
-                                (double)(rslt->DTS_interval) / (90)); /* ms */
-                }
+                fprintf(stdout, "%s*dts%s, %10lld, %+8.3f, %+8.3f, ",
+                        obj->color_green, obj->color_off,
+                        (long long int)rslt->DTS,
+                        (double)(rslt->DTS_interval) / (90), /* ms */
+                        (double)(rslt->DTS_minus_STC) / (90)); /* ms */
         }
         else {
                 fprintf(stdout, "%s*pts%s,           ,         ,         , ",
