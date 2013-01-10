@@ -53,6 +53,7 @@ struct aim {
         int ratp;
         int err;
         int tcp;
+        int allpes;
         int alles;
 };
 
@@ -147,6 +148,7 @@ static void show_ratp(struct obj *obj);
 static void show_error(struct obj *obj);
 static void show_tcp(struct obj *obj);
 
+static void all_pes(struct obj *obj);
 static void all_es(struct obj *obj);
 
 static void table_info_PAT(struct ts_psi *psi, uint8_t *section);
@@ -417,6 +419,9 @@ static void state_parse_each(struct obj *obj)
         if(obj->aim.tcp && 0x1FFA == rslt->PID) {
                 show_tcp(obj);
         }
+        if(obj->aim.allpes && rslt->PES_len) {
+                all_pes(obj);
+        }
         if(obj->aim.alles && rslt->ES_len) {
                 all_es(obj);
         }
@@ -682,6 +687,10 @@ static struct obj *create(int argc, char *argv[])
                                                 dat);
                                 }
                         }
+                        else if(0 == strcmp(argv[i], "-allpes")) {
+                                obj->aim.allpes = 1;
+                                obj->mode = MODE_ALL;
+                        }
                         else if(0 == strcmp(argv[i], "-alles")) {
                                 obj->aim.alles = 1;
                                 obj->mode = MODE_ALL;
@@ -773,6 +782,7 @@ static void show_help()
         puts(" -type <type>     set cared PID type, default: any type(0)");
         puts(" -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms");
         puts("");
+        puts(" -allpes          write PES data into different file by PID");
         puts(" -alles           write ES data into different file by PID");
 #if 0
         puts(" -prepsi <file>   get PSI information from <file> first");
@@ -1523,6 +1533,31 @@ static void show_tcp(struct obj *obj)
         fprintf(stdout, "%s*tcp%s, ",
                 obj->color_green, obj->color_off);
         atsc_mh_tcp(rslt->TS);
+        return;
+}
+
+static void all_pes(struct obj *obj)
+{
+        struct ts_rslt *rslt = obj->rslt;
+
+        if(NULL == rslt->pid) {
+                fprintf(stderr, "Bad pid point!\n");
+                return;
+        }
+
+        if(NULL == rslt->pid->fd) {
+                char name[100];
+
+                sprintf(name, "%04X.pes", rslt->pid->PID);
+                fprintf(stdout, "open file %s\n", name);
+                rslt->pid->fd = fopen(name, "wb");
+                if(NULL == rslt->pid->fd) {
+                        RPT(RPT_ERR, "open \"%s\" failed", name);
+                        return;
+                }
+        }
+
+        fwrite(rslt->pes, rslt->PES_len, 1, rslt->pid->fd);
         return;
 }
 
