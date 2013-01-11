@@ -92,6 +92,7 @@ intptr_t udp_open(char *addr, unsigned short port, char *mode)
         {
                 struct sockaddr_in local;
 
+                memset(&local, 0, sizeof(local)); /* for some special compile environment */
                 local.sin_family = AF_INET;
                 local.sin_addr.s_addr = htonl(INADDR_ANY);
                 local.sin_port = ('r' == mode[0]) ? htons(port) : 0;
