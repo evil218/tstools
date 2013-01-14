@@ -1023,6 +1023,7 @@ static int parse_AF(struct obj *obj)
                 /* pass adaption_field_extension part, FIXME */
                 obj->p += af->adaption_field_extension_length;
                 obj->len -= af->adaption_field_extension_length;
+                af->adaption_field_length -= af->adaption_field_extension_length;
         }
 
         /* pass stuffing byte */
