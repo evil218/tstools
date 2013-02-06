@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "list.h"
+#include "zlst.h"
 
 #if 0
 #define DEBUG /* print detail info. to debug this module */
@@ -12,7 +12,7 @@
 #define dbg(level, ...) \
         do { \
                 if (level >= 0) { \
-                        fprintf(stderr, "\"%s\", line %d: ",__FILE__, __LINE__); \
+                        fprintf(stderr, "\"%s\", line %d: ", __FILE__, __LINE__); \
                         fprintf(stderr, __VA_ARGS__); \
                         fprintf(stderr, "\n"); \
                 } \
@@ -21,51 +21,51 @@
 #define dbg(level, ...)
 #endif /* DEBUG */
 
-void list_free(void *PHEAD)
+void zlst_free(void *PHEAD)
 {
-        struct lnode **phead;
-        struct lnode *lnode;
+        struct znode **phead;
+        struct znode *znode;
 
         if(!PHEAD) {
                 dbg(1, "free: PHEAD is NULL");
                 return;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
 
-        lnode = *phead;
-        while(lnode) {
-                struct lnode *temp;
+        znode = *phead;
+        while(znode) {
+                struct znode *temp;
 
-                //dbg(1, "free: 0x%X(key=%d)", (int)lnode, lnode->key);
-                dbg(1, "free: 0x%X", (int)lnode);
-                temp = lnode->next;
-                free(lnode);
-                lnode = temp;
+                /* dbg(1, "free: 0x%X(key=%d)", (int)znode, znode->key); */
+                dbg(1, "free: 0x%X", (int)znode);
+                temp = znode->next;
+                free(znode);
+                znode = temp;
         }
         *phead = NULL;
 
         return;
 }
 
-void list_delete(void *PHEAD, void *LNODE)
+void zlst_delete(void *PHEAD, void *LNODE)
 {
-        struct lnode **phead;
-        struct lnode *lnode;
+        struct znode **phead;
+        struct znode *znode;
 
         if(!PHEAD) {
                 dbg(1, "delete: PHEAD is NULL");
                 return;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "delete: LNODE is NULL");
                 return;
         }
-        lnode = (struct lnode *)LNODE;
+        znode = (struct znode *)LNODE;
 
-        if(lnode->prev) {
-                lnode->prev->next = lnode->next;
+        if(znode->prev) {
+                znode->prev->next = znode->next;
         } else {
                 dbg(1, "head-");
                 if((*phead)->next) {
@@ -78,13 +78,13 @@ void list_delete(void *PHEAD, void *LNODE)
                 }
         }
 
-        if(lnode->next) {
-                lnode->next->prev = lnode->prev;
+        if(znode->next) {
+                znode->next->prev = znode->prev;
         } else {
                 dbg(1, "tail-");
-                if(lnode->prev) {
-                        lnode->prev->next = NULL;
-                        (*phead)->tail = lnode->prev;
+                if(znode->prev) {
+                        znode->prev->next = NULL;
+                        (*phead)->tail = znode->prev;
                 } else {
                         dbg(1, "last-");
                         *phead = NULL;
@@ -92,90 +92,90 @@ void list_delete(void *PHEAD, void *LNODE)
         }
 
         dbg(1, "free");
-        free(lnode);
+        free(znode);
         return;
 }
 
 /* to tail */
-void list_push(void *PHEAD, void *LNODE)
+void zlst_push(void *PHEAD, void *LNODE)
 {
-        struct lnode **phead;
-        struct lnode *lnode;
+        struct znode **phead;
+        struct znode *znode;
 
         if(!PHEAD) {
                 dbg(1, "push: PHEAD is NULL");
                 return;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "push: LNODE is NULL");
                 return;
         }
-        lnode = (struct lnode *)LNODE;
-        lnode->next = NULL;
+        znode = (struct znode *)LNODE;
+        znode->next = NULL;
 
         if(*phead) {
-                dbg(1, "push 0x%X into 0x%X", (int)lnode, (int)phead);
-                lnode->prev = (*phead)->tail;
-                (*phead)->tail->next = lnode; /* (*phead)->tail is ok! */
+                dbg(1, "push 0x%X into 0x%X", (int)znode, (int)phead);
+                znode->prev = (*phead)->tail;
+                (*phead)->tail->next = znode; /* (*phead)->tail is ok! */
         } else {
-                dbg(1, "push 0x%X into 0x%X(empty)", (int)lnode, (int)phead);
-                lnode->prev = NULL;
-                *phead = lnode;
+                dbg(1, "push 0x%X into 0x%X(empty)", (int)znode, (int)phead);
+                znode->prev = NULL;
+                *phead = znode;
         }
 
-        (*phead)->tail = lnode;
+        (*phead)->tail = znode;
         return;
 }
 
 /* to head */
-void list_unshift(void *PHEAD, void *LNODE)
+void zlst_unshift(void *PHEAD, void *LNODE)
 {
-        struct lnode **phead;
-        struct lnode *lnode;
+        struct znode **phead;
+        struct znode *znode;
 
         if(!PHEAD) {
                 dbg(1, "unshift: PHEAD is NULL");
                 return;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "unshift: LNODE is NULL");
                 return;
         }
-        lnode = (struct lnode *)LNODE;
-        lnode->prev = NULL;
+        znode = (struct znode *)LNODE;
+        znode->prev = NULL;
 
         if(*phead) {
                 dbg(1, "head-");
-                lnode->next = (*phead);
-                lnode->tail = (*phead)->tail;
-                (*phead)->prev = lnode;
+                znode->next = (*phead);
+                znode->tail = (*phead)->tail;
+                (*phead)->prev = znode;
         } else {
                 dbg(1, "empty-");
-                lnode->next = NULL;
-                lnode->tail = lnode;
+                znode->next = NULL;
+                znode->tail = znode;
         }
 
-        *phead = lnode;
+        *phead = znode;
 
         dbg(1, "unshift");
         return;
 }
 
-/* from tail, it's up to the caller to free the lnode with free()! */
-void *list_pop(void *PHEAD)
+/* from tail, it's up to the caller to free the znode with free()! */
+void *zlst_pop(void *PHEAD)
 {
-        struct lnode **phead;
-        struct lnode *tail;
+        struct znode **phead;
+        struct znode *tail;
 
         if(!PHEAD) {
                 dbg(1, "pop: PHEAD is NULL");
                 return NULL;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
         tail = (*phead)->tail;
 
         if(!tail) {
@@ -195,17 +195,17 @@ void *list_pop(void *PHEAD)
         return tail;
 }
 
-/* from head, it's up to the caller to free the lnode with free()! */
-void *list_shift(void *PHEAD)
+/* from head, it's up to the caller to free the znode with free()! */
+void *zlst_shift(void *PHEAD)
 {
-        struct lnode **phead;
-        struct lnode *head;
+        struct znode **phead;
+        struct znode *head;
 
         if(!PHEAD) {
                 dbg(1, "shift: PHEAD is NULL");
                 return NULL;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
         head = *phead;
 
         if(!head) {
@@ -227,53 +227,53 @@ void *list_shift(void *PHEAD)
 }
 
 /* sort with key, small key first */
-void list_insert(void *PHEAD, void *LNODE)
+void zlst_insert(void *PHEAD, void *LNODE)
 {
-        struct lnode **phead;
-        struct lnode *lnode;
-        struct lnode *x;
+        struct znode **phead;
+        struct znode *znode;
+        struct znode *x;
 
         if(!PHEAD) {
                 dbg(1, "insert: PHEAD is NULL");
                 return;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
 
         if(!LNODE) {
                 dbg(1, "insert: LNODE is NULL");
                 return;
         }
-        lnode = (struct lnode *)LNODE;
+        znode = (struct znode *)LNODE;
 
         if(!*phead) {
-                dbg(1, "insert 0x%X into 0x%X(empty)", (int)lnode, (int)phead);
-                lnode->next = NULL;
-                lnode->prev = NULL;
-                *phead = lnode;
-                (*phead)->tail = lnode;
+                dbg(1, "insert 0x%X into 0x%X(empty)", (int)znode, (int)phead);
+                znode->next = NULL;
+                znode->prev = NULL;
+                *phead = znode;
+                (*phead)->tail = znode;
                 return;
         }
 
         for(x = *phead; x; x = x->next) {
-                if(x->key == lnode->key) {
-                        dbg(1, "insert: key(%d) in list already, free new node", lnode->key);
-                        free(lnode);
+                if(x->key == znode->key) {
+                        dbg(1, "insert: key(%d) in list already, free new node", znode->key);
+                        free(znode);
                         return;
                 }
 
-                if(x->key > lnode->key) {
-                        dbg(1, "insert 0x%X into 0x%X before 0x%X", (int)lnode, (int)phead, (int)x);
-                        lnode->next = x;
-                        lnode->prev = x->prev;
+                if(x->key > znode->key) {
+                        dbg(1, "insert 0x%X into 0x%X before 0x%X", (int)znode, (int)phead, (int)x);
+                        znode->next = x;
+                        znode->prev = x->prev;
 
                         if(x->prev) {
-                                x->prev->next = lnode;
-                                x->prev = lnode;
+                                x->prev->next = znode;
+                                x->prev = znode;
                         } else {
                                 dbg(1, "as head-");
-                                lnode->tail = (*phead)->tail;
-                                *phead = lnode;
-                                x->prev = lnode;
+                                znode->tail = (*phead)->tail;
+                                *phead = znode;
+                                x->prev = znode;
                         }
 
                         dbg(1, "add");
@@ -281,26 +281,26 @@ void list_insert(void *PHEAD, void *LNODE)
                 }
         }
 
-        dbg(1, "insert 0x%X into 0x%X(as tail)", (int)lnode, (int)phead);
-        list_push(phead, lnode);
+        dbg(1, "insert 0x%X into 0x%X(as tail)", (int)znode, (int)phead);
+        zlst_push(phead, znode);
         return;
 }
 
-void *list_search(void *PHEAD, int key)
+void *zlst_search(void *PHEAD, int key)
 {
-        struct lnode **phead;
-        struct lnode *lnode;
+        struct znode **phead;
+        struct znode *znode;
 
         if(!PHEAD) {
                 dbg(1, "search: PHEAD is NULL");
                 return NULL;
         }
-        phead = (struct lnode **)PHEAD;
+        phead = (struct znode **)PHEAD;
 
-        for(lnode = *phead; lnode; lnode = lnode->next) {
-                if(lnode->key == key) {
-                        dbg(1, "search: 0x%X->key is %d", (int)lnode, key);
-                        return lnode;
+        for(znode = *phead; znode; znode = znode->next) {
+                if(znode->key == key) {
+                        dbg(1, "search: 0x%X->key is %d", (int)znode, key);
+                        return znode;
                 }
         }
 
@@ -308,32 +308,32 @@ void *list_search(void *PHEAD, int key)
         return NULL;
 }
 
-void list_set_key(void *LNODE, int key)
+void zlst_set_key(void *LNODE, int key)
 {
-        struct lnode *lnode;
+        struct znode *znode;
 
         if(!LNODE) {
                 dbg(1, "set key: LNODE is NULL");
                 return;
         }
-        lnode = (struct lnode *)LNODE;
+        znode = (struct znode *)LNODE;
 
         dbg(1, "set key: %d", key);
-        lnode->key = key;
+        znode->key = key;
         return;
 }
 
-void list_set_name(void *LNODE, const char *name)
+void zlst_set_name(void *LNODE, const char *name)
 {
-        struct lnode *lnode;
+        struct znode *znode;
 
         if(!LNODE) {
                 dbg(1, "set name: LNODE is NULL");
                 return;
         }
-        lnode = (struct lnode *)LNODE;
+        znode = (struct znode *)LNODE;
 
         dbg(1, "set name: %s", name);
-        lnode->name = name;
+        znode->name = name;
         return;
 }

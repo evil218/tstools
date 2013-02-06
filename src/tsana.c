@@ -871,16 +871,16 @@ static int get_one_pkt(struct obj *obj)
 static void output_prog(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
-        struct lnode *lnode;
+        struct znode *znode;
 
         fprintf(stdout, "transport_stream_id, %s%5d%s(0x%04X)\n",
                 obj->color_yellow, rslt->transport_stream_id, obj->color_off,
                 rslt->transport_stream_id);
 
-        for(lnode = (struct lnode *)(rslt->prog0); lnode; lnode = lnode->next) {
+        for(znode = (struct znode *)(rslt->prog0); znode; znode = znode->next) {
                 int i;
 
-                struct ts_prog *prog = (struct ts_prog *)lnode;
+                struct ts_prog *prog = (struct ts_prog *)znode;
                 fprintf(stdout, "program_number, %s%5d%s(0x%04X), "
                         "PMT_PID, %s0x%04X%s, "
                         "PCR_PID, %s0x%04X%s, ",
@@ -940,13 +940,13 @@ static void output_prog(struct obj *obj)
 static void output_track(void *PTRACK, uint16_t pcr_pid)
 {
         uint16_t i;
-        struct lnode **ptrack = (struct lnode **)PTRACK;
-        struct lnode *lnode;
+        struct znode **ptrack = (struct znode **)PTRACK;
+        struct znode *znode;
         struct ts_track *track;
         char *color_pid;
 
-        for(lnode = *ptrack; lnode; lnode = lnode->next) {
-                track = (struct ts_track *)lnode;
+        for(znode = *ptrack; znode; znode = znode->next) {
+                track = (struct ts_track *)znode;
 
                 color_pid = (track->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
                 fprintf(stdout, "track, %s0x%04X%s, "
@@ -981,7 +981,7 @@ static void show_pkt(struct obj *obj)
 
 static void show_lst(struct obj *obj)
 {
-        struct lnode *lnode;
+        struct znode *znode;
         struct ts_pid *pid;
         struct ts_rslt *rslt = obj->rslt;
         char *color_yellow;
@@ -991,8 +991,8 @@ static void show_lst(struct obj *obj)
                 return;
         }
 
-        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                pid = (struct ts_pid *)lnode;
+        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                pid = (struct ts_pid *)znode;
                 color_yellow = "";
                 color_off = "";
                 if(NULL != pid->track) {
@@ -1344,13 +1344,13 @@ static void show_si(struct obj *obj)
 static void show_rate(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
-        struct lnode *lnode;
+        struct znode *znode;
 
         fprintf(stdout, "%s*rate%s, %.3f, ",
                 obj->color_green, obj->color_off,
                 rslt->last_interval / 27000.0);
-        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                struct ts_pid *pid_item = (struct ts_pid *)lnode;
+        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                struct ts_pid *pid_item = (struct ts_pid *)znode;
 
                 /* filter: user PID only */
                 if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
@@ -1412,7 +1412,7 @@ static void show_rats(struct obj *obj)
 static void show_ratp(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
-        struct lnode *lnode;
+        struct znode *znode;
 
         fprintf(stdout, "%s*ratp%s, %.3f, ",
                 obj->color_green, obj->color_off,
@@ -1420,8 +1420,8 @@ static void show_ratp(struct obj *obj)
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
                 obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
 
-        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                struct ts_pid *pid_item = (struct ts_pid *)lnode;
+        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                struct ts_pid *pid_item = (struct ts_pid *)znode;
 
                 if(pid_item->PID >= 0x0020 && pid_item->PID != pid_item->prog->PMT_PID) {
                         /* not psi/si PID */

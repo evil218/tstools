@@ -389,21 +389,21 @@ int tsDelete(intptr_t id)
         }
 
         struct ts_rslt *rslt = &(obj->rslt);
-        struct lnode *lnode;
+        struct znode *znode;
 
-        for(lnode = (struct lnode *)(rslt->prog0); lnode; lnode = lnode->next) {
-                struct ts_prog *prog = (struct ts_prog *)lnode;
-                list_free(&(prog->track0));
-                list_free(&(prog->table_02.section0));
+        for(znode = (struct znode *)(rslt->prog0); znode; znode = znode->next) {
+                struct ts_prog *prog = (struct ts_prog *)znode;
+                zlst_free(&(prog->track0));
+                zlst_free(&(prog->table_02.section0));
         }
-        list_free(&(rslt->prog0));
-        list_free(&(rslt->pid0));
+        zlst_free(&(rslt->prog0));
+        zlst_free(&(rslt->pid0));
 
-        for(lnode = (struct lnode *)(rslt->table0); lnode; lnode = lnode->next) {
-                struct ts_table *table = (struct ts_table *)lnode;
-                list_free(&(table->section0));
+        for(znode = (struct znode *)(rslt->table0); znode; znode = znode->next) {
+                struct ts_table *table = (struct ts_table *)znode;
+                zlst_free(&(table->section0));
         }
-        list_free(&(rslt->table0));
+        zlst_free(&(rslt->table0));
 
         free(obj);
 
@@ -477,16 +477,16 @@ static int state_next_pat(struct obj *obj)
 
         /* section parse has done in parse_TS_head()! */
         RPT(RPT_DBG, "search 0x00 in table_list");
-        table = (struct ts_table *)list_search(&(obj->rslt.table0), 0x00);
+        table = (struct ts_table *)zlst_search(&(obj->rslt.table0), 0x00);
         if(!table) {
                 return -1;
         }
         else {
-                struct lnode *lnode;
+                struct znode *znode;
 
                 section_number = 0;
-                for(lnode = (struct lnode *)(table->section0); lnode; lnode = lnode->next) {
-                        struct ts_section *section = (struct ts_section *)lnode;
+                for(znode = (struct znode *)(table->section0); znode; znode = znode->next) {
+                        struct ts_section *section = (struct ts_section *)znode;
 
                         if(section_number > table->last_section_number) {
                                 return -1;
@@ -520,7 +520,7 @@ static int state_next_pmt(struct obj *obj)
         struct ts_pid *pid;
 
         RPT(RPT_DBG, "search 0x%04X in pid_list", ts->PID);
-        pid = (struct ts_pid *)list_search(&(obj->rslt.pid0), ts->PID);
+        pid = (struct ts_pid *)zlst_search(&(obj->rslt.pid0), ts->PID);
         if((!pid) || (PMT_PID != pid->type)) {
                 return -1; /* not PMT */
         }
@@ -671,10 +671,10 @@ static int state_next_pkt(struct obj *obj)
                                 /* first count clear */
                                 if(is_first_count_clear &&
                                    prog->PCR_PID == rslt->prog0->PCR_PID) {
-                                        struct lnode *lnode;
+                                        struct znode *znode;
 
-                                        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                                struct ts_pid *pid_item = (struct ts_pid *)lnode;
+                                        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                                                struct ts_pid *pid_item = (struct ts_pid *)znode;
                                                 if(pid_item->prog == prog) {
                                                         pid_item->lcnt = 0;
                                                         pid_item->cnt = 0;
@@ -706,11 +706,11 @@ static int state_next_pkt(struct obj *obj)
         if(rslt->prog0 && rslt->prog0->STC_sync) {
                 rslt->interval = timestamp_diff(rslt->CTS, rslt->CTS0, STC_OVF);
                 if(rslt->interval >= rslt->aim_interval) {
-                        struct lnode *lnode;
+                        struct znode *znode;
 
                         /* calc bitrate and clear the packet count */
-                        for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                struct ts_pid *pid_item = (struct ts_pid *)lnode;
+                        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                                struct ts_pid *pid_item = (struct ts_pid *)znode;
                                 pid_item->lcnt = pid_item->cnt;
                                 pid_item->cnt = 0;
                         }
@@ -849,7 +849,7 @@ static int parse_TS_head(struct obj *obj)
 
         rslt->PID = ts->PID; /* record into rslt struct */
         RPT(RPT_DBG, "search 0x%04X in pid_list", rslt->PID);
-        rslt->pid = (struct ts_pid *)list_search(&(rslt->pid0), rslt->PID);
+        rslt->pid = (struct ts_pid *)zlst_search(&(rslt->pid0), rslt->PID);
         if(!(rslt->pid)) {
                 /* find new PID, add it in pid_list */
                 rslt->pid = add_new_pid(obj);
@@ -1101,7 +1101,7 @@ static int parse_table(struct obj *obj)
 {
         uint8_t *p;
         struct ts_table *table;
-        struct lnode **psection0;
+        struct znode **psection0;
         struct ts_section *section;
         struct ts_rslt *rslt = &(obj->rslt);
         struct ts_pid *pid = rslt->pid;
@@ -1150,10 +1150,10 @@ static int parse_table(struct obj *obj)
         }
         else {
                 /* other section */
-                struct lnode **ptable0 = (struct lnode **)&(rslt->table0);
+                struct znode **ptable0 = (struct znode **)&(rslt->table0);
 
                 RPT(RPT_DBG, "search 0x%02X in table_list", psi->table_id);
-                table = (struct ts_table *)list_search(ptable0, psi->table_id);
+                table = (struct ts_table *)zlst_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
                         table = (struct ts_table *)malloc(sizeof(struct ts_table));
@@ -1168,11 +1168,11 @@ static int parse_table(struct obj *obj)
                         table->section0 = NULL;
                         table->STC = STC_OVF;
                         RPT(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
-                        list_set_key(table, psi->table_id);
-                        list_insert(ptable0, table);
+                        zlst_set_key(table, psi->table_id);
+                        zlst_insert(ptable0, table);
                 }
         }
-        psection0 = (struct lnode **)&(table->section0);
+        psection0 = (struct znode **)&(table->section0);
 
         /* new table version? */
         if(table->version_number != psi->version_number) {
@@ -1182,7 +1182,7 @@ static int parse_table(struct obj *obj)
                     psi->version_number);
                 table->version_number = psi->version_number;
                 table->last_section_number = psi->last_section_number;
-                list_free(psection0);
+                zlst_free(psection0);
 #if 0
                 is_new_version = 1;
 #endif
@@ -1190,7 +1190,7 @@ static int parse_table(struct obj *obj)
 
         /* get "section" pointer */
         RPT(RPT_DBG, "search 0x%02X in section_list", psi->section_number);
-        section = (struct ts_section *)list_search(psection0, psi->section_number);
+        section = (struct ts_section *)zlst_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
                 section = (struct ts_section *)malloc(sizeof(struct ts_section));
@@ -1203,8 +1203,8 @@ static int parse_table(struct obj *obj)
                 section->section_length = psi->section_length;
                 memcpy(section->data, pid->section, 3 + psi->section_length);
                 RPT(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
-                list_set_key(section, psi->section_number);
-                list_insert(psection0, section);
+                zlst_set_key(section, psi->section_number);
+                zlst_insert(psection0, section);
         }
         else {
                 /*fprintf(stderr, "has section %02X/%02X(table %02X)\n", */
@@ -1403,15 +1403,15 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                         free(prog);
                 }
                 else {
-                        struct lnode *lnode;
+                        struct znode *znode;
 
                         new_pid->type = PMT_PID;
 
                         if(!(rslt->prog0)) {
                                 /* traverse pid_list */
                                 /* if it des not belong to any program, use prog0 */
-                                for(lnode = (struct lnode *)(rslt->pid0); lnode; lnode = lnode->next) {
-                                        struct ts_pid *pid_item = (struct ts_pid *)lnode;
+                                for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                                        struct ts_pid *pid_item = (struct ts_pid *)znode;
                                         if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF) {
                                                 pid_item->prog = prog;
                                         }
@@ -1443,8 +1443,8 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                         prog->service_provider[0] = '\0';
 
                         RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
-                        list_set_key(prog, prog->program_number);
-                        list_insert(&(rslt->prog0), prog);
+                        zlst_set_key(prog, prog->program_number);
+                        zlst_insert(&(rslt->prog0), prog);
                 }
 
                 new_pid->cnt = 0;
@@ -1487,7 +1487,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
         /* in PMT, table_id_extension is program_number */
         RPT(RPT_DBG, "search 0x%04X in prog_list", psi->table_id_extension);
-        prog = (struct ts_prog *)list_search(&(obj->rslt.prog0), psi->table_id_extension);
+        prog = (struct ts_prog *)zlst_search(&(obj->rslt.prog0), psi->table_id_extension);
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
@@ -1587,7 +1587,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
                 track->is_pes_align = 0;
 
                 RPT(RPT_DBG, "push 0x%04X in track_list", track->PID);
-                list_push(&(prog->track0), track);
+                zlst_push(&(prog->track0), track);
 
                 /* add track PID */
                 new_pid->PID = track->PID;
@@ -1679,7 +1679,7 @@ static int parse_SDT_load(struct obj *obj, uint8_t *section)
                 service_id <<= 8;
                 service_id |= dat;
                 RPT(RPT_DBG, "search service_id(0x%04X) in prog_list", service_id);
-                prog = (struct ts_prog *)list_search(&(rslt->prog0), service_id);
+                prog = (struct ts_prog *)zlst_search(&(rslt->prog0), service_id);
 
                 dat = *p++; len--;
 #if 0
@@ -2169,7 +2169,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
         struct ts_pid *pid;
 
         RPT(RPT_DBG, "search 0x%04X in pid_list", the_pid->PID);
-        pid = (struct ts_pid *)list_search(phead, the_pid->PID);
+        pid = (struct ts_pid *)zlst_search(phead, the_pid->PID);
         if(pid) {
                 /* in pid_list already, just update information */
                 pid->PID = the_pid->PID;
@@ -2208,8 +2208,8 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
                 pid->fd = NULL;
 
                 RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
-                list_set_key(pid, the_pid->PID);
-                list_insert(phead, pid);
+                zlst_set_key(pid, the_pid->PID);
+                zlst_insert(phead, pid);
         }
         return pid;
 }
@@ -2217,20 +2217,20 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
 static int is_all_prog_parsed(struct obj *obj)
 {
         uint8_t section_number;
-        struct lnode *lnode_p; /* lnode of program list */
+        struct znode *znode_p; /* znode of program list */
 
-        for(lnode_p = (struct lnode *)(obj->rslt.prog0); lnode_p; lnode_p = lnode_p->next) {
-                struct ts_prog *prog = (struct ts_prog *)lnode_p;
+        for(znode_p = (struct znode *)(obj->rslt.prog0); znode_p; znode_p = znode_p->next) {
+                struct ts_prog *prog = (struct ts_prog *)znode_p;
                 struct ts_table *table_02 = &(prog->table_02);
-                struct lnode *lnode_s; /* lnode of section list */
+                struct znode *znode_s; /* znode of section list */
 
                 if(0xFF == table_02->version_number) {
                         return 0;
                 }
 
                 section_number = 0;
-                for(lnode_s = (struct lnode *)(table_02->section0); lnode_s; lnode_s = lnode_s->next) {
-                        struct ts_section *section = (struct ts_section *)lnode_s;
+                for(znode_s = (struct znode *)(table_02->section0); znode_s; znode_s = znode_s->next) {
+                        struct ts_section *section = (struct ts_section *)znode_s;
 
                         if(section_number > table_02->last_section_number) {
                                 return 0;

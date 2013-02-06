@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 #include "if.h"
-#include "list.h"
+#include "zlst.h"
 
 #define STC_BASE_MS  (90)        /* 90 clk == 1(ms) */
 #define STC_BASE_1S  (90 * 1000) /* do NOT use 1e3 */
@@ -113,7 +113,7 @@ struct ts_psi {
 
 /* node of section list */
 struct ts_section {
-        struct lnode cvfl; /* common variable for list */
+        struct znode cvfl; /* common variable for list */
 
         uint8_t section_number;
         uint16_t section_length;
@@ -122,7 +122,7 @@ struct ts_section {
 
 /* node of PSI/SI table list */
 struct ts_table {
-        struct lnode cvfl; /* common variable for list */
+        struct znode cvfl; /* common variable for list */
 
         uint8_t table_id; /* 0x00~0xFF except 0x02 */
         uint8_t version_number;
@@ -133,7 +133,7 @@ struct ts_table {
 
 /* node of track list */
 struct ts_track {
-        struct lnode cvfl; /* common variable for list */
+        struct znode cvfl; /* common variable for list */
 
         /* PID */
         uint16_t PID; /* 13-bit */
@@ -157,7 +157,7 @@ struct ts_track {
 
 /* node of prog list */
 struct ts_prog {
-        struct lnode cvfl; /* common variable for list */
+        struct znode cvfl; /* common variable for list */
 
         /* PMT section,  */
         int is_parsed;
@@ -189,7 +189,7 @@ struct ts_prog {
 
 /* node of pid list */
 struct ts_pid {
-        struct lnode cvfl; /* common variable for list */
+        struct znode cvfl; /* common variable for list */
 
         /* PID */
         uint16_t PID; /* 13-bit */
