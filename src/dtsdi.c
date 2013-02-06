@@ -47,7 +47,9 @@ static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static struct dtsdi_header hdr;
 static int output_mode = 8; /* 8(8-bit), 10(10-bit) */
-static int show_info_only = 0;
+static int show_info = 0;
+static int show_vbi = 1;
+static int show_active = 0;
 static int total_line_cnt; /* depend on 525 or 625 */
 static int hbi_cnt_per_line; /* depend on 525 or 625 */
 static int act_cnt_per_line = 1440;
@@ -77,9 +79,7 @@ int main(int argc, char *argv[])
                 return -1;
         }
 
-        if(!show_info_only) {
-                parse_frame();
-        }
+        parse_frame();
 
         fclose(fd_i);
         return 0;
@@ -111,7 +111,13 @@ static int deal_with_parameter(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-i") ||
                                 0 == strcmp(argv[i], "--info")) {
-                                show_info_only = 1;
+                                show_info = 1;
+                        }
+                        else if(0 == strcmp(argv[i], "--novbi")) {
+                                show_vbi = 0;
+                        }
+                        else if(0 == strcmp(argv[i], "--active")) {
+                                show_active = 1;
                         }
                         else if(0 == strcmp(argv[i], "-m") ||
                                 0 == strcmp(argv[i], "--mode")) {
@@ -151,7 +157,9 @@ static int show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -i, --info               show dtsdi file information only");
+        puts(" -i, --info               show dtsdi file information, default: do NOT show information");
+        puts("     --novbi              do NOT show vbi data, default: show vbi data");
+        puts("     --active             show active data, default: do NOT show active data");
         puts(" -m, --mode <m>           output bit mode, 8 or 10, default: 8(-bit)");
         puts("");
         puts(" -h, --help               display this information");
@@ -211,7 +219,7 @@ static int parse_header()
                 total_line_cnt = 525;
         }
 
-        if(show_info_only) {
+        if(show_info) {
                 fprintf(stdout, "File(dtsdi) version: %d\r\n", hdr.version);
                 fprintf(stdout, "Frame: %u", total_line_cnt);
                 if(DTSDI_SDI_FULL & hdr.flag) {
@@ -240,7 +248,6 @@ static int parse_header()
 static int parse_frame()
 {
         int i;
-        int cnt;
         uint16_t sdi[4]; /* use low 10-bit only */
         uint16_t dat[1440];
         int line_num;
@@ -282,7 +289,9 @@ static int parse_frame()
                         dat[i + 2] = sdi[2];
                         dat[i + 3] = sdi[3];
                 }
-                output(dat, hbi_cnt_per_line);
+                if(show_vbi) {
+                        output(dat, hbi_cnt_per_line);
+                }
 
                 /* SAV */
                 if(0 != get_four(sdi)) {
@@ -298,9 +307,17 @@ static int parse_frame()
                 output(sdi, 4);
 
                 /* active data */
-                cnt = fread(dat, 1, act_cnt_per_line * 10 / 8, fd_i);
-                if(cnt != (act_cnt_per_line * 10 / 8)) {
-                        return -1;
+                for(i = 0; i < act_cnt_per_line; i += 4) {
+                        if(0 != get_four(sdi)) {
+                                return -1;
+                        }
+                        dat[i + 0] = sdi[0];
+                        dat[i + 1] = sdi[1];
+                        dat[i + 2] = sdi[2];
+                        dat[i + 3] = sdi[3];
+                }
+                if(show_active) {
+                        output(dat, act_cnt_per_line);
                 }
 
                 /* line tail */
@@ -346,15 +363,17 @@ static int output(uint16_t *dat, int cnt)
 
         if(10 == output_mode) {
                 /* 10-bit output mode */
-                for(i = 0; i < cnt; i++) {
+                for(i = 0; i < cnt - 1; i++) {
                         fprintf(stdout, "%03X ", *(dat + i));
                 }
+                fprintf(stdout, "%03X, ", *(dat + i));
         }
         else {
                 /* 8-bit output mode */
-                for(i = 0; i < cnt; i++) {
+                for(i = 0; i < cnt - 1; i++) {
                         fprintf(stdout, "%02X ", *(dat + i) >> 2);
                 }
+                fprintf(stdout, "%02X, ", *(dat + i) >> 2);
         }
         return 0;
 }
