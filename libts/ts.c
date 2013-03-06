@@ -1427,7 +1427,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                                 fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", new_pid->PID);
 #endif
                         }
-                        free(prog);
+                        mp_free(obj->mp, prog);
                 }
                 else {
                         struct znode *znode;
@@ -2197,10 +2197,9 @@ static struct ts_pid *add_to_pid_list(struct obj *obj, struct ts_pid **phead, st
 {
         struct ts_pid *pid;
 
-        RPT(RPT_DBG, "search 0x%04X in pid_list", the_pid->PID);
         pid = (struct ts_pid *)zlst_search(phead, the_pid->PID);
         if(pid) {
-                /* in pid_list already, just update information */
+                /* is in pid_list already, just update information */
                 pid->PID = the_pid->PID;
                 pid->prog = the_pid->prog;
                 pid->track = the_pid->track;

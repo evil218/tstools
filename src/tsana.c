@@ -57,7 +57,7 @@ struct aim {
         int alles;
 };
 
-#define MP_SIZE (1<<20) /* default memory pool size */
+#define MP_SIZE (1<<21) /* default memory pool size */
 
 struct obj {
         size_t mp_size;
@@ -705,7 +705,7 @@ static struct obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-mp': %u, use (1<<20)-byte instead!\n",
+                                                "bad variable for '-mp': %u, use (1<<21)-byte instead!\n",
                                                 size);
                                 }
                         }
@@ -803,7 +803,7 @@ static void show_help()
         puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
         puts(" -type <type>     set cared PID type, default: any type(0)");
         puts(" -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms");
-        puts(" -mp <mp>         set memory pool size, default: (1<<20)-byte");
+        puts(" -mp <mp>         set memory pool size, default: (1<<21)-byte");
         puts("");
         puts(" -allpes          write PES data into different file by PID");
         puts(" -alles           write ES data into different file by PID");

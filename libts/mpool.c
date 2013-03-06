@@ -92,7 +92,8 @@ void *mp_alloc(int id, size_t NBYTES)
 
         remain = p->tail - p->next;
         if(NBYTES > remain) {
-                RPT(RPT_ERR, "mp_alloc: alloc %d-byte failed, only %d-byte left", NBYTES, remain);
+                RPT(RPT_ERR, "mp_alloc: alloc %d-byte failed, %d/%d-byte left",
+                    NBYTES, remain, p->tail - p->head);
                 return (void *)NULL;
         }
 
