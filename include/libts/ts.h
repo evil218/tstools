@@ -333,7 +333,7 @@ struct ts_rslt {
         struct ts_error err;
 };
 
-intptr_t tsCreate(struct ts_rslt **rslt);
+intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_size);
 int tsDelete(intptr_t id);
 int tsParseTS(intptr_t id);
 int tsParseOther(intptr_t id);

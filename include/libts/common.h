@@ -38,28 +38,28 @@ extern "C" {
 #define CLRLIN                          "\033[K" /* clear to line end */
 
 /* report level */
-#define RPT_ERR (1) // error, system error
-#define RPT_WRN (2) // warning, maybe wrong, maybe OK
-#define RPT_INF (3) // important information
-#define RPT_DBG (4) // debug information
+#define RPT_ERR (1) /* error, system error */
+#define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
+#define RPT_INF (3) /* important information */
+#define RPT_DBG (4) /* debug information */
 
 /* report micro */
-#define RPT(lvl, ...) \
-        do { \
-                if(lvl <= rpt_lvl) { \
-                        const char *str; \
-                        switch(lvl) { \
-                        case RPT_ERR: str = "err"; break; \
-                        case RPT_WRN: str = "wrn"; break; \
-                        case RPT_INF: str = "inf"; break; \
-                        case RPT_DBG: str = "dbg"; break; \
-                        default:      str = "???"; break; \
-                        } \
-                        fprintf(stderr, "\"%s\" line %d [%s]: ", __FILE__, __LINE__, str); \
-                        fprintf(stderr, __VA_ARGS__); \
-                        fprintf(stderr, "\n"); \
-                } \
-        } while(0)
+#define RPT(lvl, ...) do \
+{ \
+    if(lvl <= rpt_lvl) \
+    { \
+        switch(lvl) \
+        { \
+            case RPT_ERR: fprintf(stderr, "\"%s\" line %d [err]: ", __FILE__, __LINE__); break; \
+            case RPT_WRN: fprintf(stderr, "\"%s\" line %d [wrn]: ", __FILE__, __LINE__); break; \
+            case RPT_INF: fprintf(stderr, "\"%s\" line %d [inf]: ", __FILE__, __LINE__); break; \
+            case RPT_DBG: fprintf(stderr, "\"%s\" line %d [dbg]: ", __FILE__, __LINE__); break; \
+            default:      fprintf(stderr, "\"%s\" line %d [???]: ", __FILE__, __LINE__); break; \
+        } \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "\n"); \
+    } \
+} while (0)
 
 #ifdef __cplusplus
 }

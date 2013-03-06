@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "crc.h"
+#include "mpool.h"
 #include "ts.h"
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
@@ -118,6 +119,7 @@ struct stream_type {
 };
 
 struct obj {
+        int mp; /* id of memory pool, for list malloc and free */
         int is_first_pkt;
 
         uint8_t *p; /* point to rslt.line */
@@ -330,14 +332,14 @@ static int parse_PES_head(struct obj *obj); /* PES layer information */
 static int parse_PES_head_switch(struct obj *obj);
 static int parse_PES_head_detail(struct obj *obj);
 
-static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *pid);
+static struct ts_pid *add_to_pid_list(struct obj *obj, struct ts_pid **phead, struct ts_pid *pid);
 static struct ts_pid *add_new_pid(struct obj *obj);
 static int is_all_prog_parsed(struct obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static int track_type(struct ts_track *track);
 
-intptr_t tsCreate(struct ts_rslt **rslt)
+intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_size)
 {
         struct obj *obj;
         struct ts_error *err;
@@ -354,6 +356,9 @@ intptr_t tsCreate(struct ts_rslt **rslt)
         (*rslt)->transport_stream_id = 0;
         (*rslt)->prog0 = NULL;
         (*rslt)->pid0 = NULL;
+
+        obj->mp = mp_create(mp_size); /* borrow a big memory from OS */
+        mp_init(obj->mp); /* now, we can use mp_alloc() */
 
         obj->is_first_pkt = 1;
         obj->state = STATE_NEXT_PAT;
@@ -390,21 +395,35 @@ int tsDelete(intptr_t id)
 
         struct ts_rslt *rslt = &(obj->rslt);
         struct znode *znode;
+        struct znode *pop; /* temp node to free */
 
         for(znode = (struct znode *)(rslt->prog0); znode; znode = znode->next) {
                 struct ts_prog *prog = (struct ts_prog *)znode;
-                zlst_free(&(prog->track0));
-                zlst_free(&(prog->table_02.section0));
+                while(NULL != (pop = zlst_pop(&(prog->track0)))) {
+                        mp_free(obj->mp, pop);
+                }
+                while(NULL != (pop = zlst_pop(&(prog->table_02.section0)))) {
+                        mp_free(obj->mp, pop);
+                }
         }
-        zlst_free(&(rslt->prog0));
-        zlst_free(&(rslt->pid0));
+        while(NULL != (pop = zlst_pop(&(rslt->prog0)))) {
+                mp_free(obj->mp, pop);
+        }
+        while(NULL != (pop = zlst_pop(&(rslt->pid0)))) {
+                mp_free(obj->mp, pop);
+        }
 
         for(znode = (struct znode *)(rslt->table0); znode; znode = znode->next) {
                 struct ts_table *table = (struct ts_table *)znode;
-                zlst_free(&(table->section0));
+                while(NULL != (pop = zlst_pop(&(table->section0)))) {
+                        mp_free(obj->mp, pop);
+                }
         }
-        zlst_free(&(rslt->table0));
+        while(NULL != (pop = zlst_pop(&(rslt->table0)))) {
+                mp_free(obj->mp, pop);
+        }
 
+        mp_destroy(obj->mp); /* return the memory to OS */
         free(obj);
 
         return 0;
@@ -1156,7 +1175,7 @@ static int parse_table(struct obj *obj)
                 table = (struct ts_table *)zlst_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
-                        table = (struct ts_table *)malloc(sizeof(struct ts_table));
+                        table = (struct ts_table *)mp_alloc(obj->mp, sizeof(struct ts_table));
                         if(!table) {
                                 RPT(RPT_ERR, "malloc failed");
                                 return -1;
@@ -1169,20 +1188,26 @@ static int parse_table(struct obj *obj)
                         table->STC = STC_OVF;
                         RPT(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
                         zlst_set_key(table, psi->table_id);
-                        zlst_insert(ptable0, table);
+                        if(zlst_insert(ptable0, table)) {
+                                mp_free(obj->mp, table);
+                        }
                 }
         }
         psection0 = (struct znode **)&(table->section0);
 
         /* new table version? */
         if(table->version_number != psi->version_number) {
+                struct znode *znode;
+
                 /* clear psection0 and update table parameter */
                 RPT(RPT_DBG, "version_number(%d -> %d), free section",
                     table->version_number,
                     psi->version_number);
                 table->version_number = psi->version_number;
                 table->last_section_number = psi->last_section_number;
-                zlst_free(psection0);
+                while(NULL != (znode = zlst_pop(psection0))) {
+                        mp_free(obj->mp, znode);
+                };
 #if 0
                 is_new_version = 1;
 #endif
@@ -1193,7 +1218,7 @@ static int parse_table(struct obj *obj)
         section = (struct ts_section *)zlst_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
-                section = (struct ts_section *)malloc(sizeof(struct ts_section));
+                section = (struct ts_section *)mp_alloc(obj->mp, sizeof(struct ts_section));
                 if(!section) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
@@ -1204,7 +1229,9 @@ static int parse_table(struct obj *obj)
                 memcpy(section->data, pid->section, 3 + psi->section_length);
                 RPT(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
                 zlst_set_key(section, psi->section_number);
-                zlst_insert(psection0, section);
+                if(zlst_insert(psection0, section)) {
+                        mp_free(obj->mp, section);
+                }
         }
         else {
                 /*fprintf(stderr, "has section %02X/%02X(table %02X)\n", */
@@ -1370,7 +1397,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add program */
-                prog = (struct ts_prog *)malloc(sizeof(struct ts_prog));
+                prog = (struct ts_prog *)mp_alloc(obj->mp, sizeof(struct ts_prog));
                 if(!prog) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
@@ -1444,7 +1471,9 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
 
                         RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         zlst_set_key(prog, prog->program_number);
-                        zlst_insert(&(rslt->prog0), prog);
+                        if(zlst_insert(&(rslt->prog0), prog)) {
+                                mp_free(obj->mp, prog);
+                        }
                 }
 
                 new_pid->cnt = 0;
@@ -1457,7 +1486,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                 new_pid->ldes = PID_TYPE[new_pid->type].ldes;
                 new_pid->is_video = 0;
                 new_pid->is_audio = 0;
-                add_to_pid_list(&(rslt->pid0), new_pid); /* NIT or PMT PID */
+                add_to_pid_list(obj, &(rslt->pid0), new_pid); /* NIT or PMT PID */
         }
 
         return 0;
@@ -1515,7 +1544,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
         new_pid->ldes = PID_TYPE[new_pid->type].ldes;
         new_pid->is_video = 0;
         new_pid->is_audio = 0;
-        add_to_pid_list(&(obj->rslt.pid0), new_pid); /* PCR_PID */
+        add_to_pid_list(obj, &(obj->rslt.pid0), new_pid); /* PCR_PID */
 
         /* program_info_length */
         dat = *p++; len--;
@@ -1538,7 +1567,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add track */
-                track = (struct ts_track *)malloc(sizeof(struct ts_track));
+                track = (struct ts_track *)mp_alloc(obj->mp, sizeof(struct ts_track));
                 if(!track) {
                         fprintf(stderr, "Malloc memory failure!\n");
                         exit(EXIT_FAILURE);
@@ -1616,7 +1645,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
                                 new_pid->is_audio = 0;
                                 break;
                 }
-                add_to_pid_list(&(obj->rslt.pid0), new_pid); /* elementary_PID */
+                add_to_pid_list(obj, &(obj->rslt.pid0), new_pid); /* elementary_PID */
         }
 
         return 0;
@@ -2161,10 +2190,10 @@ static struct ts_pid *add_new_pid(struct obj *obj)
         pid->is_video = 0;
         pid->is_audio = 0;
 
-        return add_to_pid_list(&(rslt->pid0), pid); /* other_PID */
+        return add_to_pid_list(obj, &(rslt->pid0), pid); /* other_PID */
 }
 
-static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_pid)
+static struct ts_pid *add_to_pid_list(struct obj *obj, struct ts_pid **phead, struct ts_pid *the_pid)
 {
         struct ts_pid *pid;
 
@@ -2186,7 +2215,7 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
                 pid->ldes = the_pid->ldes;
         }
         else {
-                pid = (struct ts_pid *)malloc(sizeof(struct ts_pid));
+                pid = (struct ts_pid *)mp_alloc(obj->mp, sizeof(struct ts_pid));
                 if(!pid) {
                         RPT(RPT_ERR, "malloc failed");
                         return NULL;
@@ -2209,7 +2238,9 @@ static struct ts_pid *add_to_pid_list(struct ts_pid **phead, struct ts_pid *the_
 
                 RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
                 zlst_set_key(pid, the_pid->PID);
-                zlst_insert(phead, pid);
+                if(zlst_insert(phead, pid)) {
+                        mp_free(obj->mp, pid);
+                }
         }
         return pid;
 }

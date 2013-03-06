@@ -42,13 +42,12 @@ struct znode { /* list node */
 
 /* note: PHEAD will be convert to (struct znode **) type! */
 /* note: LNODE will be convert to (struct znode  *) type! */
-void zlst_free(void *PHEAD);
-void zlst_delete(void *PHEAD, void *LNODE);
+void *zlst_delete(void *PHEAD, void *LNODE); /* It's up to the caller to free the node! */
 void zlst_push(void *PHEAD, void *LNODE);
 void zlst_unshift(void *PHEAD, void *LNODE);
-void *zlst_pop(void *PHEAD);   /* It's up to the caller to free the znode with free()! */
-void *zlst_shift(void *PHEAD); /* It's up to the caller to free the znode with free()! */
-void zlst_insert(void *PHEAD, void *LNODE); /* small key first */
+void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
+void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
+void *zlst_insert(void *PHEAD, void *LNODE); /* small key first, it's up to the caller to free the node! */
 
 void *zlst_search(void *PHEAD, int key);
 void zlst_set_key(void *LNODE, int key);

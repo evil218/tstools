@@ -57,7 +57,10 @@ struct aim {
         int alles;
 };
 
+#define MP_SIZE (1<<20) /* default memory pool size */
+
 struct obj {
+        size_t mp_size;
         int mode;
         int state;
         struct aim aim;
@@ -444,6 +447,7 @@ static struct obj *create(int argc, char *argv[])
                 return NULL;
         }
 
+        obj->mp_size = MP_SIZE; /* big memory for memory pool */
         obj->mode = MODE_LST;
         obj->state = STATE_PARSE_PSI;
         memset(&(obj->aim), 0, sizeof(struct aim));
@@ -674,7 +678,7 @@ static struct obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-iv")) {
                                 i++;
                                 if(i >= argc) {
-                                        fprintf(stderr, "no parameter for '-interval'!\n");
+                                        fprintf(stderr, "no parameter for '-iv'!\n");
                                         exit(EXIT_FAILURE);
                                 }
                                 sscanf(argv[i], "%u" , &dat);
@@ -683,8 +687,26 @@ static struct obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-interval': %u, use 1000ms instead!\n",
+                                                "bad variable for '-iv': %u, use 1000ms instead!\n",
                                                 dat);
+                                }
+                        }
+                        else if(0 == strcmp(argv[i], "-mp")) {
+                                size_t size;
+
+                                i++;
+                                if(i >= argc) {
+                                        fprintf(stderr, "no parameter for '-mp'!\n");
+                                        exit(EXIT_FAILURE);
+                                }
+                                sscanf(argv[i], "%i" , &size);
+                                if((1<<16) <= size && size <= (1<<30)) { /* 1ms ~ 70s */
+                                        obj->mp_size = size;
+                                }
+                                else {
+                                        fprintf(stderr,
+                                                "bad variable for '-mp': %u, use (1<<20)-byte instead!\n",
+                                                size);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-allpes")) {
@@ -720,7 +742,7 @@ static struct obj *create(int argc, char *argv[])
                 }
         }
 
-        obj->ts_id = tsCreate(&(obj->rslt));
+        obj->ts_id = tsCreate(&(obj->rslt), obj->mp_size);
 
         return obj;
 }
@@ -781,6 +803,7 @@ static void show_help()
         puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
         puts(" -type <type>     set cared PID type, default: any type(0)");
         puts(" -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms");
+        puts(" -mp <mp>         set memory pool size, default: (1<<20)-byte");
         puts("");
         puts(" -allpes          write PES data into different file by PID");
         puts(" -alles           write ES data into different file by PID");
