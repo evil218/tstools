@@ -31,9 +31,9 @@ static int show_status(intptr_t id);
 
 intptr_t buddy_create(int order_max, int order_min)
 {
-        if(order_max >= (8 * sizeof(size_t)))
+        if(order_max > BUDDY_ORDER_MAX)
         {
-                RPT(RPT_ERR, "create: bad pool size: 2^%d is too big", order_max);
+                RPT(RPT_ERR, "create: bad order_max: %d > %d", order_max, BUDDY_ORDER_MAX);
                 return 0; /* failed */
         }
 

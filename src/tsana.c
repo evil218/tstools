@@ -14,6 +14,7 @@
 #include "version.h"
 #include "common.h"
 #include "if.h"
+#include "buddy.h" /* for BUDDY_ORDER_MAX */
 #include "ts.h" /* has "list.h" already */
 #include "UTF_GB.h"
 
@@ -57,10 +58,10 @@ struct aim {
         int alles;
 };
 
-#define MP_SIZE (1<<21) /* default memory pool size */
+#define MP_ORDER_DEFAULT (21) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
 struct obj {
-        size_t mp_size;
+        size_t mp_order;
         int mode;
         int state;
         struct aim aim;
@@ -447,7 +448,7 @@ static struct obj *create(int argc, char *argv[])
                 return NULL;
         }
 
-        obj->mp_size = MP_SIZE; /* big memory for memory pool */
+        obj->mp_order = MP_ORDER_DEFAULT; /* big memory for memory pool */
         obj->mode = MODE_LST;
         obj->state = STATE_PARSE_PSI;
         memset(&(obj->aim), 0, sizeof(struct aim));
@@ -692,21 +693,19 @@ static struct obj *create(int argc, char *argv[])
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-mp")) {
-                                size_t size;
-
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-mp'!\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                sscanf(argv[i], "%i" , &size);
-                                if((1<<16) <= size && size <= (1<<30)) { /* 1ms ~ 70s */
-                                        obj->mp_size = size;
+                                sscanf(argv[i], "%i" , &dat);
+                                if(16 <= dat && dat <= BUDDY_ORDER_MAX) {
+                                        obj->mp_order = dat;
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-mp': %u, use (1<<21)-byte instead!\n",
-                                                size);
+                                                "bad variable for '-mp': %u, use %d instead!\n",
+                                                dat, MP_ORDER_DEFAULT);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-allpes")) {
@@ -742,7 +741,7 @@ static struct obj *create(int argc, char *argv[])
                 }
         }
 
-        obj->ts_id = tsCreate(&(obj->rslt), obj->mp_size);
+        obj->ts_id = tsCreate(&(obj->rslt), obj->mp_order);
 
         return obj;
 }
@@ -803,7 +802,7 @@ static void show_help()
         puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
         puts(" -type <type>     set cared PID type, default: any type(0)");
         puts(" -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms");
-        puts(" -mp <mp>         set memory pool size, default: (1<<21)-byte");
+        puts(" -mp <mp>         set memory pool size order(16-32), default: 21 means (1<<21)-byte");
         puts("");
         puts(" -allpes          write PES data into different file by PID");
         puts(" -alles           write ES data into different file by PID");

@@ -339,7 +339,7 @@ static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static int track_type(struct ts_track *track);
 
-intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_size)
+intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_order)
 {
         struct obj *obj;
         struct ts_error *err;
@@ -357,7 +357,11 @@ intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_size)
         (*rslt)->prog0 = NULL;
         (*rslt)->pid0 = NULL;
 
-        obj->mp = buddy_create(21, 5); /* borrow a big memory from OS */
+        obj->mp = buddy_create(mp_order, 5); /* borrow a big memory from OS */
+        if(0 == obj->mp) {
+                RPT(RPT_ERR, "malloc memory pool failed");
+                return (intptr_t)NULL;
+        }
         buddy_init(obj->mp); /* now, we can use xx_malloc() */
 
         obj->is_first_pkt = 1;

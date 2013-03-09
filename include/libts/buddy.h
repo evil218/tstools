@@ -12,6 +12,8 @@
 extern "C" {
 #endif
 
+#define BUDDY_ORDER_MAX (8 * sizeof(size_t))
+
 intptr_t buddy_create(int order_max, int order_min);
 int buddy_destroy(intptr_t id);
 int buddy_init(intptr_t id);
