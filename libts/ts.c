@@ -10,7 +10,7 @@
 
 #include "common.h"
 #include "crc.h"
-#include "mpool.h"
+#include "buddy.h"
 #include "ts.h"
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
@@ -119,7 +119,7 @@ struct stream_type {
 };
 
 struct obj {
-        int mp; /* id of memory pool, for list malloc and free */
+        intptr_t mp; /* id of memory pool, for list malloc and free */
         int is_first_pkt;
 
         uint8_t *p; /* point to rslt.line */
@@ -357,8 +357,8 @@ intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_size)
         (*rslt)->prog0 = NULL;
         (*rslt)->pid0 = NULL;
 
-        obj->mp = mp_create(mp_size); /* borrow a big memory from OS */
-        mp_init(obj->mp); /* now, we can use mp_malloc() */
+        obj->mp = buddy_create(21, 5); /* borrow a big memory from OS */
+        buddy_init(obj->mp); /* now, we can use xx_malloc() */
 
         obj->is_first_pkt = 1;
         obj->state = STATE_NEXT_PAT;
@@ -400,30 +400,30 @@ int tsDelete(intptr_t id)
         for(znode = (struct znode *)(rslt->prog0); znode; znode = znode->next) {
                 struct ts_prog *prog = (struct ts_prog *)znode;
                 while(NULL != (pop = zlst_pop(&(prog->track0)))) {
-                        mp_free(obj->mp, pop);
+                        buddy_free(obj->mp, pop);
                 }
                 while(NULL != (pop = zlst_pop(&(prog->table_02.section0)))) {
-                        mp_free(obj->mp, pop);
+                        buddy_free(obj->mp, pop);
                 }
         }
         while(NULL != (pop = zlst_pop(&(rslt->prog0)))) {
-                mp_free(obj->mp, pop);
+                buddy_free(obj->mp, pop);
         }
         while(NULL != (pop = zlst_pop(&(rslt->pid0)))) {
-                mp_free(obj->mp, pop);
+                buddy_free(obj->mp, pop);
         }
 
         for(znode = (struct znode *)(rslt->table0); znode; znode = znode->next) {
                 struct ts_table *table = (struct ts_table *)znode;
                 while(NULL != (pop = zlst_pop(&(table->section0)))) {
-                        mp_free(obj->mp, pop);
+                        buddy_free(obj->mp, pop);
                 }
         }
         while(NULL != (pop = zlst_pop(&(rslt->table0)))) {
-                mp_free(obj->mp, pop);
+                buddy_free(obj->mp, pop);
         }
 
-        mp_destroy(obj->mp); /* return the memory to OS */
+        buddy_destroy(obj->mp); /* return the memory to OS */
         free(obj);
 
         return 0;
@@ -1175,7 +1175,7 @@ static int parse_table(struct obj *obj)
                 table = (struct ts_table *)zlst_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
-                        table = (struct ts_table *)mp_malloc(obj->mp, sizeof(struct ts_table));
+                        table = (struct ts_table *)buddy_malloc(obj->mp, sizeof(struct ts_table));
                         if(!table) {
                                 RPT(RPT_ERR, "malloc failed");
                                 return -1;
@@ -1189,7 +1189,7 @@ static int parse_table(struct obj *obj)
                         RPT(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
                         zlst_set_key(table, psi->table_id);
                         if(zlst_insert(ptable0, table)) {
-                                mp_free(obj->mp, table);
+                                buddy_free(obj->mp, table);
                         }
                 }
         }
@@ -1206,7 +1206,7 @@ static int parse_table(struct obj *obj)
                 table->version_number = psi->version_number;
                 table->last_section_number = psi->last_section_number;
                 while(NULL != (znode = zlst_pop(psection0))) {
-                        mp_free(obj->mp, znode);
+                        buddy_free(obj->mp, znode);
                 };
 #if 0
                 is_new_version = 1;
@@ -1218,7 +1218,7 @@ static int parse_table(struct obj *obj)
         section = (struct ts_section *)zlst_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
-                section = (struct ts_section *)mp_malloc(obj->mp, sizeof(struct ts_section));
+                section = (struct ts_section *)buddy_malloc(obj->mp, sizeof(struct ts_section));
                 if(!section) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
@@ -1230,7 +1230,7 @@ static int parse_table(struct obj *obj)
                 RPT(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
                 zlst_set_key(section, psi->section_number);
                 if(zlst_insert(psection0, section)) {
-                        mp_free(obj->mp, section);
+                        buddy_free(obj->mp, section);
                 }
         }
         else {
@@ -1397,7 +1397,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add program */
-                prog = (struct ts_prog *)mp_malloc(obj->mp, sizeof(struct ts_prog));
+                prog = (struct ts_prog *)buddy_malloc(obj->mp, sizeof(struct ts_prog));
                 if(!prog) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
@@ -1427,7 +1427,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                                 fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", new_pid->PID);
 #endif
                         }
-                        mp_free(obj->mp, prog);
+                        buddy_free(obj->mp, prog);
                 }
                 else {
                         struct znode *znode;
@@ -1472,7 +1472,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
                         RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         zlst_set_key(prog, prog->program_number);
                         if(zlst_insert(&(rslt->prog0), prog)) {
-                                mp_free(obj->mp, prog);
+                                buddy_free(obj->mp, prog);
                         }
                 }
 
@@ -1567,7 +1567,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add track */
-                track = (struct ts_track *)mp_malloc(obj->mp, sizeof(struct ts_track));
+                track = (struct ts_track *)buddy_malloc(obj->mp, sizeof(struct ts_track));
                 if(!track) {
                         fprintf(stderr, "Malloc memory failure!\n");
                         exit(EXIT_FAILURE);
@@ -2214,7 +2214,7 @@ static struct ts_pid *add_to_pid_list(struct obj *obj, struct ts_pid **phead, st
                 pid->ldes = the_pid->ldes;
         }
         else {
-                pid = (struct ts_pid *)mp_malloc(obj->mp, sizeof(struct ts_pid));
+                pid = (struct ts_pid *)buddy_malloc(obj->mp, sizeof(struct ts_pid));
                 if(!pid) {
                         RPT(RPT_ERR, "malloc failed");
                         return NULL;
@@ -2238,7 +2238,7 @@ static struct ts_pid *add_to_pid_list(struct obj *obj, struct ts_pid **phead, st
                 RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
                 zlst_set_key(pid, the_pid->PID);
                 if(zlst_insert(phead, pid)) {
-                        mp_free(obj->mp, pid);
+                        buddy_free(obj->mp, pid);
                 }
         }
         return pid;

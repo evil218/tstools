@@ -43,7 +43,7 @@ LIB_DEP = lib.d
 LIB_OBJS  = libcrc.o
 LIB_OBJS += libif.o
 LIB_OBJS += libzlst.o
-LIB_OBJS += libmpool.o
+LIB_OBJS += libbuddy.o
 LIB_OBJS += libUTF_GB.o
 LIB_OBJS += libts.o
 
