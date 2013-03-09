@@ -78,7 +78,7 @@ int mp_status(int id, size_t *used, size_t *left)
         return 0;
 }
 
-void *mp_alloc(int id, size_t NBYTES)
+void *mp_malloc(int id, size_t NBYTES)
 {
         struct obj *p = (struct obj *)id;
         uint8_t *rslt;

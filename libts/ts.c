@@ -358,7 +358,7 @@ intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_size)
         (*rslt)->pid0 = NULL;
 
         obj->mp = mp_create(mp_size); /* borrow a big memory from OS */
-        mp_init(obj->mp); /* now, we can use mp_alloc() */
+        mp_init(obj->mp); /* now, we can use mp_malloc() */
 
         obj->is_first_pkt = 1;
         obj->state = STATE_NEXT_PAT;
@@ -1175,7 +1175,7 @@ static int parse_table(struct obj *obj)
                 table = (struct ts_table *)zlst_search(ptable0, psi->table_id);
                 if(!table) {
                         /* add table */
-                        table = (struct ts_table *)mp_alloc(obj->mp, sizeof(struct ts_table));
+                        table = (struct ts_table *)mp_malloc(obj->mp, sizeof(struct ts_table));
                         if(!table) {
                                 RPT(RPT_ERR, "malloc failed");
                                 return -1;
@@ -1218,7 +1218,7 @@ static int parse_table(struct obj *obj)
         section = (struct ts_section *)zlst_search(psection0, psi->section_number);
         if(!section) {
                 /* add section */
-                section = (struct ts_section *)mp_alloc(obj->mp, sizeof(struct ts_section));
+                section = (struct ts_section *)mp_malloc(obj->mp, sizeof(struct ts_section));
                 if(!section) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
@@ -1397,7 +1397,7 @@ static int parse_PAT_load(struct obj *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add program */
-                prog = (struct ts_prog *)mp_alloc(obj->mp, sizeof(struct ts_prog));
+                prog = (struct ts_prog *)mp_malloc(obj->mp, sizeof(struct ts_prog));
                 if(!prog) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
@@ -1567,7 +1567,7 @@ static int parse_PMT_load(struct obj *obj, uint8_t *section)
 
         while(len > 4) {
                 /* add track */
-                track = (struct ts_track *)mp_alloc(obj->mp, sizeof(struct ts_track));
+                track = (struct ts_track *)mp_malloc(obj->mp, sizeof(struct ts_track));
                 if(!track) {
                         fprintf(stderr, "Malloc memory failure!\n");
                         exit(EXIT_FAILURE);
@@ -2214,7 +2214,7 @@ static struct ts_pid *add_to_pid_list(struct obj *obj, struct ts_pid **phead, st
                 pid->ldes = the_pid->ldes;
         }
         else {
-                pid = (struct ts_pid *)mp_alloc(obj->mp, sizeof(struct ts_pid));
+                pid = (struct ts_pid *)mp_malloc(obj->mp, sizeof(struct ts_pid));
                 if(!pid) {
                         RPT(RPT_ERR, "malloc failed");
                         return NULL;

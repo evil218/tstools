@@ -12,7 +12,7 @@ extern "C" {
 
 int mp_create(size_t NBYTES);
 int mp_init(int id);
-void *mp_alloc(int id, size_t NBYTES);
+void *mp_malloc(int id, size_t NBYTES);
 void mp_free(int id, void *APTR); /* fake functio, memory pool never free memorys */
 int mp_status(int id, size_t *used, size_t *left); /* report memory pool status */
 int mp_destroy(int id);
