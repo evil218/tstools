@@ -357,7 +357,7 @@ intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_order)
         (*rslt)->prog0 = NULL;
         (*rslt)->pid0 = NULL;
 
-        obj->mp = buddy_create(mp_order, 5); /* borrow a big memory from OS */
+        obj->mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
         if(0 == obj->mp) {
                 RPT(RPT_ERR, "malloc memory pool failed");
                 return (intptr_t)NULL;
