@@ -119,14 +119,14 @@ static void state_parse_psi(struct obj *obj);
 static void state_parse_each(struct obj *obj);
 
 static struct obj *create(int argc, char *argv[]);
-static int delete(struct obj *obj);
+static int destroy(struct obj *obj);
 
 static void show_help();
 static void show_version();
 
 static int get_one_pkt(struct obj *obj);
 static void output_prog(struct obj *obj);
-static void output_track(void *PTRACK, uint16_t pcr_pid);
+static void output_elem(void *PELEM, uint16_t pcr_pid);
 
 static void show_lst(struct obj *obj);
 static void show_psi(struct obj *obj);
@@ -192,14 +192,14 @@ int main(int argc, char *argv[])
                 if(GOT_WRONG_PKT == get_rslt) {
                         break;
                 }
-                if(0 != tsParseTS(obj->ts_id)) {
+                if(0 != ts_ParseTS(obj->ts_id)) {
                         break;
                 }
                 if(rslt->cnt < obj->aim_start) {
                         continue;
                 }
 
-                tsParseOther(obj->ts_id);
+                ts_ParseOther(obj->ts_id);
                 switch(obj->state) {
                 case STATE_PARSE_PSI:
                         state_parse_psi(obj);
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
                 }
         }
 
-        delete(obj);
+        destroy(obj);
         exit(EXIT_SUCCESS);
 }
 
@@ -314,7 +314,7 @@ static void state_parse_each(struct obj *obj)
 
         /* error for this TS packet? */
         has_err = 0;
-        for(i = 0; i < sizeof(struct ts_error); i++) {
+        for(i = 0; i < sizeof(struct ts_err); i++) {
                 if(*((uint8_t *)&(rslt->err) + i)) {
                         has_err = 1;
                 }
@@ -741,18 +741,18 @@ static struct obj *create(int argc, char *argv[])
                 }
         }
 
-        obj->ts_id = tsCreate(&(obj->rslt), obj->mp_order);
+        obj->ts_id = ts_create(&(obj->rslt), obj->mp_order);
 
         return obj;
 }
 
-static int delete(struct obj *obj)
+static int destroy(struct obj *obj)
 {
         if(NULL == obj) {
                 return 0;
         }
         else {
-                tsDelete(obj->ts_id);
+                ts_destroy(obj->ts_id);
                 free(obj);
 
                 return 1;
@@ -951,38 +951,38 @@ static void output_prog(struct obj *obj)
                 }
                 fprintf(stdout, "\n");
 
-                /* track */
-                output_track(&(prog->track0), prog->PCR_PID);
+                /* elementary stream */
+                output_elem(&(prog->elem0), prog->PCR_PID);
         }
 
         obj->state = STATE_EXIT;
         return;
 }
 
-static void output_track(void *PTRACK, uint16_t pcr_pid)
+static void output_elem(void *PELEM, uint16_t pcr_pid)
 {
         uint16_t i;
-        struct znode **ptrack = (struct znode **)PTRACK;
+        struct znode **pelem = (struct znode **)PELEM;
         struct znode *znode;
-        struct ts_track *track;
+        struct ts_elem *elem;
         char *color_pid;
 
-        for(znode = *ptrack; znode; znode = znode->next) {
-                track = (struct ts_track *)znode;
+        for(znode = *pelem; znode; znode = znode->next) {
+                elem = (struct ts_elem *)znode;
 
-                color_pid = (track->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
-                fprintf(stdout, "track, %s0x%04X%s, "
+                color_pid = (elem->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
+                fprintf(stdout, "elementary_PID, %s0x%04X%s, "
                         "stream_type, %s0x%02X%s, ",
-                        color_pid, track->PID, obj->color_off,
-                        obj->color_yellow, track->stream_type, obj->color_off);
+                        color_pid, elem->PID, obj->color_off,
+                        obj->color_yellow, elem->stream_type, obj->color_off);
                 fprintf(stdout, "type, %s%s%s, detail, %s%s%s, ",
-                        obj->color_yellow, track->sdes, obj->color_off,
-                        obj->color_yellow, track->ldes, obj->color_off);
-                if(track->es_info_len) {
+                        obj->color_yellow, elem->sdes, obj->color_off,
+                        obj->color_yellow, elem->ldes, obj->color_off);
+                if(elem->es_info_len) {
                         fprintf(stdout, "ES_info, %s%02X",
-                                obj->color_yellow, track->es_info[0]);
-                        for(i = 1; i < track->es_info_len; i++) {
-                                fprintf(stdout, " %02X", track->es_info[i]);
+                                obj->color_yellow, elem->es_info[0]);
+                        for(i = 1; i < elem->es_info_len; i++) {
+                                fprintf(stdout, " %02X", elem->es_info[i]);
                         }
                         fprintf(stdout, "%s, ", obj->color_off);
                 }
@@ -1017,7 +1017,7 @@ static void show_lst(struct obj *obj)
                 pid = (struct ts_pid *)znode;
                 color_yellow = "";
                 color_off = "";
-                if(NULL != pid->track) {
+                if(NULL != pid->elem) {
                         color_yellow = obj->color_yellow;
                         color_off = obj->color_off;
                 }
@@ -1461,7 +1461,7 @@ static void show_ratp(struct obj *obj)
 static void show_error(struct obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
-        struct ts_error *err = &(rslt->err);
+        struct ts_err *err = &(rslt->err);
 
         fprintf(stdout, "%s*err%s, ",
                 obj->color_green, obj->color_off);

@@ -2,23 +2,23 @@
  * name: ts.h
  * funx: analyse ts stream
  * 
- * list: rslt -+-  pid  ->  pid  -> .. ->  pid
- *             |
- *             +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
- *             |    |     |         |     |               |     |
- *             |  track  sect     track  sect           track  sect
- *             |    |     |         |     |               |     |
- *             |  track  sect     track  sect           track  sect
- *             |    ..    ..        ..    ..              ..    ..
- *             |  track  sect     track  sect           track  sect
- *             |
- *             +- table -> table -> .. -> table
- *                  |        |              |
- *                 sect     sect           sect
- *                  |        |              |
- *                 sect     sect           sect
- *                  ..       ..             .. 
- *                 sect     sect           sect
+ *  obj: +-  pid  ->  pid  -> .. ->  pid
+ *       |
+ *       +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
+ *       |    |     |         |     |               |     |
+ *       |   elem  sect      elem  sect            elem  sect
+ *       |    |     |         |     |               |     |
+ *       |   elem  sect      elem  sect            elem  sect
+ *       |    ..    ..        ..    ..              ..    ..
+ *       |   elem  sect      elem  sect            elem  sect
+ *       |
+ *       +- table -> table -> .. -> table
+ *            |        |              |
+ *           sect     sect           sect
+ *            |        |              |
+ *           sect     sect           sect
+ *            ..       ..             ..
+ *           sect     sect           sect
  */
 
 #ifndef _TS_H
@@ -49,7 +49,7 @@ extern "C" {
 #define SERVER_STR_MAX (188) /* max length of server string */
 
 /* TR 101 290 V1.2.1 2001-05 */
-struct ts_error {
+struct ts_err {
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
@@ -94,6 +94,82 @@ struct ts_error {
         int Data_delay_error; /* 3.10 */
 };
 
+struct ts_tsh {
+        uint8_t sync_byte;
+        uint8_t transport_error_indicator; /* 1-bit */
+        uint8_t payload_unit_start_indicator; /* 1-bit */
+        uint8_t transport_priority; /* 1-bit */
+        uint16_t PID; /* 13-bit */
+        uint8_t transport_scrambling_control; /* 2-bit */
+        uint8_t adaption_field_control; /* 2-bit */
+        uint8_t continuity_counter; /* 4-bit */
+};
+
+struct ts_af {
+        uint8_t adaption_field_length;
+        uint8_t discontinuity_indicator; /* 1-bit */
+        uint8_t random_access_indicator; /* 1-bit */
+        uint8_t elementary_stream_priority_indicator; /* 1-bit */
+        uint8_t PCR_flag; /* 1-bit */
+        uint8_t OPCR_flag; /* 1-bit */
+        uint8_t splicing_pointer_flag; /* 1-bit */
+        uint8_t transport_private_data_flag; /* 1-bit */
+        uint8_t adaption_field_extension_flag; /* 1-bit */
+        int64_t program_clock_reference_base; /* 33-bit */
+        int16_t program_clock_reference_extension; /* 9-bit */
+        int64_t original_program_clock_reference_base; /* 33-bit */
+        int16_t original_program_clock_reference_extension; /* 9-bit */
+        uint8_t splice_countdown;
+        uint8_t transport_private_data_length;
+        uint8_t private_data_byte[256];
+        uint8_t adaption_field_extension_length;
+        /* ... */
+};
+
+struct ts_pesh {
+        uint32_t packet_start_code_prefix; /* 24-bit */
+        uint8_t stream_id;
+        uint16_t PES_packet_length;
+        uint8_t PES_scrambling_control; /* 2-bit */
+        uint8_t PES_priority; /* 1-bit */
+        uint8_t data_alignment_indicator; /* 1-bit */
+        uint8_t copyright; /* 1-bit */
+        uint8_t original_or_copy; /* 1-bit */
+        uint8_t PTS_DTS_flags; /* 2-bit */
+        uint8_t ESCR_flag; /* 1-bit */
+        uint8_t ES_rate_flag; /* 1-bit */
+        uint8_t DSM_trick_mode_flag; /* 1-bit */
+        uint8_t additional_copy_info_flag; /* 1-bit */
+        uint8_t PES_CRC_flag; /* 1-bit */
+        uint8_t PES_extension_flag; /* 1-bit */
+        uint8_t PES_header_data_length;
+        int64_t PTS; /* 33-bit */
+        int64_t DTS; /* 33-bit */
+        int64_t ESCR_base; /* 33-bit */
+        int16_t ESCR_extension; /* 9-bit */
+        uint32_t ES_rate; /* 22-bit */
+        uint8_t trick_mode_control; /* 3-bit */
+        uint8_t field_id; /* 2-bit */
+        uint8_t intra_slice_refresh; /* 1-bit */
+        uint8_t frequency_truncation; /* 2-bit */
+        uint8_t rep_cntrl; /* 5-bit */
+        uint8_t additional_copy_info; /* 7-bit */
+        uint16_t previous_PES_packet_CRC;
+        uint8_t PES_private_data_flag; /* 1-bit */
+        uint8_t pack_header_field_flag; /* 1-bit */
+        uint8_t program_packet_sequence_counter_flag; /* 1-bit */
+        uint8_t P_STD_buffer_flag; /* 1-bit */
+        uint8_t PES_extension_flag_2; /* 1-bit */
+        uint8_t  PES_private_data[16]; /* 128-bit */
+        uint8_t pack_field_length;
+        uint8_t program_packet_sequence_counter; /* 7-bit */
+        uint8_t MPEG1_MPEG2_identifier; /* 1-bit */
+        uint8_t original_stuff_length; /* 6-bit */
+        uint8_t P_STD_buffer_scale; /* 1-bit */
+        uint16_t P_STD_buffer_size; /* 13-bit */
+        uint8_t PES_extension_field_length; /* 7-bit */
+};
+
 struct ts_psi {
         uint8_t table_id; /* TABLE_ID_TABLE */
         uint8_t section_syntax_indicator; /* 1-bit */
@@ -112,7 +188,7 @@ struct ts_psi {
 };
 
 /* node of section list */
-struct ts_section {
+struct ts_sect {
         struct znode cvfl; /* common variable for list */
 
         uint8_t section_number;
@@ -127,12 +203,12 @@ struct ts_table {
         uint8_t table_id; /* 0x00~0xFF except 0x02 */
         uint8_t version_number;
         uint8_t last_section_number;
-        struct ts_section *section0;
+        struct ts_sect *section0;
         int64_t STC;
 };
 
-/* node of track list */
-struct ts_track {
+/* node of elementary list */
+struct ts_elem {
         struct znode cvfl; /* common variable for list */
 
         /* PID */
@@ -155,7 +231,7 @@ struct ts_track {
         int is_pes_align; /* met first PES head */
 };
 
-/* node of prog list */
+/* node of program list */
 struct ts_prog {
         struct znode cvfl; /* common variable for list */
 
@@ -176,8 +252,8 @@ struct ts_prog {
         uint8_t service_provider_len;
         uint8_t service_provider[SERVER_STR_MAX];
 
-        /* tracks */
-        struct ts_track *track0;
+        /* elementary stream list */
+        struct ts_elem *elem0;
 
         /* for STC calc */
         int64_t ADDa; /* PCR packet a: packet address */
@@ -208,7 +284,7 @@ struct ts_pid {
 
          /* point to the node in xxx_list */
         struct ts_prog *prog; /* should be prog0 if does not belong to any program */
-        struct ts_track *track; /* should be NULL if not video or audio packet */
+        struct ts_elem *elem; /* should be NULL if not video or audio packet */
 
         /* for continuity_counter check */
         int is_CC_sync;
@@ -330,26 +406,25 @@ struct ts_rslt {
         int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
 
         /* error */
-        struct ts_error err;
+        struct ts_err err;
 };
 
-intptr_t tsCreate(struct ts_rslt **rslt, size_t mp_order);
-int tsDelete(intptr_t id);
-int tsParseTS(intptr_t id);
-int tsParseOther(intptr_t id);
+intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order);
+int ts_destroy(intptr_t id);
+int ts_ParseTS(intptr_t id);
+int ts_ParseOther(intptr_t id);
 
-/* funx: t1 = t0 + td, note: ovf means overflow, ovf > 0 and ovf is even
- *   t0: [0, ovf)
- *   t1: [0, ovf)
- *   td: [-hovf, +hovf)
+/* calculate timestamp:
+ *      t0: [0, ovf);
+ *      t1: [0, ovf);
+ *      td: [-hovf, +hovf)
+ *      ovf: overflow, (ovf > 0 and ovf is even)
  */
+
+/* return: t1 = t0 + td */
 int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf);
 
-/* funx: td = t1 - t0, note: ovf means overflow, ovf > 0 and ovf is even
- *   t1: [0, ovf)
- *   t0: [0, ovf)
- *   td: [-hovf, +hovf)
- */
+/* return: td = t1 - t0 */
 int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 #ifdef __cplusplus

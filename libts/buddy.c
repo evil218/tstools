@@ -5,7 +5,7 @@
 #include "common.h"
 #include "buddy.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_DBG; /* report level: ERR, WRN, INF, DBG */
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define IS_POWER_OF_2(x) (!((x) & ((x) - 1)))
@@ -59,7 +59,7 @@ intptr_t buddy_create(int order_max, int order_min)
                 free(p);
                 return 0; /* failed */
         }
-        RPT(RPT_DBG, "create: 0x%lX-byte tree @ 0x%lX", (unsigned long)tree_size, (unsigned long)(p->tree));
+        RPT(RPT_DBG, "create: tree: %8lX-byte @ %8lX", (unsigned long)tree_size, (unsigned long)(p->tree));
 
         p->pool = (uint8_t *)memalign(4096, p->size);
         if(NULL == p->pool) {
@@ -68,7 +68,7 @@ intptr_t buddy_create(int order_max, int order_min)
                 free(p);
                 return 0; /* failed */
         }
-        RPT(RPT_DBG, "create: 0x%lX-byte pool @ 0x%lX", (unsigned long)p->size, (unsigned long)(p->pool));
+        RPT(RPT_DBG, "create: pool: %8lX-byte @ %8lX", (unsigned long)p->size, (unsigned long)(p->pool));
 
         p->tree[0] = 0; /* to avoid use malloc() before init() */
         return (intptr_t)p;
@@ -180,8 +180,8 @@ void *buddy_malloc(intptr_t id, size_t NBYTES)
         p->tree[i] = 0; /* find the aim node */
 
         uint8_t *rslt = (p->pool + (i + 1) * (1<<order) - (p->size));
-        RPT(RPT_DBG, "malloc:  got 0x%8lX @ 0x%8lX from pool, need 0x%8lX",
-            (unsigned long)1<<order, (unsigned long)rslt, (unsigned long)NBYTES);
+        RPT(RPT_DBG, "malloc:  got %8lX/%8lX @ %8lX from pool",
+            (unsigned long)NBYTES, (unsigned long)1<<order, (unsigned long)rslt);
 
         /* modify parent order */
         while(i) {
@@ -216,7 +216,7 @@ void buddy_free(intptr_t id, void *APTR)
         /* determine offset */
         size_t offset = (uint8_t *)APTR - p->pool;
         if(offset < 0 || offset >= p->size) {
-                RPT(RPT_ERR, "free: bad APTR: 0x%lX", (unsigned long)APTR);
+                RPT(RPT_ERR, "free: bad APTR: %lX", (unsigned long)APTR);
                 return;
         }
 
@@ -233,11 +233,12 @@ void buddy_free(intptr_t id, void *APTR)
                 order++;
         }
         if(!found) {
-                RPT(RPT_ERR, "free: bad APTR: 0x%lX, illegal node or module bug", (unsigned long)APTR);
+                RPT(RPT_ERR, "free: bad APTR: %lX, illegal node or module bug", (unsigned long)APTR);
                 return;
         }
         p->tree[i] = order;
-        RPT(RPT_DBG, "free: return 0x%8lX @ 0x%8lX to pool", (unsigned long)1<<order, (unsigned long)APTR);
+        RPT(RPT_DBG, "free: return         /%8lX @ %8lX to pool",
+            (unsigned long)1<<order, (unsigned long)APTR);
 
         /* modify parent order */
         int lorder;
