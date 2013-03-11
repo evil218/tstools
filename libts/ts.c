@@ -247,8 +247,8 @@ static int state_next_pkt(struct ts_obj *obj);
 
 static int ts_parse_tsh(struct ts_obj *obj); /* TS head information */
 static int ts_parse_af(struct ts_obj *obj); /* Adaption Fields information */
-static int section(struct ts_obj *obj); /* collect PSI/SI section data */
-static int ts_parse_table(struct ts_obj *obj);
+static int ts_ts2sect(struct ts_obj *obj); /* collect PSI/SI section data */
+static int ts_parse_sect(struct ts_obj *obj);
 static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect);
@@ -267,20 +267,12 @@ static int elem_type(struct ts_elem *elem);
 intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order)
 {
         struct ts_obj *obj;
-        struct ts_err *err;
 
         obj = (struct ts_obj *)malloc(sizeof(struct ts_obj));
         if(!obj) {
                 RPT(RPT_ERR, "malloc failed");
                 return (intptr_t)NULL;
         }
-
-        *rslt = &(obj->rslt);
-        (*rslt)->table0 = NULL;
-        (*rslt)->has_got_transport_stream_id = 0;
-        (*rslt)->transport_stream_id = 0;
-        (*rslt)->prog0 = NULL;
-        (*rslt)->pid0 = NULL;
 
         obj->mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
         if(0 == obj->mp) {
@@ -289,26 +281,11 @@ intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order)
         }
         buddy_init(obj->mp); /* now, we can use xx_malloc() */
 
-        obj->is_first_pkt = 1;
-        obj->state = STATE_NEXT_PAT;
-        obj->need_pes_align = 1;
-        obj->is_verbose = 0;
+        obj->rslt.pid0 = NULL; /* no pid list now */
+        obj->rslt.prog0 = NULL; /* no prog list now */
+        obj->rslt.table0 = NULL; /* no table list now */
 
-        (*rslt)->cnt = 0;
-        (*rslt)->CC_lost = 0;
-        (*rslt)->is_pat_pmt_parsed = 0;
-        (*rslt)->is_psi_parse_finished = 0;
-        (*rslt)->concerned_pid = 0x0000; /* PAT_PID */
-        (*rslt)->interval = 0;
-        (*rslt)->CTS = 0L;
-        (*rslt)->CTS0 = 0L;
-        (*rslt)->lCTS = 0L; /* for MTS file only, must init as 0L */
-        (*rslt)->STC = STC_OVF;
-
-        /* clear error struct */
-        err = &((*rslt)->err);
-        memset(err, 0, sizeof(struct ts_err));
-
+        *rslt = &(obj->rslt);
         return (intptr_t)obj;
 }
 
@@ -322,10 +299,33 @@ int ts_destroy(intptr_t id)
                 return -1;
         }
 
+        ts_init(id); /* free all list */
+        buddy_destroy(obj->mp); /* return the memory to OS */
+        free(obj);
+
+        return 0;
+}
+
+int ts_init(intptr_t id)
+{
+        struct ts_obj *obj;
+
+        obj = (struct ts_obj *)id;
+        if(!obj) {
+                RPT(RPT_ERR, "bad id");
+                return -1;
+        }
+
         struct ts_rslt *rslt = &(obj->rslt);
         struct znode *znode;
         struct znode *pop; /* temp node to free */
 
+        /* clear pid list */
+        while(NULL != (pop = zlst_pop(&(rslt->pid0)))) {
+                buddy_free(obj->mp, pop);
+        }
+
+        /* clear prog list */
         for(znode = (struct znode *)(rslt->prog0); znode; znode = znode->next) {
                 struct ts_prog *prog = (struct ts_prog *)znode;
                 while(NULL != (pop = zlst_pop(&(prog->elem0)))) {
@@ -338,10 +338,8 @@ int ts_destroy(intptr_t id)
         while(NULL != (pop = zlst_pop(&(rslt->prog0)))) {
                 buddy_free(obj->mp, pop);
         }
-        while(NULL != (pop = zlst_pop(&(rslt->pid0)))) {
-                buddy_free(obj->mp, pop);
-        }
 
+        /* clear table list */
         for(znode = (struct znode *)(rslt->table0); znode; znode = znode->next) {
                 struct ts_table *table = (struct ts_table *)znode;
                 while(NULL != (pop = zlst_pop(&(table->sect0)))) {
@@ -352,8 +350,29 @@ int ts_destroy(intptr_t id)
                 buddy_free(obj->mp, pop);
         }
 
-        buddy_destroy(obj->mp); /* return the memory to OS */
-        free(obj);
+        obj->is_first_pkt = 1;
+        obj->state = STATE_NEXT_PAT;
+        obj->need_pes_align = 1;
+        obj->is_verbose = 0;
+
+        rslt->table0 = NULL;
+        rslt->has_got_transport_stream_id = 0;
+        rslt->transport_stream_id = 0;
+        rslt->prog0 = NULL;
+        rslt->pid0 = NULL;
+
+        rslt->cnt = 0;
+        rslt->CC_lost = 0;
+        rslt->is_pat_pmt_parsed = 0;
+        rslt->is_psi_parse_finished = 0;
+        rslt->concerned_pid = 0x0000; /* PAT_PID */
+        rslt->interval = 0;
+        rslt->CTS = 0L;
+        rslt->CTS0 = 0L;
+        rslt->lCTS = 0L; /* for MTS file only, must init as 0L */
+        rslt->STC = STC_OVF;
+
+        memset(&(rslt->err), 0, sizeof(struct ts_err)); /* clear error struct */
 
         return 0;
 }
@@ -869,7 +888,7 @@ static int ts_parse_tsh(struct ts_obj *obj)
                 rslt->psi_cnt++;
                 rslt->is_psi_si = 1;
                 /*fprintf(stderr, "PSI/SI: 0x%04X\n", tsh->PID);*/
-                section(obj);
+                ts_ts2sect(obj);
         }
 
         return 0;
@@ -981,7 +1000,7 @@ static int ts_parse_af(struct ts_obj *obj)
         return 0;
 }
 
-static int section(struct ts_obj *obj)
+static int ts_ts2sect(struct ts_obj *obj)
 {
         uint8_t pointer_field;
         struct ts_tsh *tsh = &(obj->tsh);
@@ -1013,7 +1032,7 @@ static int section(struct ts_obj *obj)
                         /* section tail */
                         memcpy(pid->sect_data + pid->sect_idx, obj->p, pointer_field);
                         pid->sect_idx += pointer_field;
-                        ts_parse_table(obj);
+                        ts_parse_sect(obj);
 
                         /* section head */
                         obj->p += pointer_field;
@@ -1037,7 +1056,7 @@ static int section(struct ts_obj *obj)
 
                 if(pid->sect_idx >= (3 + sech->section_length)) {
                         /* section data enough */
-                        ts_parse_table(obj);
+                        ts_parse_sect(obj);
                         pid->sect_idx = 0;
                 }
         }
@@ -1045,7 +1064,7 @@ static int section(struct ts_obj *obj)
         return 0;
 }
 
-static int ts_parse_table(struct ts_obj *obj)
+static int ts_parse_sect(struct ts_obj *obj)
 {
         uint8_t *p;
         struct ts_table *table;

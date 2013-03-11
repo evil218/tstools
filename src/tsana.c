@@ -742,6 +742,7 @@ static struct obj *create(int argc, char *argv[])
         }
 
         obj->ts_id = ts_create(&(obj->rslt), obj->mp_order);
+        ts_init(obj->ts_id);
 
         return obj;
 }

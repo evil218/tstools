@@ -419,6 +419,8 @@ struct ts_rslt {
 
 intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order);
 int ts_destroy(intptr_t id);
+
+int ts_init(intptr_t id);
 int ts_ParseTS(intptr_t id);
 int ts_ParseOther(intptr_t id);
 
