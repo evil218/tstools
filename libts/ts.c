@@ -14,6 +14,7 @@
 #include "buddy.h"
 #include "ts.h"
 
+#define PKT_SIZE (188)
 #define BIT(n) (1<<(n))
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
@@ -45,7 +46,6 @@ struct stream_type {
 
 struct ts_obj {
         intptr_t mp; /* id of memory pool, for list malloc and free */
-        int is_first_pkt;
 
         uint8_t *p; /* point to rslt.TS[0] */
         int len;
@@ -53,8 +53,6 @@ struct ts_obj {
         struct ts_tsh tsh;
         struct ts_af af;
         struct ts_pesh pesh;
-
-        uint32_t pkt_size; /* 188 or 204 */
         int state;
 
         int need_pes_align; /* 0: dot't need; 1: need PES align */
@@ -245,7 +243,6 @@ static int state_next_pat(struct ts_obj *obj);
 static int state_next_pmt(struct ts_obj *obj);
 static int state_next_pkt(struct ts_obj *obj);
 
-static int ts_parse_tsh(struct ts_obj *obj); /* TS head information */
 static int ts_parse_af(struct ts_obj *obj); /* Adaption Fields information */
 static int ts_ts2sect(struct ts_obj *obj); /* collect PSI/SI section data */
 static int ts_parse_sect(struct ts_obj *obj);
@@ -281,6 +278,8 @@ intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order)
         }
         buddy_init(obj->mp); /* now, we can use xx_malloc() */
 
+        /* prepare for ts_init() */
+        /* do NOT forgot to call ts_init() before use */
         obj->rslt.pid0 = NULL; /* no pid list now */
         obj->rslt.prog0 = NULL; /* no prog list now */
         obj->rslt.table0 = NULL; /* no table list now */
@@ -350,17 +349,17 @@ int ts_init(intptr_t id)
                 buddy_free(obj->mp, pop);
         }
 
-        obj->is_first_pkt = 1;
         obj->state = STATE_NEXT_PAT;
         obj->need_pes_align = 1;
         obj->is_verbose = 0;
 
+        rslt->ADDR = -PKT_SIZE; /* count from 0 */
+        rslt->cnt = -1; /* count ts packet from 0 */
         rslt->table0 = NULL;
         rslt->has_got_transport_stream_id = 0;
         rslt->transport_stream_id = 0;
         rslt->prog0 = NULL;
         rslt->pid0 = NULL;
-
         rslt->cnt = 0;
         rslt->CC_lost = 0;
         rslt->is_pat_pmt_parsed = 0;
@@ -371,42 +370,186 @@ int ts_init(intptr_t id)
         rslt->CTS0 = 0L;
         rslt->lCTS = 0L; /* for MTS file only, must init as 0L */
         rslt->STC = STC_OVF;
-
         memset(&(rslt->err), 0, sizeof(struct ts_err)); /* clear error struct */
 
         return 0;
 }
 
-int ts_ParseTS(intptr_t id)
+int ts_parse_tsh(intptr_t id)
 {
         struct ts_obj *obj;
         struct ts_rslt *rslt;
 
         obj = (struct ts_obj *)id;
         if(!obj) {
-                RPT(RPT_ERR, "bad id");
+                RPT(RPT_ERR, "ts_parse_tsh: bad id");
                 return -1;
         }
         rslt = &(obj->rslt);
 
-        obj->p = rslt->TS;
-        obj->len = 188;
-        /*dump(rslt->TS, 188); */
+        if(!rslt->ts) {
+                RPT(RPT_ERR, "ts_parse_tsh: no ts packet");
+                return -1;
+        }
+        if(!(rslt->addr)) {
+                rslt->ADDR += PKT_SIZE;
+                rslt->addr = &(rslt->ADDR);
+        }
+        obj->p = rslt->ts;
+        obj->len = PKT_SIZE;
+        rslt->cnt++;
+#if 0
+        dump(rslt->TS, PKT_SIZE); /* debug only */
+        fprintf(stderr, "cnt: %lld, addr: %lld\n", rslt->cnt, rslt->ADDR); /* debug only */
+#endif
 
-        /* packet count */
-        if(obj->is_first_pkt) {
-                obj->is_first_pkt = 0;
-                rslt->cnt = 0;
+        uint8_t dat;
+        struct ts_tsh *tsh = &(obj->tsh);
+        struct ts_af *af = &(obj->af);
+        struct ts_err *err = &(rslt->err);
+        struct ts_pid *pid; /* may be NULL */
+        struct ts_prog *prog; /* may be NULL */
+
+        /* init for a new ts packet */
+        rslt->stc = NULL; /* no STC */
+        rslt->pcr = NULL; /* no PCR */
+        rslt->pts = NULL; /* no PTS */
+        rslt->dts = NULL; /* no DTS */
+        rslt->is_psi_si = 0;
+        rslt->has_sect = 0;
+        rslt->has_rate = 0;
+        rslt->AF_len = 0; /* clear PES length */
+        rslt->PES_len = 0; /* clear PES length */
+        rslt->ES_len = 0; /* clear ES length */
+
+        /* begin */
+        dat = *(obj->p)++; obj->len--;
+        tsh->sync_byte = dat;
+        if(0x47 != tsh->sync_byte) {
+                err->Sync_byte_error++;
+                if(err->Sync_byte_error > 1) {
+                        err->TS_sync_loss++;
+                }
+                fprintf(stderr, "sync_byte(0x%02X) error!\n", tsh->sync_byte);
+                dump(rslt->TS, PKT_SIZE);
         }
         else {
-                rslt->cnt++;
+                err->TS_sync_loss = 0;
+                err->Sync_byte_error = 0;
         }
 
-        /*fprintf(stderr, "cnt: %lld, addr: %lld\n", rslt->cnt, rslt->ADDR); */
-        return ts_parse_tsh(obj);
+        dat = *(obj->p)++; obj->len--;
+        tsh->transport_error_indicator = (dat & BIT(7)) >> 7;
+        tsh->payload_unit_start_indicator = (dat & BIT(6)) >> 6;
+        tsh->transport_priority = (dat & BIT(5)) >> 5;
+        tsh->PID = dat & 0x1F;
+        err->Transport_error = tsh->transport_error_indicator;
+
+        dat = *(obj->p)++; obj->len--;
+        tsh->PID <<= 8;
+        tsh->PID |= dat;
+
+        dat = *(obj->p)++; obj->len--;
+        tsh->transport_scrambling_control = (dat & (BIT(7) | BIT(6))) >> 6;
+        tsh->adaption_field_control = (dat & (BIT(5) | BIT(4))) >> 4;;
+        tsh->continuity_counter = dat & 0x0F;
+
+        if(0x00 == tsh->adaption_field_control) {
+                fprintf(stderr, "Bad adaption_field_control field(00)!\n");
+        }
+
+        if(BIT(1) & tsh->adaption_field_control) {
+                ts_parse_af(obj);
+        }
+        else {
+                af->adaption_field_length = 0x00;
+        }
+
+        if(BIT(0) & tsh->adaption_field_control) {
+                /* data_byte, PSI or PES */
+        }
+
+        rslt->PID = tsh->PID; /* record into rslt struct */
+        RPT(RPT_DBG, "search 0x%04X in pid_list", rslt->PID);
+        rslt->pid = (struct ts_pid *)zlst_search(&(rslt->pid0), rslt->PID);
+        if(!(rslt->pid)) {
+                /* find new PID, add it in pid_list */
+                rslt->pid = add_new_pid(obj);
+        }
+        pid = rslt->pid;
+
+        /* calc STC and CTS, should be as early as possible */
+        if(rslt->mts) {
+                int64_t dCTS = timestamp_diff(rslt->MTS, rslt->lCTS, MTS_OVF);
+
+                if(STC_OVF != rslt->STC) {
+                        rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF);
+                }
+                else {
+                        rslt->STC = timestamp_add(0L, dCTS, STC_OVF);
+                }
+                rslt->lCTS = rslt->MTS; /* record last CTS */
+
+                rslt->CTS = rslt->STC;
+        }
+        else {
+                /* STC: according to pid->prog */
+                if(pid && pid->prog) {
+                        prog = pid->prog;
+                        if((prog->STC_sync) &&
+                           (prog->PCRa != prog->PCRb)) {
+                                long double delta;
+
+                                /* STCx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (rslt->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                rslt->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                rslt->stc = &(rslt->STC);
+                        }
+                }
+
+                /* CTS: according to prog0 */
+                if(!(rslt->cts) && rslt->prog0) {
+                        prog = rslt->prog0;
+                        if((prog->STC_sync) &&
+                           (prog->PCRa != prog->PCRb)) {
+                                long double delta;
+
+                                /* CTSx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (rslt->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                rslt->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                rslt->cts = &(rslt->CTS);
+                        }
+                }
+        }
+        rslt->STC_base = rslt->STC / 300;
+        rslt->STC_ext = rslt->STC % 300;
+        rslt->CTS_base = rslt->CTS / 300;
+        rslt->CTS_ext = rslt->CTS % 300;
+
+        /* statistic & PSI/SI section collect */
+        pid->cnt++;
+        rslt->sys_cnt++;
+        rslt->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
+        if((tsh->PID < 0x0020) || (PMT_PID == pid->type)) {
+                /* PSI/SI packet */
+                rslt->psi_cnt++;
+                rslt->is_psi_si = 1;
+                /*fprintf(stderr, "PSI/SI: 0x%04X\n", tsh->PID);*/
+                ts_ts2sect(obj);
+        }
+
+        return 0;
 }
 
-int ts_ParseOther(intptr_t id)
+int ts_parse_tsb(intptr_t id)
 {
         struct ts_obj *obj;
 
@@ -744,156 +887,6 @@ static int state_next_pkt(struct ts_obj *obj)
         return 0;
 }
 
-static int ts_parse_tsh(struct ts_obj *obj)
-{
-        uint8_t dat;
-        struct ts_tsh *tsh = &(obj->tsh);
-        struct ts_af *af = &(obj->af);
-        struct ts_rslt *rslt = &(obj->rslt);
-        struct ts_err *err = &(rslt->err);
-        struct ts_pid *pid; /* may be NULL */
-        struct ts_prog *prog; /* may be NULL */
-
-        /* init */
-        rslt->cts = NULL; /* no CTS */
-        rslt->stc = NULL; /* no STC */
-        rslt->pcr = NULL; /* no PCR */
-        rslt->pts = NULL; /* no PTS */
-        rslt->dts = NULL; /* no DTS */
-        rslt->is_psi_si = 0;
-        rslt->has_sect = 0;
-        rslt->has_rate = 0;
-        rslt->AF_len = 0; /* clear PES length */
-        rslt->PES_len = 0; /* clear PES length */
-        rslt->ES_len = 0; /* clear ES length */
-
-        /* begin */
-        dat = *(obj->p)++; obj->len--;
-        tsh->sync_byte = dat;
-        if(0x47 != tsh->sync_byte) {
-                err->Sync_byte_error++;
-                if(err->Sync_byte_error > 1) {
-                        err->TS_sync_loss++;
-                }
-                fprintf(stderr, "sync_byte(0x%02X) error!\n", tsh->sync_byte);
-                dump(rslt->TS, 188);
-        }
-        else {
-                err->TS_sync_loss = 0;
-                err->Sync_byte_error = 0;
-        }
-
-        dat = *(obj->p)++; obj->len--;
-        tsh->transport_error_indicator = (dat & BIT(7)) >> 7;
-        tsh->payload_unit_start_indicator = (dat & BIT(6)) >> 6;
-        tsh->transport_priority = (dat & BIT(5)) >> 5;
-        tsh->PID = dat & 0x1F;
-        err->Transport_error = tsh->transport_error_indicator;
-
-        dat = *(obj->p)++; obj->len--;
-        tsh->PID <<= 8;
-        tsh->PID |= dat;
-
-        dat = *(obj->p)++; obj->len--;
-        tsh->transport_scrambling_control = (dat & (BIT(7) | BIT(6))) >> 6;
-        tsh->adaption_field_control = (dat & (BIT(5) | BIT(4))) >> 4;;
-        tsh->continuity_counter = dat & 0x0F;
-
-        if(0x00 == tsh->adaption_field_control) {
-                fprintf(stderr, "Bad adaption_field_control field(00)!\n");
-        }
-
-        if(BIT(1) & tsh->adaption_field_control) {
-                ts_parse_af(obj);
-        }
-        else {
-                af->adaption_field_length = 0x00;
-        }
-
-        if(BIT(0) & tsh->adaption_field_control) {
-                /* data_byte, PSI or PES */
-        }
-
-        rslt->PID = tsh->PID; /* record into rslt struct */
-        RPT(RPT_DBG, "search 0x%04X in pid_list", rslt->PID);
-        rslt->pid = (struct ts_pid *)zlst_search(&(rslt->pid0), rslt->PID);
-        if(!(rslt->pid)) {
-                /* find new PID, add it in pid_list */
-                rslt->pid = add_new_pid(obj);
-        }
-        pid = rslt->pid;
-
-        /* calc STC and CTS, should be as early as possible */
-        if(rslt->mts) {
-                int64_t dCTS = timestamp_diff(rslt->MTS, rslt->lCTS, MTS_OVF);
-
-                if(STC_OVF != rslt->STC) {
-                        rslt->STC = timestamp_add(rslt->STC, dCTS, STC_OVF);
-                }
-                else {
-                        rslt->STC = timestamp_add(0L, dCTS, STC_OVF);
-                }
-                rslt->lCTS = rslt->MTS; /* record last CTS */
-
-                rslt->CTS = rslt->STC;
-        }
-        else {
-                /* STC: according to pid->prog */
-                if(pid && pid->prog) {
-                        prog = pid->prog;
-                        if((prog->STC_sync) &&
-                           (prog->PCRa != prog->PCRb)) {
-                                long double delta;
-
-                                /* STCx - PCRb   ADDx - ADDb */
-                                /* ----------- = ----------- */
-                                /* PCRb - PCRa   ADDb - ADDa */
-                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                delta *= (rslt->ADDR - prog->ADDb);
-                                delta /= (prog->ADDb - prog->ADDa);
-                                rslt->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
-                                rslt->stc = &(rslt->STC);
-                        }
-                }
-
-                /* CTS: according to prog0 */
-                if(rslt->prog0) {
-                        prog = rslt->prog0;
-                        if((prog->STC_sync) &&
-                           (prog->PCRa != prog->PCRb)) {
-                                long double delta;
-
-                                /* CTSx - PCRb   ADDx - ADDb */
-                                /* ----------- = ----------- */
-                                /* PCRb - PCRa   ADDb - ADDa */
-                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                delta *= (rslt->ADDR - prog->ADDb);
-                                delta /= (prog->ADDb - prog->ADDa);
-                                rslt->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
-                                rslt->cts = &(rslt->CTS);
-                        }
-                }
-        }
-        rslt->STC_base = rslt->STC / 300;
-        rslt->STC_ext = rslt->STC % 300;
-        rslt->CTS_base = rslt->CTS / 300;
-        rslt->CTS_ext = rslt->CTS % 300;
-
-        /* statistic & PSI/SI section collect */
-        pid->cnt++;
-        rslt->sys_cnt++;
-        rslt->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
-        if((tsh->PID < 0x0020) || (PMT_PID == pid->type)) {
-                /* PSI/SI packet */
-                rslt->psi_cnt++;
-                rslt->is_psi_si = 1;
-                /*fprintf(stderr, "PSI/SI: 0x%04X\n", tsh->PID);*/
-                ts_ts2sect(obj);
-        }
-
-        return 0;
-}
-
 static int ts_parse_af(struct ts_obj *obj)
 {
         int i;
@@ -1201,7 +1194,7 @@ static int ts_parse_sect(struct ts_obj *obj)
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != sech->table_id) {
                 err->PAT_error = ERR_1_3_1;
-                dump(rslt->TS, 188);
+                dump(rslt->TS, PKT_SIZE);
                 dump(pid->sect_data, 8);
                 return -1;
         }
@@ -1292,7 +1285,7 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
                                 sech->table_id,
                                 sech->section_length);
                         sech->section_length = 1021;
-                        dump(rslt->TS, 188);
+                        dump(rslt->TS, PKT_SIZE);
                         dump(sect, 8);
                         return -1;
                 }
@@ -1304,7 +1297,7 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
                                 sech->table_id,
                                 sech->section_length);
                         sech->section_length = 4093;
-                        dump(rslt->TS, 188);
+                        dump(rslt->TS, PKT_SIZE);
                         dump(sect, 8);
                         return -1;
                 }
@@ -1762,7 +1755,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 if(0x000001 != pesh->packet_start_code_prefix) {
                         fprintf(stderr, "PES packet start code prefix(0x%06X) NOT 0x000001!\n",
                                 pesh->packet_start_code_prefix);
-                        dump(rslt->TS, 188);
+                        dump(rslt->TS, PKT_SIZE);
 #if 0
                         return -1;
 #endif
@@ -1953,7 +1946,7 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
         }
         else if(0x01 == pesh->PTS_DTS_flags) { /* '01' */
                 fprintf(stderr, "PTS_DTS_flags error!\n");
-                dump(rslt->TS, 188);
+                dump(rslt->TS, PKT_SIZE);
                 return -1;
         }
         else {

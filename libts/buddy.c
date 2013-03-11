@@ -1,6 +1,7 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h> /* for uintN_t, etc */
 
 #include "common.h"
 #include "buddy.h"
@@ -53,7 +54,7 @@ intptr_t buddy_create(int order_max, int order_min)
         p->size = (1 << order_max);
 
         size_t tree_size = (1 << (p->omax - p->omin + 1)) - 1;
-        p->tree = (uint8_t *)memalign(4096, tree_size);
+        p->tree = (uint8_t *)malloc(tree_size); /* FIXME: memalign? */
         if(NULL == p->tree) {
                 RPT(RPT_ERR, "create: malloc tree(%d-byte) failed", tree_size);
                 free(p);
@@ -61,7 +62,7 @@ intptr_t buddy_create(int order_max, int order_min)
         }
         RPT(RPT_DBG, "create: tree: %8lX-byte @ %8lX", (unsigned long)tree_size, (unsigned long)(p->tree));
 
-        p->pool = (uint8_t *)memalign(4096, p->size);
+        p->pool = (uint8_t *)malloc(p->size); /* FIXME: memalign? */
         if(NULL == p->pool) {
                 RPT(RPT_ERR, "create: malloc pool(%d-byte) failed", p->size);
                 free(p->tree);

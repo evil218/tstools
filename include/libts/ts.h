@@ -310,33 +310,36 @@ struct ts_pid {
 
 /* parse result */
 struct ts_rslt {
-        /* buffer */
-        char DATE[16]; /* "2009-06-17" */
-        char TIME[16]; /* "12:38:00" */
+        /* <input> */
+
+        /* information about one packet, tell me as more as you can :-) */
         uint8_t TS[188]; /* TS data */
         uint8_t RS[16]; /* RS data */
         long long int ADDR; /* address of sync-byte(unit: byte) */
         int64_t MTS; /* MTS Time Stamp */
-        long long int cnt; /* count of this packet, start from 0 */
+        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
 
         /* NULL means the item is absent */
-        char *date; /* NULL or point to DATE */
-        char *time; /* NULL or point to TIME */
-        uint8_t *ts; /* TS packet */
-        uint8_t *af; /* NULL or point to adaptation_fields */
-        uint8_t *pes; /* NULL or point to PES fragment */
-        uint8_t *es; /* NULL or point to ES fragment */
+        uint8_t *ts; /* point to TS packet */
         uint8_t *rs; /* NULL or point to RS data */
         long long int *addr; /* NULL or point to ADDR */
         int64_t *mts; /* NULL or point to MTS */
         int64_t *cts; /* NULL or point to CTS */
+
+        /* </input> */
+
+        /* <output> */
+
+        long long int cnt; /* count of this packet, start from 0 */
+        uint8_t *af; /* NULL or point to adaptation_fields */
+        uint8_t *pes; /* NULL or point to PES fragment */
+        uint8_t *es; /* NULL or point to ES fragment */
         int64_t *stc; /* NULL or point to STC */
         int64_t *pcr; /* NULL or point to PCR */
         int64_t *pts; /* NULL or point to PTS */
         int64_t *dts; /* NULL or point to DTS */
 
         /* CTS */
-        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
         int64_t CTS_base;
         int64_t CTS_ext;
         int64_t lCTS; /* for calc dCTS in MTS mode */
@@ -415,14 +418,16 @@ struct ts_rslt {
 
         /* error */
         struct ts_err err;
+
+        /* </output> */
 };
 
 intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order);
 int ts_destroy(intptr_t id);
 
 int ts_init(intptr_t id);
-int ts_ParseTS(intptr_t id);
-int ts_ParseOther(intptr_t id);
+int ts_parse_tsh(intptr_t id);
+int ts_parse_tsb(intptr_t id);
 
 /* calculate timestamp:
  *      t0: [0, ovf);

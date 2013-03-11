@@ -60,7 +60,7 @@ struct aim {
 
 #define MP_ORDER_DEFAULT (21) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
-struct obj {
+struct tsana_obj {
         size_t mp_order;
         int mode;
         int state;
@@ -113,47 +113,47 @@ enum {
         GOT_EOF
 };
 
-static struct obj *obj = NULL;
+static struct tsana_obj *obj = NULL;
 
-static void state_parse_psi(struct obj *obj);
-static void state_parse_each(struct obj *obj);
+static void state_parse_psi(struct tsana_obj *obj);
+static void state_parse_each(struct tsana_obj *obj);
 
-static struct obj *create(int argc, char *argv[]);
-static int destroy(struct obj *obj);
+static struct tsana_obj *create(int argc, char *argv[]);
+static int destroy(struct tsana_obj *obj);
 
 static void show_help();
 static void show_version();
 
-static int get_one_pkt(struct obj *obj);
-static void output_prog(struct obj *obj);
+static int get_one_pkt(struct tsana_obj *obj);
+static void output_prog(struct tsana_obj *obj);
 static void output_elem(void *PELEM, uint16_t pcr_pid);
 
-static void show_lst(struct obj *obj);
-static void show_psi(struct obj *obj);
+static void show_lst(struct tsana_obj *obj);
+static void show_psi(struct tsana_obj *obj);
 
-static void show_pkt(struct obj *obj);
-static void show_bg(struct obj *obj);
-static void show_cts(struct obj *obj);
-static void show_stc(struct obj *obj);
-static void show_pcr(struct obj *obj);
-static void show_pts(struct obj *obj);
-static void show_tsh(struct obj *obj);
-static void show_ts(struct obj *obj);
-static void show_mts(struct obj *obj);
-static void show_af(struct obj *obj);
-static void show_pesh(struct obj *obj);
-static void show_pes(struct obj *obj);
-static void show_es(struct obj *obj);
-static void show_sec(struct obj *obj);
-static void show_si(struct obj *obj);
-static void show_rate(struct obj *obj);
-static void show_rats(struct obj *obj);
-static void show_ratp(struct obj *obj);
-static void show_error(struct obj *obj);
-static void show_tcp(struct obj *obj);
+static void show_pkt(struct tsana_obj *obj);
+static void show_bg(struct tsana_obj *obj);
+static void show_cts(struct tsana_obj *obj);
+static void show_stc(struct tsana_obj *obj);
+static void show_pcr(struct tsana_obj *obj);
+static void show_pts(struct tsana_obj *obj);
+static void show_tsh(struct tsana_obj *obj);
+static void show_ts(struct tsana_obj *obj);
+static void show_mts(struct tsana_obj *obj);
+static void show_af(struct tsana_obj *obj);
+static void show_pesh(struct tsana_obj *obj);
+static void show_pes(struct tsana_obj *obj);
+static void show_es(struct tsana_obj *obj);
+static void show_sec(struct tsana_obj *obj);
+static void show_si(struct tsana_obj *obj);
+static void show_rate(struct tsana_obj *obj);
+static void show_rats(struct tsana_obj *obj);
+static void show_ratp(struct tsana_obj *obj);
+static void show_error(struct tsana_obj *obj);
+static void show_tcp(struct tsana_obj *obj);
 
-static void all_pes(struct obj *obj);
-static void all_es(struct obj *obj);
+static void all_pes(struct tsana_obj *obj);
+static void all_es(struct tsana_obj *obj);
 
 static void table_info_PAT(struct ts_sech *sech, uint8_t *section);
 static void table_info_CAT(struct ts_sech *sech, uint8_t *section);
@@ -192,27 +192,27 @@ int main(int argc, char *argv[])
                 if(GOT_WRONG_PKT == get_rslt) {
                         break;
                 }
-                if(0 != ts_ParseTS(obj->ts_id)) {
+                if(0 != ts_parse_tsh(obj->ts_id)) {
                         break;
                 }
                 if(rslt->cnt < obj->aim_start) {
                         continue;
                 }
 
-                ts_ParseOther(obj->ts_id);
+                ts_parse_tsb(obj->ts_id);
                 switch(obj->state) {
-                case STATE_PARSE_PSI:
-                        state_parse_psi(obj);
-                        break;
-                case STATE_PARSE_EACH:
-                        state_parse_each(obj);
-                        break;
-                case STATE_EXIT:
-                        break;
-                default:
-                        fprintf(stderr, "Wrong state(%d)!\n", obj->state);
-                        obj->state = STATE_EXIT;
-                        break;
+                        case STATE_PARSE_PSI:
+                                state_parse_psi(obj);
+                                break;
+                        case STATE_PARSE_EACH:
+                                state_parse_each(obj);
+                                break;
+                        case STATE_EXIT:
+                                break;
+                        default:
+                                fprintf(stderr, "Wrong state(%d)!\n", obj->state);
+                                obj->state = STATE_EXIT;
+                                break;
                 }
 
                 if(obj->is_dump) {
@@ -230,14 +230,14 @@ int main(int argc, char *argv[])
 
                 rslt->is_psi_parse_finished = 1;
                 switch(obj->mode) {
-                case MODE_LST:
-                        show_lst(obj);
-                        break;
-                case MODE_PSI:
-                        show_psi(obj);
-                        break;
-                default:
-                        break;
+                        case MODE_LST:
+                                show_lst(obj);
+                                break;
+                        case MODE_PSI:
+                                show_psi(obj);
+                                break;
+                        default:
+                                break;
                 }
         }
 
@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
 }
 
-static void state_parse_psi(struct obj *obj)
+static void state_parse_psi(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -262,7 +262,7 @@ static void state_parse_psi(struct obj *obj)
         return;
 }
 
-static void state_parse_each(struct obj *obj)
+static void state_parse_each(struct tsana_obj *obj)
 {
         int i;
         int has_err;
@@ -436,13 +436,13 @@ static void state_parse_each(struct obj *obj)
         return;
 }
 
-static struct obj *create(int argc, char *argv[])
+static struct tsana_obj *create(int argc, char *argv[])
 {
         int i;
         int dat;
-        struct obj *obj;
+        struct tsana_obj *obj;
 
-        obj = (struct obj *)malloc(sizeof(struct obj));
+        obj = (struct tsana_obj *)malloc(sizeof(struct tsana_obj));
         if(NULL == obj) {
                 RPT(RPT_ERR, "malloc failed");
                 return NULL;
@@ -747,7 +747,7 @@ static struct obj *create(int argc, char *argv[])
         return obj;
 }
 
-static int destroy(struct obj *obj)
+static int destroy(struct tsana_obj *obj)
 {
         if(NULL == obj) {
                 return 0;
@@ -841,7 +841,7 @@ static void show_version()
         return;
 }
 
-static int get_one_pkt(struct obj *obj)
+static int get_one_pkt(struct tsana_obj *obj)
 {
         char *tag;
         char *pt = (char *)(obj->tbuf);
@@ -891,7 +891,7 @@ static int get_one_pkt(struct obj *obj)
         return GOT_RIGHT_PKT;
 }
 
-static void output_prog(struct obj *obj)
+static void output_prog(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
         struct znode *znode;
@@ -992,7 +992,7 @@ static void output_elem(void *PELEM, uint16_t pcr_pid)
         return;
 }
 
-static void show_pkt(struct obj *obj)
+static void show_pkt(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1002,7 +1002,7 @@ static void show_pkt(struct obj *obj)
         fprintf(stdout, "%s", obj->tbak);
 }
 
-static void show_lst(struct obj *obj)
+static void show_lst(struct tsana_obj *obj)
 {
         struct znode *znode;
         struct ts_pid *pid;
@@ -1034,7 +1034,7 @@ static void show_lst(struct obj *obj)
         return;
 }
 
-static void show_psi(struct obj *obj)
+static void show_psi(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1046,26 +1046,27 @@ static void show_psi(struct obj *obj)
         return;
 }
 
-static void show_bg(struct obj *obj)
+static void show_bg(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
         time_t tp;
         struct tm *lt; /* local time */
+        char str[16]; /* "12:38:00" */
 
         time(&tp);
         lt = localtime(&tp);
-        strftime(rslt->TIME, 32, "%H:%M:%S", lt);
+        strftime(str, 32, "%H:%M:%S", lt);
 
         fprintf(stdout,
                 "%s*bg%s, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
                 obj->color_green, obj->color_off,
-                obj->color_yellow, rslt->TIME, obj->color_off, (long long int)rslt->CTS,
+                obj->color_yellow, str, obj->color_off, (long long int)rslt->CTS,
                 obj->color_yellow, rslt->ADDR, obj->color_off, rslt->ADDR,
                 obj->color_yellow, rslt->PID, obj->color_off);
         return;
 }
 
-static void show_cts(struct obj *obj)
+static void show_cts(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1083,7 +1084,7 @@ static void show_cts(struct obj *obj)
         return;
 }
 
-static void show_stc(struct obj *obj)
+static void show_stc(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1101,7 +1102,7 @@ static void show_stc(struct obj *obj)
         return;
 }
 
-static void show_pcr(struct obj *obj)
+static void show_pcr(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1121,7 +1122,7 @@ static void show_pcr(struct obj *obj)
         return;
 }
 
-static void show_pts(struct obj *obj)
+static void show_pts(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1147,7 +1148,7 @@ static void show_pts(struct obj *obj)
         return;
 }
 
-static void show_tsh(struct obj *obj)
+static void show_tsh(struct tsana_obj *obj)
 {
         char str[3 * 4 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
@@ -1159,7 +1160,7 @@ static void show_tsh(struct obj *obj)
         return;
 }
 
-static void show_ts(struct obj *obj)
+static void show_ts(struct tsana_obj *obj)
 {
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
@@ -1171,7 +1172,7 @@ static void show_ts(struct obj *obj)
         return;
 }
 
-static void show_mts(struct obj *obj)
+static void show_mts(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1181,7 +1182,7 @@ static void show_mts(struct obj *obj)
         return;
 }
 
-static void show_af(struct obj *obj)
+static void show_af(struct tsana_obj *obj)
 {
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
@@ -1193,7 +1194,7 @@ static void show_af(struct obj *obj)
         return;
 }
 
-static void show_pesh(struct obj *obj)
+static void show_pesh(struct tsana_obj *obj)
 {
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
@@ -1205,7 +1206,7 @@ static void show_pesh(struct obj *obj)
         return;
 }
 
-static void show_pes(struct obj *obj)
+static void show_pes(struct tsana_obj *obj)
 {
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
@@ -1217,7 +1218,7 @@ static void show_pes(struct obj *obj)
         return;
 }
 
-static void show_es(struct obj *obj)
+static void show_es(struct tsana_obj *obj)
 {
         char str[3 * 188 + 3]; /* part of one TS packet */
         struct ts_rslt *rslt = obj->rslt;
@@ -1229,7 +1230,7 @@ static void show_es(struct obj *obj)
         return;
 }
 
-static void show_sec(struct obj *obj)
+static void show_sec(struct tsana_obj *obj)
 {
         char str[3 * 4096 + 3];
         struct ts_rslt *rslt = obj->rslt;
@@ -1252,7 +1253,7 @@ static void show_sec(struct obj *obj)
         return;
 }
 
-static void show_si(struct obj *obj)
+static void show_si(struct tsana_obj *obj)
 {
         char str[3 * 8 + 3];
         int is_unknown_table_id = 0;
@@ -1364,7 +1365,7 @@ static void show_si(struct obj *obj)
         return;
 }
 
-static void show_rate(struct obj *obj)
+static void show_rate(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
         struct znode *znode;
@@ -1418,7 +1419,7 @@ static void show_rate(struct obj *obj)
         return;
 }
 
-static void show_rats(struct obj *obj)
+static void show_rats(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1432,7 +1433,7 @@ static void show_rats(struct obj *obj)
         return;
 }
 
-static void show_ratp(struct obj *obj)
+static void show_ratp(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
         struct znode *znode;
@@ -1459,7 +1460,7 @@ static void show_ratp(struct obj *obj)
         return;
 }
 
-static void show_error(struct obj *obj)
+static void show_error(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
         struct ts_err *err = &(rslt->err);
@@ -1549,7 +1550,7 @@ static void show_error(struct obj *obj)
         return;
 }
 
-static void show_tcp(struct obj *obj)
+static void show_tcp(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1559,7 +1560,7 @@ static void show_tcp(struct obj *obj)
         return;
 }
 
-static void all_pes(struct obj *obj)
+static void all_pes(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -1584,7 +1585,7 @@ static void all_pes(struct obj *obj)
         return;
 }
 
-static void all_es(struct obj *obj)
+static void all_es(struct tsana_obj *obj)
 {
         struct ts_rslt *rslt = obj->rslt;
 
@@ -2074,12 +2075,12 @@ static void UTC(uint8_t *buf)
 static char *running_status(uint8_t status)
 {
         switch(status) {
-        case  0: return "undefined";
-        case  1: return "stopped";
-        case  2: return "preparing";
-        case  3: return "pausing";
-        case  4: return "running";
-        default: return "reserved running status";
+                case  0: return "undefined";
+                case  1: return "stopped";
+                case  2: return "preparing";
+                case  3: return "pausing";
+                case  4: return "running";
+                default: return "reserved running status";
         }
 }
 
@@ -2143,13 +2144,13 @@ static int coding_string(uint8_t *p, int len)
                 p++; len--; /* pass first byte */
         }
         switch(coding) {
-        case 0x11:
-                utf16_gb((const uint16_t *)p, str, len, BIG_ENDIAN);
-                break;
-        default:
-                memcpy(str, p, len);
-                str[len] = '\0';
-                break;
+                case 0x11:
+                        utf16_gb((const uint16_t *)p, str, len, BIG_ENDIAN);
+                        break;
+                default:
+                        memcpy(str, p, len);
+                        str[len] = '\0';
+                        break;
         }
         fprintf(stdout, "%s", str);
         return 0;
