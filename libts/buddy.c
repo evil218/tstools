@@ -5,7 +5,7 @@
 #include "common.h"
 #include "buddy.h"
 
-static int rpt_lvl = RPT_DBG; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define IS_POWER_OF_2(x) (!((x) & ((x) - 1)))

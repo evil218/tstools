@@ -28,7 +28,6 @@
 extern "C" {
 #endif
 
-#include "if.h"
 #include "zlst.h"
 
 #define STC_BASE_MS  (90)        /* 90 clk == 1(ms) */
@@ -94,6 +93,7 @@ struct ts_err {
         int Data_delay_error; /* 3.10 */
 };
 
+/* TS head */
 struct ts_tsh {
         uint8_t sync_byte;
         uint8_t transport_error_indicator; /* 1-bit */
@@ -105,6 +105,7 @@ struct ts_tsh {
         uint8_t continuity_counter; /* 4-bit */
 };
 
+/* Adaption Field */
 struct ts_af {
         uint8_t adaption_field_length;
         uint8_t discontinuity_indicator; /* 1-bit */
@@ -126,6 +127,7 @@ struct ts_af {
         /* ... */
 };
 
+/* PES head */
 struct ts_pesh {
         uint32_t packet_start_code_prefix; /* 24-bit */
         uint8_t stream_id;
@@ -170,7 +172,8 @@ struct ts_pesh {
         uint8_t PES_extension_field_length; /* 7-bit */
 };
 
-struct ts_psi {
+/* section head */
+struct ts_sech {
         uint8_t table_id; /* TABLE_ID_TABLE */
         uint8_t section_syntax_indicator; /* 1-bit */
         uint8_t private_indicator; /* 1-bit */
@@ -191,9 +194,14 @@ struct ts_psi {
 struct ts_sect {
         struct znode cvfl; /* common variable for list */
 
+        /* section head */
         uint8_t section_number;
         uint16_t section_length;
+
+        /* section info */
         uint8_t data[4096];
+        int check_CRC; /* bool, some table do not need to check CRC_32 */
+        int type; /* index of item in PID_TYPE[] */
 };
 
 /* node of PSI/SI table list */
@@ -203,7 +211,7 @@ struct ts_table {
         uint8_t table_id; /* 0x00~0xFF except 0x02 */
         uint8_t version_number;
         uint8_t last_section_number;
-        struct ts_sect *section0;
+        struct ts_sect *sect0;
         int64_t STC;
 };
 
@@ -276,9 +284,9 @@ struct ts_pid {
         const char *ldes; /* PID type long description */
 
         /* only for PID with PSI/SI */
-        int section_idx; /* to index data in section */
-        uint8_t section[4416]; /* (184*24=4416), PSI/SI|private <= 1024|4096 */
-        int64_t section_interval;
+        int sect_idx; /* to index data in section */
+        uint8_t sect_data[4416]; /* (184*24=4416), PSI/SI|private <= 1024|4096 */
+        int64_t sect_interval;
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
 
@@ -385,11 +393,11 @@ struct ts_rslt {
         struct ts_pid *pid0; /* pid list */
 
         /* PSI/SI table */
-        struct ts_psi psi;
+        struct ts_sech sech; /* section head */
         int is_pat_pmt_parsed;
         int is_psi_parse_finished;
         int is_psi_si;
-        int has_section;
+        int has_sect;
         struct ts_table *table0; /* PSI/SI table except PMT */
 
         /* for bit-rate statistic */

@@ -9,6 +9,7 @@
 #include <string.h> /* for memset, memcpy, etc */
 
 #include "common.h"
+#include "if.h" /* for dump(uint8_t *buf, int len) */
 #include "crc.h"
 #include "buddy.h"
 #include "ts.h"
@@ -248,10 +249,10 @@ static int ts_parse_tsh(struct ts_obj *obj); /* TS head information */
 static int ts_parse_af(struct ts_obj *obj); /* Adaption Fields information */
 static int section(struct ts_obj *obj); /* collect PSI/SI section data */
 static int ts_parse_table(struct ts_obj *obj);
-static int ts_parse_psih(struct ts_obj *obj, uint8_t *section);
-static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *section);
-static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *section);
-static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *section);
+static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect);
+static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect);
+static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect);
+static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_pesh(struct ts_obj *obj); /* PES layer information */
 static int ts_parse_pesh_switch(struct ts_obj *obj);
 static int ts_parse_pesh_detail(struct ts_obj *obj);
@@ -330,7 +331,7 @@ int ts_destroy(intptr_t id)
                 while(NULL != (pop = zlst_pop(&(prog->elem0)))) {
                         buddy_free(obj->mp, pop);
                 }
-                while(NULL != (pop = zlst_pop(&(prog->table_02.section0)))) {
+                while(NULL != (pop = zlst_pop(&(prog->table_02.sect0)))) {
                         buddy_free(obj->mp, pop);
                 }
         }
@@ -343,7 +344,7 @@ int ts_destroy(intptr_t id)
 
         for(znode = (struct znode *)(rslt->table0); znode; znode = znode->next) {
                 struct ts_table *table = (struct ts_table *)znode;
-                while(NULL != (pop = zlst_pop(&(table->section0)))) {
+                while(NULL != (pop = zlst_pop(&(table->sect0)))) {
                         buddy_free(obj->mp, pop);
                 }
         }
@@ -432,13 +433,13 @@ static int state_next_pat(struct ts_obj *obj)
                 struct znode *znode;
 
                 section_number = 0;
-                for(znode = (struct znode *)(table->section0); znode; znode = znode->next) {
-                        struct ts_sect *section = (struct ts_sect *)znode;
+                for(znode = (struct znode *)(table->sect0); znode; znode = znode->next) {
+                        struct ts_sect *sect = (struct ts_sect *)znode;
 
                         if(section_number > table->last_section_number) {
                                 return -1;
                         }
-                        if(section_number != section->section_number) {
+                        if(section_number != sect->section_number) {
                                 return -1;
                         }
                         section_number++;
@@ -741,7 +742,7 @@ static int ts_parse_tsh(struct ts_obj *obj)
         rslt->pts = NULL; /* no PTS */
         rslt->dts = NULL; /* no DTS */
         rslt->is_psi_si = 0;
-        rslt->has_section = 0;
+        rslt->has_sect = 0;
         rslt->has_rate = 0;
         rslt->AF_len = 0; /* clear PES length */
         rslt->PES_len = 0; /* clear PES length */
@@ -984,11 +985,11 @@ static int section(struct ts_obj *obj)
 {
         uint8_t pointer_field;
         struct ts_tsh *tsh = &(obj->tsh);
-        struct ts_psi *psi = &(obj->rslt.psi);
+        struct ts_sech *sech = &(obj->rslt.sech);
         struct ts_pid *pid = obj->rslt.pid;
 
         /* FIXME: if data after CRC_32 is NOT 0xFF, it's another section! */
-        if(0 == pid->section_idx) {
+        if(0 == pid->sect_idx) {
                 /* waiting for section head */
                 if(1 == tsh->payload_unit_start_indicator) {
                         pointer_field = *(obj->p)++; obj->len--;
@@ -996,48 +997,48 @@ static int section(struct ts_obj *obj)
                         /* section head */
                         obj->p += pointer_field;
                         obj->len -= pointer_field;
-                        memcpy(pid->section, obj->p, obj->len);
-                        pid->section_idx = obj->len;
+                        memcpy(pid->sect_data, obj->p, obj->len);
+                        pid->sect_idx = obj->len;
                 }
                 else { /* (0 == tsh->payload_unit_start_indicator) */
                         /* section async, ignore this packet! */
                         /*dump(obj->p, obj->len); */
                 }
         }
-        else { /* (0 != pid->section_idx) */
+        else { /* (0 != pid->sect_idx) */
                 /* collect section data */
                 if(1 == tsh->payload_unit_start_indicator) {
                         pointer_field = *(obj->p)++; obj->len--;
 
                         /* section tail */
-                        memcpy(pid->section + pid->section_idx, obj->p, pointer_field);
-                        pid->section_idx += pointer_field;
+                        memcpy(pid->sect_data + pid->sect_idx, obj->p, pointer_field);
+                        pid->sect_idx += pointer_field;
                         ts_parse_table(obj);
 
                         /* section head */
                         obj->p += pointer_field;
                         obj->len -= pointer_field;
-                        memcpy(pid->section, obj->p, obj->len);
-                        pid->section_idx = obj->len;
+                        memcpy(pid->sect_data, obj->p, obj->len);
+                        pid->sect_idx = obj->len;
                 }
                 else { /* (0 == tsh->payload_unit_start_indicator) */
                         /* section body */
-                        memcpy(pid->section + pid->section_idx, obj->p, 184);
-                        pid->section_idx += 184;
+                        memcpy(pid->sect_data + pid->sect_idx, obj->p, 184);
+                        pid->sect_idx += 184;
                 }
         }
 
-        if(pid->section_idx >= 8) {
+        if(pid->sect_idx >= 8) {
                 /* PSI head OK */
-                if(0 != ts_parse_psih(obj, pid->section)) {
-                        pid->section_idx = 0;
+                if(0 != ts_parse_sech(obj, pid->sect_data)) {
+                        pid->sect_idx = 0;
                         return -1;
                 }
 
-                if(pid->section_idx >= (3 + psi->section_length)) {
+                if(pid->sect_idx >= (3 + sech->section_length)) {
                         /* section data enough */
                         ts_parse_table(obj);
-                        pid->section_idx = 0;
+                        pid->sect_idx = 0;
                 }
         }
 
@@ -1048,24 +1049,24 @@ static int ts_parse_table(struct ts_obj *obj)
 {
         uint8_t *p;
         struct ts_table *table;
-        struct znode **psection0;
-        struct ts_sect *section;
+        struct znode **psect0;
+        struct ts_sect *sect;
         struct ts_rslt *rslt = &(obj->rslt);
         struct ts_pid *pid = rslt->pid;
-        struct ts_psi *psi = &(rslt->psi);
+        struct ts_sech *sech = &(rslt->sech);
         struct ts_err *err = &(rslt->err);
 #if 0
         int is_new_version = 0;
 #endif
 
         /* get psi head info */
-        if(0 != ts_parse_psih(obj, pid->section)) {
+        if(0 != ts_parse_sech(obj, pid->sect_data)) {
                 return -1;
         }
 
         /* CRC check */
-        if(psi->check_CRC) {
-                p = pid->section + 3 + psi->section_length - 4;
+        if(sech->check_CRC) {
+                p = pid->sect_data + 3 + sech->section_length - 4;
                 pid->CRC_32   = *p++;
                 pid->CRC_32 <<= 8;
                 pid->CRC_32  |= *p++;
@@ -1074,20 +1075,20 @@ static int ts_parse_table(struct ts_obj *obj)
                 pid->CRC_32 <<= 8;
                 pid->CRC_32  |= *p++;
 
-                pid->CRC_32_calc = CRC_for_TS(pid->section, 3 + psi->section_length - 4, 32);
-                /*pid->CRC_32_calc = CRC(pid->section, 3 + psi->section_length - 4, 32); */
-                /*pid->CRC_32_calc = crc32(pid->section, 3 + psi->section_length - 4); */
+                pid->CRC_32_calc = CRC_for_TS(pid->sect_data, 3 + sech->section_length - 4, 32);
+                /*pid->CRC_32_calc = CRC(pid->sect_data, 3 + sech->section_length - 4, 32); */
+                /*pid->CRC_32_calc = crc32(pid->sect_data, 3 + sech->section_length - 4); */
                 if(pid->CRC_32_calc != pid->CRC_32) {
                         err->CRC_error = 1;
                         fprintf(stderr, "CRC error(0x%08X! 0x%08X?)\n",
                                 pid->CRC_32_calc, pid->CRC_32);
-                        dump(pid->section, 3 + psi->section_length);
+                        dump(pid->sect_data, 3 + sech->section_length);
                         return -1;
                 }
         }
 
-        /* get "table" and "psection0" */
-        if(0x02 == psi->table_id) {
+        /* get "table" and "psect0" */
+        if(0x02 == sech->table_id) {
                 /* PMT section */
                 if(!(pid->prog)) {
                         RPT(RPT_WRN, "PMT: pid->prog is NULL");
@@ -1099,8 +1100,8 @@ static int ts_parse_table(struct ts_obj *obj)
                 /* other section */
                 struct znode **ptable0 = (struct znode **)&(rslt->table0);
 
-                RPT(RPT_DBG, "search 0x%02X in table_list", psi->table_id);
-                table = (struct ts_table *)zlst_search(ptable0, psi->table_id);
+                RPT(RPT_DBG, "search 0x%02X in table_list", sech->table_id);
+                table = (struct ts_table *)zlst_search(ptable0, sech->table_id);
                 if(!table) {
                         /* add table */
                         table = (struct ts_table *)buddy_malloc(obj->mp, sizeof(struct ts_table));
@@ -1109,31 +1110,31 @@ static int ts_parse_table(struct ts_obj *obj)
                                 return -1;
                         }
 
-                        table->table_id = psi->table_id;
-                        table->version_number = psi->version_number;
-                        table->last_section_number = psi->last_section_number;
-                        table->section0 = NULL;
+                        table->table_id = sech->table_id;
+                        table->version_number = sech->version_number;
+                        table->last_section_number = sech->last_section_number;
+                        table->sect0 = NULL;
                         table->STC = STC_OVF;
-                        RPT(RPT_DBG, "insert 0x%02X in table_list", psi->table_id);
-                        zlst_set_key(table, psi->table_id);
+                        RPT(RPT_DBG, "insert 0x%02X in table_list", sech->table_id);
+                        zlst_set_key(table, sech->table_id);
                         if(zlst_insert(ptable0, table)) {
                                 buddy_free(obj->mp, table);
                         }
                 }
         }
-        psection0 = (struct znode **)&(table->section0);
+        psect0 = (struct znode **)&(table->sect0);
 
         /* new table version? */
-        if(table->version_number != psi->version_number) {
+        if(table->version_number != sech->version_number) {
                 struct znode *znode;
 
-                /* clear psection0 and update table parameter */
+                /* clear psect0 and update table parameter */
                 RPT(RPT_DBG, "version_number(%d -> %d), free section",
                     table->version_number,
-                    psi->version_number);
-                table->version_number = psi->version_number;
-                table->last_section_number = psi->last_section_number;
-                while(NULL != (znode = zlst_pop(psection0))) {
+                    sech->version_number);
+                table->version_number = sech->version_number;
+                table->last_section_number = sech->last_section_number;
+                while(NULL != (znode = zlst_pop(psect0))) {
                         buddy_free(obj->mp, znode);
                 };
 #if 0
@@ -1142,73 +1143,73 @@ static int ts_parse_table(struct ts_obj *obj)
         }
 
         /* get "section" pointer */
-        RPT(RPT_DBG, "search 0x%02X in section_list", psi->section_number);
-        section = (struct ts_sect *)zlst_search(psection0, psi->section_number);
-        if(!section) {
+        RPT(RPT_DBG, "search 0x%02X in section_list", sech->section_number);
+        sect = (struct ts_sect *)zlst_search(psect0, sech->section_number);
+        if(!sect) {
                 /* add section */
-                section = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
-                if(!section) {
+                sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
+                if(!sect) {
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
                 }
 
-                section->section_number = psi->section_number;
-                section->section_length = psi->section_length;
-                memcpy(section->data, pid->section, 3 + psi->section_length);
-                RPT(RPT_DBG, "insert 0x%02X in section_list", psi->section_number);
-                zlst_set_key(section, psi->section_number);
-                if(zlst_insert(psection0, section)) {
-                        buddy_free(obj->mp, section);
+                sect->section_number = sech->section_number;
+                sect->section_length = sech->section_length;
+                memcpy(sect->data, pid->sect_data, 3 + sech->section_length);
+                RPT(RPT_DBG, "insert 0x%02X in sect_list", sech->section_number);
+                zlst_set_key(sect, sech->section_number);
+                if(zlst_insert(psect0, sect)) {
+                        buddy_free(obj->mp, sect);
                 }
         }
         else {
                 /*fprintf(stderr, "has section %02X/%02X(table %02X)\n", */
-                /*        psi->section_number, */
-                /*        psi->last_section_number, */
-                /*        psi->table_id); */
+                /*        sech->sect_number, */
+                /*        sech->last_section_number, */
+                /*        sech->table_id); */
         }
 
-        /* section_interval */
+        /* sect_interval */
         if(STC_OVF != table->STC &&
            STC_OVF != rslt->STC) {
-                pid->section_interval = timestamp_diff(rslt->STC, table->STC, STC_OVF);
+                pid->sect_interval = timestamp_diff(rslt->STC, table->STC, STC_OVF);
         }
         else {
-                pid->section_interval = 0;
+                pid->sect_interval = 0;
         }
         table->STC = rslt->STC;
 
         /* PAT_error(table_id error) */
-        if(0x0000 == pid->PID && 0x00 != psi->table_id) {
+        if(0x0000 == pid->PID && 0x00 != sech->table_id) {
                 err->PAT_error = ERR_1_3_1;
                 dump(rslt->TS, 188);
-                dump(pid->section, 8);
+                dump(pid->sect_data, 8);
                 return -1;
         }
 
         /* parse */
-        rslt->has_section = 1;
-        switch(psi->table_id) {
+        rslt->has_sect = 1;
+        switch(sech->table_id) {
                 case 0x00:
                         if(0x0000 != pid->PID) {
                                 fprintf(stderr, "PAT: PID is not 0x0000 but 0x%04X, ignore!\n", pid->PID);
                                 return -1;
                         }
-                        ts_parse_secb_pat(obj, pid->section);
+                        ts_parse_secb_pat(obj, pid->sect_data);
                         break;
                 case 0x02:
                         if(PMT_PID != pid->type) {
                                 fprintf(stderr, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!\n", pid->PID);
                                 return -1;
                         }
-                        ts_parse_secb_pmt(obj, pid->section);
+                        ts_parse_secb_pmt(obj, pid->sect_data);
                         break;
                 case 0x42:
                         if(0x0011 != pid->PID) {
                                 fprintf(stderr, "SDT: PID is not 0x0011 but 0x%04X, ignore!\n", pid->PID);
                                 return -1;
                         }
-                        ts_parse_secb_sdt(obj, pid->section);
+                        ts_parse_secb_sdt(obj, pid->sect_data);
                         break;
                 default:
                         break;
@@ -1216,76 +1217,76 @@ static int ts_parse_table(struct ts_obj *obj)
         return 0;
 }
 
-static int ts_parse_psih(struct ts_obj *obj, uint8_t *section)
+static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
 {
         uint8_t *p;
         struct ts_rslt *rslt = &(obj->rslt);
-        struct ts_psi *psi = &(rslt->psi);
+        struct ts_sech *sech = &(rslt->sech);
         const struct table_id_table *table;
 
-        p = section;
-        psi->table_id = *p++;
-        psi->section_syntax_indicator = (*p & BIT(7)) >> 7;
-        psi->private_indicator = (*p & BIT(6)) >> 6;
-        psi->section_length   = *p++ & 0x0F;
-        psi->section_length <<= 8;
-        psi->section_length  |= *p++;
-        if(1 == psi->section_syntax_indicator) {
+        p = sect;
+        sech->table_id = *p++;
+        sech->section_syntax_indicator = (*p & BIT(7)) >> 7;
+        sech->private_indicator = (*p & BIT(6)) >> 6;
+        sech->section_length   = *p++ & 0x0F;
+        sech->section_length <<= 8;
+        sech->section_length  |= *p++;
+        if(1 == sech->section_syntax_indicator) {
                 /* normal section syntax */
-                psi->table_id_extension   = *p++;
-                psi->table_id_extension <<= 8;
-                psi->table_id_extension  |= *p++;
-                psi->version_number = (*p & 0x3E) >> 1;
-                psi->current_next_indicator = *p++ & BIT(0);
-                psi->section_number = *p++;
-                psi->last_section_number = *p++;
+                sech->table_id_extension   = *p++;
+                sech->table_id_extension <<= 8;
+                sech->table_id_extension  |= *p++;
+                sech->version_number = (*p & 0x3E) >> 1;
+                sech->current_next_indicator = *p++ & BIT(0);
+                sech->section_number = *p++;
+                sech->last_section_number = *p++;
 
-                table = table_type(psi->table_id);
-                psi->check_CRC = table->check_CRC;
-                psi->type = table->type;
+                table = table_type(sech->table_id);
+                sech->check_CRC = table->check_CRC;
+                sech->type = table->type;
         }
         else {
                 /* abnormal section syntax */
-                psi->table_id_extension = 0;
-                psi->version_number = 0;
-                psi->current_next_indicator = 0;
-                psi->section_number = 0;
-                psi->last_section_number = 0;
+                sech->table_id_extension = 0;
+                sech->version_number = 0;
+                sech->current_next_indicator = 0;
+                sech->section_number = 0;
+                sech->last_section_number = 0;
 
-                psi->check_CRC = 0;
-                psi->type = USR_PID;
+                sech->check_CRC = 0;
+                sech->type = USR_PID;
         }
 
 #if 0
         /* for debug only */
         fprintf(stderr, "table, 0x%02X, len %4d, sect, %d/%d\n",
-                psi->table_id,
-                psi->section_length,
-                psi->section_number,
-                psi->last_section_number);
+                sech->table_id,
+                sech->section_length,
+                sech->section_number,
+                sech->last_section_number);
 #endif
 
-        if(0 == psi->private_indicator) {
+        if(0 == sech->private_indicator) {
                 /* normal section */
-                if(psi->section_length > 1021) {
+                if(sech->section_length > 1021) {
                         fprintf(stderr, "normal section(0x%02X), length(%d) overflow!\n",
-                                psi->table_id,
-                                psi->section_length);
-                        psi->section_length = 1021;
+                                sech->table_id,
+                                sech->section_length);
+                        sech->section_length = 1021;
                         dump(rslt->TS, 188);
-                        dump(section, 8);
+                        dump(sect, 8);
                         return -1;
                 }
         }
         else {
                 /* private section */
-                if(psi->section_length > 4093) {
+                if(sech->section_length > 4093) {
                         fprintf(stderr, "private section(0x%02X), length(%d) overflow!\n",
-                                psi->table_id,
-                                psi->section_length);
-                        psi->section_length = 4093;
+                                sech->table_id,
+                                sech->section_length);
+                        sech->section_length = 4093;
                         dump(rslt->TS, 188);
-                        dump(section, 8);
+                        dump(sect, 8);
                         return -1;
                 }
         }
@@ -1293,12 +1294,12 @@ static int ts_parse_psih(struct ts_obj *obj, uint8_t *section)
         return 0;
 }
 
-static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *section)
+static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
 {
         uint8_t dat;
-        uint8_t *p = section + 8;
-        struct ts_psi *psi = &(obj->rslt.psi);
-        int len = psi->section_length - 5;
+        uint8_t *p = sect + 8;
+        struct ts_sech *sech = &(obj->rslt.sech);
+        int len = sech->section_length - 5;
         struct ts_prog *prog;
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_rslt *rslt = &(obj->rslt);
@@ -1307,7 +1308,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *section)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PAT_error */
-        if(pid->section_interval > 500 * STC_MS) {
+        if(pid->sect_interval > 500 * STC_MS) {
                 err->PAT_error = ERR_1_3_0;
         }
         if(0x00 != tsh->transport_scrambling_control) {
@@ -1320,7 +1321,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *section)
         }
 
         /* in PAT, table_id_extension is transport_stream_id */
-        rslt->transport_stream_id = psi->table_id_extension;
+        rslt->transport_stream_id = sech->table_id_extension;
         rslt->has_got_transport_stream_id = 1;
 
         while(len > 4) {
@@ -1378,7 +1379,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *section)
                         prog->table_02.table_id = 0x02;
                         prog->table_02.version_number = 0xFF; /* never reached version */
                         prog->table_02.last_section_number = 0; /* no use */
-                        prog->table_02.section0 = NULL;
+                        prog->table_02.sect0 = NULL;
                         prog->table_02.STC = STC_OVF;
 
                         /* elementary stream list */
@@ -1420,13 +1421,13 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *section)
         return 0;
 }
 
-static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *section)
+static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
 {
         uint8_t dat;
-        uint8_t *p = section + 8;
+        uint8_t *p = sect + 8;
         struct ts_rslt *rslt = &(obj->rslt);
-        struct ts_psi *psi = &(rslt->psi);
-        int len = psi->section_length - 5;
+        struct ts_sech *sech = &(rslt->sech);
+        int len = sech->section_length - 5;
         struct ts_prog *prog;
         struct ts_elem *elem;
         struct ts_tsh *tsh = &(obj->tsh);
@@ -1435,7 +1436,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *section)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PMT_error */
-        if(pid->section_interval > 500 * STC_MS) {
+        if(pid->sect_interval > 500 * STC_MS) {
                 err->PMT_error = ERR_1_5_0;
         }
         if(0x00 != tsh->transport_scrambling_control) {
@@ -1443,8 +1444,8 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *section)
         }
 
         /* in PMT, table_id_extension is program_number */
-        RPT(RPT_DBG, "search 0x%04X in prog_list", psi->table_id_extension);
-        prog = (struct ts_prog *)zlst_search(&(obj->rslt.prog0), psi->table_id_extension);
+        RPT(RPT_DBG, "search 0x%04X in prog_list", sech->table_id_extension);
+        prog = (struct ts_prog *)zlst_search(&(obj->rslt.prog0), sech->table_id_extension);
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
@@ -1579,21 +1580,21 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *section)
         return 0;
 }
 
-static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *section)
+static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
 {
         uint8_t dat;
-        uint8_t *p = section + 8;
-        struct ts_psi *psi = &(obj->rslt.psi);
-        int len = psi->section_length - 5;
+        uint8_t *p = sect + 8;
+        struct ts_sech *sech = &(obj->rslt.sech);
+        int len = sech->section_length - 5;
         struct ts_rslt *rslt = &(obj->rslt);
         uint16_t original_network_id;
 
         /* in SDT, table_id_extension is transport_stream_id */
         if(rslt->has_got_transport_stream_id &&
-           psi->table_id_extension != rslt->transport_stream_id) {
+           sech->table_id_extension != rslt->transport_stream_id) {
                 fprintf(stderr, "table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)\n",
-                        psi->table_id,
-                        psi->table_id_extension,
+                        sech->table_id,
+                        sech->table_id_extension,
                         rslt->transport_stream_id);
                 return -1; /* bad SDT table, ignore */
         }
@@ -1608,7 +1609,7 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *section)
            original_network_id != rslt->transport_stream_id) {
 #if 0
                 fprintf(stderr, "table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)\n",
-                        psi->table_id,
+                        sech->table_id,
                         original_network_id,
                         rslt->transport_stream_id);
                 return -1; /* bad SDT table, ignore */
@@ -2160,7 +2161,7 @@ static struct ts_pid *add_to_pid_list(struct ts_obj *obj, struct ts_pid **phead,
                 pid->is_CC_sync = the_pid->is_CC_sync;
                 pid->sdes = the_pid->sdes;
                 pid->ldes = the_pid->ldes;
-                pid->section_idx = 0; /* wait to sync with section head */
+                pid->sect_idx = 0; /* wait to sync with section head */
                 pid->fd = NULL;
 
                 RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
@@ -2187,13 +2188,13 @@ static int is_all_prog_parsed(struct ts_obj *obj)
                 }
 
                 section_number = 0;
-                for(znode_s = (struct znode *)(table_02->section0); znode_s; znode_s = znode_s->next) {
-                        struct ts_sect *section = (struct ts_sect *)znode_s;
+                for(znode_s = (struct znode *)(table_02->sect0); znode_s; znode_s = znode_s->next) {
+                        struct ts_sect *sect = (struct ts_sect *)znode_s;
 
                         if(section_number > table_02->last_section_number) {
                                 return 0;
                         }
-                        if(section_number != section->section_number) {
+                        if(section_number != sect->section_number) {
                                 return 0;
                         }
                         section_number++;
