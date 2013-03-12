@@ -1189,7 +1189,7 @@ static void show_af(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*af%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->af, rslt->AF_len);
+        b2t(str, rslt->AF, rslt->AF_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1201,7 +1201,7 @@ static void show_pesh(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*pesh%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->pes, rslt->PES_len - rslt->ES_len);
+        b2t(str, rslt->PES, rslt->PES_len - rslt->ES_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1213,7 +1213,7 @@ static void show_pes(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*pes%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->pes, rslt->PES_len);
+        b2t(str, rslt->PES, rslt->PES_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1225,7 +1225,7 @@ static void show_es(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*es%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->es, rslt->ES_len);
+        b2t(str, rslt->ES, rslt->ES_len);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1581,7 +1581,7 @@ static void all_pes(struct tsana_obj *obj)
                 }
         }
 
-        fwrite(rslt->pes, rslt->PES_len, 1, rslt->pid->fd);
+        fwrite(rslt->PES, rslt->PES_len, 1, rslt->pid->fd);
         return;
 }
 
@@ -1606,7 +1606,7 @@ static void all_es(struct tsana_obj *obj)
                 }
         }
 
-        fwrite(rslt->es, rslt->ES_len, 1, rslt->pid->fd);
+        fwrite(rslt->ES, rslt->ES_len, 1, rslt->pid->fd);
         return;
 }
 

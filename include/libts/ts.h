@@ -330,15 +330,6 @@ struct ts_rslt {
 
         /* <output> */
 
-        long long int cnt; /* count of this packet, start from 0 */
-        uint8_t *af; /* NULL or point to adaptation_fields */
-        uint8_t *pes; /* NULL or point to PES fragment */
-        uint8_t *es; /* NULL or point to ES fragment */
-        int64_t *stc; /* NULL or point to STC */
-        int64_t *pcr; /* NULL or point to PCR */
-        int64_t *pts; /* NULL or point to PTS */
-        int64_t *dts; /* NULL or point to DTS */
-
         /* CTS */
         int64_t CTS_base;
         int64_t CTS_ext;
@@ -348,6 +339,7 @@ struct ts_rslt {
         /* STC */
         /* PMT, PCR, VID and AUD has timestamp according to its PCR */
         /* other PID has timestamp according to the PCR of program0 */
+        int64_t *stc; /* NULL or point to STC */
         int64_t STC;
         int64_t STC_base;
         int16_t STC_ext;
@@ -358,9 +350,11 @@ struct ts_rslt {
         int CC_lost; /* lost != 0 means CC wrong */
 
         /* AF */
+        uint8_t *AF; /* NULL or point to adaptation_fields */
         int AF_len;
 
         /* PCR */
+        int64_t *pcr; /* NULL or point to PCR */
         int64_t PCR;
         int64_t PCR_base;
         int16_t PCR_ext;
@@ -369,19 +363,23 @@ struct ts_rslt {
         int64_t PCR_jitter;
 
         /* PES */
+        uint8_t *PES; /* NULL or point to PES fragment */
         int PES_len;
 
         /* PTS */
+        int64_t *pts; /* NULL or point to PTS */
         int64_t PTS;
         int64_t PTS_interval;
         int64_t PTS_minus_STC;
 
         /* DTS */
+        int64_t *dts; /* NULL or point to DTS */
         int64_t DTS;
         int64_t DTS_interval;
         int64_t DTS_minus_STC;
 
         /* ES */
+        uint8_t *ES; /* NULL or point to ES fragment */
         int ES_len;
 
         uint16_t concerned_pid; /* used for PSI parsing */
@@ -390,17 +388,21 @@ struct ts_rslt {
         struct ts_pid *pid; /* point to the node in pid_list */
 
         /* TS information */
-        int has_got_transport_stream_id;
-        uint16_t transport_stream_id;
-        struct ts_prog *prog0; /* program list */
-        struct ts_pid *pid0; /* pid list */
+        long long int cnt; /* count of this packet in this stream, start from 0 */
+        struct ts_tsh tsh; /* info about ts head of this packet */
+        struct ts_af af; /* info about af of this packet */
+        struct ts_pesh pesh; /* info about pesh of this packet */
+        struct ts_pid *pid0; /* pid list of this stream */
 
         /* PSI/SI table */
-        struct ts_sech sech; /* section head */
+        uint16_t transport_stream_id;
+        int has_got_transport_stream_id;
+        struct ts_sech sech; /* info about section head before this packet */
         int is_pat_pmt_parsed;
         int is_psi_parse_finished;
         int is_psi_si;
         int has_sect;
+        struct ts_prog *prog0; /* program list of this stream */
         struct ts_table *table0; /* PSI/SI table except PMT */
 
         /* for bit-rate statistic */
