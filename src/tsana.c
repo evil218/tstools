@@ -61,7 +61,7 @@ struct aim {
 #define MP_ORDER_DEFAULT (21) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
 struct tsana_obj {
-        size_t mp_order;
+        intptr_t mp; /* id of buddy memory pool, for list malloc and free */
         int mode;
         int state;
         struct aim aim;
@@ -90,8 +90,7 @@ struct tsana_obj {
         char tbuf[PKT_TBUF];
         char tbak[PKT_TBUF];
 
-        int ts_id;
-        struct ts_rslt *rslt;
+        struct ts_obj *ts;
 };
 
 enum {
@@ -182,24 +181,24 @@ void atsc_mh_tcp(uint8_t *ts_pack); /* atsc_mh_tcp.c */
 int main(int argc, char *argv[])
 {
         int get_rslt;
-        struct ts_rslt *rslt;
+        struct ts_obj *ts;
 
         obj = create(argc, argv);
-        rslt = obj->rslt;
-        rslt->aim_interval = obj->aim_interval;
+        ts = obj->ts;
+        ts->aim_interval = obj->aim_interval;
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
                 if(GOT_WRONG_PKT == get_rslt) {
                         break;
                 }
-                if(0 != ts_parse_tsh(obj->ts_id)) {
+                if(0 != ts_parse_tsh(obj->ts)) {
                         break;
                 }
-                if(rslt->cnt < obj->aim_start) {
+                if(ts->cnt < obj->aim_start) {
                         continue;
                 }
 
-                ts_parse_tsb(obj->ts_id);
+                ts_parse_tsb(obj->ts);
                 switch(obj->state) {
                         case STATE_PARSE_PSI:
                                 state_parse_psi(obj);
@@ -224,11 +223,11 @@ int main(int argc, char *argv[])
                 }
         }
 
-        if(!(rslt->is_psi_parse_finished) && !(obj->is_dump)) {
+        if(!(ts->is_psi_parse_finished) && !(obj->is_dump)) {
                 fprintf(stderr, "%sPSI parsing unfinished because of the bad PCR data!%s\n",
                         obj->color_red, obj->color_off);
 
-                rslt->is_psi_parse_finished = 1;
+                ts->is_psi_parse_finished = 1;
                 switch(obj->mode) {
                         case MODE_LST:
                                 show_lst(obj);
@@ -247,13 +246,13 @@ int main(int argc, char *argv[])
 
 static void state_parse_psi(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(obj->is_outpsi && rslt->is_psi_si) {
+        if(obj->is_outpsi && ts->is_psi_si) {
                 fprintf(stdout, "%s", obj->tbuf);
         }
 
-        if(rslt->is_pat_pmt_parsed) {
+        if(ts->is_pat_pmt_parsed) {
                 obj->state = STATE_PARSE_EACH;
                 if(MODE_EXIT == obj->mode) {
                         obj->state = STATE_EXIT;
@@ -267,9 +266,9 @@ static void state_parse_each(struct tsana_obj *obj)
         int i;
         int has_err;
         int has_report;
-        struct ts_rslt *rslt = obj->rslt;
-        struct ts_pid *pid = rslt->pid;
-        struct ts_sech *sech = &(rslt->sech);
+        struct ts_obj *ts = obj->ts;
+        struct ts_pid *pid = ts->pid;
+        struct ts_sech *sech = &(ts->sech);
 
         /* filter for some mode */
         if(obj->aim.sec         ||
@@ -283,7 +282,7 @@ static void state_parse_each(struct tsana_obj *obj)
            obj->aim.err) {
                 /* filter: PID */
                 if(ANY_PID != obj->aim_pid &&
-                   rslt->PID != obj->aim_pid) {
+                   ts->PID != obj->aim_pid) {
                         return;
                 }
 
@@ -315,53 +314,53 @@ static void state_parse_each(struct tsana_obj *obj)
         /* error for this TS packet? */
         has_err = 0;
         for(i = 0; i < sizeof(struct ts_err); i++) {
-                if(*((uint8_t *)&(rslt->err) + i)) {
+                if(*((uint8_t *)&(ts->err) + i)) {
                         has_err = 1;
                 }
         }
 
         /* report for this TS packet? */
         has_report = 0;
-        if(obj->aim.pts && rslt->pts) {
+        if(obj->aim.pts && ts->pts) {
                 has_report = 1;
         }
-        if(obj->aim.pcr && rslt->pcr) {
+        if(obj->aim.pcr && ts->pcr) {
                 has_report = 1;
         }
         if(obj->aim.ts) {
                 has_report = 1;
         }
-        if(obj->aim.af && rslt->AF_len) {
+        if(obj->aim.af && ts->AF_len) {
                 has_report = 1;
         }
-        if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
+        if(obj->aim.pesh && (ts->PES_len != ts->ES_len)) {
                 has_report = 1;
         }
-        if(obj->aim.pes && rslt->PES_len) {
+        if(obj->aim.pes && ts->PES_len) {
                 has_report = 1;
         }
-        if(obj->aim.es && rslt->ES_len) {
+        if(obj->aim.es && ts->ES_len) {
                 has_report = 1;
         }
-        if(obj->aim.sec && rslt->has_sect) {
+        if(obj->aim.sec && ts->has_sect) {
                 has_report = 1;
         }
-        if(obj->aim.si && rslt->has_sect) {
+        if(obj->aim.si && ts->has_sect) {
                 has_report = 1;
         }
-        if(obj->aim.rate && rslt->has_rate) {
+        if(obj->aim.rate && ts->has_rate) {
                 has_report = 1;
         }
-        if(obj->aim.rats && rslt->has_rate) {
+        if(obj->aim.rats && ts->has_rate) {
                 has_report = 1;
         }
-        if(obj->aim.ratp && rslt->has_rate) {
+        if(obj->aim.ratp && ts->has_rate) {
                 has_report = 1;
         }
         if(obj->aim.err && has_err) {
                 has_report = 1;
         }
-        if(obj->aim.tcp && 0x1FFA == rslt->PID) {
+        if(obj->aim.tcp && 0x1FFA == ts->PID) {
                 has_report = 1;
         }
 
@@ -390,43 +389,43 @@ static void state_parse_each(struct tsana_obj *obj)
         if(obj->aim.mts && has_report) {
                 show_mts(obj);
         }
-        if(obj->aim.af && rslt->AF_len) {
+        if(obj->aim.af && ts->AF_len) {
                 show_af(obj);
         }
-        if(obj->aim.pesh && (rslt->PES_len != rslt->ES_len)) {
+        if(obj->aim.pesh && (ts->PES_len != ts->ES_len)) {
                 show_pesh(obj);
         }
-        if(obj->aim.pes && rslt->PES_len) {
+        if(obj->aim.pes && ts->PES_len) {
                 show_pes(obj);
         }
-        if(obj->aim.es && rslt->ES_len) {
+        if(obj->aim.es && ts->ES_len) {
                 show_es(obj);
         }
-        if(obj->aim.sec && rslt->has_sect) {
+        if(obj->aim.sec && ts->has_sect) {
                 show_sec(obj);
         }
-        if(obj->aim.si && rslt->has_sect) {
+        if(obj->aim.si && ts->has_sect) {
                 show_si(obj);
         }
-        if(obj->aim.rate && rslt->has_rate) {
+        if(obj->aim.rate && ts->has_rate) {
                 show_rate(obj);
         }
-        if(obj->aim.rats && rslt->has_rate) {
+        if(obj->aim.rats && ts->has_rate) {
                 show_rats(obj);
         }
-        if(obj->aim.ratp && rslt->has_rate) {
+        if(obj->aim.ratp && ts->has_rate) {
                 show_ratp(obj);
         }
         if(obj->aim.err && has_err) {
                 show_error(obj);
         }
-        if(obj->aim.tcp && 0x1FFA == rslt->PID) {
+        if(obj->aim.tcp && 0x1FFA == ts->PID) {
                 show_tcp(obj);
         }
-        if(obj->aim.allpes && rslt->PES_len) {
+        if(obj->aim.allpes && ts->PES_len) {
                 all_pes(obj);
         }
-        if(obj->aim.alles && rslt->ES_len) {
+        if(obj->aim.alles && ts->ES_len) {
                 all_es(obj);
         }
 
@@ -440,6 +439,7 @@ static struct tsana_obj *create(int argc, char *argv[])
 {
         int i;
         int dat;
+        size_t mp_order;
         struct tsana_obj *obj;
 
         obj = (struct tsana_obj *)malloc(sizeof(struct tsana_obj));
@@ -448,7 +448,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                 return NULL;
         }
 
-        obj->mp_order = MP_ORDER_DEFAULT; /* big memory for memory pool */
+        mp_order = MP_ORDER_DEFAULT; /* big memory for memory pool */
         obj->mode = MODE_LST;
         obj->state = STATE_PARSE_PSI;
         memset(&(obj->aim), 0, sizeof(struct aim));
@@ -700,7 +700,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(16 <= dat && dat <= BUDDY_ORDER_MAX) {
-                                        obj->mp_order = dat;
+                                        mp_order = dat;
                                 }
                                 else {
                                         fprintf(stderr,
@@ -741,8 +741,17 @@ static struct tsana_obj *create(int argc, char *argv[])
                 }
         }
 
-        obj->ts_id = ts_create(&(obj->rslt), obj->mp_order);
-        ts_init(obj->ts_id);
+        /* create & init buddy module */
+        obj->mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
+        if(0 == obj->mp) {
+                RPT(RPT_ERR, "malloc memory pool failed");
+                exit(EXIT_FAILURE);
+        }
+        buddy_init(obj->mp); /* now, we can use xx_malloc() */
+
+        /* create & init ts module */
+        obj->ts = ts_create(obj->mp);
+        ts_init(obj->ts);
 
         return obj;
 }
@@ -752,12 +761,12 @@ static int destroy(struct tsana_obj *obj)
         if(NULL == obj) {
                 return 0;
         }
-        else {
-                ts_destroy(obj->ts_id);
-                free(obj);
 
-                return 1;
-        }
+        ts_destroy(obj->ts);
+        buddy_destroy(obj->mp); /* return the memory to OS */
+        free(obj);
+
+        return 1;
 }
 
 static void show_help()
@@ -845,7 +854,7 @@ static int get_one_pkt(struct tsana_obj *obj)
 {
         char *tag;
         char *pt = (char *)(obj->tbuf);
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
         long long int data;
 
         if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
@@ -854,35 +863,35 @@ static int get_one_pkt(struct tsana_obj *obj)
 
         strcpy(obj->tbak, obj->tbuf); /* for dump */
 
-        rslt->ts = NULL;
-        rslt->rs = NULL;
-        rslt->addr = NULL;
-        rslt->mts = NULL;
-        rslt->cts = NULL;
+        ts->ts = NULL;
+        ts->rs = NULL;
+        ts->addr = NULL;
+        ts->mts = NULL;
+        ts->cts = NULL;
 
         while(0 == next_tag(&tag, &pt)) {
                 if(0 == strcmp(tag, "*ts")) {
-                        next_nbyte_hex(rslt->TS, &pt, 188);
-                        rslt->ts = rslt->TS;
+                        next_nbyte_hex(ts->TS, &pt, 188);
+                        ts->ts = ts->TS;
                 }
                 else if(0 == strcmp(tag, "*rs")) {
-                        next_nbyte_hex(rslt->RS, &pt, 16);
-                        rslt->rs = rslt->RS;
+                        next_nbyte_hex(ts->RS, &pt, 16);
+                        ts->rs = ts->RS;
                 }
                 else if(0 == strcmp(tag, "*addr")) {
                         next_nuint_hex(&data, &pt, 1);
-                        rslt->ADDR = data;
-                        rslt->addr = &(rslt->ADDR);
+                        ts->ADDR = data;
+                        ts->addr = &(ts->ADDR);
                 }
                 else if(0 == strcmp(tag, "*mts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        rslt->MTS = (int64_t)data;
-                        rslt->mts = &(rslt->MTS);
+                        ts->MTS = (int64_t)data;
+                        ts->mts = &(ts->MTS);
                 }
                 else if(0 == strcmp(tag, "*cts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        rslt->CTS = (int64_t)data;
-                        rslt->cts = &(rslt->CTS);
+                        ts->CTS = (int64_t)data;
+                        ts->cts = &(ts->CTS);
                 }
                 else {
                         fprintf(stderr, "wrong tag: \"%s\"\n", tag);
@@ -893,14 +902,14 @@ static int get_one_pkt(struct tsana_obj *obj)
 
 static void output_prog(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
         struct znode *znode;
 
         fprintf(stdout, "transport_stream_id, %s%5d%s(0x%04X)\n",
-                obj->color_yellow, rslt->transport_stream_id, obj->color_off,
-                rslt->transport_stream_id);
+                obj->color_yellow, ts->transport_stream_id, obj->color_off,
+                ts->transport_stream_id);
 
-        for(znode = (struct znode *)(rslt->prog0); znode; znode = znode->next) {
+        for(znode = (struct znode *)(ts->prog0); znode; znode = znode->next) {
                 int i;
 
                 struct ts_prog *prog = (struct ts_prog *)znode;
@@ -994,9 +1003,9 @@ static void output_elem(void *PELEM, uint16_t pcr_pid)
 
 static void show_pkt(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(ANY_PID != obj->aim_pid && rslt->PID != obj->aim_pid) {
+        if(ANY_PID != obj->aim_pid && ts->PID != obj->aim_pid) {
                 return;
         }
         fprintf(stdout, "%s", obj->tbak);
@@ -1004,17 +1013,17 @@ static void show_pkt(struct tsana_obj *obj)
 
 static void show_lst(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         struct znode *znode;
         struct ts_pid *pid;
-        struct ts_rslt *rslt = obj->rslt;
         char *color_yellow;
         char *color_off;
 
-        if(!(rslt->is_psi_parse_finished)) {
+        if(!(ts->is_psi_parse_finished)) {
                 return;
         }
 
-        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+        for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
                 pid = (struct ts_pid *)znode;
                 color_yellow = "";
                 color_off = "";
@@ -1036,9 +1045,9 @@ static void show_lst(struct tsana_obj *obj)
 
 static void show_psi(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(!(rslt->is_psi_parse_finished)) {
+        if(!(ts->is_psi_parse_finished)) {
                 return;
         }
 
@@ -1048,10 +1057,10 @@ static void show_psi(struct tsana_obj *obj)
 
 static void show_bg(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
         time_t tp;
         struct tm *lt; /* local time */
         char str[16]; /* "12:38:00" */
+        struct ts_obj *ts = obj->ts;
 
         time(&tp);
         lt = localtime(&tp);
@@ -1060,21 +1069,21 @@ static void show_bg(struct tsana_obj *obj)
         fprintf(stdout,
                 "%s*bg%s, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
                 obj->color_green, obj->color_off,
-                obj->color_yellow, str, obj->color_off, (long long int)rslt->CTS,
-                obj->color_yellow, rslt->ADDR, obj->color_off, rslt->ADDR,
-                obj->color_yellow, rslt->PID, obj->color_off);
+                obj->color_yellow, str, obj->color_off, (long long int)ts->CTS,
+                obj->color_yellow, ts->ADDR, obj->color_off, ts->ADDR,
+                obj->color_yellow, ts->PID, obj->color_off);
         return;
 }
 
 static void show_cts(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(rslt->cts) {
+        if(ts->cts) {
                 fprintf(stdout,
                         "%s*cts%s, %13llu, %10llu, ",
                         obj->color_green, obj->color_off,
-                        (long long int)rslt->CTS, (long long int)rslt->CTS_base);
+                        (long long int)ts->CTS, (long long int)ts->CTS_base);
         }
         else {
                 fprintf(stdout,
@@ -1086,13 +1095,13 @@ static void show_cts(struct tsana_obj *obj)
 
 static void show_stc(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(rslt->stc) {
+        if(ts->stc) {
                 fprintf(stdout,
                         "%s*stc%s, %13llu, %10llu, ",
                         obj->color_green, obj->color_off,
-                        (long long int)rslt->STC, (long long int)rslt->STC_base);
+                        (long long int)ts->STC, (long long int)ts->STC_base);
         }
         else {
                 fprintf(stdout,
@@ -1104,16 +1113,16 @@ static void show_stc(struct tsana_obj *obj)
 
 static void show_pcr(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(rslt->pcr) {
+        if(ts->pcr) {
                 fprintf(stdout, "%s*pcr%s, %13lld, %10lld, %3d, %+7.3f, %+4.0f, ",
                         obj->color_green, obj->color_off,
-                        (long long int)rslt->PCR,
-                        (long long int)rslt->PCR_base,
-                        rslt->PCR_ext,
-                        (double)(rslt->PCR_interval) / STC_MS,
-                        (double)(rslt->PCR_jitter) * 1e3 / STC_US);
+                        (long long int)ts->PCR,
+                        (long long int)ts->PCR_base,
+                        ts->PCR_ext,
+                        (double)(ts->PCR_interval) / STC_MS,
+                        (double)(ts->PCR_jitter) * 1e3 / STC_US);
         }
         else {
                 fprintf(stdout, "%s*pcr%s,              ,           ,    ,        ,     , ",
@@ -1124,20 +1133,20 @@ static void show_pcr(struct tsana_obj *obj)
 
 static void show_pts(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(rslt->pts) {
+        if(ts->pts) {
                 fprintf(stdout, "%s*pts%s, %10lld, %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
-                        (long long int)rslt->PTS,
-                        (double)(rslt->PTS_interval) / (90), /* ms */
-                        (double)(rslt->PTS_minus_STC) / (90)); /* ms */
+                        (long long int)ts->PTS,
+                        (double)(ts->PTS_interval) / (90), /* ms */
+                        (double)(ts->PTS_minus_STC) / (90)); /* ms */
 
                 fprintf(stdout, "%s*dts%s, %10lld, %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
-                        (long long int)rslt->DTS,
-                        (double)(rslt->DTS_interval) / (90), /* ms */
-                        (double)(rslt->DTS_minus_STC) / (90)); /* ms */
+                        (long long int)ts->DTS,
+                        (double)(ts->DTS_interval) / (90), /* ms */
+                        (double)(ts->DTS_minus_STC) / (90)); /* ms */
         }
         else {
                 fprintf(stdout, "%s*pts%s,           ,         ,         , ",
@@ -1150,92 +1159,92 @@ static void show_pts(struct tsana_obj *obj)
 
 static void show_tsh(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 4 + 3]; /* part of one TS packet */
-        struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "%s*tsh%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->ts, 4);
+        b2t(str, ts->ts, 4);
         fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_ts(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 188 + 3]; /* part of one TS packet */
-        struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "%s*ts%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->ts, 188);
+        b2t(str, ts->ts, 188);
         fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_mts(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
         fprintf(stdout, "%s*mts%s, %llX, ",
                 obj->color_green, obj->color_off,
-                rslt->CTS & 0x3FFFFFFF);
+                ts->CTS & 0x3FFFFFFF);
         return;
 }
 
 static void show_af(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 188 + 3]; /* part of one TS packet */
-        struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "%s*af%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->AF, rslt->AF_len);
+        b2t(str, ts->AF, ts->AF_len);
         fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_pesh(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 188 + 3]; /* part of one TS packet */
-        struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "%s*pesh%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->PES, rslt->PES_len - rslt->ES_len);
+        b2t(str, ts->PES, ts->PES_len - ts->ES_len);
         fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_pes(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 188 + 3]; /* part of one TS packet */
-        struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "%s*pes%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->PES, rslt->PES_len);
+        b2t(str, ts->PES, ts->PES_len);
         fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_es(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 188 + 3]; /* part of one TS packet */
-        struct ts_rslt *rslt = obj->rslt;
 
         fprintf(stdout, "%s*es%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, rslt->ES, rslt->ES_len);
+        b2t(str, ts->ES, ts->ES_len);
         fprintf(stdout, "%s", str);
         return;
 }
 
 static void show_sec(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 4096 + 3];
-        struct ts_rslt *rslt = obj->rslt;
-        struct ts_sech *sech = &(rslt->sech);
-        struct ts_pid *pid = rslt->pid;
+        struct ts_sech *sech = &(ts->sech);
+        struct ts_pid *pid = ts->pid;
 
         /* section_interval */
         fprintf(stdout, "%s*sec%s, %+9.3f, ",
@@ -1255,11 +1264,11 @@ static void show_sec(struct tsana_obj *obj)
 
 static void show_si(struct tsana_obj *obj)
 {
+        struct ts_obj *ts = obj->ts;
         char str[3 * 8 + 3];
         int is_unknown_table_id = 0;
-        struct ts_rslt *rslt = obj->rslt;
-        struct ts_sech *sech = &(rslt->sech);
-        struct ts_pid *pid = rslt->pid;
+        struct ts_sech *sech = &(ts->sech);
+        struct ts_pid *pid = ts->pid;
 
         /* section_interval */
         fprintf(stdout, "%s*si%s, %+9.3f, ",
@@ -1367,13 +1376,13 @@ static void show_si(struct tsana_obj *obj)
 
 static void show_rate(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
         struct znode *znode;
 
         fprintf(stdout, "%s*rate%s, %.3f, ",
                 obj->color_green, obj->color_off,
-                rslt->last_interval / 27000.0);
-        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+                ts->last_interval / 27000.0);
+        for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)znode;
 
                 /* filter: user PID only */
@@ -1414,37 +1423,37 @@ static void show_rate(struct tsana_obj *obj)
 
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
                         obj->color_yellow, pid_item->PID, obj->color_off,
-                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                        pid_item->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
         }
         return;
 }
 
 static void show_rats(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
         fprintf(stdout, "%s*rats%s, %.3f, ",
                 obj->color_green, obj->color_off,
-                rslt->last_interval / 27000.0);
+                ts->last_interval / 27000.0);
         fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %s0x1FFF%s, %9.6f, ",
-                obj->color_yellow, obj->color_off, rslt->last_sys_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval),
-                obj->color_yellow, obj->color_off, rslt->last_nul_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                obj->color_yellow, obj->color_off, ts->last_sys_cnt * 188.0 * 8 * 27 / (ts->last_interval),
+                obj->color_yellow, obj->color_off, ts->last_psi_cnt * 188.0 * 8 * 27 / (ts->last_interval),
+                obj->color_yellow, obj->color_off, ts->last_nul_cnt * 188.0 * 8 * 27 / (ts->last_interval));
         return;
 }
 
 static void show_ratp(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
         struct znode *znode;
 
         fprintf(stdout, "%s*ratp%s, %.3f, ",
                 obj->color_green, obj->color_off,
-                rslt->last_interval / 27000.0);
+                ts->last_interval / 27000.0);
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
-                obj->color_yellow, obj->color_off, rslt->last_psi_cnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                obj->color_yellow, obj->color_off, ts->last_psi_cnt * 188.0 * 8 * 27 / (ts->last_interval));
 
-        for(znode = (struct znode *)(rslt->pid0); znode; znode = znode->next) {
+        for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)znode;
 
                 if(pid_item->PID >= 0x0020 && pid_item->PID != pid_item->prog->PMT_PID) {
@@ -1455,15 +1464,15 @@ static void show_ratp(struct tsana_obj *obj)
                 /* without PMT */
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
                         obj->color_yellow, pid_item->PID, obj->color_off,
-                        pid_item->lcnt * 188.0 * 8 * 27 / (rslt->last_interval));
+                        pid_item->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
         }
         return;
 }
 
 static void show_error(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
-        struct ts_err *err = &(rslt->err);
+        struct ts_obj *ts = obj->ts;
+        struct ts_err *err = &(ts->err);
 
         fprintf(stdout, "%s*err%s, ",
                 obj->color_green, obj->color_off);
@@ -1494,7 +1503,7 @@ static void show_error(struct tsana_obj *obj)
         }
         if(err->Continuity_count_error) {
                 fprintf(stdout, "1.4 , CC(%X-%X=%2u), ",
-                        rslt->CC_find, rslt->CC_wait, rslt->CC_lost);
+                        ts->CC_find, ts->CC_wait, ts->CC_lost);
         }
         if(err->PMT_error) {
                 if((1<<0) & err->PMT_error) {
@@ -1517,22 +1526,22 @@ static void show_error(struct tsana_obj *obj)
         }
         if(err->CRC_error) {
                 fprintf(stdout, "2.2 , CRC(0x%08X! 0x%08X?), ",
-                        rslt->pid->CRC_32_calc, rslt->pid->CRC_32);
+                        ts->pid->CRC_32_calc, ts->pid->CRC_32);
                 err->CRC_error = 0;
         }
         if(err->PCR_repetition_error) {
                 fprintf(stdout, "2.3a, PCR_repetition(%+7.3f ms), ",
-                        (double)(rslt->PCR_interval) / STC_MS);
+                        (double)(ts->PCR_interval) / STC_MS);
                 err->PCR_repetition_error = 0;
         }
         if(err->PCR_discontinuity_indicator_error) {
                 fprintf(stdout, "2.3b, PCR_discontinuity_indicator(%+7.3f ms), ",
-                        (double)(rslt->PCR_continuity) / STC_MS);
+                        (double)(ts->PCR_continuity) / STC_MS);
                 err->PCR_discontinuity_indicator_error = 0;
         }
         if(err->PCR_accuracy_error) {
                 fprintf(stdout, "2.4 , PCR_accuracy(%+4.0f ns), ",
-                        (double)(rslt->PCR_jitter) * 1e3 / STC_US);
+                        (double)(ts->PCR_jitter) * 1e3 / STC_US);
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error) {
@@ -1552,61 +1561,61 @@ static void show_error(struct tsana_obj *obj)
 
 static void show_tcp(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
         fprintf(stdout, "%s*tcp%s, ",
                 obj->color_green, obj->color_off);
-        atsc_mh_tcp(rslt->TS);
+        atsc_mh_tcp(ts->TS);
         return;
 }
 
 static void all_pes(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(NULL == rslt->pid) {
+        if(NULL == ts->pid) {
                 fprintf(stderr, "Bad pid point!\n");
                 return;
         }
 
-        if(NULL == rslt->pid->fd) {
+        if(NULL == ts->pid->fd) {
                 char name[100];
 
-                sprintf(name, "%04X.pes", rslt->pid->PID);
+                sprintf(name, "%04X.pes", ts->pid->PID);
                 fprintf(stdout, "open file %s\n", name);
-                rslt->pid->fd = fopen(name, "wb");
-                if(NULL == rslt->pid->fd) {
+                ts->pid->fd = fopen(name, "wb");
+                if(NULL == ts->pid->fd) {
                         RPT(RPT_ERR, "open \"%s\" failed", name);
                         return;
                 }
         }
 
-        fwrite(rslt->PES, rslt->PES_len, 1, rslt->pid->fd);
+        fwrite(ts->PES, ts->PES_len, 1, ts->pid->fd);
         return;
 }
 
 static void all_es(struct tsana_obj *obj)
 {
-        struct ts_rslt *rslt = obj->rslt;
+        struct ts_obj *ts = obj->ts;
 
-        if(NULL == rslt->pid) {
+        if(NULL == ts->pid) {
                 fprintf(stderr, "Bad pid point!\n");
                 return;
         }
 
-        if(NULL == rslt->pid->fd) {
+        if(NULL == ts->pid->fd) {
                 char name[100];
 
-                sprintf(name, "%04X.es", rslt->pid->PID);
+                sprintf(name, "%04X.es", ts->pid->PID);
                 fprintf(stdout, "open file %s\n", name);
-                rslt->pid->fd = fopen(name, "wb");
-                if(NULL == rslt->pid->fd) {
+                ts->pid->fd = fopen(name, "wb");
+                if(NULL == ts->pid->fd) {
                         RPT(RPT_ERR, "open \"%s\" failed", name);
                         return;
                 }
         }
 
-        fwrite(rslt->ES, rslt->ES_len, 1, rslt->pid->fd);
+        fwrite(ts->ES, ts->ES_len, 1, ts->pid->fd);
         return;
 }
 

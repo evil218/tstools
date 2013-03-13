@@ -308,8 +308,8 @@ struct ts_pid {
         FILE *fd;
 };
 
-/* parse result */
-struct ts_rslt {
+/* parse input and output */
+struct ts_obj {
         /* <input> */
 
         /* information about one packet, tell me as more as you can :-) */
@@ -422,14 +422,24 @@ struct ts_rslt {
         struct ts_err err;
 
         /* </output> */
+
+        /* special variables for ts object */
+        int state;
+        intptr_t mp; /* id of buddy memory pool, for list malloc and free */
+        int need_pes_align; /* 0: dot't need; 1: need PES align */
+        int is_verbose; /* 0: shut up; 1: report key step */
+
+        /* special variables for packet analyse */
+        uint8_t *cur; /* point to the current data in rslt.TS[] */
+        uint8_t *tail; /* point to the next data after rslt.TS[] */
 };
 
-intptr_t ts_create(struct ts_rslt **rslt, size_t mp_order);
-int ts_destroy(intptr_t id);
+struct ts_obj *ts_create(intptr_t mp);
+int ts_destroy(struct ts_obj *ts);
 
-int ts_init(intptr_t id);
-int ts_parse_tsh(intptr_t id);
-int ts_parse_tsb(intptr_t id);
+int ts_init(struct ts_obj *ts);
+int ts_parse_tsh(struct ts_obj *ts);
+int ts_parse_tsb(struct ts_obj *ts);
 
 /* calculate timestamp:
  *      t0: [0, ovf);
