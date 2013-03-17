@@ -771,63 +771,65 @@ static int destroy(struct tsana_obj *obj)
 
 static void show_help()
 {
-        puts("'tsana' get TS packet from stdin, analyse, then send the result to stdout.");
-        puts("");
-        puts("Usage: tsana [OPTION]...");
-        puts("");
-        puts("Options:");
-        puts(" -lst             show PID list information, default option");
-        puts(" -psi             show PSI tree information");
-        puts("");
+        fprintf( stderr,
+                 "'tsana' get TS packet from stdin, analyse, then send the result to stdout.\n"
+                 "\n"
+                 "Usage: tsana [OPTION]...\n"
+                 "\n"
+                 "Options:\n"
+                 " -lst             show PID list information, default option\n"
+                 " -psi             show PSI tree information\n"
+                 "\n"
 #if 0
-        puts(" -outpsi          output PSI packet");
-        puts(" -prepsi <file>   get PSI information from <file> first");
+                 " -outpsi          output PSI packet\n"
+                 " -prepsi <file>   get PSI information from <file> first\n"
 #endif
-        puts(" -dump            dump cared packet");
-        puts("");
-        puts(" -bg              output background information");
-        puts(" -cts             \"*cts, CTS, BASE, \"");
-        puts(" -stc             \"*stc, STC, BASE, \"");
-        puts(" -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"");
-        puts(" -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"");
-        puts(" -tsh             \"*tsh, 47, xx, xx, xx, \"");
-        puts(" -ts              \"*ts, 47, ..., xx, \"");
-        puts(" -mts             \"*mts, 3F4BD, \"");
-        puts(" -af              \"*af, xx, ..., xx, \"");
-        puts(" -pesh            \"*pesh, xx, ..., xx, \"");
-        puts(" -pes             \"*pes, xx, ..., xx, \"");
-        puts(" -es              \"*es, xx, ..., xx, \"");
-        puts(" -sec             \"*sec, interval(ms), head, body, \"");
-        puts(" -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"");
-        puts(" -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"");
-        puts(" -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"");
-        puts(" -err             \"*err, TR-101-290, datail, \"");
-        puts(" -tcp             show TCP(ATSC MH) field information");
-        puts("");
-        puts(" -c -color        enable colour effect to help read, default: mono");
-        puts(" -start <x>       analyse from packet(x), default: 0, first packet");
-        puts(" -count <n>       analyse n-packet then stop, default: 0, no stop");
-        puts(" -pid <pid>       set cared PID, default: any PID(0x2000)");
-        puts(" -table <id>      set cared table, default: any table(0xFF)");
-        puts(" -prog <prog>     set cared prog, default: any program(0x0000)");
-        puts(" -type <type>     set cared PID type, default: any type(0)");
-        puts(" -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms");
-        puts(" -mp <mp>         set memory pool size order(16-32), default: 21 means (1<<21)-byte");
-        puts("");
-        puts(" -allpes          write PES data into different file by PID");
-        puts(" -alles           write ES data into different file by PID");
+                 " -dump            dump cared packet\n"
+                 "\n"
+                 " -bg              output background information\n"
+                 " -cts             \"*cts, CTS, BASE, \"\n"
+                 " -stc             \"*stc, STC, BASE, \"\n"
+                 " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"\n"
+                 " -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"\n"
+                 " -tsh             \"*tsh, 47, xx, xx, xx, \"\n"
+                 " -ts              \"*ts, 47, ..., xx, \"\n"
+                 " -mts             \"*mts, 3F4BD, \"\n"
+                 " -af              \"*af, xx, ..., xx, \"\n"
+                 " -pesh            \"*pesh, xx, ..., xx, \"\n"
+                 " -pes             \"*pes, xx, ..., xx, \"\n"
+                 " -es              \"*es, xx, ..., xx, \"\n"
+                 " -sec             \"*sec, interval(ms), head, body, \"\n"
+                 " -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"\n"
+                 " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
+                 " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
+                 " -err             \"*err, TR-101-290, datail, \"\n"
+                 " -tcp             show TCP(ATSC MH) field information\n"
+                 "\n"
+                 " -c -color        enable colour effect to help read, default: mono\n"
+                 " -start <x>       analyse from packet(x), default: 0, first packet\n"
+                 " -count <n>       analyse n-packet then stop, default: 0, no stop\n"
+                 " -pid <pid>       set cared PID, default: any PID(0x2000)\n"
+                 " -table <id>      set cared table, default: any table(0xFF)\n"
+                 " -prog <prog>     set cared prog, default: any program(0x0000)\n"
+                 " -type <type>     set cared PID type, default: any type(0)\n"
+                 " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
+                 " -mp <mp>         set memory pool size order(16-32), default: %d, means 2^%d bytes\n"
+                 "\n"
+                 " -allpes          write PES data into different file by PID\n"
+                 " -alles           write ES data into different file by PID\n"
 #if 0
-        puts(" -prepsi <file>   get PSI information from <file> first");
-        puts(" -si              show SI section information of cared <table>");
+                 " -prepsi <file>   get PSI information from <file> first\n"
+                 " -si              show SI section information of cared <table>\n"
 #endif
-        puts("");
-        puts(" -h, --help       display this information");
-        puts(" -v, --version    display my version");
-        puts("");
-        puts("Examples:");
-        puts("  \"catts xxx.ts | tsana -c -bg -pcr -pts\" -- report all PCR/PTS/DTS information");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+                 "\n"
+                 " -h, --help       display this information\n"
+                 " -v, --version    display my version\n"
+                 "\n"
+                 "Examples:\n"
+                 "  \"catts xxx.ts | tsana -c -bg -pcr -pts\" -- report all PCR/PTS/DTS information\n"
+                 "\n"
+                 "Report bugs to <zhoucheng@tsinghua.org.cn>.\n",
+                MP_ORDER_DEFAULT, MP_ORDER_DEFAULT);
         return;
 }
 
