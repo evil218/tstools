@@ -17,6 +17,7 @@ extern "C" {
 intptr_t buddy_create(int order_max, int order_min);
 int buddy_destroy(intptr_t id);
 int buddy_init(intptr_t id);
+int buddy_status(intptr_t id);
 void *buddy_malloc(intptr_t id, size_t NBYTES);
 void buddy_free(intptr_t id, void *APTR);
 

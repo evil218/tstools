@@ -60,7 +60,8 @@ intptr_t buddy_create(int order_max, int order_min)
                 free(p);
                 return 0; /* failed */
         }
-        RPT(RPT_DBG, "create: tree: %8lX-byte @ %8lX", (unsigned long)tree_size, (unsigned long)(p->tree));
+        RPT(RPT_DBG, "create: tree: %8lX-byte @ %lX",
+            (unsigned long)tree_size, (unsigned long)(p->tree));
 
         p->pool = (uint8_t *)malloc(p->size); /* FIXME: memalign? */
         if(NULL == p->pool) {
@@ -69,7 +70,8 @@ intptr_t buddy_create(int order_max, int order_min)
                 free(p);
                 return 0; /* failed */
         }
-        RPT(RPT_DBG, "create: pool: %8lX-byte @ %8lX", (unsigned long)p->size, (unsigned long)(p->pool));
+        RPT(RPT_DBG, "create: pool: %8lX-byte @ %lX, min space: %X",
+            (unsigned long)p->size, (unsigned long)(p->pool), (1 << order_min));
 
         p->tree[0] = 0; /* to avoid use malloc() before init() */
         return (intptr_t)p;
@@ -90,24 +92,6 @@ int buddy_destroy(intptr_t id)
         if(NULL == p->pool) {
                 RPT(RPT_ERR, "destroy: bad pool");
                 return -1;
-        }
-
-        if(RPT_DBG == rpt_lvl) {
-                /* show tree(pool status):
-                 *      level   tree_array
-                 *        0     0
-                 *        1     1 2
-                 *        2     3 4 5 6
-                 *        3     7 8 9 A B C D E
-                 *        .     . . .
-                 */
-                for(int level = -1, i = 0; i < 63; i++) {
-                        if(IS_POWER_OF_2(i + 1)) {
-                                fprintf(stderr,"\nlevel (%d):", ++level);
-                        }
-                        fprintf(stderr," %2d", p->tree[i]);
-                }
-                fprintf(stderr,"\n");
         }
 
         free(p->pool);
@@ -136,6 +120,55 @@ int buddy_init(intptr_t id)
                 }
                 p->tree[i] = order;
         }
+        return 0;
+}
+
+int buddy_status(intptr_t id)
+{
+        struct buddy_pool *p = (struct buddy_pool *)id;
+
+        if(NULL == p) {
+                RPT(RPT_ERR, "init: bad id");
+                return -1;
+        }
+        if(NULL == p->tree) {
+                RPT(RPT_ERR, "init: bad tree");
+                return -1;
+        }
+
+        int order;
+        size_t tree_size;
+        size_t cnt;
+        size_t acc;
+
+        order = p->omax + 1;
+        tree_size = (1 << (p->omax - p->omin + 1)) - 1;
+        cnt = 0;
+        acc = 0;
+        for(int i = 0; i < tree_size; i++) {
+                if(IS_POWER_OF_2(i + 1)) {
+                        order--;
+                        cnt = 0;
+                }
+                if(0 == p->tree[i]) {
+                        if(LSUBTREE(i) >= tree_size || RSUBTREE(i) >= tree_size) {
+                                /* no subtree */
+                                cnt++;
+                                acc += (1 << order);
+                        }
+                        else {
+                                /* depend on subtree */
+                                if(0 != p->tree[LSUBTREE(i)] || 0 != p->tree[RSUBTREE(i)]) {
+                                        cnt++;
+                                        acc += (1 << order);
+                                }
+                        }
+                }
+                if(IS_POWER_OF_2(i + 2) && (0 != cnt)) {
+                        fprintf(stderr,"%d x 0x%X, ", cnt, (1 << order));
+                }
+        }
+        fprintf(stderr,"%d%% used(%d / %d)\n", (int)(acc * 100.0 / (1 << p->omax)), acc, (1 << p->omax));
         return 0;
 }
 

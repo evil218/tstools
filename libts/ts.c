@@ -284,37 +284,42 @@ int ts_init(struct ts_obj *obj)
                 return -1;
         }
 
-        struct znode *znode;
-        struct znode *pop; /* temp node to free */
+        struct znode *pid;
+        struct znode *prog;
+        struct znode *table;
+        struct znode *sect;
+        struct znode *elem;
 
-        /* clear pid list */
-        while(NULL != (pop = zlst_pop(&(obj->pid0)))) {
-                buddy_free(obj->mp, pop);
-        }
-
-        /* clear prog list */
-        for(znode = (struct znode *)(obj->prog0); znode; znode = znode->next) {
-                struct ts_prog *prog = (struct ts_prog *)znode;
-                while(NULL != (pop = zlst_pop(&(prog->elem0)))) {
-                        buddy_free(obj->mp, pop);
-                }
-                while(NULL != (pop = zlst_pop(&(prog->table_02.sect0)))) {
-                        buddy_free(obj->mp, pop);
-                }
-        }
-        while(NULL != (pop = zlst_pop(&(obj->prog0)))) {
-                buddy_free(obj->mp, pop);
+        /* clear the pid list */
+        while(NULL != (pid = zlst_pop(&(obj->pid0)))) {
+                buddy_free(obj->mp, pid);
         }
 
-        /* clear table list */
-        for(znode = (struct znode *)(obj->table0); znode; znode = znode->next) {
-                struct ts_table *table = (struct ts_table *)znode;
-                while(NULL != (pop = zlst_pop(&(table->sect0)))) {
-                        buddy_free(obj->mp, pop);
+        /* clear the prog list */
+        while(NULL != (prog = zlst_pop(&(obj->prog0)))) {
+
+                /* clear the elem list */
+                while(NULL != (elem = zlst_pop(&(((struct ts_prog *)prog)->elem0)))) {
+                        buddy_free(obj->mp, elem);
                 }
+
+                /* clear the sect list */
+                while(NULL != (sect = zlst_pop(&(((struct ts_prog *)prog)->table_02.sect0)))) {
+                        buddy_free(obj->mp, sect);
+                }
+
+                buddy_free(obj->mp, prog);
         }
-        while(NULL != (pop = zlst_pop(&(obj->table0)))) {
-                buddy_free(obj->mp, pop);
+
+        /* clear the table list */
+        while(NULL != (table = zlst_pop(&(obj->table0)))) {
+
+                /* clear the sect list */
+                while(NULL != (sect = zlst_pop(&(((struct ts_table *)table)->sect0)))) {
+                        buddy_free(obj->mp, sect);
+                }
+
+                buddy_free(obj->mp, table);
         }
 
         obj->state = STATE_NEXT_PAT;

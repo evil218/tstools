@@ -762,8 +762,15 @@ static int destroy(struct tsana_obj *obj)
                 return 0;
         }
 
+#if 0
+        buddy_status(obj->mp); /* to debug the memory pool */
+#endif
         ts_destroy(obj->ts);
+#if 0
+        buddy_status(obj->mp); /* to debug the memory pool */
+#endif
         buddy_destroy(obj->mp); /* return the memory to OS */
+
         free(obj);
 
         return 1;
