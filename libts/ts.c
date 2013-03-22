@@ -16,6 +16,8 @@
 
 #define PKT_SIZE (188)
 #define BIT(n) (1<<(n))
+#define PRIVATE_SECTION_SIZE (4096)
+#define NORMAL_SECTION_SIZE (1024)
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
@@ -239,6 +241,10 @@ static int ts_parse_pesh_detail(struct ts_obj *obj);
 
 static struct ts_pid *add_to_pid_list(struct ts_obj *obj, struct ts_pid **phead, struct ts_pid *pid);
 static struct ts_pid *add_new_pid(struct ts_obj *obj);
+static int free_pid(intptr_t mp, struct ts_pid *pid);
+static int free_sect(intptr_t mp, struct ts_sect *sect);
+static int free_table(intptr_t mp, struct ts_table *table);
+static int free_prog(intptr_t mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
@@ -284,42 +290,22 @@ int ts_init(struct ts_obj *obj)
                 return -1;
         }
 
-        struct znode *pid;
-        struct znode *prog;
-        struct znode *table;
-        struct znode *sect;
-        struct znode *elem;
-
         /* clear the pid list */
+        struct ts_pid *pid;
         while(NULL != (pid = zlst_pop(&(obj->pid0)))) {
-                buddy_free(obj->mp, pid);
+                free_pid(obj->mp, pid);
         }
 
         /* clear the prog list */
-        while(NULL != (prog = zlst_pop(&(obj->prog0)))) {
-
-                /* clear the elem list */
-                while(NULL != (elem = zlst_pop(&(((struct ts_prog *)prog)->elem0)))) {
-                        buddy_free(obj->mp, elem);
-                }
-
-                /* clear the sect list */
-                while(NULL != (sect = zlst_pop(&(((struct ts_prog *)prog)->table_02.sect0)))) {
-                        buddy_free(obj->mp, sect);
-                }
-
-                buddy_free(obj->mp, prog);
+        struct ts_prog *prog;
+        while(NULL != (prog = (struct ts_prog *)zlst_pop(&(obj->prog0)))) {
+                free_prog(obj->mp, prog);
         }
 
         /* clear the table list */
-        while(NULL != (table = zlst_pop(&(obj->table0)))) {
-
-                /* clear the sect list */
-                while(NULL != (sect = zlst_pop(&(((struct ts_table *)table)->sect0)))) {
-                        buddy_free(obj->mp, sect);
-                }
-
-                buddy_free(obj->mp, table);
+        struct ts_table *table;
+        while(NULL != (table = (struct ts_table *)zlst_pop(&(obj->table0)))) {
+                free_table(obj->mp, table);
         }
 
         obj->state = STATE_NEXT_PAT;
@@ -345,6 +331,54 @@ int ts_init(struct ts_obj *obj)
         obj->STC = STC_OVF;
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* clear error struct */
 
+        return 0;
+}
+
+static int free_pid(intptr_t mp, struct ts_pid *pid)
+{
+        buddy_free(mp, pid);
+        return 0;
+}
+
+static int free_sect(intptr_t mp, struct ts_sect *sect)
+{
+        if(sect->data) {
+                buddy_free(mp, sect->data);
+        }
+
+        buddy_free(mp, sect);
+        return 0;
+}
+
+static int free_table(intptr_t mp, struct ts_table *table)
+{
+        struct ts_sect *sect;
+
+        /* clear the sect list */
+        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(table->sect0)))) {
+                free_sect(mp, sect);
+        }
+
+        buddy_free(mp, table);
+        return 0;
+}
+
+static int free_prog(intptr_t mp, struct ts_prog *prog)
+{
+        struct znode *elem;
+        struct ts_sect *sect;
+
+        /* clear the elem list */
+        while(NULL != (elem = zlst_pop(&(prog->elem0)))) {
+                buddy_free(mp, elem);
+        }
+
+        /* clear the sect list */
+        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(prog->table_02.sect0)))) {
+                free_sect(mp, sect);
+        }
+
+        buddy_free(mp, prog);
         return 0;
 }
 
@@ -1077,6 +1111,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                                 RPT(RPT_ERR, "malloc failed");
                                 return -1;
                         }
+                        table->sect0 = NULL;
 
                         table->table_id = sech->table_id;
                         table->version_number = sech->version_number;
@@ -1086,7 +1121,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                         RPT(RPT_DBG, "insert 0x%02X in table_list", sech->table_id);
                         zlst_set_key(table, sech->table_id);
                         if(zlst_insert(ptable0, table)) {
-                                buddy_free(obj->mp, table);
+                                free_table(obj->mp, table);
                         }
                 }
         }
@@ -1094,7 +1129,7 @@ static int ts_parse_sect(struct ts_obj *obj)
 
         /* new table version? */
         if(table->version_number != sech->version_number) {
-                struct znode *znode;
+                struct ts_sect *sect_node;
 
                 /* clear psect0 and update table parameter */
                 RPT(RPT_DBG, "version_number(%d -> %d), free section",
@@ -1102,8 +1137,8 @@ static int ts_parse_sect(struct ts_obj *obj)
                     sech->version_number);
                 table->version_number = sech->version_number;
                 table->last_section_number = sech->last_section_number;
-                while(NULL != (znode = zlst_pop(psect0))) {
-                        buddy_free(obj->mp, znode);
+                while(NULL != (sect_node = (struct ts_sect *)zlst_pop(psect0))) {
+                        free_sect(obj->mp, sect_node);
                 };
 #if 0
                 is_new_version = 1;
@@ -1114,10 +1149,20 @@ static int ts_parse_sect(struct ts_obj *obj)
         RPT(RPT_DBG, "search 0x%02X in section_list", sech->section_number);
         sect = (struct ts_sect *)zlst_search(psect0, sech->section_number);
         if(!sect) {
+                int sect_size;
+
                 /* add section */
                 sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
                 if(!sect) {
-                        RPT(RPT_ERR, "malloc failed");
+                        RPT(RPT_ERR, "malloc for new section failed");
+                        return -1;
+                }
+                sect->data = NULL;
+
+                sect_size = (sech->private_indicator) ? PRIVATE_SECTION_SIZE : NORMAL_SECTION_SIZE;
+                sect->data = (uint8_t *)buddy_malloc(obj->mp, sect_size);
+                if(!sect->data) {
+                        RPT(RPT_ERR, "malloc for new section data buffer failed");
                         return -1;
                 }
 
@@ -1127,7 +1172,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                 RPT(RPT_DBG, "insert 0x%02X in sect_list", sech->section_number);
                 zlst_set_key(sect, sech->section_number);
                 if(zlst_insert(psect0, sect)) {
-                        buddy_free(obj->mp, sect);
+                        free_sect(obj->mp, sect);
                 }
         }
         else {
@@ -1235,11 +1280,11 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
 
         if(0 == sech->private_indicator) {
                 /* normal section */
-                if(sech->section_length > 1021) {
+                if(sech->section_length > NORMAL_SECTION_SIZE - 3) {
                         fprintf(stderr, "normal section(0x%02X), length(%d) overflow!\n",
                                 sech->table_id,
                                 sech->section_length);
-                        sech->section_length = 1021;
+                        sech->section_length = NORMAL_SECTION_SIZE - 3;
                         dump(obj->TS, PKT_SIZE);
                         dump(sect, 8);
                         return -1;
@@ -1247,11 +1292,11 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
         }
         else {
                 /* private section */
-                if(sech->section_length > 4093) {
+                if(sech->section_length > PRIVATE_SECTION_SIZE - 3) {
                         fprintf(stderr, "private section(0x%02X), length(%d) overflow!\n",
                                 sech->table_id,
                                 sech->section_length);
-                        sech->section_length = 4093;
+                        sech->section_length = PRIVATE_SECTION_SIZE - 3;
                         dump(obj->TS, PKT_SIZE);
                         dump(sect, 8);
                         return -1;
@@ -1297,6 +1342,8 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                         RPT(RPT_ERR, "malloc failed");
                         return -1;
                 }
+                prog->elem0 = NULL;
+                prog->table_02.sect0 = NULL;
 
                 dat = *cur++;
                 prog->program_number = dat;
@@ -1322,7 +1369,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                                 fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", new_pid->PID);
 #endif
                         }
-                        buddy_free(obj->mp, prog);
+                        free_prog(obj->mp, prog);
                 }
                 else {
                         struct znode *znode;
@@ -1367,7 +1414,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                         RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         zlst_set_key(prog, prog->program_number);
                         if(zlst_insert(&(obj->prog0), prog)) {
-                                buddy_free(obj->mp, prog);
+                                free_prog(obj->mp, prog);
                         }
                 }
 
@@ -2119,7 +2166,7 @@ static struct ts_pid *add_to_pid_list(struct ts_obj *obj, struct ts_pid **phead,
                 RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
                 zlst_set_key(pid, the_pid->PID);
                 if(zlst_insert(phead, pid)) {
-                        buddy_free(obj->mp, pid);
+                        free_pid(obj->mp, pid);
                 }
         }
         return pid;

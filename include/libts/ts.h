@@ -122,7 +122,7 @@ struct ts_af {
         int16_t original_program_clock_reference_extension; /* 9-bit */
         uint8_t splice_countdown;
         uint8_t transport_private_data_length;
-        uint8_t private_data_byte[256];
+        uint8_t private_data_byte[183];
         uint8_t adaption_field_extension_length;
         /* ... */
 };
@@ -199,7 +199,7 @@ struct ts_sect {
         uint16_t section_length;
 
         /* section info */
-        uint8_t data[4096];
+        uint8_t *data; /* 1024 or 4096 */
         int check_CRC; /* bool, some table do not need to check CRC_32 */
         int type; /* index of item in PID_TYPE[] */
 };
