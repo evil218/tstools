@@ -285,7 +285,7 @@ struct ts_pid {
 
         /* only for PID with PSI/SI */
         int sect_idx; /* to index data in section */
-        uint8_t sect_data[4416]; /* (184*24=4416), PSI/SI|private <= 1024|4096 */
+        uint8_t *sect_data; /* only PSI/SI pid has sect_data buffer */
         int64_t sect_interval;
         uint32_t CRC_32;
         uint32_t CRC_32_calc;

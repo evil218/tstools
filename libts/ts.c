@@ -336,6 +336,10 @@ int ts_init(struct ts_obj *obj)
 
 static int free_pid(intptr_t mp, struct ts_pid *pid)
 {
+        if(pid->sect_data) {
+                buddy_free(mp, pid->sect_data);
+        }
+
         buddy_free(mp, pid);
         return 0;
 }
@@ -541,7 +545,6 @@ int ts_parse_tsh(struct ts_obj *obj)
                 /* PSI/SI packet */
                 obj->psi_cnt++;
                 obj->is_psi_si = 1;
-                /*fprintf(stderr, "PSI/SI: 0x%04X\n", tsh->PID);*/
                 ts_ts2sect(obj);
         }
 
@@ -992,6 +995,15 @@ static int ts_ts2sect(struct ts_obj *obj)
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_sech *sech = &(obj->sech);
         struct ts_pid *pid = obj->pid;
+
+        /* prepare sect_data buffer */
+        if(NULL == pid->sect_data) {
+                pid->sect_data = (uint8_t *)buddy_malloc(obj->mp, 4096);
+                if(!pid->sect_data) {
+                        RPT(RPT_ERR, "malloc sect_data buffer failed");
+                        return -1;
+                }
+        }
 
         /* FIXME: if data after CRC_32 is NOT 0xFF, it's another section! */
         if(0 == pid->sect_idx) {
@@ -2147,6 +2159,7 @@ static struct ts_pid *add_to_pid_list(struct ts_obj *obj, struct ts_pid **phead,
                         RPT(RPT_ERR, "malloc failed");
                         return NULL;
                 }
+                pid->sect_data = NULL;
 
                 pid->PID = the_pid->PID;
                 pid->prog = the_pid->prog;

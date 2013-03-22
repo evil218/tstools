@@ -34,6 +34,8 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
+#define MP_ORDER_DEFAULT (20) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
+
 struct aim {
         int bg;
         int cts;
@@ -57,8 +59,6 @@ struct aim {
         int allpes;
         int alles;
 };
-
-#define MP_ORDER_DEFAULT (21) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
 struct tsana_obj {
         intptr_t mp; /* id of buddy memory pool, for list malloc and free */
@@ -820,7 +820,7 @@ static void show_help()
                  " -prog <prog>     set cared prog, default: any program(0x0000)\n"
                  " -type <type>     set cared PID type, default: any type(0)\n"
                  " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
-                 " -mp <mp>         set memory pool size order(16-32), default: %d, means 2^%d bytes\n"
+                 " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
                  "\n"
                  " -allpes          write PES data into different file by PID\n"
                  " -alles           write ES data into different file by PID\n"
@@ -836,7 +836,7 @@ static void show_help()
                  "  \"catts xxx.ts | tsana -c -bg -pcr -pts\" -- report all PCR/PTS/DTS information\n"
                  "\n"
                  "Report bugs to <zhoucheng@tsinghua.org.cn>.\n",
-                MP_ORDER_DEFAULT, MP_ORDER_DEFAULT);
+                BUDDY_ORDER_MAX, MP_ORDER_DEFAULT, MP_ORDER_DEFAULT);
         return;
 }
 
