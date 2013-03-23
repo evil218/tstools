@@ -21,197 +21,126 @@
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-struct pid_type_table {
-        char *sdes; /* short description */
-        char *ldes; /* long description */
-};
-
 struct ts_pid_table {
         uint16_t min; /* PID range */
         uint16_t max; /* PID range */
-        int     type; /* index of item in PID_TYPE[] */
+        int     type; /* TS_TYPE_xxx */
+};
+
+static const struct ts_pid_table PID_TABLE[] = {
+        {0x0000, 0x0000, TS_TYPE_PAT},
+        {0x0001, 0x0001, TS_TYPE_CAT},
+        {0x0002, 0x0002, TS_TYPE_TSDT},
+        {0x0003, 0x000F, TS_TYPE_RSV},
+        {0x0010, 0x0010, TS_TYPE_NIT}, /* NIT/ST */
+        {0x0011, 0x0011, TS_TYPE_SDT}, /* SDT/BAT/ST */
+        {0x0012, 0x0012, TS_TYPE_EIT}, /* EIT/ST */
+        {0x0013, 0x0013, TS_TYPE_RST}, /* RST/ST */
+        {0x0014, 0x0014, TS_TYPE_TDT}, /* TDT/TOT/ST */
+        {0x0015, 0x0015, TS_TYPE_NS},
+        {0x0016, 0x001B, TS_TYPE_RSV},
+        {0x001C, 0x001C, TS_TYPE_INB},
+        {0x001D, 0x001D, TS_TYPE_MSU},
+        {0x001E, 0x001E, TS_TYPE_DIT},
+        {0x001F, 0x001F, TS_TYPE_SIT},
+        {0x0020, 0x1FFE, TS_TYPE_USR},
+        {0x1FFF, 0x1FFF, TS_TYPE_NULL},
+        {0x2000, 0xFFFF, TS_TYPE_BAD} /* loop stop condition! */
 };
 
 struct table_id_table {
         uint8_t min; /* table ID range */
         uint8_t max; /* table ID range */
         int check_CRC; /* some table do not need to check CRC_32 */
-        int type; /* index of item in PID_TYPE[] */
-};
-
-struct stream_type {
-        uint8_t stream_type;
-        int   type; /* index of item in PID_TYPE[] */
-        char *sdes; /* short description */
-        char *ldes; /* long description */
-};
-
-enum PID_TYPE_ENUM {
-        /* should be synchronize with PID_TYPE[]! */
-        PAT_PID,
-        CAT_PID,
-        TSDT_PID,
-        RSV_PID,
-        NIT_PID,
-        ST_PID,
-        SDT_PID,
-        BAT_PID,
-        EIT_PID,
-        RST_PID,
-        TDT_PID,
-        TOT_PID,
-        NS_PID,
-        INB_PID,
-        MSU_PID,
-        DIT_PID,
-        SIT_PID,
-        USR_PID,
-        PMT_PID,
-        VID_PID,
-        VID_PCR,
-        AUD_PID,
-        AUD_PCR,
-        PCR_PID,
-        NULL_PID,
-        UNO_PID,
-        UNO_PCR,
-        BAD_PID
-};
-
-static const struct pid_type_table PID_TYPE[] = {
-        /* should be synchronize with enum PID_TYPE_ENUM! */
-        {" PAT", "program association section"},
-        {" CAT", "conditional access section"},
-        {"TSDT", "transport stream description section"},
-        {" RSV", "reserved"},
-        {" NIT", "network information section"},
-        {"  ST", "stuffing section"},
-        {" SDT", "service description section"},
-        {" BAT", "bouquet association section"},
-        {" EIT", "event information section"},
-        {" RST", "running status section"},
-        {" TDT", "time data section"},
-        {" TOT", "time offset section"},
-        {"  NS", "Network Synchroniztion"},
-        {" INB", "Inband signaling"},
-        {" MSU", "Measurement"},
-        {" DIT", "discontinuity information section"},
-        {" SIT", "selection information section"},
-        {" USR", "user define"},
-        {" PMT", "program map section"},
-        {" VID", "video packet"},
-        {"PVID", "video packet with PCR"},
-        {" AUD", "audio packet"},
-        {"PAUD", "audio packet with PCR"},
-        {" PCR", "program counter reference"},
-        {"NULL", "empty packet"},
-        {" UNO", "unknown"},
-        {"PUNO", "unknown packet with PCR"},
-        {" BAD", "illegal"}
-};
-
-static const struct ts_pid_table PID_TABLE[] = {
-        /* 0*/{0x0000, 0x0000,  PAT_PID},
-        /* 1*/{0x0001, 0x0001,  CAT_PID},
-        /* 2*/{0x0002, 0x0002, TSDT_PID},
-        /* 3*/{0x0003, 0x000F,  RSV_PID},
-        /* 4*/{0x0010, 0x0010,  NIT_PID}, /* NIT/ST */
-        /* 5*/{0x0011, 0x0011,  SDT_PID}, /* SDT/BAT/ST */
-        /* 6*/{0x0012, 0x0012,  EIT_PID}, /* EIT/ST */
-        /* 7*/{0x0013, 0x0013,  RST_PID}, /* RST/ST */
-        /* 8*/{0x0014, 0x0014,  TDT_PID}, /* TDT/TOT/ST */
-        /* 9*/{0x0015, 0x0015,   NS_PID},
-        /*10*/{0x0016, 0x001B,  RSV_PID},
-        /*11*/{0x001C, 0x001C,  INB_PID},
-        /*12*/{0x001D, 0x001D,  MSU_PID},
-        /*13*/{0x001E, 0x001E,  DIT_PID},
-        /*14*/{0x001F, 0x001F,  SIT_PID},
-        /*15*/{0x0020, 0x1FFE,  USR_PID},
-        /*16*/{0x1FFF, 0x1FFF, NULL_PID},
-        /*17*/{0x2000, 0xFFFF,  BAD_PID}, /* loop stop condition! */
+        int type; /* TS_TYPE_xxx */
 };
 
 static const struct table_id_table TABLE_ID_TABLE[] = {
-        /* 0*/{0x00, 0x00, 1,  PAT_PID},
-        /* 1*/{0x01, 0x01, 1,  CAT_PID},
-        /* 2*/{0x02, 0x02, 1,  PMT_PID},
-        /* 3*/{0x03, 0x03, 0, TSDT_PID},
-        /* 4*/{0x04, 0x3F, 0,  RSV_PID},
-        /* 5*/{0x40, 0x40, 1,  NIT_PID}, /* actual network */
-        /* 6*/{0x41, 0x41, 1,  NIT_PID}, /* other network */
-        /* 7*/{0x42, 0x42, 1,  SDT_PID}, /* actual transport stream */
-        /* 8*/{0x43, 0x45, 0,  RSV_PID},
-        /* 9*/{0x46, 0x46, 1,  SDT_PID}, /* other transport stream */
-        /*10*/{0x47, 0x49, 0,  RSV_PID},
-        /*11*/{0x4A, 0x4A, 1,  BAT_PID},
-        /*12*/{0x4B, 0x4D, 0,  RSV_PID},
-        /*13*/{0x4E, 0x4E, 1,  EIT_PID}, /* actual transport stream, P/F */
-        /*14*/{0x4F, 0x4F, 1,  EIT_PID}, /* other transport stream, P/F */
-        /*15*/{0x50, 0x5F, 1,  EIT_PID}, /* actual transport stream, schedule */
-        /*16*/{0x60, 0x6F, 1,  EIT_PID}, /* other transport stream, schedule */
-        /*17*/{0x70, 0x70, 0,  TDT_PID},
-        /*18*/{0x71, 0x71, 0,  RST_PID},
-        /*19*/{0x72, 0x72, 0,   ST_PID},
-        /*20*/{0x73, 0x73, 1,  TOT_PID},
-        /*21*/{0x74, 0x7D, 0,  RSV_PID},
-        /*22*/{0x7E, 0x7E, 0,  DIT_PID},
-        /*23*/{0x7F, 0x7F, 0,  SIT_PID},
-        /*24*/{0x80, 0xFE, 0,  USR_PID},
-        /*25*/{0xFF, 0xFF, 0,  RSV_PID}, /* loop stop condition! */
+        {0x00, 0x00, 1, TS_TYPE_PAT},
+        {0x01, 0x01, 1, TS_TYPE_CAT},
+        {0x02, 0x02, 1, TS_TYPE_PMT},
+        {0x03, 0x03, 0, TS_TYPE_TSDT},
+        {0x04, 0x3F, 0, TS_TYPE_RSV},
+        {0x40, 0x40, 1, TS_TYPE_NIT}, /* actual network */
+        {0x41, 0x41, 1, TS_TYPE_NIT}, /* other network */
+        {0x42, 0x42, 1, TS_TYPE_SDT}, /* actual transport stream */
+        {0x43, 0x45, 0, TS_TYPE_RSV},
+        {0x46, 0x46, 1, TS_TYPE_SDT}, /* other transport stream */
+        {0x47, 0x49, 0, TS_TYPE_RSV},
+        {0x4A, 0x4A, 1, TS_TYPE_BAT},
+        {0x4B, 0x4D, 0, TS_TYPE_RSV},
+        {0x4E, 0x4E, 1, TS_TYPE_EIT}, /* actual transport stream, P/F */
+        {0x4F, 0x4F, 1, TS_TYPE_EIT}, /* other transport stream, P/F */
+        {0x50, 0x5F, 1, TS_TYPE_EIT}, /* actual transport stream, schedule */
+        {0x60, 0x6F, 1, TS_TYPE_EIT}, /* other transport stream, schedule */
+        {0x70, 0x70, 0, TS_TYPE_TDT},
+        {0x71, 0x71, 0, TS_TYPE_RST},
+        {0x72, 0x72, 0, TS_TYPE_ST},
+        {0x73, 0x73, 1, TS_TYPE_TOT},
+        {0x74, 0x7D, 0, TS_TYPE_RSV},
+        {0x7E, 0x7E, 0, TS_TYPE_DIT},
+        {0x7F, 0x7F, 0, TS_TYPE_SIT},
+        {0x80, 0xFE, 0, TS_TYPE_USR},
+        {0xFF, 0xFF, 0, TS_TYPE_RSV} /* loop stop condition! */
 };
 
-static const struct stream_type STREAM_TYPE_TABLE[] = {
-        {0x00, RSV_PID, "Reserved", "ITU-T|ISO/IEC Reserved"},
-        {0x01, VID_PID, "MPEG-1", "ISO/IEC 11172-2 Video"},
-        {0x02, VID_PID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
-        {0x03, AUD_PID, "MPEG-1", "ISO/IEC 11172-3 Audio"},
-        {0x04, AUD_PID, "MPEG-2", "ISO/IEC 13818-3 Audio"},
-        {0x05, USR_PID, "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
-        {0x06, AUD_PID, "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"},
-        {0x07, USR_PID, "MHEG", "ISO/IEC 13522 MHEG"},
-        {0x08, USR_PID, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
-        {0x09, USR_PID, "H.222.1", "ITU-T Rec.H.222.1"},
-        {0x0A, USR_PID, "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"},
-        {0x0B, USR_PID, "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"},
-        {0x0C, USR_PID, "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"},
-        {0x0D, USR_PID, "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"},
-        {0x0E, USR_PID, "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"},
-        {0x0F, AUD_PID, "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"},
-        {0x10, VID_PID, "MPEG-4", "ISO/IEC 14496-2 Visual"},
-        {0x11, AUD_PID, "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"},
-        {0x12, AUD_PID, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"},
-        {0x13, AUD_PID, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"},
-        {0x14, USR_PID, "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"},
-        {0x15, USR_PID, "MPEG-2", "Metadata carried in PES packets"},
-        {0x16, USR_PID, "MPEG-2", "Metadata carried in metadata_sections"},
-        {0x17, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"},
-        {0x18, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"},
-        {0x19, USR_PID, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"},
-        {0x1A, USR_PID, "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"},
-        {0x1B, VID_PID, "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"},
-        {0x1C, AUD_PID, "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"},
-        {0x1D, USR_PID, "MPEG-4", "ISO/IEC 14496-17 Text"},
-        {0x1E, VID_PID, "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"},
-        {0x42, VID_PID, "AVS", "Advanced Video Standard"},
-        {0x7F, USR_PID, "IPMP", "IPMP stream"},
-        {0x80, VID_PID, "SVAC|LPCM", "SVAC, LPCM of ATSC"},
-        {0x81, AUD_PID, "AC3", "Dolby Digital ATSC"},
-        {0x82, AUD_PID, "DTS", "DTS Audio"},
-        {0x83, AUD_PID, "MLP", "MLP"},
-        {0x84, AUD_PID, "DDP", "Dolby Digital Plus"},
-        {0x85, AUD_PID, "DTSHD", "DTSHD"},
-        {0x86, AUD_PID, "DTSHD_XLL", "DTSHD_XLL"},
-        {0x90, AUD_PID, "G.711", "G.711(A)"},
-        {0x92, AUD_PID, "G.722.1", "G.722.1"},
-        {0x93, AUD_PID, "G.723.1", "G.723.1"},
-        {0x99, AUD_PID, "G.729", "G.729"},
-        {0x9A, AUD_PID, "AMR-NB", "AMR-NB"},
-        {0x9B, AUD_PID, "SVAC", "SVAC"},
-        {0xA1, AUD_PID, "DDP_2", "Dolby Digital Plus"},
-        {0xA2, AUD_PID, "DTSHD_2", "DTSHD_2"},
-        {0xEA, VID_PID, "VC1", "VC1"},
-        {0xEA, AUD_PID, "WMA", "WMA"},
-        {0xFF, UNO_PID, "UNKNOWN", "Unknown stream"}, /* loop stop condition! */
+struct stream_type_table {
+        uint8_t stream_type;
+        int   type; /* TS_TYPE_xxx */
+};
+
+static const struct stream_type_table STREAM_TYPE_TABLE[] = {
+        {0x00, TS_TYPE_RSV}, /* "Reserved", "ITU-T|ISO/IEC Reserved"}, */
+        {0x01, TS_TYPE_VID}, /* "MPEG-1", "ISO/IEC 11172-2 Video"}, */
+        {0x02, TS_TYPE_VID}, /* "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"}, */
+        {0x03, TS_TYPE_AUD}, /* "MPEG-1", "ISO/IEC 11172-3 Audio"}, */
+        {0x04, TS_TYPE_AUD}, /* "MPEG-2", "ISO/IEC 13818-3 Audio"}, */
+        {0x05, TS_TYPE_USR}, /* "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"}, */
+        {0x06, TS_TYPE_AUD}, /* "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"}, */
+        {0x07, TS_TYPE_USR}, /* "MHEG", "ISO/IEC 13522 MHEG"}, */
+        {0x08, TS_TYPE_USR}, /* "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"}, */
+        {0x09, TS_TYPE_USR}, /* "H.222.1", "ITU-T Rec.H.222.1"}, */
+        {0x0A, TS_TYPE_USR}, /* "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"}, */
+        {0x0B, TS_TYPE_USR}, /* "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"}, */
+        {0x0C, TS_TYPE_USR}, /* "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"}, */
+        {0x0D, TS_TYPE_USR}, /* "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"}, */
+        {0x0E, TS_TYPE_USR}, /* "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"}, */
+        {0x0F, TS_TYPE_AUD}, /* "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"}, */
+        {0x10, TS_TYPE_VID}, /* "MPEG-4", "ISO/IEC 14496-2 Visual"}, */
+        {0x11, TS_TYPE_AUD}, /* "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"}, */
+        {0x12, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"}, */
+        {0x13, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"}, */
+        {0x14, TS_TYPE_USR}, /* "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"}, */
+        {0x15, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in PES packets"}, */
+        {0x16, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in metadata_sections"}, */
+        {0x17, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"}, */
+        {0x18, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"}, */
+        {0x19, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"}, */
+        {0x1A, TS_TYPE_USR}, /* "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"}, */
+        {0x1B, TS_TYPE_VID}, /* "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"}, */
+        {0x1C, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"}, */
+        {0x1D, TS_TYPE_USR}, /* "MPEG-4", "ISO/IEC 14496-17 Text"}, */
+        {0x1E, TS_TYPE_VID}, /* "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"}, */
+        {0x42, TS_TYPE_VID}, /* "AVS", "Advanced Video Standard"}, */
+        {0x7F, TS_TYPE_USR}, /* "IPMP", "IPMP stream"}, */
+        {0x80, TS_TYPE_VID}, /* "SVAC|LPCM", "SVAC, LPCM of ATSC"}, */
+        {0x81, TS_TYPE_AUD}, /* "AC3", "Dolby Digital ATSC"}, */
+        {0x82, TS_TYPE_AUD}, /* "DTS", "DTS Audio"}, */
+        {0x83, TS_TYPE_AUD}, /* "MLP", "MLP"}, */
+        {0x84, TS_TYPE_AUD}, /* "DDP", "Dolby Digital Plus"}, */
+        {0x85, TS_TYPE_AUD}, /* "DTSHD", "DTSHD"}, */
+        {0x86, TS_TYPE_AUD}, /* "DTSHD_XLL", "DTSHD_XLL"}, */
+        {0x90, TS_TYPE_AUD}, /* "G.711", "G.711(A)"}, */
+        {0x92, TS_TYPE_AUD}, /* "G.722.1", "G.722.1"}, */
+        {0x93, TS_TYPE_AUD}, /* "G.723.1", "G.723.1"}, */
+        {0x99, TS_TYPE_AUD}, /* "G.729", "G.729"}, */
+        {0x9A, TS_TYPE_AUD}, /* "AMR-NB", "AMR-NB"}, */
+        {0x9B, TS_TYPE_AUD}, /* "SVAC", "SVAC"}, */
+        {0xA1, TS_TYPE_AUD}, /* "DDP_2", "Dolby Digital Plus"}, */
+        {0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2"}, */
+        {0xEA, TS_TYPE_VID}, /* "VC1", "VC1"}, */
+        {0xEA, TS_TYPE_AUD}, /* "WMA", "WMA"}, */
+        {0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream"}, loop stop condition! */
 };
 
 enum {
@@ -247,7 +176,7 @@ static int free_prog(intptr_t mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
-static int elem_type(struct ts_elem *elem);
+static const struct stream_type_table *elem_type(int stream_type);
 
 struct ts_obj *ts_create(intptr_t mp)
 {
@@ -489,15 +418,14 @@ int ts_parse_tsh(struct ts_obj *obj)
                 new_pid->lcnt = 0;
                 /*new_pid->CC = tsh->continuity_counter; */
                 new_pid->is_CC_sync = 0;
-                new_pid->sdes = PID_TYPE[new_pid->type].sdes;
-                new_pid->ldes = PID_TYPE[new_pid->type].ldes;
-                new_pid->is_video = 0;
-                new_pid->is_audio = 0;
 
-                obj->pid = update_pid_list(obj, new_pid); /* other_PID */
+                obj->pid = update_pid_list(obj, new_pid);
+                if(!(obj->pid)) {
+                        RPT(RPT_ERR, "update_pid_list failed");
+                }
         }
 
-        struct ts_pid *pid = obj->pid; /* may be NULL */
+        struct ts_pid *pid = obj->pid; /* maybe NULL */
 
         /* calc STC and CTS, should be as early as possible */
         if(obj->mts) {
@@ -561,7 +489,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         pid->cnt++;
         obj->sys_cnt++;
         obj->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
-        if((tsh->PID < 0x0020) || (PMT_PID == pid->type)) {
+        if((tsh->PID < 0x0020) || (TS_TYPE_PMT == (pid->type & TS_TMSK_USR))) {
                 /* PSI/SI packet */
                 obj->psi_cnt++;
                 obj->is_psi_si = 1;
@@ -646,7 +574,7 @@ static int state_next_pmt(struct ts_obj *obj)
 
         RPT(RPT_DBG, "search 0x%04X in pid_list", tsh->PID);
         pid = (struct ts_pid *)zlst_search(&(obj->pid0), tsh->PID);
-        if((!pid) || (PMT_PID != pid->type)) {
+        if((!pid) || (TS_TYPE_PMT != (pid->type & TS_TMSK_USR))) {
                 return -1; /* not PMT */
         }
 
@@ -858,8 +786,7 @@ static int state_next_pkt(struct ts_obj *obj)
 
         /* PES head & ES data */
         if(elem && (0 == tsh->transport_scrambling_control)) {
-                if(AUD_PID == pid->type || AUD_PCR == pid->type ||
-                   VID_PID == pid->type || VID_PCR == pid->type) {
+                if((TS_TYPE_AUD & pid->type) || (TS_TYPE_VID & pid->type)) {
                         ts_parse_pesh(obj);
                 }
 
@@ -1239,7 +1166,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                         ts_parse_secb_pat(obj, pid->sect_data);
                         break;
                 case 0x02:
-                        if(PMT_PID != pid->type) {
+                        if(TS_TYPE_PMT != (pid->type & TS_TMSK_USR)) {
                                 RPT(RPT_ERR, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!", pid->PID);
                                 return -1;
                         }
@@ -1294,7 +1221,7 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
                 sech->last_section_number = 0;
 
                 sech->check_CRC = 0;
-                sech->type = USR_PID;
+                sech->type = TS_TYPE_USR;
         }
 
         RPT(RPT_INF, "table: 0x%02X; len: %4d; sect: %d/%d",
@@ -1387,7 +1314,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
 
                 if(0 == prog->program_number) {
                         /* network PID, not a program */
-                        new_pid->type = NIT_PID;
+                        new_pid->type = TS_TYPE_NIT;
 
                         if(0x0010 != new_pid->PID) {
 #if 1
@@ -1399,7 +1326,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                 else {
                         struct znode *znode;
 
-                        new_pid->type = PMT_PID;
+                        new_pid->type = (TS_TYPE_USR | TS_TYPE_PMT);
 
                         if(!(obj->prog0)) {
                                 /* traverse pid_list */
@@ -1449,10 +1376,6 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                 new_pid->elem = NULL;
                 new_pid->CC = 0;
                 new_pid->is_CC_sync = 0;
-                new_pid->sdes = PID_TYPE[new_pid->type].sdes;
-                new_pid->ldes = PID_TYPE[new_pid->type].ldes;
-                new_pid->is_video = 0;
-                new_pid->is_audio = 0;
                 update_pid_list(obj, new_pid); /* NIT or PMT PID */
         }
 
@@ -1503,13 +1426,9 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         new_pid->lcnt = 0;
         new_pid->prog = prog;
         new_pid->elem = NULL;
-        new_pid->type = PCR_PID;
+        new_pid->type = (TS_TYPE_USR | TS_TYPE_PCR);
         new_pid->CC = 0;
         new_pid->is_CC_sync = 1;
-        new_pid->sdes = PID_TYPE[new_pid->type].sdes;
-        new_pid->ldes = PID_TYPE[new_pid->type].ldes;
-        new_pid->is_video = 0;
-        new_pid->is_audio = 0;
         update_pid_list(obj, new_pid); /* PCR_PID */
 
         /* program_info_length */
@@ -1566,13 +1485,9 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 memcpy(elem->es_info, cur, elem->es_info_len);
                 cur += elem->es_info_len;
 
-                elem_type(elem);
+                elem->type = elem_type(elem->stream_type)->type;
                 if(elem->PID == prog->PCR_PID) {
-                        switch(elem->type) {
-                                case VID_PID: elem->type = VID_PCR; break;
-                                case AUD_PID: elem->type = AUD_PCR; break;
-                                default:      elem->type = UNO_PCR; break;
-                        }
+                        elem->type |= TS_TYPE_PCR;
                 }
                 elem->PTS = STC_BASE_OVF;
                 elem->DTS = STC_BASE_OVF;
@@ -1591,24 +1506,6 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 new_pid->type = elem->type;
                 new_pid->CC = 0;
                 new_pid->is_CC_sync = 0;
-                new_pid->sdes = PID_TYPE[new_pid->type].sdes;
-                new_pid->ldes = PID_TYPE[new_pid->type].ldes;
-                switch(new_pid->type) {
-                        case VID_PID:
-                        case VID_PCR:
-                                new_pid->is_video = 1;
-                                new_pid->is_audio = 0;
-                                break;
-                        case AUD_PID:
-                        case AUD_PCR:
-                                new_pid->is_video = 0;
-                                new_pid->is_audio = 1;
-                                break;
-                        default:
-                                new_pid->is_video = 0;
-                                new_pid->is_audio = 0;
-                                break;
-                }
                 update_pid_list(obj, new_pid); /* elementary_PID */
         }
 
@@ -2129,14 +2026,10 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->prog = new_pid->prog;
                 pid->elem = new_pid->elem;
                 pid->type = new_pid->type;
-                pid->is_video = new_pid->is_video;
-                pid->is_audio = new_pid->is_audio;
                 pid->cnt = new_pid->cnt;
                 pid->lcnt = new_pid->lcnt;
                 pid->CC = new_pid->CC;
                 pid->is_CC_sync = new_pid->is_CC_sync;
-                pid->sdes = new_pid->sdes;
-                pid->ldes = new_pid->ldes;
         }
         else {
                 pid = (struct ts_pid *)buddy_malloc(obj->mp, sizeof(struct ts_pid));
@@ -2150,14 +2043,10 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->prog = new_pid->prog;
                 pid->elem = new_pid->elem;
                 pid->type = new_pid->type;
-                pid->is_video = new_pid->is_video;
-                pid->is_audio = new_pid->is_audio;
                 pid->cnt = new_pid->cnt;
                 pid->lcnt = new_pid->lcnt;
                 pid->CC = new_pid->CC;
                 pid->is_CC_sync = new_pid->is_CC_sync;
-                pid->sdes = new_pid->sdes;
-                pid->ldes = new_pid->ldes;
                 pid->sect_idx = 0; /* wait to sync with section head */
                 pid->fd = NULL;
 
@@ -2204,7 +2093,7 @@ static int pid_type(uint16_t pid)
 {
         const struct ts_pid_table *p;
 
-        for(p = PID_TABLE; p->type != BAD_PID; p++) {
+        for(p = PID_TABLE; p->max != 0xFFFF; p++) {
                 if(p->min <= pid && pid <= p->max) {
                         break;
                 }
@@ -2226,20 +2115,16 @@ static const struct table_id_table *table_type(uint8_t id)
         return p;
 }
 
-static int elem_type(struct ts_elem *elem)
+static const struct stream_type_table *elem_type(int stream_type)
 {
-        const struct stream_type *p;
+        const struct stream_type_table *p;
 
         for(p = STREAM_TYPE_TABLE; 0xFF != p->stream_type; p++) {
-                if(p->stream_type == elem->stream_type) {
+                if(p->stream_type == stream_type) {
                         break;
                 }
         }
-
-        elem->type = p->type;
-        elem->sdes = p->sdes;
-        elem->ldes = p->ldes;
-        return 0;
+        return p;
 }
 
 #define timestamp_assert(expr, ...) \

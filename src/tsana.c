@@ -36,6 +36,103 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define MP_ORDER_DEFAULT (20) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
+struct pid_type_table {
+        int   type; /* TS_TYPE_xxx */
+        char *sdes; /* short description */
+        char *ldes; /* long description */
+};
+
+const struct pid_type_table PID_TYPE_TABLE[] = {
+        {TS_TYPE_PAT , " PAT", "program association section"},
+        {TS_TYPE_CAT , " CAT", "conditional access section"},
+        {TS_TYPE_TSDT, "TSDT", "transport stream description section"},
+        {TS_TYPE_RSV , " RSV", "reserved"},
+        {TS_TYPE_NIT , " NIT", "network information section"},
+        {TS_TYPE_ST  , "  ST", "stuffing section"},
+        {TS_TYPE_SDT , " SDT", "service description section"},
+        {TS_TYPE_BAT , " BAT", "bouquet association section"},
+        {TS_TYPE_EIT , " EIT", "event information section"},
+        {TS_TYPE_RST , " RST", "running status section"},
+        {TS_TYPE_TDT , " TDT", "time data section"},
+        {TS_TYPE_TOT , " TOT", "time offset section"},
+        {TS_TYPE_NS  , "  NS", "Network Synchroniztion"},
+        {TS_TYPE_INB , " INB", "Inband signaling"},
+        {TS_TYPE_MSU , " MSU", "Measurement"},
+        {TS_TYPE_DIT , " DIT", "discontinuity information section"},
+        {TS_TYPE_SIT , " SIT", "selection information section"},
+        {TS_TYPE_USR , " USR", "user define"},
+        {TS_TYPE_USR | TS_TYPE_PMT , " PMT", "program map section"},
+        {TS_TYPE_VID , " VID", "video packet"},
+        {TS_TYPE_AUD , " AUD", "audio packet"},
+        {TS_TYPE_USR | TS_TYPE_PCR , " PCR", "program counter reference"},
+        {TS_TYPE_VID | TS_TYPE_PCR , "PVID", "video packet with PCR"},
+        {TS_TYPE_AUD | TS_TYPE_PCR , "PAUD", "audio packet with PCR"},
+        {TS_TYPE_NULL, "NULL", "empty packet"},
+        {TS_TYPE_UNO , " UNO", "unknown"},
+        {TS_TYPE_BAD , " BAD", "illegal"}
+};
+
+struct stream_type_table {
+        uint8_t stream_type;
+        int   type; /* TS_TYPE_xxx */
+        char *sdes; /* short description */
+        char *ldes; /* long description */
+};
+
+static const struct stream_type_table STREAM_TYPE_TABLE[] = {
+        {0x00, TS_TYPE_RSV, "Reserved", "ITU-T|ISO/IEC Reserved"},
+        {0x01, TS_TYPE_VID, "MPEG-1", "ISO/IEC 11172-2 Video"},
+        {0x02, TS_TYPE_VID, "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"},
+        {0x03, TS_TYPE_AUD, "MPEG-1", "ISO/IEC 11172-3 Audio"},
+        {0x04, TS_TYPE_AUD, "MPEG-2", "ISO/IEC 13818-3 Audio"},
+        {0x05, TS_TYPE_USR, "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"},
+        {0x06, TS_TYPE_AUD, "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"},
+        {0x07, TS_TYPE_USR, "MHEG", "ISO/IEC 13522 MHEG"},
+        {0x08, TS_TYPE_USR, "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"},
+        {0x09, TS_TYPE_USR, "H.222.1", "ITU-T Rec.H.222.1"},
+        {0x0A, TS_TYPE_USR, "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"},
+        {0x0B, TS_TYPE_USR, "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"},
+        {0x0C, TS_TYPE_USR, "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"},
+        {0x0D, TS_TYPE_USR, "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"},
+        {0x0E, TS_TYPE_USR, "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"},
+        {0x0F, TS_TYPE_AUD, "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"},
+        {0x10, TS_TYPE_VID, "MPEG-4", "ISO/IEC 14496-2 Visual"},
+        {0x11, TS_TYPE_AUD, "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"},
+        {0x12, TS_TYPE_AUD, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"},
+        {0x13, TS_TYPE_AUD, "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"},
+        {0x14, TS_TYPE_USR, "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"},
+        {0x15, TS_TYPE_USR, "MPEG-2", "Metadata carried in PES packets"},
+        {0x16, TS_TYPE_USR, "MPEG-2", "Metadata carried in metadata_sections"},
+        {0x17, TS_TYPE_USR, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"},
+        {0x18, TS_TYPE_USR, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"},
+        {0x19, TS_TYPE_USR, "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"},
+        {0x1A, TS_TYPE_USR, "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"},
+        {0x1B, TS_TYPE_VID, "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"},
+        {0x1C, TS_TYPE_AUD, "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"},
+        {0x1D, TS_TYPE_USR, "MPEG-4", "ISO/IEC 14496-17 Text"},
+        {0x1E, TS_TYPE_VID, "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"},
+        {0x42, TS_TYPE_VID, "AVS", "Advanced Video Standard"},
+        {0x7F, TS_TYPE_USR, "IPMP", "IPMP stream"},
+        {0x80, TS_TYPE_VID, "SVAC|LPCM", "SVAC, LPCM of ATSC"},
+        {0x81, TS_TYPE_AUD, "AC3", "Dolby Digital ATSC"},
+        {0x82, TS_TYPE_AUD, "DTS", "DTS Audio"},
+        {0x83, TS_TYPE_AUD, "MLP", "MLP"},
+        {0x84, TS_TYPE_AUD, "DDP", "Dolby Digital Plus"},
+        {0x85, TS_TYPE_AUD, "DTSHD", "DTSHD"},
+        {0x86, TS_TYPE_AUD, "DTSHD_XLL", "DTSHD_XLL"},
+        {0x90, TS_TYPE_AUD, "G.711", "G.711(A)"},
+        {0x92, TS_TYPE_AUD, "G.722.1", "G.722.1"},
+        {0x93, TS_TYPE_AUD, "G.723.1", "G.723.1"},
+        {0x99, TS_TYPE_AUD, "G.729", "G.729"},
+        {0x9A, TS_TYPE_AUD, "AMR-NB", "AMR-NB"},
+        {0x9B, TS_TYPE_AUD, "SVAC", "SVAC"},
+        {0xA1, TS_TYPE_AUD, "DDP_2", "Dolby Digital Plus"},
+        {0xA2, TS_TYPE_AUD, "DTSHD_2", "DTSHD_2"},
+        {0xEA, TS_TYPE_VID, "VC1", "VC1"},
+        {0xEA, TS_TYPE_AUD, "WMA", "WMA"},
+        {0xFF, TS_TYPE_UNO, "UNKNOWN", "Unknown stream"} /* loop stop condition! */
+};
+
 struct aim {
         int bg;
         int cts;
@@ -124,6 +221,9 @@ static void show_help();
 static void show_version();
 
 static int get_one_pkt(struct tsana_obj *obj);
+static const struct pid_type_table *ts_pid_type(int type);
+static const struct stream_type_table *elem_type(int stream_type);
+
 static void output_prog(struct tsana_obj *obj);
 static void output_elem(void *PELEM, uint16_t pcr_pid);
 
@@ -909,6 +1009,30 @@ static int get_one_pkt(struct tsana_obj *obj)
         return GOT_RIGHT_PKT;
 }
 
+static const struct pid_type_table *ts_pid_type(int type)
+{
+        const struct pid_type_table *p;
+
+        for(p = PID_TYPE_TABLE; TS_TYPE_BAD != p->type; p++) {
+                if(p->type == type) {
+                        break;
+                }
+        }
+        return p;
+}
+
+static const struct stream_type_table *elem_type(int stream_type)
+{
+        const struct stream_type_table *p;
+
+        for(p = STREAM_TYPE_TABLE; 0xFF != p->stream_type; p++) {
+                if(p->stream_type == stream_type) {
+                        break;
+                }
+        }
+        return p;
+}
+
 static void output_prog(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
@@ -985,9 +1109,11 @@ static void output_elem(void *PELEM, uint16_t pcr_pid)
         struct znode *znode;
         struct ts_elem *elem;
         char *color_pid;
+        const struct stream_type_table *stype;
 
         for(znode = *pelem; znode; znode = znode->next) {
                 elem = (struct ts_elem *)znode;
+                stype = elem_type(elem->stream_type);
 
                 color_pid = (elem->PID == pcr_pid) ? obj->color_red : obj->color_yellow;
                 fprintf(stdout, "elementary_PID, %s0x%04X%s, "
@@ -995,8 +1121,8 @@ static void output_elem(void *PELEM, uint16_t pcr_pid)
                         color_pid, elem->PID, obj->color_off,
                         obj->color_yellow, elem->stream_type, obj->color_off);
                 fprintf(stdout, "type, %s%s%s, detail, %s%s%s, ",
-                        obj->color_yellow, elem->sdes, obj->color_off,
-                        obj->color_yellow, elem->ldes, obj->color_off);
+                        obj->color_yellow, stype->sdes, obj->color_off,
+                        obj->color_yellow, stype->ldes, obj->color_off);
                 if(elem->es_info_len) {
                         fprintf(stdout, "ES_info, %s%02X",
                                 obj->color_yellow, elem->es_info[0]);
@@ -1027,6 +1153,7 @@ static void show_lst(struct tsana_obj *obj)
         struct ts_pid *pid;
         char *color_yellow;
         char *color_off;
+        const struct pid_type_table *ptype;
 
         if(!(ts->is_psi_parse_finished)) {
                 return;
@@ -1034,6 +1161,8 @@ static void show_lst(struct tsana_obj *obj)
 
         for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
                 pid = (struct ts_pid *)znode;
+                ptype = ts_pid_type(pid->type);
+
                 color_yellow = "";
                 color_off = "";
                 if(NULL != pid->elem) {
@@ -1043,8 +1172,8 @@ static void show_lst(struct tsana_obj *obj)
                 fprintf(stdout, "%s0x%04X, %s, %s%s\n",
                         color_yellow,
                         pid->PID,
-                        pid->sdes,
-                        pid->ldes,
+                        ptype->sdes,
+                        ptype->ldes,
                         color_off);
         }
         obj->state = STATE_EXIT;
@@ -1392,27 +1521,27 @@ static void show_rate(struct tsana_obj *obj)
                 obj->color_green, obj->color_off,
                 ts->last_interval / 27000.0);
         for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
-                struct ts_pid *pid_item = (struct ts_pid *)znode;
+                struct ts_pid *pid = (struct ts_pid *)znode;
 
                 /* filter: user PID only */
-                if(pid_item->PID < 0x0020 || 0x1FFF == pid_item->PID) {
+                if(pid->PID < 0x0020 || 0x1FFF == pid->PID) {
                         /* not program */
                         continue;
                 }
 
                 /* filter: PID */
-                if(ANY_PID != obj->aim_pid && pid_item->PID != obj->aim_pid) {
+                if(ANY_PID != obj->aim_pid && pid->PID != obj->aim_pid) {
                         /* not cared PID */
                         continue;
                 }
 
                 /* filter: program_number */
                 if(ANY_PROG != obj->aim_prog) {
-                        if(!(pid_item->prog)) {
+                        if(!(pid->prog)) {
                                 /* not program */
                                 continue;
                         }
-                        else if(pid_item->prog->program_number != obj->aim_prog) {
+                        else if(pid->prog->program_number != obj->aim_prog) {
                                 /* not cared program */
                                 continue;
                         }
@@ -1420,19 +1549,19 @@ static void show_rate(struct tsana_obj *obj)
 
                 /* filter: type: video or audio */
                 if(TYPE_ANY != obj->aim_type) {
-                        if(TYPE_VIDEO == obj->aim_type && !(pid_item->is_video)) {
+                        if(TYPE_VIDEO == obj->aim_type && (TS_TYPE_VID != (pid->type & TS_TMSK_USR))) {
                                 /* not video PID */
                                 continue;
                         }
-                        if(TYPE_AUDIO == obj->aim_type && !(pid_item->is_audio)) {
+                        if(TYPE_AUDIO == obj->aim_type && (TS_TYPE_AUD != (pid->type & TS_TMSK_USR))) {
                                 /* not audio PID */
                                 continue;
                         }
                 }
 
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                        obj->color_yellow, pid_item->PID, obj->color_off,
-                        pid_item->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
+                        obj->color_yellow, pid->PID, obj->color_off,
+                        pid->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
         }
         return;
 }
