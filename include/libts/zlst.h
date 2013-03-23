@@ -46,7 +46,7 @@ void zlst_push(void *PHEAD, void *ZNODE);
 void zlst_unshift(void *PHEAD, void *ZNODE);
 void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
 void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
-void *zlst_insert(void *PHEAD, void *ZNODE); /* small key first, it's up to the caller to free the uninserted node! */
+int zlst_insert(void *PHEAD, void *ZNODE); /* small key first; if not return 0, it's up to the caller to free the uninserted node! */
 void *zlst_delete(void *PHEAD, void *ZNODE); /* It's up to the caller to free the node! */
 
 void *zlst_search(void *PHEAD, int key);

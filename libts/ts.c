@@ -239,8 +239,7 @@ static int ts_parse_pesh(struct ts_obj *obj); /* PES layer information */
 static int ts_parse_pesh_switch(struct ts_obj *obj);
 static int ts_parse_pesh_detail(struct ts_obj *obj);
 
-static struct ts_pid *add_to_pid_list(struct ts_obj *obj, struct ts_pid **phead, struct ts_pid *pid);
-static struct ts_pid *add_new_pid(struct ts_obj *obj);
+static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid);
 static int free_pid(intptr_t mp, struct ts_pid *pid);
 static int free_sect(intptr_t mp, struct ts_sect *sect);
 static int free_table(intptr_t mp, struct ts_table *table);
@@ -256,7 +255,7 @@ struct ts_obj *ts_create(intptr_t mp)
 
         obj = (struct ts_obj *)malloc(sizeof(struct ts_obj));
         if(!obj) {
-                RPT(RPT_ERR, "malloc failed");
+                RPT(RPT_ERR, "malloc ts_obj failed");
                 return NULL;
         }
 
@@ -310,7 +309,6 @@ int ts_init(struct ts_obj *obj)
 
         obj->state = STATE_NEXT_PAT;
         obj->need_pes_align = 1;
-        obj->is_verbose = 0;
 
         obj->ADDR = -PKT_SIZE; /* count from 0 */
         obj->cnt = -1; /* count ts packet from 0 */
@@ -405,16 +403,14 @@ int ts_parse_tsh(struct ts_obj *obj)
         obj->cur = obj->ts;
         obj->tail = obj->ts + PKT_SIZE;
         obj->cnt++;
+        RPT(RPT_INF, "new packet: cnt: %lld, addr: %lld", obj->cnt, obj->ADDR);
 #if 0
         dump(obj->TS, PKT_SIZE); /* debug only */
-        fprintf(stderr, "cnt: %lld, addr: %lld\n", obj->cnt, obj->ADDR); /* debug only */
 #endif
 
         uint8_t dat;
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_err *err = &(obj->err);
-        struct ts_pid *pid; /* may be NULL */
-        struct ts_prog *prog; /* may be NULL */
 
         /* init for a new ts packet */
         obj->stc = NULL; /* no STC */
@@ -436,7 +432,7 @@ int ts_parse_tsh(struct ts_obj *obj)
                 if(err->Sync_byte_error > 1) {
                         err->TS_sync_loss++;
                 }
-                fprintf(stderr, "sync_byte(0x%02X) error!\n", tsh->sync_byte);
+                RPT(RPT_ERR, "sync_byte(0x%02X) error!", tsh->sync_byte);
                 dump(obj->TS, PKT_SIZE);
         }
         else {
@@ -461,7 +457,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         tsh->continuity_counter = dat & 0x0F;
 
         if(0x00 == tsh->adaption_field_control) {
-                fprintf(stderr, "Bad adaption_field_control field(00)!\n");
+                RPT(RPT_ERR, "Bad adaption_field_control field(00)!");
         }
 
         if(BIT(1) & tsh->adaption_field_control) {
@@ -476,10 +472,32 @@ int ts_parse_tsh(struct ts_obj *obj)
         RPT(RPT_DBG, "search 0x%04X in pid_list", obj->PID);
         obj->pid = (struct ts_pid *)zlst_search(&(obj->pid0), obj->PID);
         if(!(obj->pid)) {
-                /* find new PID, add it in pid_list */
-                obj->pid = add_new_pid(obj);
+                struct ts_pid ts_pid, *new_pid = &ts_pid;
+
+                /* meet new PID, add it in pid_list */
+                new_pid->PID = obj->PID;
+                new_pid->type = pid_type(new_pid->PID);
+                if((obj->prog0) && 
+                   (new_pid->PID < 0x0020 || new_pid->PID == 0x1FFF)) {
+                        new_pid->prog = obj->prog0;
+                }
+                else {
+                        new_pid->prog = NULL;
+                }
+                new_pid->elem = NULL;
+                new_pid->cnt = 1;
+                new_pid->lcnt = 0;
+                /*new_pid->CC = tsh->continuity_counter; */
+                new_pid->is_CC_sync = 0;
+                new_pid->sdes = PID_TYPE[new_pid->type].sdes;
+                new_pid->ldes = PID_TYPE[new_pid->type].ldes;
+                new_pid->is_video = 0;
+                new_pid->is_audio = 0;
+
+                obj->pid = update_pid_list(obj, new_pid); /* other_PID */
         }
-        pid = obj->pid;
+
+        struct ts_pid *pid = obj->pid; /* may be NULL */
 
         /* calc STC and CTS, should be as early as possible */
         if(obj->mts) {
@@ -496,6 +514,8 @@ int ts_parse_tsh(struct ts_obj *obj)
                 obj->CTS = obj->STC;
         }
         else {
+                struct ts_prog *prog; /* may be NULL */
+
                 /* STC: according to pid->prog */
                 if(pid && pid->prog) {
                         prog = pid->prog;
@@ -606,16 +626,12 @@ static int state_next_pat(struct ts_obj *obj)
                         section_number++;
                 }
 
-                if(obj->is_verbose) {
-                        fprintf(stdout, "all PAT section parsed\n");
-                }
+                RPT(RPT_INF, "all PAT section parsed");
                 obj->state = STATE_NEXT_PMT;
         }
 
         if(is_all_prog_parsed(obj)) {
-                if(obj->is_verbose) {
-                        fprintf(stdout, "no PMT section\n");
-                }
+                RPT(RPT_INF, "no PMT section");
                 obj->is_pat_pmt_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
@@ -636,9 +652,7 @@ static int state_next_pmt(struct ts_obj *obj)
 
         /* section parse has done in ts_parse_tsh()! */
         if(is_all_prog_parsed(obj)) {
-                if(obj->is_verbose) {
-                        fprintf(stdout, "all PMT section parsed\n");
-                }
+                RPT(RPT_INF, "all PMT section parsed");
                 obj->is_pat_pmt_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
@@ -806,7 +820,7 @@ static int state_next_pkt(struct ts_obj *obj)
                         }
                 }
                 else {
-                        fprintf(stderr, "No program use this PCR packet(0x%04X)!\n", tsh->PID);
+                        RPT(RPT_ERR, "No program use this PCR packet(0x%04X)!", tsh->PID);
                 }
         }
 
@@ -998,9 +1012,9 @@ static int ts_ts2sect(struct ts_obj *obj)
 
         /* prepare sect_data buffer */
         if(NULL == pid->sect_data) {
-                pid->sect_data = (uint8_t *)buddy_malloc(obj->mp, 4096);
+                pid->sect_data = (uint8_t *)buddy_malloc(obj->mp, PRIVATE_SECTION_SIZE);
                 if(!pid->sect_data) {
-                        RPT(RPT_ERR, "malloc sect_data buffer failed");
+                        RPT(RPT_ERR, "malloc sect_data buffer of pid node failed");
                         return -1;
                 }
         }
@@ -1094,7 +1108,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                 /*pid->CRC_32_calc = crc32(pid->sect_data, 3 + sech->section_length - 4); */
                 if(pid->CRC_32_calc != pid->CRC_32) {
                         err->CRC_error = 1;
-                        fprintf(stderr, "CRC error(0x%08X! 0x%08X?)\n",
+                        RPT(RPT_ERR, "CRC error(0x%08X! 0x%08X?)",
                                 pid->CRC_32_calc, pid->CRC_32);
                         dump(pid->sect_data, 3 + sech->section_length);
                         return -1;
@@ -1120,7 +1134,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                         /* add table */
                         table = (struct ts_table *)buddy_malloc(obj->mp, sizeof(struct ts_table));
                         if(!table) {
-                                RPT(RPT_ERR, "malloc failed");
+                                RPT(RPT_ERR, "malloc ts_table node failed");
                                 return -1;
                         }
                         table->sect0 = NULL;
@@ -1132,7 +1146,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                         table->STC = STC_OVF;
                         RPT(RPT_DBG, "insert 0x%02X in table_list", sech->table_id);
                         zlst_set_key(table, sech->table_id);
-                        if(zlst_insert(ptable0, table)) {
+                        if(0 != zlst_insert(ptable0, table)) {
                                 free_table(obj->mp, table);
                         }
                 }
@@ -1166,7 +1180,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                 /* add section */
                 sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
                 if(!sect) {
-                        RPT(RPT_ERR, "malloc for new section failed");
+                        RPT(RPT_ERR, "malloc section node failed");
                         return -1;
                 }
                 sect->data = NULL;
@@ -1174,7 +1188,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                 sect_size = (sech->private_indicator) ? PRIVATE_SECTION_SIZE : NORMAL_SECTION_SIZE;
                 sect->data = (uint8_t *)buddy_malloc(obj->mp, sect_size);
                 if(!sect->data) {
-                        RPT(RPT_ERR, "malloc for new section data buffer failed");
+                        RPT(RPT_ERR, "malloc data buffer of section node failed");
                         return -1;
                 }
 
@@ -1183,15 +1197,17 @@ static int ts_parse_sect(struct ts_obj *obj)
                 memcpy(sect->data, pid->sect_data, 3 + sech->section_length);
                 RPT(RPT_DBG, "insert 0x%02X in sect_list", sech->section_number);
                 zlst_set_key(sect, sech->section_number);
-                if(zlst_insert(psect0, sect)) {
+                if(0 != zlst_insert(psect0, sect)) {
                         free_sect(obj->mp, sect);
                 }
         }
         else {
-                /*fprintf(stderr, "has section %02X/%02X(table %02X)\n", */
-                /*        sech->sect_number, */
-                /*        sech->last_section_number, */
-                /*        sech->table_id); */
+#if 0
+                RPT(RPT_ERR, "has section %02X/%02X(table %02X) already",
+                    sech->section_number,
+                    sech->last_section_number,
+                    sech->table_id);
+#endif
         }
 
         /* sect_interval */
@@ -1217,21 +1233,21 @@ static int ts_parse_sect(struct ts_obj *obj)
         switch(sech->table_id) {
                 case 0x00:
                         if(0x0000 != pid->PID) {
-                                fprintf(stderr, "PAT: PID is not 0x0000 but 0x%04X, ignore!\n", pid->PID);
+                                RPT(RPT_ERR, "PAT: PID is not 0x0000 but 0x%04X, ignore!", pid->PID);
                                 return -1;
                         }
                         ts_parse_secb_pat(obj, pid->sect_data);
                         break;
                 case 0x02:
                         if(PMT_PID != pid->type) {
-                                fprintf(stderr, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!\n", pid->PID);
+                                RPT(RPT_ERR, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!", pid->PID);
                                 return -1;
                         }
                         ts_parse_secb_pmt(obj, pid->sect_data);
                         break;
                 case 0x42:
                         if(0x0011 != pid->PID) {
-                                fprintf(stderr, "SDT: PID is not 0x0011 but 0x%04X, ignore!\n", pid->PID);
+                                RPT(RPT_ERR, "SDT: PID is not 0x0011 but 0x%04X, ignore!", pid->PID);
                                 return -1;
                         }
                         ts_parse_secb_sdt(obj, pid->sect_data);
@@ -1281,21 +1297,18 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
                 sech->type = USR_PID;
         }
 
-#if 0
-        /* for debug only */
-        fprintf(stderr, "table, 0x%02X, len %4d, sect, %d/%d\n",
-                sech->table_id,
-                sech->section_length,
-                sech->section_number,
-                sech->last_section_number);
-#endif
+        RPT(RPT_INF, "table: 0x%02X; len: %4d; sect: %d/%d",
+            sech->table_id,
+            sech->section_length,
+            sech->section_number,
+            sech->last_section_number);
 
         if(0 == sech->private_indicator) {
                 /* normal section */
                 if(sech->section_length > NORMAL_SECTION_SIZE - 3) {
-                        fprintf(stderr, "normal section(0x%02X), length(%d) overflow!\n",
-                                sech->table_id,
-                                sech->section_length);
+                        RPT(RPT_ERR, "normal section(0x%02X), length(%d) overflow!",
+                            sech->table_id,
+                            sech->section_length);
                         sech->section_length = NORMAL_SECTION_SIZE - 3;
                         dump(obj->TS, PKT_SIZE);
                         dump(sect, 8);
@@ -1305,9 +1318,9 @@ static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect)
         else {
                 /* private section */
                 if(sech->section_length > PRIVATE_SECTION_SIZE - 3) {
-                        fprintf(stderr, "private section(0x%02X), length(%d) overflow!\n",
-                                sech->table_id,
-                                sech->section_length);
+                        RPT(RPT_ERR, "private section(0x%02X), length(%d) overflow!",
+                            sech->table_id,
+                            sech->section_length);
                         sech->section_length = PRIVATE_SECTION_SIZE - 3;
                         dump(obj->TS, PKT_SIZE);
                         dump(sect, 8);
@@ -1351,7 +1364,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                 /* add program */
                 prog = (struct ts_prog *)buddy_malloc(obj->mp, sizeof(struct ts_prog));
                 if(!prog) {
-                        RPT(RPT_ERR, "malloc failed");
+                        RPT(RPT_ERR, "malloc prog node failed");
                         return -1;
                 }
                 prog->elem0 = NULL;
@@ -1377,8 +1390,8 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                         new_pid->type = NIT_PID;
 
                         if(0x0010 != new_pid->PID) {
-#if 0
-                                fprintf(stderr, "NIT_PID(0x%04X) is NOT 0x0010!\n", new_pid->PID);
+#if 1
+                                RPT(RPT_ERR, "NIT_PID(0x%04X) is NOT 0x0010!", new_pid->PID);
 #endif
                         }
                         free_prog(obj->mp, prog);
@@ -1425,7 +1438,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
 
                         RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         zlst_set_key(prog, prog->program_number);
-                        if(zlst_insert(&(obj->prog0), prog)) {
+                        if(0 != zlst_insert(&(obj->prog0), prog)) {
                                 free_prog(obj->mp, prog);
                         }
                 }
@@ -1440,7 +1453,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                 new_pid->ldes = PID_TYPE[new_pid->type].ldes;
                 new_pid->is_video = 0;
                 new_pid->is_audio = 0;
-                add_to_pid_list(obj, &(obj->pid0), new_pid); /* NIT or PMT PID */
+                update_pid_list(obj, new_pid); /* NIT or PMT PID */
         }
 
         return 0;
@@ -1497,7 +1510,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         new_pid->ldes = PID_TYPE[new_pid->type].ldes;
         new_pid->is_video = 0;
         new_pid->is_audio = 0;
-        add_to_pid_list(obj, &(obj->pid0), new_pid); /* PCR_PID */
+        update_pid_list(obj, new_pid); /* PCR_PID */
 
         /* program_info_length */
         dat = *cur++;
@@ -1509,7 +1522,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
 
         /* record program_info */
         if(prog->program_info_len > INFO_LEN_MAX) {
-                fprintf(stderr, "PID(0x%04X): program_info_length(%d) too big!\n",
+                RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
                         tsh->PID, prog->program_info_len);
         }
 
@@ -1521,8 +1534,8 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 /* add elementary stream */
                 elem = (struct ts_elem *)buddy_malloc(obj->mp, sizeof(struct ts_elem));
                 if(!elem) {
-                        fprintf(stderr, "Malloc memory failure!\n");
-                        exit(EXIT_FAILURE);
+                        RPT(RPT_ERR, "malloc elem node failed");
+                        return -1;
                 }
 
                 dat = *cur++;
@@ -1545,7 +1558,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
 
                 /* record es_info */
                 if(elem->es_info_len > INFO_LEN_MAX) {
-                        fprintf(stderr, "PID(0x%04X): ES_info_length(%d) too big!\n",
+                        RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
                                 elem->PID, elem->es_info_len);
                 }
 
@@ -1596,7 +1609,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                                 new_pid->is_audio = 0;
                                 break;
                 }
-                add_to_pid_list(obj, &(obj->pid0), new_pid); /* elementary_PID */
+                update_pid_list(obj, new_pid); /* elementary_PID */
         }
 
         return 0;
@@ -1613,7 +1626,7 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
         /* in SDT, table_id_extension is transport_stream_id */
         if(obj->has_got_transport_stream_id &&
            sech->table_id_extension != obj->transport_stream_id) {
-                fprintf(stderr, "table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)\n",
+                RPT(RPT_ERR, "table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)",
                         sech->table_id,
                         sech->table_id_extension,
                         obj->transport_stream_id);
@@ -1629,7 +1642,7 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
         if(obj->has_got_transport_stream_id &&
            original_network_id != obj->transport_stream_id) {
 #if 0
-                fprintf(stderr, "table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)\n",
+                RPT(RPT_ERR, "table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)",
                         sech->table_id,
                         original_network_id,
                         obj->transport_stream_id);
@@ -1720,11 +1733,11 @@ static int ts_parse_pesh(struct ts_obj *obj)
 
         /* for some bad stream */
         if(tsh->PID < 0x0020) {
-                fprintf(stderr, "PES: bad PID(0x%04X)!\n", tsh->PID);
+                RPT(RPT_ERR, "PES: bad PID(0x%04X)!", tsh->PID);
                 return -1;
         }
         if(!elem) {
-                fprintf(stderr, "PES: not elem PID(0x%04X)!\n", tsh->PID);
+                RPT(RPT_ERR, "PES: not elem PID(0x%04X)!", tsh->PID);
                 return -1;
         }
 
@@ -1764,7 +1777,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 pesh->packet_start_code_prefix |= dat;
 
                 if(0x000001 != pesh->packet_start_code_prefix) {
-                        fprintf(stderr, "PES packet start code prefix(0x%06X) NOT 0x000001!\n",
+                        RPT(RPT_ERR, "PES packet start code prefix(0x%06X) NOT 0x000001!",
                                 pesh->packet_start_code_prefix);
                         dump(obj->TS, PKT_SIZE);
 #if 0
@@ -1782,9 +1795,9 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 pesh->PES_packet_length <<= 8;
                 pesh->PES_packet_length |= dat; /* 0x0000 for many video pes */
 #if 0
-                fprintf(stderr, "PES_packet_length = %d(0x%X)\n",
-                        pesh->PES_packet_length,
-                        pesh->PES_packet_length);
+                RPT(RPT_ERR, "PES_packet_length = %d(0x%X)",
+                    pesh->PES_packet_length,
+                    pesh->PES_packet_length);
 #endif
 
                 ts_parse_pesh_switch(obj);
@@ -1816,8 +1829,8 @@ static int ts_parse_pesh_switch(struct ts_obj *obj)
                 case 0xBE: /* padding_stream */
                         /* subsequent pesh->PES_packet_length data is padding_byte, pass */
                         if(pesh->PES_packet_length > (obj->tail - obj->cur)) {
-                                fprintf(stderr, "PES_packet_length(%d) for padding_stream is too large!\n",
-                                        pesh->PES_packet_length);
+                                RPT(RPT_ERR, "PES_packet_length(%d) for padding_stream is too large!",
+                                    pesh->PES_packet_length);
                                 return -1;
                         }
                         obj->cur += pesh->PES_packet_length;
@@ -1865,8 +1878,8 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
         dat = *(obj->cur)++;
         pesh->PES_header_data_length = dat;
         if(pesh->PES_header_data_length > (obj->tail - obj->cur)) {
-                fprintf(stderr, "PES_header_data_length(%d) is too long!\n",
-                        pesh->PES_header_data_length);
+                RPT(RPT_ERR, "PES_header_data_length(%d) is too long!",
+                    pesh->PES_header_data_length);
                 return -1;
         }
         es = obj->cur + pesh->PES_header_data_length;
@@ -1953,7 +1966,7 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
                 obj->DTS = pesh->DTS;
         }
         else if(0x01 == pesh->PTS_DTS_flags) { /* '01' */
-                fprintf(stderr, "PTS_DTS_flags error!\n");
+                RPT(RPT_ERR, "PTS_DTS_flags error!");
                 dump(obj->TS, PKT_SIZE);
                 return -1;
         }
@@ -2105,80 +2118,52 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
         return 0;
 }
 
-static struct ts_pid *add_new_pid(struct ts_obj *obj)
-{
-        struct ts_pid ts_pid, *pid;
-
-        pid = &ts_pid;
-
-        pid->PID = obj->PID;
-        pid->type = pid_type(pid->PID);
-        if((obj->prog0) && 
-           (pid->PID < 0x0020 || pid->PID == 0x1FFF)) {
-                pid->prog = obj->prog0;
-        }
-        else {
-                pid->prog = NULL;
-        }
-        pid->elem = NULL;
-        pid->cnt = 1;
-        pid->lcnt = 0;
-        /*pid->CC = tsh->continuity_counter; */
-        pid->is_CC_sync = 0;
-        pid->sdes = PID_TYPE[pid->type].sdes;
-        pid->ldes = PID_TYPE[pid->type].ldes;
-        pid->is_video = 0;
-        pid->is_audio = 0;
-
-        return add_to_pid_list(obj, &(obj->pid0), pid); /* other_PID */
-}
-
-static struct ts_pid *add_to_pid_list(struct ts_obj *obj, struct ts_pid **phead, struct ts_pid *the_pid)
+static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid)
 {
         struct ts_pid *pid;
 
-        pid = (struct ts_pid *)zlst_search(phead, the_pid->PID);
+        pid = (struct ts_pid *)zlst_search(&(obj->pid0), new_pid->PID);
         if(pid) {
                 /* is in pid_list already, just update information */
-                pid->PID = the_pid->PID;
-                pid->prog = the_pid->prog;
-                pid->elem = the_pid->elem;
-                pid->type = the_pid->type;
-                pid->is_video = the_pid->is_video;
-                pid->is_audio = the_pid->is_audio;
-                pid->cnt = the_pid->cnt;
-                pid->lcnt = the_pid->lcnt;
-                pid->CC = the_pid->CC;
-                pid->is_CC_sync = the_pid->is_CC_sync;
-                pid->sdes = the_pid->sdes;
-                pid->ldes = the_pid->ldes;
+                pid->PID = new_pid->PID;
+                pid->prog = new_pid->prog;
+                pid->elem = new_pid->elem;
+                pid->type = new_pid->type;
+                pid->is_video = new_pid->is_video;
+                pid->is_audio = new_pid->is_audio;
+                pid->cnt = new_pid->cnt;
+                pid->lcnt = new_pid->lcnt;
+                pid->CC = new_pid->CC;
+                pid->is_CC_sync = new_pid->is_CC_sync;
+                pid->sdes = new_pid->sdes;
+                pid->ldes = new_pid->ldes;
         }
         else {
                 pid = (struct ts_pid *)buddy_malloc(obj->mp, sizeof(struct ts_pid));
                 if(!pid) {
-                        RPT(RPT_ERR, "malloc failed");
+                        RPT(RPT_ERR, "malloc pid node failed");
                         return NULL;
                 }
                 pid->sect_data = NULL;
 
-                pid->PID = the_pid->PID;
-                pid->prog = the_pid->prog;
-                pid->elem = the_pid->elem;
-                pid->type = the_pid->type;
-                pid->is_video = the_pid->is_video;
-                pid->is_audio = the_pid->is_audio;
-                pid->cnt = the_pid->cnt;
-                pid->lcnt = the_pid->lcnt;
-                pid->CC = the_pid->CC;
-                pid->is_CC_sync = the_pid->is_CC_sync;
-                pid->sdes = the_pid->sdes;
-                pid->ldes = the_pid->ldes;
+                pid->PID = new_pid->PID;
+                pid->prog = new_pid->prog;
+                pid->elem = new_pid->elem;
+                pid->type = new_pid->type;
+                pid->is_video = new_pid->is_video;
+                pid->is_audio = new_pid->is_audio;
+                pid->cnt = new_pid->cnt;
+                pid->lcnt = new_pid->lcnt;
+                pid->CC = new_pid->CC;
+                pid->is_CC_sync = new_pid->is_CC_sync;
+                pid->sdes = new_pid->sdes;
+                pid->ldes = new_pid->ldes;
                 pid->sect_idx = 0; /* wait to sync with section head */
                 pid->fd = NULL;
 
-                RPT(RPT_DBG, "insert 0x%04X in pid_list", the_pid->PID);
-                zlst_set_key(pid, the_pid->PID);
-                if(zlst_insert(phead, pid)) {
+                RPT(RPT_DBG, "insert 0x%04X in pid_list", new_pid->PID);
+                zlst_set_key(pid, new_pid->PID);
+                if(0 != zlst_insert(&(obj->pid0), pid)) {
                         free_pid(obj->mp, pid);
                 }
         }

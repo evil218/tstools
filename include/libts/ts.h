@@ -2,7 +2,7 @@
  * name: ts.h
  * funx: analyse ts stream
  * 
- *  obj: +-  pid  ->  pid  -> .. ->  pid
+ * obj:  +-  pid  ->  pid  -> .. ->  pid
  *       |
  *       +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
  *       |    |     |         |     |               |     |
@@ -19,6 +19,12 @@
  *           sect     sect           sect
  *            ..       ..             ..
  *           sect     sect           sect
+ *
+ * pid   list: sorted by PID
+ * prog  list: sorted by program_number
+ * elem  list: unsorted, just use the order in PMT
+ * table list: sorted by table_id
+ * sect  list: sorted by section_number
  */
 
 #ifndef _TS_H
@@ -427,7 +433,6 @@ struct ts_obj {
         int state;
         intptr_t mp; /* id of buddy memory pool, for list malloc and free */
         int need_pes_align; /* 0: dot't need; 1: need PES align */
-        int is_verbose; /* 0: shut up; 1: report key step */
 
         /* special variables for packet analyse */
         uint8_t *cur; /* point to the current data in rslt.TS[] */

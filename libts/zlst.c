@@ -145,22 +145,21 @@ void *zlst_shift(void *PHEAD)
 }
 
 /* sort with key, small key first */
-/* it's up to the caller to free the uninserted node! */
-void *zlst_insert(void *PHEAD, void *ZNODE)
+/* if not return 0, it's up to the caller to free the uninserted node! */
+int zlst_insert(void *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
-        struct znode *x;
 
         if(!ZNODE) {
                 RPT(RPT_ERR, "insert: bad node");
-                return NULL;
+                return -1;
         }
         znode = (struct znode *)ZNODE;
 
         if(!PHEAD) {
                 RPT(RPT_ERR, "insert: NOT a list");
-                return znode; /* free the node please */
+                return -1;
         }
         head = *(struct znode **)PHEAD;
 
@@ -170,7 +169,7 @@ void *zlst_insert(void *PHEAD, void *ZNODE)
                 znode->next = NULL;
                 znode->prev = NULL;
                 *(struct znode **)PHEAD = znode;
-                return NULL;
+                return 0;
         }
 
         if(head->key > znode->key) {
@@ -180,13 +179,13 @@ void *zlst_insert(void *PHEAD, void *ZNODE)
                 znode->prev = NULL;
                 head->prev = znode;
                 *(struct znode **)PHEAD = znode;
-                return NULL;
+                return 0;
         }
 
-        for(x = head; x; x = x->next) {
+        for(struct znode *x = head; x; x = x->next) {
                 if(x->key == znode->key) {
                         RPT(RPT_INF, "insert: %d in list already", znode->key);
-                        return znode; /* free the node please */
+                        return -1;
                 }
 
                 if(x->key > znode->key) {
@@ -195,7 +194,7 @@ void *zlst_insert(void *PHEAD, void *ZNODE)
                         znode->prev = x->prev;
                         x->prev->next = znode;
                         x->prev = znode;
-                        return NULL;
+                        return 0;
                 }
         }
 
@@ -204,7 +203,7 @@ void *zlst_insert(void *PHEAD, void *ZNODE)
         znode->prev = head->tail;
         head->tail->next = znode;
         head->tail = znode;
-        return NULL;
+        return 0;
 }
 
 /* it's up to the caller to free the node! */
