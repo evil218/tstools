@@ -44,7 +44,7 @@ static const struct ts_pid_table PID_TABLE[] = {
         {0x001E, 0x001E, TS_TYPE_DIT},
         {0x001F, 0x001F, TS_TYPE_SIT},
         {0x0020, 0x1FFE, TS_TYPE_USR},
-        {0x1FFF, 0x1FFF, TS_TYPE_NULL},
+        {0x1FFF, 0x1FFF, TS_TYPE_NUL},
         {0x2000, 0xFFFF, TS_TYPE_BAD} /* loop stop condition! */
 };
 
@@ -162,6 +162,7 @@ static int ts_ts2sect(struct ts_obj *obj); /* collect PSI/SI section data */
 static int ts_parse_sect(struct ts_obj *obj);
 static int ts_parse_sech(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect);
+static int ts_parse_secb_cat(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect);
 static int ts_parse_pesh(struct ts_obj *obj); /* PES layer information */
@@ -489,7 +490,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         pid->cnt++;
         obj->sys_cnt++;
         obj->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
-        if((tsh->PID < 0x0020) || (TS_TYPE_PMT == (pid->type & TS_TMSK_USR))) {
+        if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
                 /* PSI/SI packet */
                 obj->psi_cnt++;
                 obj->is_psi_si = 1;
@@ -574,7 +575,7 @@ static int state_next_pmt(struct ts_obj *obj)
 
         RPT(RPT_DBG, "search 0x%04X in pid_list", tsh->PID);
         pid = (struct ts_pid *)zlst_search(&(obj->pid0), tsh->PID);
-        if((!pid) || (TS_TYPE_PMT != (pid->type & TS_TMSK_USR))) {
+        if((!pid) || !IS_TYPE(TS_TYPE_PMT, pid->type)) {
                 return -1; /* not PMT */
         }
 
@@ -786,7 +787,7 @@ static int state_next_pkt(struct ts_obj *obj)
 
         /* PES head & ES data */
         if(elem && (0 == tsh->transport_scrambling_control)) {
-                if((TS_TYPE_AUD & pid->type) || (TS_TYPE_VID & pid->type)) {
+                if(IS_TYPE(TS_TYPE_AUD, pid->type) || IS_TYPE(TS_TYPE_VID, pid->type)) {
                         ts_parse_pesh(obj);
                 }
 
@@ -1165,8 +1166,15 @@ static int ts_parse_sect(struct ts_obj *obj)
                         }
                         ts_parse_secb_pat(obj, pid->sect_data);
                         break;
+                case 0x01:
+                        if(0x0001 != pid->PID) {
+                                RPT(RPT_ERR, "CAT: PID is not 0x0001 but 0x%04X, ignore!", pid->PID);
+                                return -1;
+                        }
+                        ts_parse_secb_cat(obj, pid->sect_data);
+                        break;
                 case 0x02:
-                        if(TS_TYPE_PMT != (pid->type & TS_TMSK_USR)) {
+                        if(!IS_TYPE(TS_TYPE_PMT, pid->type)) {
                                 RPT(RPT_ERR, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!", pid->PID);
                                 return -1;
                         }
@@ -1326,7 +1334,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                 else {
                         struct znode *znode;
 
-                        new_pid->type = (TS_TYPE_USR | TS_TYPE_PMT);
+                        new_pid->type = TS_TYPE_PMT;
 
                         if(!(obj->prog0)) {
                                 /* traverse pid_list */
@@ -1382,6 +1390,61 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
         return 0;
 }
 
+static int ts_parse_secb_cat(struct ts_obj *obj, uint8_t *sect)
+{
+        struct ts_sech *sech = &(obj->sech);
+        uint8_t dat;
+        uint8_t *cur = sect + 8;
+        uint8_t *crc = sect + 3 + sech->section_length - 4;
+        struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
+
+        while(cur < crc) {
+                uint8_t tag;
+                uint8_t len;
+                uint8_t *pt;
+
+                tag = *cur++;
+                len = *cur++;
+                pt = cur;
+                if((0xFF == tag) || (0 == len)) {
+                        RPT(RPT_ERR, "wrong descriptor(tag: %d, len: %d)", tag, len);
+                        return -1;
+                }
+                if(0x09 == tag) { /* CA_descriptor in CAT */
+                        uint16_t CA_system_ID;
+                        uint16_t CA_PID;
+
+                        dat = *pt++;
+                        CA_system_ID = dat;
+
+                        dat = *pt++;
+                        CA_system_ID <<= 8;
+                        CA_system_ID |= dat;
+
+                        dat = *pt++;
+                        CA_PID = dat & 0x1F;
+
+                        dat = *pt++;
+                        CA_PID <<= 8;
+                        CA_PID |= dat;
+
+                        new_pid->PID = CA_PID;
+                        new_pid->cnt = 0;
+                        new_pid->lcnt = 0;
+                        new_pid->prog = NULL;
+                        new_pid->elem = NULL;
+                        new_pid->type = TS_TYPE_EMM;
+                        new_pid->CC = 0;
+                        new_pid->is_CC_sync = 0;
+                        RPT(RPT_INF, "add EMM_PID(0x%04X)", CA_PID);
+                        update_pid_list(obj, new_pid);
+                }
+                cur += len;
+        }
+
+        return 0;
+}
+
 static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
 {
         struct ts_sech *sech = &(obj->sech);
@@ -1426,7 +1489,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         new_pid->lcnt = 0;
         new_pid->prog = prog;
         new_pid->elem = NULL;
-        new_pid->type = (TS_TYPE_USR | TS_TYPE_PCR);
+        new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
         new_pid->CC = 0;
         new_pid->is_CC_sync = 1;
         update_pid_list(obj, new_pid); /* PCR_PID */
@@ -1444,12 +1507,12 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
                         tsh->PID, prog->program_info_len);
         }
-
-        /* record program_info */
         memcpy(prog->program_info, cur, prog->program_info_len);
         cur += prog->program_info_len;
 
         while(cur < crc) {
+                uint8_t *next; /* point to the data after descriptors */
+
                 /* add elementary stream */
                 elem = (struct ts_elem *)buddy_malloc(obj->mp, sizeof(struct ts_elem));
                 if(!elem) {
@@ -1475,19 +1538,61 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 elem->es_info_len <<= 8;
                 elem->es_info_len |= dat;
 
-                /* record es_info */
+                /* ES_info */
                 if(elem->es_info_len > INFO_LEN_MAX) {
                         RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
                                 elem->PID, elem->es_info_len);
                 }
-
-                /* record es_info */
                 memcpy(elem->es_info, cur, elem->es_info_len);
-                cur += elem->es_info_len;
+
+                next = cur + elem->es_info_len;
+                while(cur < next) {
+                        uint8_t tag;
+                        uint8_t len;
+                        uint8_t *pt;
+
+                        tag = *cur++;
+                        len = *cur++;
+                        pt = cur;
+                        if((0xFF == tag) || (0 == len)) {
+                                RPT(RPT_ERR, "wrong descriptor(tag: %d, len: %d)", tag, len);
+                                return -1;
+                        }
+                        if(0x09 == tag) { /* CA_descriptor in PMT */
+                                uint16_t CA_system_ID;
+                                uint16_t CA_PID;
+
+                                dat = *pt++;
+                                CA_system_ID = dat;
+
+                                dat = *pt++;
+                                CA_system_ID <<= 8;
+                                CA_system_ID |= dat;
+
+                                dat = *pt++;
+                                CA_PID = dat & 0x1F;
+
+                                dat = *pt++;
+                                CA_PID <<= 8;
+                                CA_PID |= dat;
+
+                                new_pid->PID = CA_PID;
+                                new_pid->cnt = 0;
+                                new_pid->lcnt = 0;
+                                new_pid->prog = prog;
+                                new_pid->elem = elem;
+                                new_pid->type = TS_TYPE_ECM;
+                                new_pid->CC = 0;
+                                new_pid->is_CC_sync = 0;
+                                RPT(RPT_INF, "add ECM_PID(0x%04X)", CA_PID);
+                                update_pid_list(obj, new_pid);
+                        }
+                        cur += len;
+                }
 
                 elem->type = elem_type(elem->stream_type)->type;
                 if(elem->PID == prog->PCR_PID) {
-                        elem->type |= TS_TYPE_PCR;
+                        elem->type |= TS_TMSK_PCR;
                 }
                 elem->PTS = STC_BASE_OVF;
                 elem->DTS = STC_BASE_OVF;
@@ -1550,6 +1655,7 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
         dat = *cur++; /* reserved_future_use */
 
         while(cur < crc) {
+                uint8_t *next; /* point to the data after descriptors */
                 struct ts_prog *prog;
 
                 uint16_t service_id;
@@ -1587,7 +1693,8 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= dat;
 
-                while(descriptors_loop_length > 0) {
+                next = cur + descriptors_loop_length;
+                while(cur < next) {
                         uint8_t tag;
                         uint8_t len;
                         uint8_t *pt;
@@ -1596,7 +1703,8 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
                         len = *cur++;
                         pt = cur;
                         if((0xFF == tag) || (0 == len)) {
-                                return -1; /* wrong descriptor */
+                                RPT(RPT_ERR, "wrong descriptor(tag: %d, len: %d)", tag, len);
+                                return -1;
                         }
                         if(0x48 == tag && prog) {
                                 /* service_descriptor */
@@ -1613,7 +1721,6 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
                                 prog->service_name[prog->service_name_len] = '\0';
                         }
                         cur += len;
-                        descriptors_loop_length -= (len + 2); /* 2: tag & len */
                 }
         }
 

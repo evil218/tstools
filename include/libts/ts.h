@@ -54,35 +54,45 @@ extern "C" {
 #define SERVER_STR_MAX (188) /* max length of server string */
 
 /* TS packet type */
-#define TS_TMSK_BASE    (0x00FF) /* BIT[7:0]: base type */
-#define TS_TMSK_USR     (0x0700) /* BIT[A:8]: 0(USR), 1(PMT), 2(video), 3(audio), 4(?), 5(?), 6(?), 7(?) */
-#define TS_TMSK_PCR     (0x0800) /* BIT[B:B]: 0(without PCR), 1(with PCR) */
+#define TS_TMSK_BASE    (0x00FF) /* BIT[7:0]: base type mask */
+#define TS_TMSK_PCR     (0x0100) /* BIT[8:8]: 0(without PCR), 1(with PCR) */
 
 #define TS_TYPE_UNO     (0x0000)
-#define TS_TYPE_PAT     (0x0001)
-#define TS_TYPE_CAT     (0x0002)
-#define TS_TYPE_TSDT    (0x0003)
-#define TS_TYPE_NIT     (0x0004)
-#define TS_TYPE_ST      (0x0005)
-#define TS_TYPE_SDT     (0x0006)
-#define TS_TYPE_BAT     (0x0007)
-#define TS_TYPE_EIT     (0x0008)
-#define TS_TYPE_RST     (0x0009)
-#define TS_TYPE_TDT     (0x000A)
-#define TS_TYPE_TOT     (0x000B)
-#define TS_TYPE_NS      (0x000C)
-#define TS_TYPE_INB     (0x000D)
-#define TS_TYPE_MSU     (0x000E)
-#define TS_TYPE_DIT     (0x000F)
-#define TS_TYPE_SIT     (0x0010)
-#define TS_TYPE_USR     (0x00FC) /* USR or PMT or VID or AUD, maybe with PCR */
-#define TS_TYPE_NULL    (0x00FD)
-#define TS_TYPE_RSV     (0x00FE)
-#define TS_TYPE_BAD     (0x00FF)
-#define TS_TYPE_PMT     (0x0100)
-#define TS_TYPE_VID     (0x0200)
-#define TS_TYPE_AUD     (0x0300)
-#define TS_TYPE_PCR     (0x0800)
+#define TS_TYPE_NUL     (0x0001)
+#define TS_TYPE_RSV     (0x0002)
+#define TS_TYPE_BAD     (0x0003)
+
+#define TS_TYPE_PAT     (0x0010)
+#define TS_TYPE_CAT     (0x0011)
+#define TS_TYPE_TSDT    (0x0012)
+#define TS_TYPE_NIT     (0x0013)
+#define TS_TYPE_ST      (0x0014)
+#define TS_TYPE_SDT     (0x0015)
+#define TS_TYPE_BAT     (0x0016)
+#define TS_TYPE_EIT     (0x0017)
+#define TS_TYPE_RST     (0x0018)
+#define TS_TYPE_TDT     (0x0019)
+#define TS_TYPE_TOT     (0x001A)
+#define TS_TYPE_NS      (0x001B)
+#define TS_TYPE_INB     (0x001C)
+#define TS_TYPE_MSU     (0x001D)
+#define TS_TYPE_DIT     (0x001E)
+#define TS_TYPE_SIT     (0x001F)
+#define TS_TYPE_EMM     (0x0020)
+
+#define TS_TYPE_USR     (0x00C0)
+#define TS_TYPE_PMT     (0x00C1)
+#define TS_TYPE_VID     (0x00C2)
+#define TS_TYPE_AUD     (0x00C3)
+#define TS_TYPE_ECM     (0x00C4)
+
+#define TS_TYPE_PCR     (TS_TYPE_USR | TS_TMSK_PCR)
+#define TS_TYPE_VIDP    (TS_TYPE_VID | TS_TMSK_PCR)
+#define TS_TYPE_AUDP    (TS_TYPE_AUD | TS_TMSK_PCR)
+#define TS_TYPE_NULP    (TS_TYPE_NUL | TS_TMSK_PCR)
+
+#define WITH_PCR(x)     (x & TS_TMSK_PCR)
+#define IS_TYPE(t, x)   (t == (x & TS_TMSK_BASE))
 
 /* TR 101 290 V1.2.1 2001-05 */
 struct ts_err {

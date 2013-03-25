@@ -43,33 +43,36 @@ struct pid_type_table {
 };
 
 const struct pid_type_table PID_TYPE_TABLE[] = {
-        {TS_TYPE_PAT , " PAT", "program association section"},
-        {TS_TYPE_CAT , " CAT", "conditional access section"},
+        {TS_TYPE_PAT , "PAT ", "program association section"},
+        {TS_TYPE_CAT , "CAT ", "conditional access section"},
         {TS_TYPE_TSDT, "TSDT", "transport stream description section"},
-        {TS_TYPE_RSV , " RSV", "reserved"},
-        {TS_TYPE_NIT , " NIT", "network information section"},
-        {TS_TYPE_ST  , "  ST", "stuffing section"},
-        {TS_TYPE_SDT , " SDT", "service description section"},
-        {TS_TYPE_BAT , " BAT", "bouquet association section"},
-        {TS_TYPE_EIT , " EIT", "event information section"},
-        {TS_TYPE_RST , " RST", "running status section"},
-        {TS_TYPE_TDT , " TDT", "time data section"},
-        {TS_TYPE_TOT , " TOT", "time offset section"},
-        {TS_TYPE_NS  , "  NS", "Network Synchroniztion"},
-        {TS_TYPE_INB , " INB", "Inband signaling"},
-        {TS_TYPE_MSU , " MSU", "Measurement"},
-        {TS_TYPE_DIT , " DIT", "discontinuity information section"},
-        {TS_TYPE_SIT , " SIT", "selection information section"},
-        {TS_TYPE_USR , " USR", "user define"},
-        {TS_TYPE_USR | TS_TYPE_PMT , " PMT", "program map section"},
-        {TS_TYPE_VID , " VID", "video packet"},
-        {TS_TYPE_AUD , " AUD", "audio packet"},
-        {TS_TYPE_USR | TS_TYPE_PCR , " PCR", "program counter reference"},
-        {TS_TYPE_VID | TS_TYPE_PCR , "PVID", "video packet with PCR"},
-        {TS_TYPE_AUD | TS_TYPE_PCR , "PAUD", "audio packet with PCR"},
-        {TS_TYPE_NULL, "NULL", "empty packet"},
-        {TS_TYPE_UNO , " UNO", "unknown"},
-        {TS_TYPE_BAD , " BAD", "illegal"}
+        {TS_TYPE_RSV , "RSV ", "reserved"},
+        {TS_TYPE_NIT , "NIT ", "network information section"},
+        {TS_TYPE_ST  , "ST  ", "stuffing section"},
+        {TS_TYPE_SDT , "SDT ", "service description section"},
+        {TS_TYPE_BAT , "BAT ", "bouquet association section"},
+        {TS_TYPE_EIT , "EIT ", "event information section"},
+        {TS_TYPE_RST , "RST ", "running status section"},
+        {TS_TYPE_TDT , "TDT ", "time data section"},
+        {TS_TYPE_TOT , "TOT ", "time offset section"},
+        {TS_TYPE_NS  , "NS  ", "network synchroniztion"},
+        {TS_TYPE_INB , "INB ", "inband signaling"},
+        {TS_TYPE_MSU , "MSU ", "measurement"},
+        {TS_TYPE_DIT , "DIT ", "discontinuity information section"},
+        {TS_TYPE_SIT , "SIT ", "selection information section"},
+        {TS_TYPE_USR , "USR ", "user define"},
+        {TS_TYPE_PMT , "PMT ", "program map section"},
+        {TS_TYPE_VID , "VID ", "video packet"},
+        {TS_TYPE_AUD , "AUD ", "audio packet"},
+        {TS_TYPE_PCR , "PCR ", "program counter reference"},
+        {TS_TYPE_VIDP, "VIDP", "video packet with PCR"},
+        {TS_TYPE_AUDP, "AUDP", "audio packet with PCR"},
+        {TS_TYPE_ECM , "ECM ", "entitle control message"},
+        {TS_TYPE_EMM , "EMM ", "entitle manage message"},
+        {TS_TYPE_NUL , "NUL ", "empty packet"},
+        {TS_TYPE_NULP, "NULP", "empty packet with PCR"},
+        {TS_TYPE_UNO , "UNO ", "unknown"},
+        {TS_TYPE_BAD , "BAD ", "illegal"} /* TS_TYPE_BAD is loop stop condition! */
 };
 
 struct stream_type_table {
@@ -130,7 +133,7 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0xA2, TS_TYPE_AUD, "DTSHD_2", "DTSHD_2"},
         {0xEA, TS_TYPE_VID, "VC1", "VC1"},
         {0xEA, TS_TYPE_AUD, "WMA", "WMA"},
-        {0xFF, TS_TYPE_UNO, "UNKNOWN", "Unknown stream"} /* loop stop condition! */
+        {0xFF, TS_TYPE_UNO, "UNKNOWN", "Unknown stream"} /* 0xFF is loop stop condition! */
 };
 
 struct aim {
@@ -1549,11 +1552,11 @@ static void show_rate(struct tsana_obj *obj)
 
                 /* filter: type: video or audio */
                 if(TYPE_ANY != obj->aim_type) {
-                        if(TYPE_VIDEO == obj->aim_type && (TS_TYPE_VID != (pid->type & TS_TMSK_USR))) {
+                        if(TYPE_VIDEO == obj->aim_type && !IS_TYPE(TS_TYPE_VID, pid->type)) {
                                 /* not video PID */
                                 continue;
                         }
-                        if(TYPE_AUDIO == obj->aim_type && (TS_TYPE_AUD != (pid->type & TS_TMSK_USR))) {
+                        if(TYPE_AUDIO == obj->aim_type && !IS_TYPE(TS_TYPE_AUD, pid->type)) {
                                 /* not audio PID */
                                 continue;
                         }
@@ -1857,8 +1860,17 @@ static void table_info_PMT(struct ts_sech *psi, uint8_t *section)
         program_info_length |= *p++; section_length--;
         if(program_info_length) {
                 fprintf(stdout, "program_info(%4d): ", program_info_length);
-                for(; program_info_length > 0; program_info_length--) {
-                        fprintf(stdout, "%02X ", *p++); section_length--;
+                while(program_info_length > 0) {
+                        uint8_t len;
+
+                        len = descriptor(&p);
+                        program_info_length -= len;
+                        section_length -= len;
+
+                        if(0 == len) {
+                                fprintf(stdout, "wrong descriptor, ");
+                                return;
+                        }
                 }
         }
 
@@ -1884,8 +1896,17 @@ static void table_info_PMT(struct ts_sech *psi, uint8_t *section)
                 ES_info_length |= *p++; section_length--;
                 if(ES_info_length) {
                         fprintf(stdout, "ES_info(%4d): ", ES_info_length);
-                        for(; ES_info_length > 0; ES_info_length--) {
-                                fprintf(stdout, "%02X ", *p++); section_length--;
+                        while(ES_info_length > 0) {
+                                uint8_t len;
+
+                                len = descriptor(&p);
+                                ES_info_length -= len;
+                                section_length -= len;
+
+                                if(0 == len) {
+                                        fprintf(stdout, "wrong descriptor, ");
+                                        return;
+                                }
                         }
                 }
         }
@@ -2235,6 +2256,7 @@ static int descriptor(uint8_t **buf)
 {
         int i;
         uint8_t *p = *buf;
+        uint8_t dat;
         uint8_t tag;
         uint8_t len;
 
@@ -2242,7 +2264,76 @@ static int descriptor(uint8_t **buf)
         len = *p++;
 
         fprintf(stdout, "(");
-        if(0x40 == tag) { /* network_name_descriptor */
+        if(0x09 == tag) { /* CA_descriptor */
+                uint16_t CA_system_ID;
+                uint16_t CA_PID;
+
+                dat = *p++;
+                CA_system_ID = dat;
+
+                dat = *p++;
+                CA_system_ID <<= 8;
+                CA_system_ID |= dat;
+
+                dat = *p++;
+                CA_PID = dat & 0x1F;
+
+                dat = *p++;
+                CA_PID <<= 8;
+                CA_PID |= dat;
+
+                fprintf(stdout, "CA_system_ID, 0x%04X, CA_PID, 0x%04X",
+                        CA_system_ID, CA_PID);
+        }
+        else if(0x0A == tag) { /* ISO_639_language_descriptor */
+                int len_left;
+                uint32_t ISO_639_language_code;
+                uint8_t audio_type;
+
+                len_left = len;
+                while(len_left >= 4) {
+                        dat = *p++;
+                        ISO_639_language_code = dat;
+
+                        dat = *p++;
+                        ISO_639_language_code <<= 8;
+                        ISO_639_language_code |= dat;
+
+                        dat = *p++;
+                        ISO_639_language_code <<= 8;
+                        ISO_639_language_code |= dat;
+
+                        fprintf(stdout, "ISO_639_language_code, %06X, ",
+                                ISO_639_language_code);
+
+                        dat = *p++;
+                        audio_type = dat;
+                        switch(audio_type) {
+                                case 0x00:
+                                        fprintf(stdout, "audio_type, Undefined");
+                                        break;
+                                case 0x01:
+                                        fprintf(stdout, "audio_type, Clean effects");
+                                        break;
+                                case 0x02:
+                                        fprintf(stdout, "audio_type, Hearing impaired");
+                                        break;
+                                case 0x03:
+                                        fprintf(stdout, "audio_type, Visual impaired commentary");
+                                        break;
+                                default:
+                                        fprintf(stdout, "audio_type, Reserved");
+                                        break;
+                      
+                        }
+
+                        len_left -= 4;
+                        if(len_left > 0) {
+                                fprintf(stdout, ", ");
+                        }
+                }
+        }
+        else if(0x40 == tag) { /* network_name_descriptor */
                 fprintf(stdout, "\"");
                 coding_string(p, len);
                 fprintf(stdout, "\"");
