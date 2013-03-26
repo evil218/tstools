@@ -41,7 +41,6 @@ INSTALLDIR = /usr/local/bin
 LIB_DEP = lib.d
 
 LIB_OBJS  = libcrc.o
-LIB_OBJS += libif.o
 LIB_OBJS += libzlst.o
 LIB_OBJS += libbuddy.o
 LIB_OBJS += libts.o
@@ -52,6 +51,7 @@ PRJ_DEP = prj.d
 
 PRJ_OBJS  = prjudp.o
 PRJ_OBJS += prjurl.o
+PRJ_OBJS += prjif.o
 PRJ_OBJS += prjUTF_GB.o
 PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
@@ -155,25 +155,25 @@ $(LIB_NAME): $(LIB_OBJS) $(LIB_DEP)
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 
 catts: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
 
 catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjudp.o prjurl.o
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjUTF_GB.o prjatsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjatsc_mh_tcp.o
 
 tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
 
 toip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjudp.o prjurl.o
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
 
 dtsdi: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
 
 topcm: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
 
 # Source dependencies
 -include $(LIB_DEP)

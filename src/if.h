@@ -16,7 +16,6 @@ int b2t(char *DST, const uint8_t *PTR, int len);
 int next_tag(char **tag, char **text);
 int next_nbyte_hex(uint8_t *byte, char **text, int max);
 int next_nuint_hex(long long int *sint, char **text, int max);
-int dump(uint8_t *buf, int len);
 
 #ifdef __cplusplus
 }

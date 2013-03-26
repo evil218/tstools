@@ -8,11 +8,33 @@
 #include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
 
-#include "common.h"
-#include "if.h" /* for dump(uint8_t *buf, int len) */
 #include "crc.h"
 #include "buddy.h"
 #include "ts.h"
+
+/* report level */
+#define RPT_ERR (1) /* error, system error */
+#define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
+#define RPT_INF (3) /* important information */
+#define RPT_DBG (4) /* debug information */
+
+/* report micro */
+#define RPT(lvl, ...) do \
+{ \
+    if(lvl <= rpt_lvl) \
+    { \
+        switch(lvl) \
+        { \
+            case RPT_ERR: fprintf(stderr, "\"%s\" line %d [err]: ", __FILE__, __LINE__); break; \
+            case RPT_WRN: fprintf(stderr, "\"%s\" line %d [wrn]: ", __FILE__, __LINE__); break; \
+            case RPT_INF: fprintf(stderr, "\"%s\" line %d [inf]: ", __FILE__, __LINE__); break; \
+            case RPT_DBG: fprintf(stderr, "\"%s\" line %d [dbg]: ", __FILE__, __LINE__); break; \
+            default:      fprintf(stderr, "\"%s\" line %d [???]: ", __FILE__, __LINE__); break; \
+        } \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "\n"); \
+    } \
+} while (0)
 
 #define PKT_SIZE (188)
 #define BIT(n) (1<<(n))
@@ -178,6 +200,7 @@ static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(int stream_type);
+static int dump(uint8_t *buf, int len);
 
 struct ts_obj *ts_create(intptr_t mp)
 {
@@ -2232,6 +2255,19 @@ static const struct stream_type_table *elem_type(int stream_type)
                 }
         }
         return p;
+}
+
+static int dump(uint8_t *buf, int len)
+{
+        uint8_t *p = buf;
+        int i;
+
+        for(i = 0; i < len; i++) {
+                fprintf(stderr, "%02X ", *p++);
+        }
+        fprintf(stderr, "\n");
+
+        return 0;
 }
 
 #define timestamp_assert(expr, ...) \
