@@ -326,11 +326,11 @@ int main(int argc, char *argv[])
                 }
         }
 
-        if(!(ts->is_psi_parse_finished) && !(obj->is_dump)) {
+        if(!(ts->is_psi_si_parsed) && !(obj->is_dump)) {
                 fprintf(stderr, "%sPSI parsing unfinished because of the bad PCR data!%s\n",
                         obj->color_red, obj->color_off);
 
-                ts->is_psi_parse_finished = 1;
+                ts->is_psi_si_parsed = 1;
                 switch(obj->mode) {
                         case MODE_LST:
                                 show_lst(obj);
@@ -424,10 +424,10 @@ static void state_parse_each(struct tsana_obj *obj)
 
         /* report for this TS packet? */
         has_report = 0;
-        if(obj->aim.pts && ts->pts) {
+        if(obj->aim.pts && ts->has_pts) {
                 has_report = 1;
         }
-        if(obj->aim.pcr && ts->pcr) {
+        if(obj->aim.pcr && ts->has_pcr) {
                 has_report = 1;
         }
         if(obj->aim.ts) {
@@ -967,6 +967,7 @@ static int get_one_pkt(struct tsana_obj *obj)
         char *tag;
         char *pt = (char *)(obj->tbuf);
         struct ts_obj *ts = obj->ts;
+        struct ts_input *input = &(ts->input);
         long long int data;
 
         if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
@@ -975,35 +976,35 @@ static int get_one_pkt(struct tsana_obj *obj)
 
         strcpy(obj->tbak, obj->tbuf); /* for dump */
 
-        ts->ts = NULL;
-        ts->rs = NULL;
-        ts->addr = NULL;
-        ts->mts = NULL;
-        ts->cts = NULL;
+        input->has_ts = 0;
+        input->has_rs = 0;
+        input->has_addr = 0;
+        input->has_mts = 0;
+        input->has_cts = 0;
 
         while(0 == next_tag(&tag, &pt)) {
                 if(0 == strcmp(tag, "*ts")) {
-                        next_nbyte_hex(ts->TS, &pt, 188);
-                        ts->ts = ts->TS;
+                        next_nbyte_hex(input->TS, &pt, 188);
+                        input->has_ts = 1;
                 }
                 else if(0 == strcmp(tag, "*rs")) {
-                        next_nbyte_hex(ts->RS, &pt, 16);
-                        ts->rs = ts->RS;
+                        next_nbyte_hex(input->RS, &pt, 16);
+                        input->has_rs = 1;
                 }
                 else if(0 == strcmp(tag, "*addr")) {
                         next_nuint_hex(&data, &pt, 1);
-                        ts->ADDR = data;
-                        ts->addr = &(ts->ADDR);
+                        input->ADDR = data;
+                        input->has_addr = 1;
                 }
                 else if(0 == strcmp(tag, "*mts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        ts->MTS = (int64_t)data;
-                        ts->mts = &(ts->MTS);
+                        input->MTS = (int64_t)data;
+                        input->has_mts = 1;
                 }
                 else if(0 == strcmp(tag, "*cts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        ts->CTS = (int64_t)data;
-                        ts->cts = &(ts->CTS);
+                        input->CTS = (int64_t)data;
+                        input->has_cts = 1;
                 }
                 else {
                         fprintf(stderr, "wrong tag: \"%s\"\n", tag);
@@ -1158,7 +1159,7 @@ static void show_lst(struct tsana_obj *obj)
         char *color_off;
         const struct pid_type_table *ptype;
 
-        if(!(ts->is_psi_parse_finished)) {
+        if(!(ts->is_psi_si_parsed)) {
                 return;
         }
 
@@ -1188,7 +1189,7 @@ static void show_psi(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        if(!(ts->is_psi_parse_finished)) {
+        if(!(ts->is_psi_si_parsed)) {
                 return;
         }
 
@@ -1220,17 +1221,10 @@ static void show_cts(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        if(ts->cts) {
-                fprintf(stdout,
-                        "%s*cts%s, %13llu, %10llu, ",
-                        obj->color_green, obj->color_off,
-                        (long long int)ts->CTS, (long long int)ts->CTS_base);
-        }
-        else {
-                fprintf(stdout,
-                        "%s*cts%s,              ,           , ",
-                        obj->color_green, obj->color_off);
-        }
+        fprintf(stdout,
+                "%s*cts%s, %13llu, %10llu, ",
+                obj->color_green, obj->color_off,
+                (long long int)ts->CTS, (long long int)ts->CTS_base);
         return;
 }
 
@@ -1238,17 +1232,10 @@ static void show_stc(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        if(ts->stc) {
-                fprintf(stdout,
-                        "%s*stc%s, %13llu, %10llu, ",
-                        obj->color_green, obj->color_off,
-                        (long long int)ts->STC, (long long int)ts->STC_base);
-        }
-        else {
-                fprintf(stdout,
-                        "%s*stc%s,              ,           , ",
-                        obj->color_green, obj->color_off);
-        }
+        fprintf(stdout,
+                "%s*stc%s, %13llu, %10llu, ",
+                obj->color_green, obj->color_off,
+                (long long int)ts->STC, (long long int)ts->STC_base);
         return;
 }
 
@@ -1256,7 +1243,7 @@ static void show_pcr(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        if(ts->pcr) {
+        if(ts->has_pcr) {
                 fprintf(stdout, "%s*pcr%s, %13lld, %10lld, %3d, %+7.3f, %+4.0f, ",
                         obj->color_green, obj->color_off,
                         (long long int)ts->PCR,
@@ -1276,7 +1263,7 @@ static void show_pts(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        if(ts->pts) {
+        if(ts->has_pts) {
                 fprintf(stdout, "%s*pts%s, %10lld, %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
                         (long long int)ts->PTS,
@@ -1305,7 +1292,7 @@ static void show_tsh(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*tsh%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, ts->ts, 4);
+        b2t(str, ts->input.TS, 4);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1317,7 +1304,7 @@ static void show_ts(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*ts%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, ts->ts, 188);
+        b2t(str, ts->input.TS, 188);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1706,7 +1693,7 @@ static void show_tcp(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*tcp%s, ",
                 obj->color_green, obj->color_off);
-        atsc_mh_tcp(ts->TS);
+        atsc_mh_tcp(ts->input.TS);
         return;
 }
 

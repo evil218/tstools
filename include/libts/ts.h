@@ -234,7 +234,7 @@ struct ts_sech {
         uint8_t last_section_number;
 
         int check_CRC; /* some table do not need to check CRC_32 */
-        int type; /* index of item in PID_TYPE[] */
+        int type; /* TS_TYPE_xxx */
 };
 
 /* node of section list */
@@ -247,8 +247,11 @@ struct ts_sect {
 
         /* section info */
         uint8_t *data; /* 1024 or 4096 */
+#if 0
+        /* maybe merge ts_sech to here */
         int check_CRC; /* bool, some table do not need to check CRC_32 */
-        int type; /* index of item in PID_TYPE[] */
+        int type; /* TS_TYPE_xxx */
+#endif
 };
 
 /* node of PSI/SI table list */
@@ -259,7 +262,7 @@ struct ts_table {
         uint8_t version_number;
         uint8_t last_section_number;
         struct ts_sect *sect0;
-        int64_t STC;
+        int64_t STC; /* for pid->sect_interval */
 };
 
 /* node of elementary list */
@@ -268,7 +271,7 @@ struct ts_elem {
 
         /* PID */
         uint16_t PID; /* 13-bit */
-        int type; /* PID type index */
+        int type; /* TS_TYPE_xxx */
 
         /* stream_type */
         int stream_type;
@@ -278,8 +281,8 @@ struct ts_elem {
         uint8_t es_info[INFO_LEN_MAX];
 
         /* for PTS/DTS mark */
-        int64_t PTS; /* last PTS */
-        int64_t DTS; /* last DTS */
+        int64_t PTS; /* last PTS, for obj->PTS_interval */
+        int64_t DTS; /* last DTS, for obj->DTS_interval */
 
         int is_pes_align; /* met first PES head */
 };
@@ -288,7 +291,7 @@ struct ts_elem {
 struct ts_prog {
         struct znode cvfl; /* common variable for list */
 
-        /* PMT section,  */
+        /* PMT section */
         int is_parsed;
         struct ts_table table_02; /* table_id = 0x02 */
 
@@ -313,7 +316,7 @@ struct ts_prog {
         int64_t PCRa; /* PCR packet a: PCR value */
         int64_t ADDb; /* PCR packet b: packet address */
         int64_t PCRb; /* PCR packet b: PCR value */
-        int STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
+        int is_STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
 };
 
 /* node of pid list */
@@ -322,7 +325,7 @@ struct ts_pid {
 
         /* PID */
         uint16_t PID; /* 13-bit */
-        int type; /* PID type index */
+        int type; /* TS_TYPE_xxx */
 
         /* only for PID with PSI/SI */
         int sect_idx; /* to index data in section */
@@ -343,45 +346,43 @@ struct ts_pid {
         uint32_t cnt; /* packet received from last PCR */
         uint32_t lcnt; /* packet received from PCRa to PCRb */
 
+#if 0
         int64_t STC; /* last STC */
+#endif
 
         /* file for ES dump */
         FILE *fd;
 };
 
-/* parse input and output */
-struct ts_obj {
-        /* <input> */
-
-        /* information about one packet, tell me as more as you can :-) */
+/* information about one packet, tell me as more as you can :-) */
+struct ts_input {
         uint8_t TS[188]; /* TS data */
         uint8_t RS[16]; /* RS data */
         long long int ADDR; /* address of sync-byte(unit: byte) */
         int64_t MTS; /* MTS Time Stamp */
         int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
 
-        /* NULL means the item is absent */
-        uint8_t *ts; /* point to TS packet */
-        uint8_t *rs; /* NULL or point to RS data */
-        long long int *addr; /* NULL or point to ADDR */
-        int64_t *mts; /* NULL or point to MTS */
-        int64_t *cts; /* NULL or point to CTS */
+        /* 0 means corresponding data can not be used */
+        int has_ts; /* data in TS[] is OK */
+        int has_rs; /* data in RS[] is OK */
+        int has_addr; /* data of ADDR is OK */
+        int has_mts; /* data of MTS is OK */
+        int has_cts; /* data of CTS is OK */
+};
 
-        /* </input> */
-
-        /* <output> */
+/* object about one transfer stream */
+struct ts_obj {
+        struct ts_input input;
 
         /* CTS */
+        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
         int64_t CTS_base;
         int64_t CTS_ext;
         int64_t lCTS; /* for calc dCTS in MTS mode */
-        int64_t CTS0;
+        int64_t CTS0; /* start time of each statistic interval */
 
         /* STC */
-        /* PMT, PCR, VID and AUD has timestamp according to its PCR */
-        /* other PID has timestamp according to the PCR of program0 */
-        int64_t *stc; /* NULL or point to STC */
-        int64_t STC;
+        int64_t STC; /* timestamp according to its PCR or the PCR of prog0 */
         int64_t STC_base;
         int16_t STC_ext;
 
@@ -391,37 +392,37 @@ struct ts_obj {
         int CC_lost; /* lost != 0 means CC wrong */
 
         /* AF */
-        uint8_t *AF; /* NULL or point to adaptation_fields */
-        int AF_len;
+        uint8_t *AF; /* point to adaptation_fields */
+        int AF_len; /* 0 means no AF */
 
         /* PCR */
-        int64_t *pcr; /* NULL or point to PCR */
+        int has_pcr;
         int64_t PCR;
         int64_t PCR_base;
         int16_t PCR_ext;
         int64_t PCR_interval; /* PCR packet arrive time interval */
         int64_t PCR_continuity; /* PCR value interval */
-        int64_t PCR_jitter;
+        int64_t PCR_jitter; /* PCR - STC */
 
         /* PES */
-        uint8_t *PES; /* NULL or point to PES fragment */
-        int PES_len;
+        uint8_t *PES; /* point to PES fragment */
+        int PES_len; /* 0 means no PES */
 
         /* PTS */
-        int64_t *pts; /* NULL or point to PTS */
+        int has_pts;
         int64_t PTS;
         int64_t PTS_interval;
         int64_t PTS_minus_STC;
 
         /* DTS */
-        int64_t *dts; /* NULL or point to DTS */
+        int has_dts;
         int64_t DTS;
         int64_t DTS_interval;
         int64_t DTS_minus_STC;
 
         /* ES */
-        uint8_t *ES; /* NULL or point to ES fragment */
-        int ES_len;
+        uint8_t *ES; /* point to ES fragment */
+        int ES_len; /* 0 means no ES */
 
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
@@ -429,7 +430,9 @@ struct ts_obj {
         struct ts_pid *pid; /* point to the node in pid_list */
 
         /* TS information */
+        long long int ADDR; /* address of sync-byte(unit: byte) */
         long long int cnt; /* count of this packet in this stream, start from 0 */
+
         struct ts_tsh tsh; /* info about ts head of this packet */
         struct ts_af af; /* info about af of this packet */
         struct ts_pesh pesh; /* info about pesh of this packet */
@@ -440,7 +443,7 @@ struct ts_obj {
         int has_got_transport_stream_id;
         struct ts_sech sech; /* info about section head before this packet */
         int is_pat_pmt_parsed;
-        int is_psi_parse_finished;
+        int is_psi_si_parsed;
         int is_psi_si;
         int has_sect;
         struct ts_prog *prog0; /* program list of this stream */
@@ -462,16 +465,14 @@ struct ts_obj {
         /* error */
         struct ts_err err;
 
-        /* </output> */
-
         /* special variables for ts object */
         int state;
         intptr_t mp; /* id of buddy memory pool, for list malloc and free */
         int need_pes_align; /* 0: dot't need; 1: need PES align */
 
         /* special variables for packet analyse */
-        uint8_t *cur; /* point to the current data in rslt.TS[] */
-        uint8_t *tail; /* point to the next data after rslt.TS[] */
+        uint8_t *cur; /* point to the current data in TS[] */
+        uint8_t *tail; /* point to the next data after TS[] */
 };
 
 struct ts_obj *ts_create(intptr_t mp);
