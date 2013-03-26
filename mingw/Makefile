@@ -41,7 +41,6 @@ INSTALLDIR = /mingw/bin
 LIB_DEP = lib.d
 
 LIB_OBJS  = libcrc.o
-LIB_OBJS += libif.o
 LIB_OBJS += libzlst.o
 LIB_OBJS += libbuddy.o
 LIB_OBJS += libts.o
@@ -52,6 +51,7 @@ PRJ_DEP = prj.d
 
 PRJ_OBJS  = prjudp.o
 PRJ_OBJS += prjurl.o
+PRJ_OBJS += prjif.o
 PRJ_OBJS += prjUTF_GB.o
 PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
@@ -155,25 +155,25 @@ $(LIB_NAME): $(LIB_OBJS) $(LIB_DEP)
 	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
 
 catts.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjcatts.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prjcatts.o $(LIBS) prjif.o
 
 catip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjcatip.o $(LIBS) prjudp.o prjurl.o -lwsock32
+	$(LD) $(LDFLAGS) -o $@ prjcatip.o $(LIBS) prjif.o prjudp.o prjurl.o -lwsock32
 
 tsana.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjtsana.o $(LIBS) prjUTF_GB.o prjatsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prjtsana.o $(LIBS) prjif.o prjUTF_GB.o prjatsc_mh_tcp.o
 
 tobin.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjtobin.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prjtobin.o $(LIBS) prjif.o
 
 toip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjtoip.o $(LIBS) prjudp.o prjurl.o -lwsock32
+	$(LD) $(LDFLAGS) -o $@ prjtoip.o $(LIBS) prjif.o prjudp.o prjurl.o -lwsock32
 
 dtsdi.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjdtsdi.o $(LIBS)
 
 topcm.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjtopcm.o $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ prjtopcm.o $(LIBS) prjif.o
 
 # Source dependencies
 -include $(LIB_DEP)
