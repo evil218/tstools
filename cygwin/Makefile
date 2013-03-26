@@ -44,7 +44,6 @@ LIB_OBJS  = libcrc.o
 LIB_OBJS += libif.o
 LIB_OBJS += libzlst.o
 LIB_OBJS += libbuddy.o
-LIB_OBJS += libUTF_GB.o
 LIB_OBJS += libts.o
 
 LIB_SRCS = $(subst .o,.c,$(subst lib,$(LIB_SRCDIR)/,$(LIB_OBJS)))
@@ -53,6 +52,7 @@ PRJ_DEP = prj.d
 
 PRJ_OBJS  = prjudp.o
 PRJ_OBJS += prjurl.o
+PRJ_OBJS += prjUTF_GB.o
 PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
@@ -161,7 +161,7 @@ catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjudp.o prjurl.o
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjatsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjUTF_GB.o prjatsc_mh_tcp.o
 
 tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
