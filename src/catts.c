@@ -124,7 +124,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for 'start'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0 < dat) {
@@ -141,7 +141,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for 'stop'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0 < dat) {
@@ -158,7 +158,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for 'width'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0 < dat && dat < (LINE_LENGTH_MAX / 3)) {

@@ -98,8 +98,8 @@ static void show_help()
         puts("");
         puts("Options:");
         puts("");
-        puts(" -h, --help       print this information, then exit");
-        puts(" -v, --version    print my version, then exit");
+        puts(" -h, --help       print this information only");
+        puts(" -v, --version    print my version only");
         puts("");
         puts("Examples:");
         puts("  catip udp://@:1234");

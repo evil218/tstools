@@ -21,19 +21,19 @@
 /* report micro */
 #define RPT(lvl, ...) do \
 { \
-    if(lvl <= rpt_lvl) \
-    { \
-        switch(lvl) \
+        if(lvl <= rpt_lvl) \
         { \
-            case RPT_ERR: fprintf(stderr, "\"%s\" line %d [err]: ", __FILE__, __LINE__); break; \
-            case RPT_WRN: fprintf(stderr, "\"%s\" line %d [wrn]: ", __FILE__, __LINE__); break; \
-            case RPT_INF: fprintf(stderr, "\"%s\" line %d [inf]: ", __FILE__, __LINE__); break; \
-            case RPT_DBG: fprintf(stderr, "\"%s\" line %d [dbg]: ", __FILE__, __LINE__); break; \
-            default:      fprintf(stderr, "\"%s\" line %d [???]: ", __FILE__, __LINE__); break; \
+                switch(lvl) \
+                { \
+                        case RPT_ERR: fprintf(stderr, "\"%s\" line %d [err]: ", __FILE__, __LINE__); break; \
+                        case RPT_WRN: fprintf(stderr, "\"%s\" line %d [wrn]: ", __FILE__, __LINE__); break; \
+                        case RPT_INF: fprintf(stderr, "\"%s\" line %d [inf]: ", __FILE__, __LINE__); break; \
+                        case RPT_DBG: fprintf(stderr, "\"%s\" line %d [dbg]: ", __FILE__, __LINE__); break; \
+                        default:      fprintf(stderr, "\"%s\" line %d [???]: ", __FILE__, __LINE__); break; \
+                } \
+                fprintf(stderr, __VA_ARGS__); \
+                fprintf(stderr, "\n"); \
         } \
-        fprintf(stderr, __VA_ARGS__); \
-        fprintf(stderr, "\n"); \
-    } \
 } while (0)
 
 #define PKT_SIZE (188)
@@ -113,56 +113,56 @@ struct stream_type_table {
 
 static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0x00, TS_TYPE_RSV}, /* "Reserved", "ITU-T|ISO/IEC Reserved"}, */
-        {0x01, TS_TYPE_VID}, /* "MPEG-1", "ISO/IEC 11172-2 Video"}, */
-        {0x02, TS_TYPE_VID}, /* "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"}, */
-        {0x03, TS_TYPE_AUD}, /* "MPEG-1", "ISO/IEC 11172-3 Audio"}, */
-        {0x04, TS_TYPE_AUD}, /* "MPEG-2", "ISO/IEC 13818-3 Audio"}, */
-        {0x05, TS_TYPE_USR}, /* "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"}, */
-        {0x06, TS_TYPE_AUD}, /* "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"}, */
-        {0x07, TS_TYPE_USR}, /* "MHEG", "ISO/IEC 13522 MHEG"}, */
-        {0x08, TS_TYPE_USR}, /* "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"}, */
-        {0x09, TS_TYPE_USR}, /* "H.222.1", "ITU-T Rec.H.222.1"}, */
-        {0x0A, TS_TYPE_USR}, /* "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"}, */
-        {0x0B, TS_TYPE_USR}, /* "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"}, */
-        {0x0C, TS_TYPE_USR}, /* "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"}, */
-        {0x0D, TS_TYPE_USR}, /* "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"}, */
-        {0x0E, TS_TYPE_USR}, /* "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"}, */
-        {0x0F, TS_TYPE_AUD}, /* "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"}, */
-        {0x10, TS_TYPE_VID}, /* "MPEG-4", "ISO/IEC 14496-2 Visual"}, */
-        {0x11, TS_TYPE_AUD}, /* "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"}, */
-        {0x12, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"}, */
-        {0x13, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"}, */
-        {0x14, TS_TYPE_USR}, /* "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"}, */
-        {0x15, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in PES packets"}, */
-        {0x16, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in metadata_sections"}, */
-        {0x17, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"}, */
-        {0x18, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"}, */
-        {0x19, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"}, */
-        {0x1A, TS_TYPE_USR}, /* "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"}, */
-        {0x1B, TS_TYPE_VID}, /* "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"}, */
-        {0x1C, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"}, */
-        {0x1D, TS_TYPE_USR}, /* "MPEG-4", "ISO/IEC 14496-17 Text"}, */
-        {0x1E, TS_TYPE_VID}, /* "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"}, */
-        {0x42, TS_TYPE_VID}, /* "AVS", "Advanced Video Standard"}, */
-        {0x7F, TS_TYPE_USR}, /* "IPMP", "IPMP stream"}, */
-        {0x80, TS_TYPE_VID}, /* "SVAC|LPCM", "SVAC, LPCM of ATSC"}, */
-        {0x81, TS_TYPE_AUD}, /* "AC3", "Dolby Digital ATSC"}, */
-        {0x82, TS_TYPE_AUD}, /* "DTS", "DTS Audio"}, */
-        {0x83, TS_TYPE_AUD}, /* "MLP", "MLP"}, */
-        {0x84, TS_TYPE_AUD}, /* "DDP", "Dolby Digital Plus"}, */
-        {0x85, TS_TYPE_AUD}, /* "DTSHD", "DTSHD"}, */
-        {0x86, TS_TYPE_AUD}, /* "DTSHD_XLL", "DTSHD_XLL"}, */
-        {0x90, TS_TYPE_AUD}, /* "G.711", "G.711(A)"}, */
-        {0x92, TS_TYPE_AUD}, /* "G.722.1", "G.722.1"}, */
-        {0x93, TS_TYPE_AUD}, /* "G.723.1", "G.723.1"}, */
-        {0x99, TS_TYPE_AUD}, /* "G.729", "G.729"}, */
-        {0x9A, TS_TYPE_AUD}, /* "AMR-NB", "AMR-NB"}, */
-        {0x9B, TS_TYPE_AUD}, /* "SVAC", "SVAC"}, */
-        {0xA1, TS_TYPE_AUD}, /* "DDP_2", "Dolby Digital Plus"}, */
-        {0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2"}, */
-        {0xEA, TS_TYPE_VID}, /* "VC1", "VC1"}, */
-        {0xEA, TS_TYPE_AUD}, /* "WMA", "WMA"}, */
-        {0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream"}, loop stop condition! */
+{0x01, TS_TYPE_VID}, /* "MPEG-1", "ISO/IEC 11172-2 Video"}, */
+{0x02, TS_TYPE_VID}, /* "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"}, */
+{0x03, TS_TYPE_AUD}, /* "MPEG-1", "ISO/IEC 11172-3 Audio"}, */
+{0x04, TS_TYPE_AUD}, /* "MPEG-2", "ISO/IEC 13818-3 Audio"}, */
+{0x05, TS_TYPE_USR}, /* "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"}, */
+{0x06, TS_TYPE_AUD}, /* "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"}, */
+{0x07, TS_TYPE_USR}, /* "MHEG", "ISO/IEC 13522 MHEG"}, */
+{0x08, TS_TYPE_USR}, /* "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"}, */
+{0x09, TS_TYPE_USR}, /* "H.222.1", "ITU-T Rec.H.222.1"}, */
+{0x0A, TS_TYPE_USR}, /* "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"}, */
+{0x0B, TS_TYPE_USR}, /* "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"}, */
+{0x0C, TS_TYPE_USR}, /* "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"}, */
+{0x0D, TS_TYPE_USR}, /* "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"}, */
+{0x0E, TS_TYPE_USR}, /* "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"}, */
+{0x0F, TS_TYPE_AUD}, /* "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"}, */
+{0x10, TS_TYPE_VID}, /* "MPEG-4", "ISO/IEC 14496-2 Visual"}, */
+{0x11, TS_TYPE_AUD}, /* "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"}, */
+{0x12, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"}, */
+{0x13, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"}, */
+{0x14, TS_TYPE_USR}, /* "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"}, */
+{0x15, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in PES packets"}, */
+{0x16, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in metadata_sections"}, */
+{0x17, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"}, */
+{0x18, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"}, */
+{0x19, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"}, */
+{0x1A, TS_TYPE_USR}, /* "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"}, */
+{0x1B, TS_TYPE_VID}, /* "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"}, */
+{0x1C, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"}, */
+{0x1D, TS_TYPE_USR}, /* "MPEG-4", "ISO/IEC 14496-17 Text"}, */
+{0x1E, TS_TYPE_VID}, /* "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"}, */
+{0x42, TS_TYPE_VID}, /* "AVS", "Advanced Video Standard"}, */
+{0x7F, TS_TYPE_USR}, /* "IPMP", "IPMP stream"}, */
+{0x80, TS_TYPE_VID}, /* "SVAC|LPCM", "SVAC, LPCM of ATSC"}, */
+{0x81, TS_TYPE_AUD}, /* "AC3", "Dolby Digital ATSC"}, */
+{0x82, TS_TYPE_AUD}, /* "DTS", "DTS Audio"}, */
+{0x83, TS_TYPE_AUD}, /* "MLP", "MLP"}, */
+{0x84, TS_TYPE_AUD}, /* "DDP", "Dolby Digital Plus"}, */
+{0x85, TS_TYPE_AUD}, /* "DTSHD", "DTSHD"}, */
+{0x86, TS_TYPE_AUD}, /* "DTSHD_XLL", "DTSHD_XLL"}, */
+{0x90, TS_TYPE_AUD}, /* "G.711", "G.711(A)"}, */
+{0x92, TS_TYPE_AUD}, /* "G.722.1", "G.722.1"}, */
+{0x93, TS_TYPE_AUD}, /* "G.723.1", "G.723.1"}, */
+{0x99, TS_TYPE_AUD}, /* "G.729", "G.729"}, */
+{0x9A, TS_TYPE_AUD}, /* "AMR-NB", "AMR-NB"}, */
+{0x9B, TS_TYPE_AUD}, /* "SVAC", "SVAC"}, */
+{0xA1, TS_TYPE_AUD}, /* "DDP_2", "Dolby Digital Plus"}, */
+{0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2"}, */
+{0xEA, TS_TYPE_VID}, /* "VC1", "VC1"}, */
+{0xEA, TS_TYPE_AUD}, /* "WMA", "WMA"}, */
+{0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream"}, loop stop condition! */
 };
 
 enum {
@@ -260,9 +260,20 @@ int ts_init(struct ts_obj *obj)
                 free_table(obj->mp, table);
         }
 
-        obj->state = STATE_NEXT_PAT;
-        obj->need_pes_align = 1;
+        /* config: do nothing */
+        memset(&(obj->config), 0, sizeof(struct ts_config)); /* clear config struct */
+#if 1
+        obj->config.need_cc = 1;
+        obj->config.need_af = 1;
+        obj->config.need_timestamp = 1;
+        obj->config.need_psi = 1;
+        obj->config.need_si = 1;
+        obj->config.need_pes = 1;
+        obj->config.need_pes_align = 1;
+        obj->config.need_statistic = 1;
+#endif
 
+        obj->state = STATE_NEXT_PAT;
         obj->ADDR = -PKT_SIZE; /* count from 0 */
         obj->cnt = -1; /* count ts packet from 0 */
         obj->table0 = NULL;
@@ -414,7 +425,8 @@ int ts_parse_tsh(struct ts_obj *obj)
                 RPT(RPT_ERR, "Bad adaption_field_control field(00)!");
         }
 
-        if(BIT(1) & tsh->adaption_field_control) {
+        if(obj->config.need_af &&
+           (BIT(1) & tsh->adaption_field_control)) {
                 ts_parse_af(obj);
         }
 
@@ -453,80 +465,89 @@ int ts_parse_tsh(struct ts_obj *obj)
         struct ts_pid *pid = obj->pid; /* maybe NULL */
 
         /* calc STC and CTS, should be as early as possible */
-        if(input->has_mts) {
-                int64_t dCTS = timestamp_diff(input->MTS, obj->lCTS, MTS_OVF);
+        if(obj->config.need_timestamp) {
+                if(input->has_mts) {
+                        int64_t dCTS = timestamp_diff(input->MTS, obj->lCTS, MTS_OVF);
 
-                if(STC_OVF != obj->STC) {
-                        obj->STC = timestamp_add(obj->STC, dCTS, STC_OVF);
-                }
-                else {
-                        obj->STC = timestamp_add(0L, dCTS, STC_OVF);
-                }
-                obj->lCTS = input->MTS; /* record last CTS */
+                        if(STC_OVF != obj->STC) {
+                                obj->STC = timestamp_add(obj->STC, dCTS, STC_OVF);
+                        }
+                        else {
+                                obj->STC = timestamp_add(0L, dCTS, STC_OVF);
+                        }
+                        obj->lCTS = input->MTS; /* record last CTS */
 
-                if(input->has_cts) {
-                        obj->CTS = input->CTS;
-                }
-                else {
-                        obj->CTS = obj->STC;
-                }
-        }
-        else {
-                struct ts_prog *prog; /* may be NULL */
-
-                /* STC: according to pid->prog */
-                if(pid && pid->prog) {
-                        prog = pid->prog;
-                        if((prog->is_STC_sync) &&
-                           (prog->PCRa != prog->PCRb)) {
-                                long double delta;
-
-                                /* STCx - PCRb   ADDx - ADDb */
-                                /* ----------- = ----------- */
-                                /* PCRb - PCRa   ADDb - ADDa */
-                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                delta *= (obj->ADDR - prog->ADDb);
-                                delta /= (prog->ADDb - prog->ADDa);
-                                obj->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                        if(input->has_cts) {
+                                obj->CTS = input->CTS;
+                        }
+                        else {
+                                obj->CTS = obj->STC;
                         }
                 }
-
-                /* CTS: according to prog0 */
-                if(input->has_cts) {
-                        obj->CTS = input->CTS;
-                }
                 else {
-                        if(obj->prog0) {
-                                prog = obj->prog0;
+                        struct ts_prog *prog; /* may be NULL */
+
+                        /* STC: according to pid->prog */
+                        if(pid && pid->prog) {
+                                prog = pid->prog;
                                 if((prog->is_STC_sync) &&
                                    (prog->PCRa != prog->PCRb)) {
                                         long double delta;
 
-                                        /* CTSx - PCRb   ADDx - ADDb */
+                                        /* STCx - PCRb   ADDx - ADDb */
                                         /* ----------- = ----------- */
                                         /* PCRb - PCRa   ADDb - ADDa */
                                         delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
                                         delta *= (obj->ADDR - prog->ADDb);
                                         delta /= (prog->ADDb - prog->ADDa);
-                                        obj->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                        obj->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                }
+                        }
+
+                        /* CTS: according to prog0 */
+                        if(input->has_cts) {
+                                obj->CTS = input->CTS;
+                        }
+                        else {
+                                if(obj->prog0) {
+                                        prog = obj->prog0;
+                                        if((prog->is_STC_sync) &&
+                                           (prog->PCRa != prog->PCRb)) {
+                                                long double delta;
+
+                                                /* CTSx - PCRb   ADDx - ADDb */
+                                                /* ----------- = ----------- */
+                                                /* PCRb - PCRa   ADDb - ADDa */
+                                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                                delta *= (obj->ADDR - prog->ADDb);
+                                                delta /= (prog->ADDb - prog->ADDa);
+                                                obj->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                        }
                                 }
                         }
                 }
+                obj->STC_base = obj->STC / 300;
+                obj->STC_ext = obj->STC % 300;
+                obj->CTS_base = obj->CTS / 300;
+                obj->CTS_ext = obj->CTS % 300;
         }
-        obj->STC_base = obj->STC / 300;
-        obj->STC_ext = obj->STC % 300;
-        obj->CTS_base = obj->CTS / 300;
-        obj->CTS_ext = obj->CTS % 300;
 
-        /* statistic & PSI/SI section collect */
-        pid->cnt++;
-        obj->sys_cnt++;
-        obj->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
-        if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
-                /* PSI/SI packet */
-                obj->psi_cnt++;
-                obj->is_psi_si = 1;
-                ts_ts2sect(obj);
+        /* statistic */
+        if(obj->config.need_statistic) {
+                pid->cnt++;
+                obj->sys_cnt++;
+                obj->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
+                if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
+                        obj->psi_cnt++;
+                        obj->is_psi_si = 1;
+                }
+        }
+
+        /* PSI/SI section collect */
+        if(obj->config.need_psi || obj->config.need_si) {
+                if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
+                        ts_ts2sect(obj);
+                }
         }
 
         return 0;
@@ -631,46 +652,44 @@ static int state_next_pkt(struct ts_obj *obj)
         struct ts_err *err = &(obj->err);
 
         /* CC */
-        if(pid->is_CC_sync) {
-                uint8_t dCC;
-                int lost;
+        if(obj->config.need_cc) {
+                if(pid->is_CC_sync) {
+                        uint8_t dCC;
+                        int lost;
 
-                if((1 == tsh->adaption_field_control) || /* 01 */
-                   (3 == tsh->adaption_field_control)) { /* 11 */
-                        dCC = 1;
+                        if((1 == tsh->adaption_field_control) || /* 01 */
+                           (3 == tsh->adaption_field_control)) { /* 11 */
+                                dCC = 1;
+                        }
+                        else { /* 00 or 10 */
+                                dCC = 0;
+                        }
+
+                        pid->CC += dCC;
+                        pid->CC &= 0x0F; /* 4-bit */
+                        lost  = (int)tsh->continuity_counter;
+                        lost -= (int)pid->CC;
+                        if(lost < 0) {
+                                lost += 16;
+                        }
+
+                        obj->CC_wait = pid->CC;
+                        obj->CC_find = tsh->continuity_counter;
+                        obj->CC_lost = lost;
                 }
-                else { /* 00 or 10 */
-                        dCC = 0;
+                else {
+                        pid->is_CC_sync = 1;
+
+                        obj->CC_wait = pid->CC;
+                        obj->CC_find = tsh->continuity_counter;
+                        obj->CC_lost = 0;
                 }
-
-                pid->CC += dCC;
-                pid->CC &= 0x0F; /* 4-bit */
-                lost  = (int)tsh->continuity_counter;
-                lost -= (int)pid->CC;
-                if(lost < 0) {
-                        lost += 16;
-                }
-
-                obj->CC_wait = pid->CC;
-                obj->CC_find = tsh->continuity_counter;
-                obj->CC_lost = lost;
-        }
-        else {
-                pid->is_CC_sync = 1;
-
-                obj->CC_wait = pid->CC;
-                obj->CC_find = tsh->continuity_counter;
-                obj->CC_lost = 0;
-        }
-        pid->CC = tsh->continuity_counter; /* update CC */
-        err->Continuity_count_error = obj->CC_lost;
-        if(0x1FFF == tsh->PID) {
-                /* continuity_counter of null packet is undefined */
-                err->Continuity_count_error = 0;
+                pid->CC = tsh->continuity_counter; /* update CC */
+                err->Continuity_count_error = (0x1FFF == tsh->PID) ? 0 : obj->CC_lost;
         }
 
         /* PCR flush */
-        if(obj->has_pcr) {
+        if(obj->config.need_af && obj->has_pcr) {
                 obj->PCR_base = af->program_clock_reference_base;
                 obj->PCR_ext  = af->program_clock_reference_extension;
 
@@ -786,7 +805,7 @@ static int state_next_pkt(struct ts_obj *obj)
         }
 
         /* interval and statistic */
-        if(obj->prog0 && obj->prog0->is_STC_sync) {
+        if(obj->config.need_statistic && obj->prog0 && obj->prog0->is_STC_sync) {
                 obj->interval = timestamp_diff(obj->CTS, obj->CTS0, STC_OVF);
                 if(obj->interval >= obj->aim_interval) {
                         struct znode *znode;
@@ -818,7 +837,7 @@ static int state_next_pkt(struct ts_obj *obj)
         }
 
         /* PES head & ES data */
-        if(elem && (0 == tsh->transport_scrambling_control)) {
+        if(obj->config.need_pes && elem && (0 == tsh->transport_scrambling_control)) {
                 if(IS_TYPE(TS_TYPE_AUD, pid->type) || IS_TYPE(TS_TYPE_VID, pid->type)) {
                         ts_parse_pesh(obj);
                 }
@@ -1069,7 +1088,7 @@ static int ts_parse_sect(struct ts_obj *obj)
                 if(pid->CRC_32_calc != pid->CRC_32) {
                         err->CRC_error = 1;
                         RPT(RPT_ERR, "CRC error(0x%08X! 0x%08X?)",
-                                pid->CRC_32_calc, pid->CRC_32);
+                            pid->CRC_32_calc, pid->CRC_32);
                         dump(pid->sect_data, 3 + sech->section_length);
                         return -1;
                 }
@@ -1537,7 +1556,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         /* record program_info */
         if(prog->program_info_len > INFO_LEN_MAX) {
                 RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
-                        tsh->PID, prog->program_info_len);
+                    tsh->PID, prog->program_info_len);
         }
         memcpy(prog->program_info, cur, prog->program_info_len);
         cur += prog->program_info_len;
@@ -1573,7 +1592,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 /* ES_info */
                 if(elem->es_info_len > INFO_LEN_MAX) {
                         RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
-                                elem->PID, elem->es_info_len);
+                            elem->PID, elem->es_info_len);
                 }
                 memcpy(elem->es_info, cur, elem->es_info_len);
 
@@ -1661,9 +1680,9 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
         if(obj->has_got_transport_stream_id &&
            sech->table_id_extension != obj->transport_stream_id) {
                 RPT(RPT_ERR, "table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)",
-                        sech->table_id,
-                        sech->table_id_extension,
-                        obj->transport_stream_id);
+                    sech->table_id,
+                    sech->table_id_extension,
+                    obj->transport_stream_id);
                 return -1; /* bad SDT table, ignore */
         }
 
@@ -1677,9 +1696,9 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
            original_network_id != obj->transport_stream_id) {
 #if 0
                 RPT(RPT_ERR, "table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)",
-                        sech->table_id,
-                        original_network_id,
-                        obj->transport_stream_id);
+                    sech->table_id,
+                    original_network_id,
+                    obj->transport_stream_id);
                 return -1; /* bad SDT table, ignore */
 #endif
         }
@@ -1783,7 +1802,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
         }
 
         /* record PES data */
-        if(obj->need_pes_align) {
+        if(obj->config.need_pes_align) {
                 if(elem->is_pes_align) {
                         obj->PES_len = obj->tail - obj->cur;
                         obj->PES = obj->cur;
@@ -1814,7 +1833,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
 
                 if(0x000001 != pesh->packet_start_code_prefix) {
                         RPT(RPT_ERR, "PES packet start code prefix(0x%06X) NOT 0x000001!",
-                                pesh->packet_start_code_prefix);
+                            pesh->packet_start_code_prefix);
                         dump(obj->input.TS, PKT_SIZE);
 #if 0
                         return -1;
@@ -1840,7 +1859,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
         }
 
         /* record ES data */
-        if(obj->need_pes_align) {
+        if(obj->config.need_pes_align) {
                 if(elem->is_pes_align) {
                         obj->ES_len = obj->tail - obj->cur;
                         obj->ES = obj->cur;

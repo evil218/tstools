@@ -23,7 +23,7 @@ struct url *url_open(const char *str, char *mode)
         url = (struct url *)malloc(sizeof(struct url));
         if(NULL == url) {
                 RPT(RPT_ERR, "malloc 'struct url' failed");
-                exit(-1);
+                return NULL;
         }
         url->url[0] = '\0';
         url->host = NULL;
@@ -31,7 +31,8 @@ struct url *url_open(const char *str, char *mode)
         url->path_fname = NULL;
 
         if(0 != parse_url(url, str)) {
-                exit(0);
+                free(url);
+                return NULL;
         }
 
         switch(url->scheme) {

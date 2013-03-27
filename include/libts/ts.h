@@ -370,9 +370,22 @@ struct ts_input {
         int has_cts; /* data of CTS is OK */
 };
 
+/* configurations for libts */
+struct ts_config {
+        int need_cc;   /* not 0: parse CC */
+        int need_af;   /* not 0: parse AF(PCR) */
+        int need_timestamp; /* not 0: calculate CTS, STC,  */
+        int need_psi;  /* not 0: parse PSI */
+        int need_si;   /* not 0: parse SI */
+        int need_pes;  /* not 0: parse PES head(PTS, DTS) */
+        int need_pes_align; /* not 0: ignore data before first PES head */
+        int need_statistic; /* not 0: need statistic information */
+};
+
 /* object about one transfer stream */
 struct ts_obj {
         struct ts_input input;
+        struct ts_config config;
 
         /* CTS */
         int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
@@ -468,7 +481,6 @@ struct ts_obj {
         /* special variables for ts object */
         int state;
         intptr_t mp; /* id of buddy memory pool, for list malloc and free */
-        int need_pes_align; /* 0: dot't need; 1: need PES align */
 
         /* special variables for packet analyse */
         uint8_t *cur; /* point to the current data in TS[] */

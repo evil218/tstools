@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
         obj = create(argc, argv);
         if(NULL == obj)
         {
-                exit(EXIT_FAILURE);
+                return -1;
         }
 
         while(GOT_EOF != (get_rslt = get_one_pack(obj))) 
@@ -197,19 +197,22 @@ static struct obj *create(int argc, char *argv[])
                                 0 == strcmp(argv[i], "--help"))
                         {
                                 show_help();
-                                exit(EXIT_SUCCESS);
+                                free(obj);
+                                return NULL;
                         }
                         else if(0 == strcmp(argv[i], "-v") ||
                                 0 == strcmp(argv[i], "--version"))
                         {
                                 show_version();
-                                exit(EXIT_SUCCESS);
+                                free(obj);
+                                return NULL;
                         }
                 }
                 else
                 {
                         fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                        exit(EXIT_FAILURE);
+                        free(obj);
+                        return NULL;
                 }
         }
 

@@ -1,4 +1,4 @@
-all: catts.html catip.html tsana.html tobin.html tstools
+all: catts.html catip.html tsana.html tobin.html toip.html tstools
 
 catts.1:
 	-help2man -o $@ catts
@@ -11,6 +11,9 @@ tsana.1:
 
 tobin.1:
 	-help2man -o $@ tobin
+
+toip.1:
+	-help2man -o $@ toip
 
 %.html: %.1
 	-man2html $< > $@

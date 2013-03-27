@@ -124,7 +124,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for 'mode'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(8 == dat || 10 == dat) {
@@ -274,7 +274,7 @@ static int parse_frame()
                      0x000 == sdi[1] &&
                      0x000 == sdi[2] &&
                      (0x040 & sdi[3]))) { /* H(bit6) == 1 */
-                        RPT(RPT_ERR, "bad EAV, exit.");
+                        RPT(RPT_ERR, "bad EAV");
                         return -1;
                 }
                 output(sdi, 4);
@@ -301,7 +301,7 @@ static int parse_frame()
                      0x000 == sdi[1] &&
                      0x000 == sdi[2] &&
                      !(0x040 & sdi[3]))) { /* H(bit6) == 0 */
-                        RPT(RPT_ERR, "bad SAV, exit.");
+                        RPT(RPT_ERR, "bad SAV");
                         return -1;
                 }
                 output(sdi, 4);

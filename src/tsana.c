@@ -215,7 +215,7 @@ enum {
 static struct tsana_obj *obj = NULL;
 
 static void state_parse_psi(struct tsana_obj *obj);
-static void state_parse_each(struct tsana_obj *obj);
+static int state_parse_each(struct tsana_obj *obj);
 
 static struct tsana_obj *create(int argc, char *argv[]);
 static int destroy(struct tsana_obj *obj);
@@ -251,7 +251,7 @@ static void show_si(struct tsana_obj *obj);
 static void show_rate(struct tsana_obj *obj);
 static void show_rats(struct tsana_obj *obj);
 static void show_ratp(struct tsana_obj *obj);
-static void show_error(struct tsana_obj *obj);
+static int show_error(struct tsana_obj *obj);
 static void show_tcp(struct tsana_obj *obj);
 
 static void all_pes(struct tsana_obj *obj);
@@ -287,6 +287,9 @@ int main(int argc, char *argv[])
         struct ts_obj *ts;
 
         obj = create(argc, argv);
+        if(!obj) {
+                return -1;
+        }
         ts = obj->ts;
         ts->aim_interval = obj->aim_interval;
 
@@ -307,7 +310,9 @@ int main(int argc, char *argv[])
                                 state_parse_psi(obj);
                                 break;
                         case STATE_PARSE_EACH:
-                                state_parse_each(obj);
+                                if(0 != state_parse_each(obj)) {
+                                        goto main_return;
+                                }
                                 break;
                         case STATE_EXIT:
                                 break;
@@ -343,8 +348,9 @@ int main(int argc, char *argv[])
                 }
         }
 
+main_return:
         destroy(obj);
-        exit(EXIT_SUCCESS);
+        return 0;
 }
 
 static void state_parse_psi(struct tsana_obj *obj)
@@ -364,7 +370,7 @@ static void state_parse_psi(struct tsana_obj *obj)
         return;
 }
 
-static void state_parse_each(struct tsana_obj *obj)
+static int state_parse_each(struct tsana_obj *obj)
 {
         int i;
         int has_err;
@@ -386,19 +392,19 @@ static void state_parse_each(struct tsana_obj *obj)
                 /* filter: PID */
                 if(ANY_PID != obj->aim_pid &&
                    ts->PID != obj->aim_pid) {
-                        return;
+                        return 0;
                 }
 
                 /* filter: table_id */
                 if(ANY_TABLE != obj->aim_table &&
                    sech->table_id != obj->aim_table) {
-                        return;
+                        return 0;
                 }
 
                 /* filter: program_number */
                 if(ANY_PROG != obj->aim_prog &&
                    (!(pid->prog) || (pid->prog->program_number != obj->aim_prog))) {
-                        return;
+                        return 0;
                 }
         }
 
@@ -520,7 +526,9 @@ static void state_parse_each(struct tsana_obj *obj)
                 show_ratp(obj);
         }
         if(obj->aim.err && has_err) {
-                show_error(obj);
+                if(0 != show_error(obj)) {
+                        return -1;
+                }
         }
         if(obj->aim.tcp && 0x1FFA == ts->PID) {
                 show_tcp(obj);
@@ -535,7 +543,7 @@ static void state_parse_each(struct tsana_obj *obj)
         if(has_report) {
                 fprintf(stdout, "\n");
         }
-        return;
+        return 0;
 }
 
 static struct tsana_obj *create(int argc, char *argv[])
@@ -699,7 +707,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-start'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &start);
                                 obj->aim_start = start;
@@ -710,7 +718,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-count'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &count);
                                 obj->aim_count = count;
@@ -719,7 +727,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-pid'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0x0000 <= dat && dat <= 0x2000) {
@@ -735,7 +743,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-table'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0x00 <= dat && dat <= 0xFF) {
@@ -751,7 +759,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-prog'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0x0000 <= dat && dat <= 0xFFFF) {
@@ -767,7 +775,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-type'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0 <= dat && dat <= 2) {
@@ -783,7 +791,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-iv'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%u" , &dat);
                                 if(0 <= dat && dat <= 70000) { /* 1ms ~ 70s */
@@ -799,7 +807,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-mp'!\n");
-                                        exit(EXIT_FAILURE);
+                                        return NULL;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(16 <= dat && dat <= BUDDY_ORDER_MAX) {
@@ -822,25 +830,25 @@ static struct tsana_obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")) {
                                 show_help();
-                                exit(EXIT_SUCCESS);
+                                return NULL;
                         }
                         else if(0 == strcmp(argv[i], "-v") ||
                                 0 == strcmp(argv[i], "--version")) {
                                 show_version();
-                                exit(EXIT_SUCCESS);
+                                return NULL;
                         }
                         else if(0 == strcmp(argv[i], "-sex")) {
                                 fprintf(stderr, "SEX? Try to use a Decoder instead of me!\n");
-                                exit(EXIT_FAILURE);
+                                return NULL;
                         }
                         else {
                                 fprintf(stderr, "wrong parameter: '%s'\n", argv[i]);
-                                exit(EXIT_FAILURE);
+                                return NULL;
                         }
                 }
                 else {
                         fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                        exit(EXIT_FAILURE);
+                        return NULL;
                 }
         }
 
@@ -848,12 +856,16 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
         if(0 == obj->mp) {
                 RPT(RPT_ERR, "malloc memory pool failed");
-                exit(EXIT_FAILURE);
+                return NULL;
         }
         buddy_init(obj->mp); /* now, we can use xx_malloc() */
 
         /* create & init ts module */
         obj->ts = ts_create(obj->mp);
+        if(0 == obj->ts) {
+                RPT(RPT_ERR, "malloc ts object failed");
+                return NULL;
+        }
         ts_init(obj->ts);
 
         return obj;
@@ -881,7 +893,7 @@ static int destroy(struct tsana_obj *obj)
 
 static void show_help()
 {
-        fprintf( stderr,
+        fprintf( stdout,
                  "'tsana' get TS packet from stdin, analyse, then send the result to stdout.\n"
                  "\n"
                  "Usage: tsana [OPTION]...\n"
@@ -1597,7 +1609,7 @@ static void show_ratp(struct tsana_obj *obj)
         return;
 }
 
-static void show_error(struct tsana_obj *obj)
+static int show_error(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
         struct ts_err *err = &(ts->err);
@@ -1610,9 +1622,9 @@ static void show_error(struct tsana_obj *obj)
                 fprintf(stdout, "1.1, TS_sync_loss, ");
                 if(err->Sync_byte_error > 10) {
                         fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
-                        exit(EXIT_FAILURE);
+                        return -1;
                 }
-                return;
+                return 0;
         }
         if(err->Sync_byte_error == 1) {
                 fprintf(stdout, "1.2 , Sync_byte, ");
@@ -1684,7 +1696,7 @@ static void show_error(struct tsana_obj *obj)
         /* Third priority: application dependant monitoring */
         /* ... */
 
-        return;
+        return 0;
 }
 
 static void show_tcp(struct tsana_obj *obj)

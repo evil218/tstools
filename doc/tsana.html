@@ -3,13 +3,13 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: September 2012<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: March 2013<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-tsana - manual page for tsana of tstools v1.0.233m f374624c
+tsana - manual page for tsana of tstools v1.0.260m 0af9a674
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
@@ -32,6 +32,8 @@ show PSI tree information
 dump cared packet
 <DT><B>-bg</B><DD>
 output background information
+<DT><B>-cts</B><DD>
+&quot;*cts, CTS, BASE, &quot;
 <DT><B>-stc</B><DD>
 &quot;*stc, STC, BASE, &quot;
 <DT><B>-pcr</B><DD>
@@ -42,6 +44,10 @@ output background information
 &quot;*tsh, 47, xx, xx, xx, &quot;
 <DT><B>-ts</B><DD>
 &quot;*ts, 47, ..., xx, &quot;
+<DT><B>-mts</B><DD>
+&quot;*mts, 3F4BD, &quot;
+<DT><B>-af</B><DD>
+&quot;*af, xx, ..., xx, &quot;
 <DT><B>-pesh</B><DD>
 &quot;*pesh, xx, ..., xx, &quot;
 <DT><B>-pes</B><DD>
@@ -76,6 +82,10 @@ set cared prog, default: any program(0x0000)
 set cared PID type, default: any type(0)
 <DT><B>-iv</B> &lt;iv&gt;<DD>
 set cared interval(1ms-70,000ms), default: 1000ms
+<DT><B>-mp</B> &lt;mp&gt;<DD>
+set memory pool size order(16-32), default: 20, means 2^20 bytes
+<DT><B>-allpes</B><DD>
+write PES data into different file by PID
 <DT><B>-alles</B><DD>
 write ES data into different file by PID
 <DT><B>-h</B>, <B>--help</B><DD>
@@ -88,7 +98,7 @@ display my version
 
 <DL COMPACT>
 <DT><DD>
-&quot;catts xxx.ts | tsana <B>-c</B> <B>-bg</B> <B>-pcr</B> <B>-pts</B>&quot; <B>--</B> report all PCR/PTS/DTS information
+&quot;catts xxx.ts | tsana -c -bg -pcr -pts&quot; -- report all PCR/PTS/DTS information
 </DL>
 <A NAME="lbAG">&nbsp;</A>
 <H2>AUTHOR</H2>
@@ -102,11 +112,11 @@ Report bugs to &lt;<A HREF="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua
 
 <BR>
 
-Build time: Sep 13 2012 20:39:13
+Build time: Mar 27 2013 12:06:20
 <A NAME="lbAI">&nbsp;</A>
 <H2>COPYRIGHT</H2>
 
-Copyright &#169; 2009,2010,2011,2012 ZHOU Cheng.
+Copyright &#169; 2009,2010,2011,2012,2013 ZHOU Cheng.
 License GPLv3+: GNU GPL version 3 or later &lt;<A HREF="http://gnu.org/licenses/gpl.html">http://gnu.org/licenses/gpl.html</A>&gt;
 <BR>
 
@@ -153,6 +163,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 12:39:29 GMT, September 13, 2012
+Time: 04:10:37 GMT, March 27, 2013
 </BODY>
 </HTML>
