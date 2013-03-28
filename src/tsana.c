@@ -156,8 +156,6 @@ struct aim {
         int ratp;
         int err;
         int tcp;
-        int allpes;
-        int alles;
 };
 
 struct tsana_obj {
@@ -253,9 +251,6 @@ static void show_rats(struct tsana_obj *obj);
 static void show_ratp(struct tsana_obj *obj);
 static int show_error(struct tsana_obj *obj);
 static void show_tcp(struct tsana_obj *obj);
-
-static void all_pes(struct tsana_obj *obj);
-static void all_es(struct tsana_obj *obj);
 
 static void table_info_PAT(struct ts_sech *sech, uint8_t *section);
 static void table_info_CAT(struct ts_sech *sech, uint8_t *section);
@@ -532,12 +527,6 @@ static int state_parse_each(struct tsana_obj *obj)
         }
         if(obj->aim.tcp && 0x1FFA == ts->PID) {
                 show_tcp(obj);
-        }
-        if(obj->aim.allpes && ts->PES_len) {
-                all_pes(obj);
-        }
-        if(obj->aim.alles && ts->ES_len) {
-                all_es(obj);
         }
 
         if(has_report) {
@@ -821,14 +810,6 @@ static struct tsana_obj *create(int argc, char *argv[])
                                                 dat, MP_ORDER_DEFAULT);
                                 }
                         }
-                        else if(0 == strcmp(argv[i], "-allpes")) {
-                                obj->aim.allpes = 1;
-                                obj->mode = MODE_ALL;
-                        }
-                        else if(0 == strcmp(argv[i], "-alles")) {
-                                obj->aim.alles = 1;
-                                obj->mode = MODE_ALL;
-                        }
                         else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")) {
                                 show_help();
@@ -929,6 +910,7 @@ static void show_help()
                 " -pes             \"*pes, xx, ..., xx, \"\n"
                 " -es              \"*es, xx, ..., xx, \"\n"
                 " -sec             \"*sec, interval(ms), head, body, \"\n"
+                " -si              \"*si, interval(ms), head, information of body, \"\n"
                 " -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"\n"
                 " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
                 " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
@@ -945,8 +927,6 @@ static void show_help()
                 " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
                 " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
                 "\n"
-                " -allpes          write PES data into different file by PID\n"
-                " -alles           write ES data into different file by PID\n"
 #if 0
                 " -prepsi <file>   get PSI information from <file> first\n"
                 " -si              show SI section information of cared <table>\n"
@@ -1107,7 +1087,7 @@ static void output_prog(struct tsana_obj *obj)
                 }
 
                 /* program_info */
-                if(prog->program_info_len) {
+                if(prog->program_info) {
                         fprintf(stdout, "program_info, %s%02X",
                                 obj->color_yellow,
                                 prog->program_info[0]);
@@ -1147,7 +1127,7 @@ static void output_elem(void *PELEM, uint16_t pcr_pid)
                 fprintf(stdout, "type, %s%s%s, detail, %s%s%s, ",
                         obj->color_yellow, stype->sdes, obj->color_off,
                         obj->color_yellow, stype->ldes, obj->color_off);
-                if(elem->es_info_len) {
+                if(elem->es_info) {
                         fprintf(stdout, "ES_info, %s%02X",
                                 obj->color_yellow, elem->es_info[0]);
                         for(i = 1; i < elem->es_info_len; i++) {
@@ -1714,56 +1694,6 @@ static void show_tcp(struct tsana_obj *obj)
         fprintf(stdout, "%s*tcp%s, ",
                 obj->color_green, obj->color_off);
         atsc_mh_tcp(ts->input.TS);
-        return;
-}
-
-static void all_pes(struct tsana_obj *obj)
-{
-        struct ts_obj *ts = obj->ts;
-
-        if(NULL == ts->pid) {
-                fprintf(stderr, "Bad pid point!\n");
-                return;
-        }
-
-        if(NULL == ts->pid->fd) {
-                char name[100];
-
-                sprintf(name, "%04X.pes", ts->pid->PID);
-                fprintf(stdout, "open file %s\n", name);
-                ts->pid->fd = fopen(name, "wb");
-                if(NULL == ts->pid->fd) {
-                        RPT(RPT_ERR, "open \"%s\" failed", name);
-                        return;
-                }
-        }
-
-        fwrite(ts->PES, ts->PES_len, 1, ts->pid->fd);
-        return;
-}
-
-static void all_es(struct tsana_obj *obj)
-{
-        struct ts_obj *ts = obj->ts;
-
-        if(NULL == ts->pid) {
-                fprintf(stderr, "Bad pid point!\n");
-                return;
-        }
-
-        if(NULL == ts->pid->fd) {
-                char name[100];
-
-                sprintf(name, "%04X.es", ts->pid->PID);
-                fprintf(stdout, "open file %s\n", name);
-                ts->pid->fd = fopen(name, "wb");
-                if(NULL == ts->pid->fd) {
-                        RPT(RPT_ERR, "open \"%s\" failed", name);
-                        return;
-                }
-        }
-
-        fwrite(ts->ES, ts->ES_len, 1, ts->pid->fd);
         return;
 }
 

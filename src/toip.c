@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
                                 next_nuint_hex(&data, &pt, 1);
                                 MTS = (int64_t)data;
                                 mts = &MTS;
-                                dMTS = timestamp_diff(MTS, lMTS, MTS_OVF);
+                                dMTS = ts_timestamp_diff(MTS, lMTS, MTS_OVF);
                                 lMTS = MTS;
                         }
                 }
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
                                 next_nuint_hex(&data, &pt, 1);
                                 MTS = (int64_t)data;
                                 mts = &MTS;
-                                dMTS = timestamp_diff(MTS, lMTS, MTS_OVF);
+                                dMTS = ts_timestamp_diff(MTS, lMTS, MTS_OVF);
                                 if(0 < dMTS && dMTS < 100 * MTS_MS) {
                                         dtv.tv_sec = dMTS / MTS_1S;
                                         dMTS %= MTS_1S;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
                                         dMTS %= MTS_US;
                                         timeradd(&tv_pkt, &dtv, &tv_new);
                                         tv_pkt = tv_new;
-                                        lMTS = timestamp_add(MTS, -dMTS, MTS_OVF);
+                                        lMTS = ts_timestamp_add(MTS, -dMTS, MTS_OVF);
                                 }
                                 else {
                                         RPT(RPT_WRN, "!(0 < dMTS < 100ms): %lld", dMTS);

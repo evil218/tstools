@@ -269,16 +269,11 @@ struct ts_table {
 struct ts_elem {
         struct znode cvfl; /* common variable for list */
 
-        /* PID */
         uint16_t PID; /* 13-bit */
         int type; /* TS_TYPE_xxx */
-
-        /* stream_type */
-        int stream_type;
-
-        /* es_info */
-        int es_info_len;
-        uint8_t es_info[INFO_LEN_MAX];
+        uint8_t stream_type;
+        uint16_t es_info_len;
+        uint8_t *es_info; /* point to NULL if len is 0 */
 
         /* for PTS/DTS mark */
         int64_t PTS; /* last PTS, for obj->PTS_interval */
@@ -291,18 +286,11 @@ struct ts_elem {
 struct ts_prog {
         struct znode cvfl; /* common variable for list */
 
-        /* PMT section */
-        int is_parsed;
-        struct ts_table table_02; /* table_id = 0x02 */
-
-        /* program information */
         uint16_t PMT_PID; /* 13-bit */
         uint16_t PCR_PID; /* 13-bit */
         uint16_t program_number;
-        int program_info_len;
-        uint8_t program_info[INFO_LEN_MAX];
-
-        /* service information */
+        uint16_t program_info_len;
+        uint8_t *program_info; /* point to NULL if len is 0 */
         uint8_t service_name_len;
         uint8_t service_name[SERVER_STR_MAX];
         uint8_t service_provider_len;
@@ -310,6 +298,10 @@ struct ts_prog {
 
         /* elementary stream list */
         struct ts_elem *elem0;
+
+        /* PMT section */
+        int is_parsed;
+        struct ts_table table_02; /* table_id = 0x02 */
 
         /* for STC calc */
         int64_t ADDa; /* PCR packet a: packet address */
@@ -323,20 +315,12 @@ struct ts_prog {
 struct ts_pid {
         struct znode cvfl; /* common variable for list */
 
-        /* PID */
         uint16_t PID; /* 13-bit */
         int type; /* TS_TYPE_xxx */
-
-        /* only for PID with PSI/SI */
-        int sect_idx; /* to index data in section */
-        uint8_t *sect_data; /* only PSI/SI pid has sect_data buffer */
-        int64_t sect_interval;
-        uint32_t CRC_32;
-        uint32_t CRC_32_calc;
-
-         /* point to the node in xxx_list */
+#if 1
         struct ts_prog *prog; /* should be prog0 if does not belong to any program */
         struct ts_elem *elem; /* should be NULL if not video or audio packet */
+#endif
 
         /* for continuity_counter check */
         int is_CC_sync;
@@ -346,12 +330,12 @@ struct ts_pid {
         uint32_t cnt; /* packet received from last PCR */
         uint32_t lcnt; /* packet received from PCRa to PCRb */
 
-#if 0
-        int64_t STC; /* last STC */
-#endif
-
-        /* file for ES dump */
-        FILE *fd;
+        /* only for PID with PSI/SI */
+        int sect_idx; /* to index data in section */
+        uint8_t *sect_data; /* only PSI/SI pid has sect_data buffer */
+        int64_t sect_interval;
+        uint32_t CRC_32;
+        uint32_t CRC_32_calc;
 };
 
 /* information about one packet, tell me as more as you can :-) */
@@ -506,10 +490,10 @@ int ts_parse_tsb(struct ts_obj *obj);
  */
 
 /* return: t1 = t0 + td */
-int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf);
+int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf);
 
 /* return: td = t1 - t0 */
-int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
+int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 #ifdef __cplusplus
 }

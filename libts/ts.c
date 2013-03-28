@@ -200,7 +200,7 @@ static int free_prog(intptr_t mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
-static const struct stream_type_table *elem_type(int stream_type);
+static const struct stream_type_table *elem_type(uint8_t stream_type);
 static int dump(uint8_t *buf, int len);
 
 struct ts_obj *ts_create(intptr_t mp)
@@ -343,11 +343,14 @@ static int free_table(intptr_t mp, struct ts_table *table)
 
 static int free_prog(intptr_t mp, struct ts_prog *prog)
 {
-        struct znode *elem;
+        struct ts_elem *elem;
         struct ts_sect *sect;
 
         /* clear the elem list */
-        while(NULL != (elem = zlst_pop(&(prog->elem0)))) {
+        while(NULL != (elem = (struct ts_elem *)zlst_pop(&(prog->elem0)))) {
+                if(elem->es_info) {
+                        buddy_free(mp, elem->es_info);
+                }
                 buddy_free(mp, elem);
         }
 
@@ -356,6 +359,9 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
                 free_sect(mp, sect);
         }
 
+        if(prog->program_info) {
+                buddy_free(mp, prog->program_info);
+        }
         buddy_free(mp, prog);
         return 0;
 }
@@ -479,13 +485,13 @@ int ts_parse_tsh(struct ts_obj *obj)
         /* calc STC and CTS, should be as early as possible */
         if(obj->config.need_timestamp) {
                 if(input->has_mts) {
-                        int64_t dCTS = timestamp_diff(input->MTS, obj->lCTS, MTS_OVF);
+                        int64_t dCTS = ts_timestamp_diff(input->MTS, obj->lCTS, MTS_OVF);
 
                         if(STC_OVF != obj->STC) {
-                                obj->STC = timestamp_add(obj->STC, dCTS, STC_OVF);
+                                obj->STC = ts_timestamp_add(obj->STC, dCTS, STC_OVF);
                         }
                         else {
-                                obj->STC = timestamp_add(0L, dCTS, STC_OVF);
+                                obj->STC = ts_timestamp_add(0L, dCTS, STC_OVF);
                         }
                         obj->lCTS = input->MTS; /* record last CTS */
 
@@ -509,10 +515,10 @@ int ts_parse_tsh(struct ts_obj *obj)
                                         /* STCx - PCRb   ADDx - ADDb */
                                         /* ----------- = ----------- */
                                         /* PCRb - PCRa   ADDb - ADDa */
-                                        delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                        delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
                                         delta *= (obj->ADDR - prog->ADDb);
                                         delta /= (prog->ADDb - prog->ADDa);
-                                        obj->STC = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                        obj->STC = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                                 }
                         }
 
@@ -530,10 +536,10 @@ int ts_parse_tsh(struct ts_obj *obj)
                                                 /* CTSx - PCRb   ADDx - ADDb */
                                                 /* ----------- = ----------- */
                                                 /* PCRb - PCRa   ADDb - ADDa */
-                                                delta = (long double)timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
                                                 delta *= (obj->ADDR - prog->ADDb);
                                                 delta /= (prog->ADDb - prog->ADDa);
-                                                obj->CTS = timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
+                                                obj->CTS = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                                         }
                                 }
                         }
@@ -719,7 +725,7 @@ static int state_next_pkt(struct ts_obj *obj)
 
                         /* PCR_interval (PCR packet arrive time interval) */
                         if(STC_OVF != prog->PCRb) {
-                                obj->PCR_interval = timestamp_diff(obj->STC, prog->PCRb, STC_OVF);
+                                obj->PCR_interval = ts_timestamp_diff(obj->STC, prog->PCRb, STC_OVF);
                                 if((prog->is_STC_sync) &&
                                    !(0 < obj->PCR_interval && obj->PCR_interval <= 40 * STC_MS)) {
                                         /* !(0 < interval < +40ms) */
@@ -732,7 +738,7 @@ static int state_next_pkt(struct ts_obj *obj)
 
                         /* PCR_continuity (PCR value interval) */
                         if(STC_OVF != prog->PCRb) {
-                                obj->PCR_continuity = timestamp_diff(obj->PCR, prog->PCRb, STC_OVF);
+                                obj->PCR_continuity = ts_timestamp_diff(obj->PCR, prog->PCRb, STC_OVF);
                                 if((prog->is_STC_sync) && !(af->discontinuity_indicator) &&
                                    !(0 < obj->PCR_continuity && obj->PCR_continuity <= 100 * STC_MS)) {
                                         /* !(0 < continuity < +100ms) */
@@ -744,7 +750,7 @@ static int state_next_pkt(struct ts_obj *obj)
                         }
 
                         /* PCR_jitter */
-                        obj->PCR_jitter = timestamp_diff(obj->PCR, obj->STC, STC_OVF);
+                        obj->PCR_jitter = ts_timestamp_diff(obj->PCR, obj->STC, STC_OVF);
                         if((prog->is_STC_sync) &&
                            !(-13 <= obj->PCR_jitter && obj->PCR_jitter <= +13)) {
                                 /* !(-500ns < jitter < +500ns) */
@@ -818,7 +824,7 @@ static int state_next_pkt(struct ts_obj *obj)
 
         /* interval and statistic */
         if(obj->config.need_statistic && obj->prog0 && obj->prog0->is_STC_sync) {
-                obj->interval = timestamp_diff(obj->CTS, obj->CTS0, STC_OVF);
+                obj->interval = ts_timestamp_diff(obj->CTS, obj->CTS0, STC_OVF);
                 if(obj->interval >= obj->aim_interval) {
                         struct znode *znode;
 
@@ -857,13 +863,13 @@ static int state_next_pkt(struct ts_obj *obj)
                 if(obj->has_pts) {
                         /* PTS */
                         if(STC_BASE_OVF != elem->PTS) {
-                                obj->PTS_interval = timestamp_diff(obj->PTS, elem->PTS, STC_BASE_OVF);
+                                obj->PTS_interval = ts_timestamp_diff(obj->PTS, elem->PTS, STC_BASE_OVF);
                         }
                         else {
                                 obj->PTS_interval = 0;
                         }
                         if(STC_BASE_OVF != obj->STC_base) {
-                                obj->PTS_minus_STC = timestamp_diff(obj->PTS, obj->STC_base, STC_BASE_OVF);
+                                obj->PTS_minus_STC = ts_timestamp_diff(obj->PTS, obj->STC_base, STC_BASE_OVF);
                         }
                         else {
                                 obj->PTS_minus_STC = 0;
@@ -872,13 +878,13 @@ static int state_next_pkt(struct ts_obj *obj)
 
                         /* DTS, if no DTS, DTS = PTS */
                         if(STC_BASE_OVF != elem->DTS) {
-                                obj->DTS_interval = timestamp_diff(obj->DTS, elem->DTS, STC_BASE_OVF);
+                                obj->DTS_interval = ts_timestamp_diff(obj->DTS, elem->DTS, STC_BASE_OVF);
                         }
                         else {
                                 obj->DTS_interval = 0;
                         }
                         if(STC_BASE_OVF != obj->STC_base) {
-                                obj->DTS_minus_STC = timestamp_diff(obj->DTS, obj->STC_base, STC_BASE_OVF);
+                                obj->DTS_minus_STC = ts_timestamp_diff(obj->DTS, obj->STC_base, STC_BASE_OVF);
                         }
                         else {
                                 obj->DTS_minus_STC = 0;
@@ -1099,9 +1105,11 @@ static int ts_parse_sect(struct ts_obj *obj)
                 /*pid->CRC_32_calc = crc32(pid->sect_data, 3 + sech->section_length - 4); */
                 if(pid->CRC_32_calc != pid->CRC_32) {
                         err->CRC_error = 1;
+#if 0
                         RPT(RPT_ERR, "CRC error(0x%08X! 0x%08X?)",
                             pid->CRC_32_calc, pid->CRC_32);
                         dump(pid->sect_data, 3 + sech->section_length);
+#endif
                         return -1;
                 }
         }
@@ -1204,7 +1212,7 @@ static int ts_parse_sect(struct ts_obj *obj)
         /* sect_interval */
         if(STC_OVF != table->STC &&
            STC_OVF != obj->STC) {
-                pid->sect_interval = timestamp_diff(obj->STC, table->STC, STC_OVF);
+                pid->sect_interval = ts_timestamp_diff(obj->STC, table->STC, STC_OVF);
         }
         else {
                 pid->sect_interval = 0;
@@ -1535,6 +1543,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
+        prog->program_info = NULL;
 
         obj->is_psi_si = 1;
         prog->is_parsed = 1;
@@ -1566,11 +1575,21 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         prog->program_info_len |= dat;
 
         /* record program_info */
-        if(prog->program_info_len > INFO_LEN_MAX) {
-                RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
-                    tsh->PID, prog->program_info_len);
+        if(0 != prog->program_info_len) {
+                if(prog->program_info_len > INFO_LEN_MAX) {
+                        RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
+                            tsh->PID, prog->program_info_len);
+                        return -1;
+                }
+                else {
+                        prog->program_info = (uint8_t *)buddy_malloc(obj->mp, prog->program_info_len);
+                        if(!(prog->program_info)) {
+                                RPT(RPT_ERR, "malloc for prog_info buffer failed");
+                                return -1;
+                        }
+                        memcpy(prog->program_info, cur, prog->program_info_len);
+                }
         }
-        memcpy(prog->program_info, cur, prog->program_info_len);
         cur += prog->program_info_len;
 
         while(cur < crc) {
@@ -1582,6 +1601,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                         RPT(RPT_ERR, "malloc elem node failed");
                         return -1;
                 }
+                elem->es_info = NULL;
 
                 dat = *cur++;
                 elem->stream_type = dat;
@@ -1602,11 +1622,21 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 elem->es_info_len |= dat;
 
                 /* ES_info */
-                if(elem->es_info_len > INFO_LEN_MAX) {
-                        RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
-                            elem->PID, elem->es_info_len);
+                if(0 != elem->es_info_len) {
+                        if(elem->es_info_len >= INFO_LEN_MAX) {
+                                RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
+                                    elem->PID, elem->es_info_len);
+                                return -1;
+                        }
+                        else {
+                                elem->es_info = (uint8_t *)buddy_malloc(obj->mp, elem->es_info_len);
+                                if(!(elem->es_info)) {
+                                        RPT(RPT_ERR, "malloc for es_info buffer failed");
+                                        return -1;
+                                }
+                                memcpy(elem->es_info, cur, elem->es_info_len);
+                        }
                 }
-                memcpy(elem->es_info, cur, elem->es_info_len);
 
                 next = cur + elem->es_info_len;
                 while(cur < next) {
@@ -2218,7 +2248,6 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->CC = new_pid->CC;
                 pid->is_CC_sync = new_pid->is_CC_sync;
                 pid->sect_idx = 0; /* wait to sync with section head */
-                pid->fd = NULL;
 
                 RPT(RPT_DBG, "insert 0x%04X in pid_list", new_pid->PID);
                 zlst_set_key(pid, new_pid->PID);
@@ -2285,7 +2314,7 @@ static const struct table_id_table *table_type(uint8_t id)
         return p;
 }
 
-static const struct stream_type_table *elem_type(int stream_type)
+static const struct stream_type_table *elem_type(uint8_t stream_type)
 {
         const struct stream_type_table *p;
 
@@ -2321,7 +2350,7 @@ static int dump(uint8_t *buf, int len)
                 } \
         }while(0)
 
-int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
+int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
         int64_t t1; /* t0 + td */
 #if 1
@@ -2341,7 +2370,7 @@ int64_t timestamp_add(int64_t t0, int64_t td, int64_t ovf)
         return t1; /* [0, ovf) */
 }
 
-int64_t timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
+int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
 {
         int64_t td; /* t1 - t0 */
         int64_t hovf = ovf >> 1; /* half overflow */

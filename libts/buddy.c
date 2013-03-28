@@ -168,6 +168,7 @@ int buddy_status(intptr_t id)
         tree_size = (1 << (p->omax - p->omin + 1)) - 1;
         cnt = 0;
         acc = 0;
+        fprintf(stderr,"buddy: ");
         for(int i = 0; i < tree_size; i++) {
                 if(IS_POWER_OF_2(i + 1)) {
                         order--;
@@ -191,7 +192,7 @@ int buddy_status(intptr_t id)
                         fprintf(stderr,"%d x 0x%X, ", cnt, (1 << order));
                 }
         }
-        fprintf(stderr,"%d%% used(%d / %d)\n", (int)(acc * 100.0 / (1 << p->omax)), acc, (1 << p->omax));
+        fprintf(stderr,"(%d / %d) used\n", acc, (1 << p->omax));
         return 0;
 }
 
