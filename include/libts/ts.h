@@ -488,11 +488,15 @@ struct ts_obj {
 };
 
 struct ts_obj *ts_create(intptr_t mp);
-int ts_destroy(struct ts_obj *ts);
+int ts_destroy(struct ts_obj *obj);
 
-int ts_init(struct ts_obj *ts);
-int ts_parse_tsh(struct ts_obj *ts);
-int ts_parse_tsb(struct ts_obj *ts);
+/* cmd */
+#define TS_INIT         (0)
+#define TS_SCFG         (1)
+int ts_ioctl(struct ts_obj *obj, int cmd, int arg);
+
+int ts_parse_tsh(struct ts_obj *obj);
+int ts_parse_tsb(struct ts_obj *obj);
 
 /* calculate timestamp:
  *      t0: [0, ovf);

@@ -175,6 +175,7 @@ enum {
         STATE_NEXT_PKT  /* parse packet with current lists */
 };
 
+static int init(struct ts_obj *obj);
 static int state_next_pat(struct ts_obj *obj);
 static int state_next_pmt(struct ts_obj *obj);
 static int state_next_pkt(struct ts_obj *obj);
@@ -230,57 +231,66 @@ int ts_destroy(struct ts_obj *obj)
                 return -1;
         }
 
-        ts_init(obj); /* free all list */
+        init(obj); /* free all list */
         free(obj);
         return 0;
 }
 
-int ts_init(struct ts_obj *obj)
+int ts_ioctl(struct ts_obj *obj, int cmd, int arg)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
                 return -1;
         }
 
+        switch(cmd)
+        {
+                case TS_INIT:
+                        init(obj);
+                        break;
+                case TS_SCFG:
+                        if(arg) {
+                                memcpy(&(obj->config), (struct ts_config *)arg, sizeof(struct ts_config));
+                        }
+                        else {
+                                RPT(RPT_ERR, "bad cfg");
+                        }
+                        break;
+                default:
+                        RPT(RPT_ERR, "bad cmd");
+                        break;
+        }
+        return 0;
+}
+
+static int init(struct ts_obj *obj)
+{
         /* clear the pid list */
         struct ts_pid *pid;
         while(NULL != (pid = zlst_pop(&(obj->pid0)))) {
                 free_pid(obj->mp, pid);
         }
+        obj->pid0 = NULL;
 
         /* clear the prog list */
         struct ts_prog *prog;
         while(NULL != (prog = (struct ts_prog *)zlst_pop(&(obj->prog0)))) {
                 free_prog(obj->mp, prog);
         }
+        obj->prog0 = NULL;
 
         /* clear the table list */
         struct ts_table *table;
         while(NULL != (table = (struct ts_table *)zlst_pop(&(obj->table0)))) {
                 free_table(obj->mp, table);
         }
-
-        /* config: do nothing */
-        memset(&(obj->config), 0, sizeof(struct ts_config)); /* clear config struct */
-#if 1
-        obj->config.need_cc = 1;
-        obj->config.need_af = 1;
-        obj->config.need_timestamp = 1;
-        obj->config.need_psi = 1;
-        obj->config.need_si = 1;
-        obj->config.need_pes = 1;
-        obj->config.need_pes_align = 1;
-        obj->config.need_statistic = 1;
-#endif
+        obj->table0 = NULL;
 
         obj->state = STATE_NEXT_PAT;
         obj->ADDR = -PKT_SIZE; /* count from 0 */
         obj->cnt = -1; /* count ts packet from 0 */
-        obj->table0 = NULL;
         obj->has_got_transport_stream_id = 0;
         obj->transport_stream_id = 0;
-        obj->prog0 = NULL;
-        obj->pid0 = NULL;
         obj->cnt = 0;
         obj->CC_lost = 0;
         obj->is_pat_pmt_parsed = 0;
@@ -291,7 +301,9 @@ int ts_init(struct ts_obj *obj)
         obj->CTS0 = 0L;
         obj->lCTS = 0L; /* for MTS file only, must init as 0L */
         obj->STC = STC_OVF;
-        memset(&(obj->err), 0, sizeof(struct ts_err)); /* clear error struct */
+
+        memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
+        memset(&(obj->config), 0, sizeof(struct ts_config)); /* do nothing */
 
         return 0;
 }

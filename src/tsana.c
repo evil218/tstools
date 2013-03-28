@@ -552,6 +552,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         int dat;
         size_t mp_order;
         struct tsana_obj *obj;
+        struct ts_config cfg;
 
         obj = (struct tsana_obj *)malloc(sizeof(struct tsana_obj));
         if(NULL == obj) {
@@ -564,6 +565,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->state = STATE_PARSE_PSI;
         memset(&(obj->aim), 0, sizeof(struct aim));
 
+        memset(&cfg, 1, sizeof(struct ts_config));
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
         obj->is_dump = 0;
@@ -707,7 +709,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-start'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &start);
                                 obj->aim_start = start;
@@ -718,7 +720,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-count'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &count);
                                 obj->aim_count = count;
@@ -727,7 +729,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-pid'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0x0000 <= dat && dat <= 0x2000) {
@@ -743,7 +745,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-table'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0x00 <= dat && dat <= 0xFF) {
@@ -759,7 +761,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-prog'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0x0000 <= dat && dat <= 0xFFFF) {
@@ -775,7 +777,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-type'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(0 <= dat && dat <= 2) {
@@ -791,7 +793,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-iv'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%u" , &dat);
                                 if(0 <= dat && dat <= 70000) { /* 1ms ~ 70s */
@@ -807,7 +809,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 i++;
                                 if(i >= argc) {
                                         fprintf(stderr, "no parameter for '-mp'!\n");
-                                        return NULL;
+                                        goto create_failed_with_obj;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
                                 if(16 <= dat && dat <= BUDDY_ORDER_MAX) {
@@ -830,25 +832,25 @@ static struct tsana_obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-h") ||
                                 0 == strcmp(argv[i], "--help")) {
                                 show_help();
-                                return NULL;
+                                goto create_failed_with_obj;
                         }
                         else if(0 == strcmp(argv[i], "-v") ||
                                 0 == strcmp(argv[i], "--version")) {
                                 show_version();
-                                return NULL;
+                                goto create_failed_with_obj;
                         }
                         else if(0 == strcmp(argv[i], "-sex")) {
                                 fprintf(stderr, "SEX? Try to use a Decoder instead of me!\n");
-                                return NULL;
+                                goto create_failed_with_obj;
                         }
                         else {
                                 fprintf(stderr, "wrong parameter: '%s'\n", argv[i]);
-                                return NULL;
+                                goto create_failed_with_obj;
                         }
                 }
                 else {
                         fprintf(stderr, "Wrong parameter: %s\n", argv[i]);
-                        return NULL;
+                        goto create_failed_with_obj;
                 }
         }
 
@@ -856,7 +858,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
         if(0 == obj->mp) {
                 RPT(RPT_ERR, "malloc memory pool failed");
-                return NULL;
+                goto create_failed_with_obj;
         }
         buddy_init(obj->mp); /* now, we can use xx_malloc() */
 
@@ -864,11 +866,17 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->ts = ts_create(obj->mp);
         if(0 == obj->ts) {
                 RPT(RPT_ERR, "malloc ts object failed");
-                return NULL;
+                goto create_failed_with_mp;
         }
-        ts_init(obj->ts);
-
+        ts_ioctl(obj->ts, TS_INIT, 0);
+        ts_ioctl(obj->ts, TS_SCFG, (int)&cfg);
         return obj;
+
+create_failed_with_mp:
+        buddy_destroy(obj->mp); /* return the memory to OS */
+create_failed_with_obj:
+        free(obj);
+        return NULL;
 }
 
 static int destroy(struct tsana_obj *obj)
@@ -893,64 +901,64 @@ static int destroy(struct tsana_obj *obj)
 
 static void show_help()
 {
-        fprintf( stdout,
-                 "'tsana' get TS packet from stdin, analyse, then send the result to stdout.\n"
-                 "\n"
-                 "Usage: tsana [OPTION]...\n"
-                 "\n"
-                 "Options:\n"
-                 " -lst             show PID list information, default option\n"
-                 " -psi             show PSI tree information\n"
-                 "\n"
+        fprintf(stdout,
+                "'tsana' get TS packet from stdin, analyse, then send the result to stdout.\n"
+                "\n"
+                "Usage: tsana [OPTION]...\n"
+                "\n"
+                "Options:\n"
+                " -lst             show PID list information, default option\n"
+                " -psi             show PSI tree information\n"
+                "\n"
 #if 0
-                 " -outpsi          output PSI packet\n"
-                 " -prepsi <file>   get PSI information from <file> first\n"
+                " -outpsi          output PSI packet\n"
+                " -prepsi <file>   get PSI information from <file> first\n"
 #endif
-                 " -dump            dump cared packet\n"
-                 "\n"
-                 " -bg              output background information\n"
-                 " -cts             \"*cts, CTS, BASE, \"\n"
-                 " -stc             \"*stc, STC, BASE, \"\n"
-                 " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"\n"
-                 " -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"\n"
-                 " -tsh             \"*tsh, 47, xx, xx, xx, \"\n"
-                 " -ts              \"*ts, 47, ..., xx, \"\n"
-                 " -mts             \"*mts, 3F4BD, \"\n"
-                 " -af              \"*af, xx, ..., xx, \"\n"
-                 " -pesh            \"*pesh, xx, ..., xx, \"\n"
-                 " -pes             \"*pes, xx, ..., xx, \"\n"
-                 " -es              \"*es, xx, ..., xx, \"\n"
-                 " -sec             \"*sec, interval(ms), head, body, \"\n"
-                 " -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"\n"
-                 " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
-                 " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
-                 " -err             \"*err, TR-101-290, datail, \"\n"
-                 " -tcp             show TCP(ATSC MH) field information\n"
-                 "\n"
-                 " -c -color        enable colour effect to help read, default: mono\n"
-                 " -start <x>       analyse from packet(x), default: 0, first packet\n"
-                 " -count <n>       analyse n-packet then stop, default: 0, no stop\n"
-                 " -pid <pid>       set cared PID, default: any PID(0x2000)\n"
-                 " -table <id>      set cared table, default: any table(0xFF)\n"
-                 " -prog <prog>     set cared prog, default: any program(0x0000)\n"
-                 " -type <type>     set cared PID type, default: any type(0)\n"
-                 " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
-                 " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
-                 "\n"
-                 " -allpes          write PES data into different file by PID\n"
-                 " -alles           write ES data into different file by PID\n"
+                " -dump            dump cared packet\n"
+                "\n"
+                " -bg              output background information\n"
+                " -cts             \"*cts, CTS, BASE, \"\n"
+                " -stc             \"*stc, STC, BASE, \"\n"
+                " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"\n"
+                " -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"\n"
+                " -tsh             \"*tsh, 47, xx, xx, xx, \"\n"
+                " -ts              \"*ts, 47, ..., xx, \"\n"
+                " -mts             \"*mts, 3F4BD, \"\n"
+                " -af              \"*af, xx, ..., xx, \"\n"
+                " -pesh            \"*pesh, xx, ..., xx, \"\n"
+                " -pes             \"*pes, xx, ..., xx, \"\n"
+                " -es              \"*es, xx, ..., xx, \"\n"
+                " -sec             \"*sec, interval(ms), head, body, \"\n"
+                " -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"\n"
+                " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
+                " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
+                " -err             \"*err, TR-101-290, datail, \"\n"
+                " -tcp             show TCP(ATSC MH) field information\n"
+                "\n"
+                " -c -color        enable colour effect to help read, default: mono\n"
+                " -start <x>       analyse from packet(x), default: 0, first packet\n"
+                " -count <n>       analyse n-packet then stop, default: 0, no stop\n"
+                " -pid <pid>       set cared PID, default: any PID(0x2000)\n"
+                " -table <id>      set cared table, default: any table(0xFF)\n"
+                " -prog <prog>     set cared prog, default: any program(0x0000)\n"
+                " -type <type>     set cared PID type, default: any type(0)\n"
+                " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
+                " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
+                "\n"
+                " -allpes          write PES data into different file by PID\n"
+                " -alles           write ES data into different file by PID\n"
 #if 0
-                 " -prepsi <file>   get PSI information from <file> first\n"
-                 " -si              show SI section information of cared <table>\n"
+                " -prepsi <file>   get PSI information from <file> first\n"
+                " -si              show SI section information of cared <table>\n"
 #endif
-                 "\n"
-                 " -h, --help       display this information\n"
-                 " -v, --version    display my version\n"
-                 "\n"
-                 "Examples:\n"
-                 "  \"catts xxx.ts | tsana -c -bg -pcr -pts\" -- report all PCR/PTS/DTS information\n"
-                 "\n"
-                 "Report bugs to <zhoucheng@tsinghua.org.cn>.\n",
+                "\n"
+                " -h, --help       display this information\n"
+                " -v, --version    display my version\n"
+                "\n"
+                "Examples:\n"
+                "  \"catts xxx.ts | tsana -c -bg -pcr -pts\" -- report all PCR/PTS/DTS information\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n",
                 BUDDY_ORDER_MAX, MP_ORDER_DEFAULT, MP_ORDER_DEFAULT);
         return;
 }
@@ -2323,7 +2331,6 @@ static int descriptor(uint8_t **buf)
                                 default:
                                         fprintf(stdout, "audio_type, Reserved");
                                         break;
-                      
                         }
 
                         len_left -= 4;
