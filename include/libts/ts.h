@@ -50,8 +50,8 @@ extern "C" {
 #define MTS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
 #define MTS_OVF (1<<30)            /* 0x40000000 */
 
-#define INFO_LEN_MAX (1<<10) /* pow(2, 10) */
-#define SERVER_STR_MAX (188) /* max length of server string */
+#define INFO_LEN_MAX (1<<10) /* uint10_t, max length of es_info or program_info */
+#define SERVER_STR_MAX (1<<8) /* uint8_t, max length of server string */
 
 /* TS packet type */
 #define TS_TMSK_BASE    (0x00FF) /* BIT[7:0]: base type mask */
@@ -292,14 +292,14 @@ struct ts_prog {
         uint16_t program_info_len;
         uint8_t *program_info; /* point to NULL if len is 0 */
         uint8_t service_name_len;
-        uint8_t service_name[SERVER_STR_MAX];
+        uint8_t *service_name; /* point to NULL if len is 0 */
         uint8_t service_provider_len;
-        uint8_t service_provider[SERVER_STR_MAX];
+        uint8_t *service_provider; /* point to NULL if len is 0 */
 
         /* elementary stream list */
         struct ts_elem *elem0;
 
-        /* PMT section */
+        /* PMT table */
         int is_parsed;
         struct ts_table table_02; /* table_id = 0x02 */
 

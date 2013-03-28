@@ -362,6 +362,12 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
         if(prog->program_info) {
                 buddy_free(mp, prog->program_info);
         }
+        if(prog->service_name) {
+                buddy_free(mp, prog->service_name);
+        }
+        if(prog->service_provider) {
+                buddy_free(mp, prog->service_provider);
+        }
         buddy_free(mp, prog);
         return 0;
 }
@@ -1375,6 +1381,12 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                 }
                 prog->elem0 = NULL;
                 prog->table_02.sect0 = NULL;
+                prog->program_info_len = 0;
+                prog->program_info = NULL;
+                prog->service_name_len = 0;
+                prog->service_name = NULL;
+                prog->service_provider_len = 0;
+                prog->service_provider = NULL;
 
                 dat = *cur++;
                 prog->program_number = dat;
@@ -1408,8 +1420,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                         new_pid->type = TS_TYPE_PMT;
 
                         if(!(obj->prog0)) {
-                                /* traverse pid_list */
-                                /* if it des not belong to any program, use prog0 */
+                                /* traverse pid_list: if it des not belong to any program, use prog0 */
                                 for(znode = (struct znode *)(obj->pid0); znode; znode = znode->next) {
                                         struct ts_pid *pid_item = (struct ts_pid *)znode;
                                         if(pid_item->PID < 0x0020 || pid_item->PID == 0x1FFF) {
@@ -1417,6 +1428,19 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                                         }
                                 }
                         }
+
+                        /* program info */
+                        prog->program_info_len = 0;
+                        prog->program_info = NULL;
+
+                        /* SDT info */
+                        prog->service_name_len = 0;
+                        prog->service_name = NULL;
+                        prog->service_provider_len = 0;
+                        prog->service_provider = NULL;
+
+                        /* elementary stream list */
+                        prog->elem0 = NULL;
 
                         /* PMT table */
                         prog->is_parsed = 0;
@@ -1426,21 +1450,12 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                         prog->table_02.sect0 = NULL;
                         prog->table_02.STC = STC_OVF;
 
-                        /* elementary stream list */
-                        prog->elem0 = NULL;
-
-                        /* for time */
+                        /* for STC calc */
                         prog->ADDa = 0;
                         prog->PCRa = STC_OVF;
                         prog->ADDb = 0;
                         prog->PCRb = STC_OVF;
                         prog->is_STC_sync = 0;
-
-                        /* SDT info */
-                        prog->service_name_len = 0;
-                        prog->service_name[0] = '\0';
-                        prog->service_provider_len = 0;
-                        prog->service_provider[0] = '\0';
 
                         RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
                         zlst_set_key(prog, prog->program_number);
@@ -1526,7 +1541,6 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         uint8_t *cur = sect + 8;
         uint8_t *crc = sect + 3 + sech->section_length - 4;
         struct ts_prog *prog;
-        struct ts_elem *elem;
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PMT_error */
@@ -1543,7 +1557,6 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
-        prog->program_info = NULL;
 
         obj->is_psi_si = 1;
         prog->is_parsed = 1;
@@ -1575,7 +1588,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         prog->program_info_len |= dat;
 
         /* record program_info */
-        if(0 != prog->program_info_len) {
+        if(0 != prog->program_info_len && !(prog->program_info)) {
                 if(prog->program_info_len > INFO_LEN_MAX) {
                         RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
                             tsh->PID, prog->program_info_len);
@@ -1593,6 +1606,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
         cur += prog->program_info_len;
 
         while(cur < crc) {
+                struct ts_elem *elem;
                 uint8_t *next; /* point to the data after descriptors */
 
                 /* add elementary stream */
@@ -1622,7 +1636,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj, uint8_t *sect)
                 elem->es_info_len |= dat;
 
                 /* ES_info */
-                if(0 != elem->es_info_len) {
+                if(0 != elem->es_info_len && !(elem->es_info)) {
                         if(elem->es_info_len >= INFO_LEN_MAX) {
                                 RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
                                     elem->PID, elem->es_info_len);
@@ -1804,14 +1818,28 @@ static int ts_parse_secb_sdt(struct ts_obj *obj, uint8_t *sect)
                                 pt++; /* ignore type */
 
                                 prog->service_provider_len = *pt++;
-                                memcpy(prog->service_provider, pt, prog->service_provider_len);
-                                prog->service_provider[prog->service_provider_len] = '\0';
+                                if(0 != prog->service_provider_len && !(prog->service_provider)) {
+                                        prog->service_provider = (uint8_t *)buddy_malloc(obj->mp, (uint16_t)1 + prog->service_provider_len);
+                                        if(!(prog->service_provider)) {
+                                                RPT(RPT_ERR, "malloc for service_provider buffer failed");
+                                                return -1;
+                                        }
+                                        memcpy(prog->service_provider, pt, prog->service_provider_len);
+                                        prog->service_provider[prog->service_provider_len] = '\0';
+                                }
 
                                 pt += prog->service_provider_len; /* pass provider */
 
                                 prog->service_name_len = *pt++;
-                                memcpy(prog->service_name, pt, prog->service_name_len);
-                                prog->service_name[prog->service_name_len] = '\0';
+                                if(0 != prog->service_name_len && !(prog->service_name)) {
+                                        prog->service_name = (uint8_t *)buddy_malloc(obj->mp, (uint16_t)1 + prog->service_name_len);
+                                        if(!(prog->service_name)) {
+                                                RPT(RPT_ERR, "malloc for service_name buffer failed");
+                                                return -1;
+                                        }
+                                        memcpy(prog->service_name, pt, prog->service_name_len);
+                                        prog->service_name[prog->service_name_len] = '\0';
+                                }
                         }
                         cur += len;
                 }
