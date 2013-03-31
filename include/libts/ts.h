@@ -50,6 +50,7 @@ extern "C" {
 #define MTS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
 #define MTS_OVF (1<<30)            /* 0x40000000 */
 
+#define TS_PKT_SIZE (188)
 #define INFO_LEN_MAX (1<<10) /* uint10_t, max length of es_info or program_info */
 #define SERVER_STR_MAX (1<<8) /* uint8_t, max length of server string */
 
@@ -241,12 +242,13 @@ struct ts_sech {
 struct ts_sect {
         struct znode cvfl; /* common variable for list */
 
-        /* section head */
+        /* section info */
         uint8_t section_number;
         uint16_t section_length;
 
-        /* section info */
-        uint8_t *data; /* 1024 or 4096 */
+        /* section data */
+        uint8_t sech3[3]; /* will be the first 3-byte of this section */
+        uint8_t *section; /* will be the data after section_length, now it has sech3 */
 #if 0
         /* maybe merge ts_sech to here */
         int check_CRC; /* bool, some table do not need to check CRC_32 */
@@ -258,10 +260,10 @@ struct ts_sect {
 struct ts_table {
         struct znode cvfl; /* common variable for list */
 
-        uint8_t table_id; /* 0x00~0xFF except 0x02 */
+        struct ts_sect *sect0; /* section list of this table */
+        uint8_t table_id; /* 0x00~0xFF */
         uint8_t version_number;
         uint8_t last_section_number;
-        struct ts_sect *sect0;
         int64_t STC; /* for pid->sect_interval */
 };
 
@@ -311,6 +313,15 @@ struct ts_prog {
         int is_STC_sync; /* true: PCRa and PCRb OK, STC can be calc */
 };
 
+/* node of packet list, for ts2sect() or sect2ts() */
+struct ts_pkt {
+        struct znode cvfl; /* common variable for list */
+
+        uint8_t pkt[TS_PKT_SIZE];
+        uint8_t payload_unit_start_indicator; /* 1-bit */
+        int payload_size;
+};
+
 /* node of pid list */
 struct ts_pid {
         struct znode cvfl; /* common variable for list */
@@ -331,8 +342,18 @@ struct ts_pid {
         uint32_t lcnt; /* packet received from PCRa to PCRb */
 
         /* only for PID with PSI/SI */
+        struct ts_pkt *pkt0;
+        int sect_size; /* accumulate packet by packet */
+        uint8_t sech3[3]; /* first 3-byte of this section */
+        uint8_t table_id; /* TABLE_ID_TABLE */
+        uint8_t section_syntax_indicator; /* 1-bit */
+        uint8_t private_indicator; /* 1-bit */
+        uint16_t section_length; /* 12-bit */
+#if 1
+        /* I will use pkt0 instead of sect_data */
         int sect_idx; /* to index data in section */
         uint8_t *sect_data; /* only PSI/SI pid has sect_data buffer */
+#endif
         int64_t sect_interval;
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
@@ -340,7 +361,7 @@ struct ts_pid {
 
 /* information about one packet, tell me as more as you can :-) */
 struct ts_input {
-        uint8_t TS[188]; /* TS data */
+        uint8_t TS[TS_PKT_SIZE]; /* TS data */
         uint8_t RS[16]; /* RS data */
         long long int ADDR; /* address of sync-byte(unit: byte) */
         int64_t MTS; /* MTS Time Stamp */
