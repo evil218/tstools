@@ -194,7 +194,7 @@ static int ts_parse_pesh_detail(struct ts_obj *obj);
 static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid);
 static int free_pid(intptr_t mp, struct ts_pid *pid);
 static int free_sect(intptr_t mp, struct ts_sect *sect);
-static int free_table(intptr_t mp, struct ts_table *table);
+static int free_tabl(intptr_t mp, struct ts_tabl *tabl);
 static int free_prog(intptr_t mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
@@ -218,7 +218,7 @@ struct ts_obj *ts_create(intptr_t mp)
         /* do NOT forgot to call ts_init() before use */
         obj->pid0 = NULL; /* no pid list now */
         obj->prog0 = NULL; /* no prog list now */
-        obj->table0 = NULL; /* no table list now */
+        obj->tabl0 = NULL; /* no tabl list now */
 
         return obj;
 }
@@ -249,7 +249,7 @@ int ts_ioctl(struct ts_obj *obj, int cmd, int arg)
                         break;
                 case TS_SCFG:
                         if(arg) {
-                                memcpy(&(obj->config), (struct ts_config *)arg, sizeof(struct ts_config));
+                                memcpy(&(obj->cfg), (struct ts_cfg *)arg, sizeof(struct ts_cfg));
                         }
                         else {
                                 RPT(RPT_ERR, "bad cfg");
@@ -279,11 +279,11 @@ static int init(struct ts_obj *obj)
         obj->prog0 = NULL;
 
         /* clear the table list */
-        struct ts_table *table;
-        while(NULL != (table = (struct ts_table *)zlst_pop(&(obj->table0)))) {
-                free_table(obj->mp, table);
+        struct ts_tabl *tabl;
+        while(NULL != (tabl = (struct ts_tabl *)zlst_pop(&(obj->tabl0)))) {
+                free_tabl(obj->mp, tabl);
         }
-        obj->table0 = NULL;
+        obj->tabl0 = NULL;
 
         obj->state = STATE_NEXT_PAT;
         obj->ADDR = -TS_PKT_SIZE; /* count from 0 */
@@ -302,7 +302,7 @@ static int init(struct ts_obj *obj)
         obj->STC = STC_OVF;
 
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
-        memset(&(obj->config), 0, sizeof(struct ts_config)); /* do nothing */
+        memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
 
         return 0;
 }
@@ -336,16 +336,16 @@ static int free_sect(intptr_t mp, struct ts_sect *sect)
         return 0;
 }
 
-static int free_table(intptr_t mp, struct ts_table *table)
+static int free_tabl(intptr_t mp, struct ts_tabl *tabl)
 {
         struct ts_sect *sect;
 
         /* clear the sect list */
-        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(table->sect0)))) {
+        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(tabl->sect0)))) {
                 free_sect(mp, sect);
         }
 
-        buddy_free(mp, table);
+        buddy_free(mp, tabl);
         return 0;
 }
 
@@ -363,7 +363,7 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
         }
 
         /* clear the sect list */
-        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(prog->table_02.sect0)))) {
+        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(prog->tabl.sect0)))) {
                 free_sect(mp, sect);
         }
 
@@ -382,28 +382,28 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
 
 int ts_parse_tsh(struct ts_obj *obj)
 {
-        struct ts_input *input;
+        struct ts_ipt *ipt;
 
         if(!obj) {
                 RPT(RPT_ERR, "ts_parse_tsh: bad obj");
                 return -1;
         }
-        input = &(obj->input);
+        ipt = &(obj->ipt);
 
         /* TS[] */
-        if(!(input->has_ts)) {
+        if(!(ipt->has_ts)) {
                 RPT(RPT_ERR, "ts_parse_tsh: no ts packet");
                 return -1;
         }
-        obj->cur = input->TS;
+        obj->cur = ipt->TS;
         obj->tail = obj->cur + TS_PKT_SIZE;
 
         /* packet count and ADDR */
         obj->cnt++;
-        obj->ADDR = (input->has_addr) ? (input->ADDR) : (obj->ADDR + TS_PKT_SIZE);
+        obj->ADDR = (ipt->has_addr) ? (ipt->ADDR) : (obj->ADDR + TS_PKT_SIZE);
 #if 0
         RPT(RPT_INF, "packet %lld @ %lld:", obj->cnt, obj->ADDR);
-        dump(input->TS, TS_PKT_SIZE); /* debug only */
+        dump(ipt->TS, TS_PKT_SIZE); /* debug only */
 #endif
 
         uint8_t dat;
@@ -430,7 +430,7 @@ int ts_parse_tsh(struct ts_obj *obj)
                         err->TS_sync_loss++;
                 }
                 RPT(RPT_ERR, "sync_byte(0x%02X) error!", tsh->sync_byte);
-                dump(input->TS, TS_PKT_SIZE);
+                dump(ipt->TS, TS_PKT_SIZE);
         }
         else {
                 err->TS_sync_loss = 0;
@@ -457,7 +457,7 @@ int ts_parse_tsh(struct ts_obj *obj)
                 RPT(RPT_ERR, "Bad adaption_field_control field(00)!");
         }
 
-        if(obj->config.need_af &&
+        if(obj->cfg.need_af &&
            (BIT(1) & tsh->adaption_field_control)) {
                 ts_parse_af(obj);
         }
@@ -499,9 +499,9 @@ int ts_parse_tsh(struct ts_obj *obj)
         struct ts_pid *pid = obj->pid; /* maybe NULL */
 
         /* calc STC and CTS, should be as early as possible */
-        if(obj->config.need_timestamp) {
-                if(input->has_mts) {
-                        int64_t dCTS = ts_timestamp_diff(input->MTS, obj->lCTS, MTS_OVF);
+        if(obj->cfg.need_timestamp) {
+                if(ipt->has_mts) {
+                        int64_t dCTS = ts_timestamp_diff(ipt->MTS, obj->lCTS, MTS_OVF);
 
                         if(STC_OVF != obj->STC) {
                                 obj->STC = ts_timestamp_add(obj->STC, dCTS, STC_OVF);
@@ -509,10 +509,10 @@ int ts_parse_tsh(struct ts_obj *obj)
                         else {
                                 obj->STC = ts_timestamp_add(0L, dCTS, STC_OVF);
                         }
-                        obj->lCTS = input->MTS; /* record last CTS */
+                        obj->lCTS = ipt->MTS; /* record last CTS */
 
-                        if(input->has_cts) {
-                                obj->CTS = input->CTS;
+                        if(ipt->has_cts) {
+                                obj->CTS = ipt->CTS;
                         }
                         else {
                                 obj->CTS = obj->STC;
@@ -539,8 +539,8 @@ int ts_parse_tsh(struct ts_obj *obj)
                         }
 
                         /* CTS: according to prog0 */
-                        if(input->has_cts) {
-                                obj->CTS = input->CTS;
+                        if(ipt->has_cts) {
+                                obj->CTS = ipt->CTS;
                         }
                         else {
                                 if(obj->prog0) {
@@ -567,7 +567,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         }
 
         /* statistic */
-        if(obj->config.need_statistic) {
+        if(obj->cfg.need_statistic) {
                 pid->cnt++;
                 obj->sys_cnt++;
                 obj->nul_cnt += ((0x1FFF == tsh->PID) ? 1 : 0);
@@ -578,7 +578,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         }
 
         /* PSI/SI section collect */
-        if(obj->config.need_psi || obj->config.need_si) {
+        if(obj->cfg.need_psi || obj->cfg.need_si) {
                 if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
                         ts_ts2sect(obj);
                 }
@@ -613,7 +613,7 @@ int ts_parse_tsb(struct ts_obj *obj)
 static int state_next_pat(struct ts_obj *obj)
 {
         struct ts_tsh *tsh = &(obj->tsh);
-        struct ts_table *table;
+        struct ts_tabl *tabl;
         uint8_t section_number;
 
         if(0x0000 != tsh->PID) {
@@ -622,18 +622,18 @@ static int state_next_pat(struct ts_obj *obj)
 
         /* section parse has done in ts_parse_tsh()! */
         RPT(RPT_DBG, "search 0x00 in table_list");
-        table = (struct ts_table *)zlst_search(&(obj->table0), 0x00);
-        if(!table) {
+        tabl = (struct ts_tabl *)zlst_search(&(obj->tabl0), 0x00);
+        if(!tabl) {
                 return -1;
         }
         else {
                 struct znode *znode;
 
                 section_number = 0;
-                for(znode = (struct znode *)(table->sect0); znode; znode = znode->next) {
+                for(znode = (struct znode *)(tabl->sect0); znode; znode = znode->next) {
                         struct ts_sect *sect = (struct ts_sect *)znode;
 
-                        if(section_number > table->last_section_number) {
+                        if(section_number > tabl->last_section_number) {
                                 return -1;
                         }
                         if(section_number != sect->section_number) {
@@ -686,7 +686,7 @@ static int state_next_pkt(struct ts_obj *obj)
         struct ts_err *err = &(obj->err);
 
         /* CC */
-        if(obj->config.need_cc) {
+        if(obj->cfg.need_cc) {
                 if(pid->is_CC_sync) {
                         uint8_t dCC;
                         int lost;
@@ -723,7 +723,7 @@ static int state_next_pkt(struct ts_obj *obj)
         }
 
         /* PCR flush */
-        if(obj->config.need_af && obj->has_pcr) {
+        if(obj->cfg.need_af && obj->has_pcr) {
                 obj->PCR_base = af->program_clock_reference_base;
                 obj->PCR_ext  = af->program_clock_reference_extension;
 
@@ -785,7 +785,7 @@ static int state_next_pkt(struct ts_obj *obj)
                         if(!prog->is_STC_sync) {
                                 int is_first_count_clear = 0;
 
-                                if(obj->input.has_mts) {
+                                if(obj->ipt.has_mts) {
                                         /* clear count after 1st PCR */
                                         is_first_count_clear = 1;
 
@@ -839,7 +839,7 @@ static int state_next_pkt(struct ts_obj *obj)
         }
 
         /* interval and statistic */
-        if(obj->config.need_statistic && obj->prog0 && obj->prog0->is_STC_sync) {
+        if(obj->cfg.need_statistic && obj->prog0 && obj->prog0->is_STC_sync) {
                 obj->interval = ts_timestamp_diff(obj->CTS, obj->CTS0, STC_OVF);
                 if(obj->interval >= obj->aim_interval) {
                         struct znode *znode;
@@ -871,7 +871,7 @@ static int state_next_pkt(struct ts_obj *obj)
         }
 
         /* PES head & ES data */
-        if(obj->config.need_pes && elem && (0 == tsh->transport_scrambling_control)) {
+        if(obj->cfg.need_pes && elem && (0 == tsh->transport_scrambling_control)) {
                 if(IS_TYPE(TS_TYPE_AUD, pid->type) || IS_TYPE(TS_TYPE_VID, pid->type)) {
                         ts_parse_pesh(obj);
                 }
@@ -1033,7 +1033,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                 RPT(RPT_ERR, "malloc for pkt node failed");
                                 return -1;
                         }
-                        memcpy(new_pkt->pkt, obj->input.TS, TS_PKT_SIZE);
+                        memcpy(new_pkt->pkt, obj->ipt.TS, TS_PKT_SIZE);
                         new_pkt->payload_unit_start_indicator = 1;
                         dat = *(obj->cur)++; /* pointer_field */
                         obj->cur += dat; /* point to section head now */
@@ -1096,7 +1096,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                         RPT(RPT_ERR, "malloc for pkt node failed");
                         return -1;
                 }
-                memcpy(new_pkt->pkt, obj->input.TS, TS_PKT_SIZE);
+                memcpy(new_pkt->pkt, obj->ipt.TS, TS_PKT_SIZE);
                 new_pkt->payload_unit_start_indicator = tsh->payload_unit_start_indicator;
                 new_pkt->payload_size = (obj->tail - obj->cur);
                 pid->sect_size += new_pkt->payload_size;
@@ -1150,7 +1150,7 @@ static int ts_ts2sect(struct ts_obj *obj)
 static int ts_parse_sect(struct ts_obj *obj)
 {
         uint8_t *p;
-        struct ts_table *table;
+        struct ts_tabl *tabl;
         struct znode **psect0;
         struct ts_sect *sect;
         struct ts_pid *pid = obj->pid;
@@ -1184,59 +1184,59 @@ static int ts_parse_sect(struct ts_obj *obj)
 #if 0
                         RPT(RPT_ERR, "CRC error(0x%08X! 0x%08X?)",
                             pid->CRC_32_calc, pid->CRC_32);
-                        dump(obj->input.TS, TS_PKT_SIZE);
+                        dump(obj->ipt.TS, TS_PKT_SIZE);
                         dump(pid->sect_data, 3 + sech->section_length);
 #endif
                         return -1;
                 }
         }
 
-        /* get "table" and "psect0" */
+        /* get "tabl" and "psect0" */
         if(0x02 == sech->table_id) {
                 /* PMT section */
                 if(!(pid->prog)) {
                         RPT(RPT_WRN, "PMT: pid->prog is NULL");
                         return -1;
                 }
-                table = &(pid->prog->table_02);
+                tabl = &(pid->prog->tabl);
         }
         else {
                 /* other section */
                 RPT(RPT_DBG, "search 0x%02X in table_list", sech->table_id);
-                table = (struct ts_table *)zlst_search(&(obj->table0), sech->table_id);
-                if(!table) {
-                        table = (struct ts_table *)buddy_malloc(obj->mp, sizeof(struct ts_table));
-                        if(!table) {
-                                RPT(RPT_ERR, "malloc ts_table node failed");
+                tabl = (struct ts_tabl *)zlst_search(&(obj->tabl0), sech->table_id);
+                if(!tabl) {
+                        tabl = (struct ts_tabl *)buddy_malloc(obj->mp, sizeof(struct ts_tabl));
+                        if(!tabl) {
+                                RPT(RPT_ERR, "malloc ts_tabl node failed");
                                 return -1;
                         }
 
-                        table->sect0 = NULL;
-                        table->table_id = sech->table_id;
-                        table->version_number = sech->version_number;
-                        table->last_section_number = sech->last_section_number;
-                        table->STC = STC_OVF;
+                        tabl->sect0 = NULL;
+                        tabl->table_id = sech->table_id;
+                        tabl->version_number = sech->version_number;
+                        tabl->last_section_number = sech->last_section_number;
+                        tabl->STC = STC_OVF;
 
-                        RPT(RPT_DBG, "insert 0x%02X in table_list", table->table_id);
-                        zlst_set_key(table, table->table_id);
-                        if(0 != zlst_insert(&(obj->table0), table)) {
-                                free_table(obj->mp, table);
+                        RPT(RPT_DBG, "insert 0x%02X in table_list", tabl->table_id);
+                        zlst_set_key(tabl, tabl->table_id);
+                        if(0 != zlst_insert(&(obj->tabl0), tabl)) {
+                                free_tabl(obj->mp, tabl);
                                 return -1;
                         }
                 }
         }
-        psect0 = (struct znode **)&(table->sect0);
+        psect0 = (struct znode **)&(tabl->sect0);
 
         /* new table version? */
-        if(table->version_number != sech->version_number) {
+        if(tabl->version_number != sech->version_number) {
                 struct ts_sect *sect_node;
 
                 /* clear psect0 and update table parameter */
                 RPT(RPT_DBG, "version_number(%d -> %d), free old sections",
-                    table->version_number,
+                    tabl->version_number,
                     sech->version_number);
-                table->version_number = sech->version_number;
-                table->last_section_number = sech->last_section_number;
+                tabl->version_number = sech->version_number;
+                tabl->last_section_number = sech->last_section_number;
                 while(NULL != (sect_node = (struct ts_sect *)zlst_pop(psect0))) {
                         free_sect(obj->mp, sect_node);
                 };
@@ -1281,19 +1281,19 @@ static int ts_parse_sect(struct ts_obj *obj)
         }
 
         /* sect_interval */
-        if(STC_OVF != table->STC &&
+        if(STC_OVF != tabl->STC &&
            STC_OVF != obj->STC) {
-                pid->sect_interval = ts_timestamp_diff(obj->STC, table->STC, STC_OVF);
+                pid->sect_interval = ts_timestamp_diff(obj->STC, tabl->STC, STC_OVF);
         }
         else {
                 pid->sect_interval = 0;
         }
-        table->STC = obj->STC;
+        tabl->STC = obj->STC;
 
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != sech->table_id) {
                 err->PAT_error = ERR_1_3_1;
-                dump(obj->input.TS, TS_PKT_SIZE);
+                dump(obj->ipt.TS, TS_PKT_SIZE);
                 dump(pid->sect_data, 8);
                 return -1;
         }
@@ -1421,7 +1421,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
                         return -1;
                 }
                 prog->elem0 = NULL;
-                prog->table_02.sect0 = NULL;
+                prog->tabl.sect0 = NULL;
                 prog->program_info_len = 0;
                 prog->program_info = NULL;
                 prog->service_name_len = 0;
@@ -1485,11 +1485,11 @@ static int ts_parse_secb_pat(struct ts_obj *obj, uint8_t *sect)
 
                         /* PMT table */
                         prog->is_parsed = 0;
-                        prog->table_02.table_id = 0x02;
-                        prog->table_02.version_number = 0xFF; /* never reached version */
-                        prog->table_02.last_section_number = 0; /* no use */
-                        prog->table_02.sect0 = NULL;
-                        prog->table_02.STC = STC_OVF;
+                        prog->tabl.table_id = 0x02;
+                        prog->tabl.version_number = 0xFF; /* never reached version */
+                        prog->tabl.last_section_number = 0; /* no use */
+                        prog->tabl.sect0 = NULL;
+                        prog->tabl.STC = STC_OVF;
 
                         /* for STC calc */
                         prog->ADDa = 0;
@@ -1914,7 +1914,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
         }
 
         /* record PES data */
-        if(obj->config.need_pes_align) {
+        if(obj->cfg.need_pes_align) {
                 if(elem->is_pes_align) {
                         obj->PES_len = obj->tail - obj->cur;
                         obj->PES = obj->cur;
@@ -1946,7 +1946,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 if(0x000001 != pesh->packet_start_code_prefix) {
                         RPT(RPT_ERR, "PES packet start code prefix(0x%06X) NOT 0x000001!",
                             pesh->packet_start_code_prefix);
-                        dump(obj->input.TS, TS_PKT_SIZE);
+                        dump(obj->ipt.TS, TS_PKT_SIZE);
 #if 0
                         return -1;
 #endif
@@ -1971,7 +1971,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
         }
 
         /* record ES data */
-        if(obj->config.need_pes_align) {
+        if(obj->cfg.need_pes_align) {
                 if(elem->is_pes_align) {
                         obj->ES_len = obj->tail - obj->cur;
                         obj->ES = obj->cur;
@@ -2134,7 +2134,7 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
         }
         else if(0x01 == pesh->PTS_DTS_flags) { /* '01' */
                 RPT(RPT_ERR, "PTS_DTS_flags error!");
-                dump(obj->input.TS, TS_PKT_SIZE);
+                dump(obj->ipt.TS, TS_PKT_SIZE);
                 return -1;
         }
         else {
@@ -2336,18 +2336,18 @@ static int is_all_prog_parsed(struct ts_obj *obj)
 
         for(znode_p = (struct znode *)(obj->prog0); znode_p; znode_p = znode_p->next) {
                 struct ts_prog *prog = (struct ts_prog *)znode_p;
-                struct ts_table *table_02 = &(prog->table_02);
+                struct ts_tabl *tabl = &(prog->tabl);
                 struct znode *znode_s; /* znode of section list */
 
-                if(0xFF == table_02->version_number) {
+                if(0xFF == tabl->version_number) {
                         return 0;
                 }
 
                 section_number = 0;
-                for(znode_s = (struct znode *)(table_02->sect0); znode_s; znode_s = znode_s->next) {
+                for(znode_s = (struct znode *)(tabl->sect0); znode_s; znode_s = znode_s->next) {
                         struct ts_sect *sect = (struct ts_sect *)znode_s;
 
-                        if(section_number > table_02->last_section_number) {
+                        if(section_number > tabl->last_section_number) {
                                 return 0;
                         }
                         if(section_number != sect->section_number) {

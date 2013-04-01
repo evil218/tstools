@@ -12,19 +12,19 @@
  *       |    ..    ..        ..    ..              ..    ..
  *       |   elem  sect      elem  sect            elem  sect
  *       |
- *       +- table -> table -> .. -> table
- *            |        |              |
- *           sect     sect           sect
- *            |        |              |
- *           sect     sect           sect
- *            ..       ..             ..
- *           sect     sect           sect
+ *       +-  tabl -> tabl -> .. -> tabl
+ *            |       |             |
+ *           sect    sect          sect
+ *            |       |             |
+ *           sect    sect          sect
+ *            ..      ..            ..
+ *           sect    sect          sect
  *
- * pid   list: sorted by PID
- * prog  list: sorted by program_number
- * elem  list: unsorted, just use the order in PMT
- * table list: sorted by table_id
- * sect  list: sorted by section_number
+ * pid  list: sorted by PID
+ * prog list: sorted by program_number
+ * elem list: unsorted, just use the order in PMT
+ * tabl list: sorted by table_id
+ * sect list: sorted by section_number
  */
 
 #ifndef _TS_H
@@ -210,7 +210,7 @@ struct ts_pesh {
         uint8_t program_packet_sequence_counter_flag; /* 1-bit */
         uint8_t P_STD_buffer_flag; /* 1-bit */
         uint8_t PES_extension_flag_2; /* 1-bit */
-        uint8_t  PES_private_data[16]; /* 128-bit */
+        uint8_t PES_private_data[16]; /* 128-bit */
         uint8_t pack_field_length;
         uint8_t program_packet_sequence_counter; /* 7-bit */
         uint8_t MPEG1_MPEG2_identifier; /* 1-bit */
@@ -257,7 +257,7 @@ struct ts_sect {
 };
 
 /* node of PSI/SI table list */
-struct ts_table {
+struct ts_tabl {
         struct znode cvfl; /* common variable for list */
 
         struct ts_sect *sect0; /* section list of this table */
@@ -303,7 +303,7 @@ struct ts_prog {
 
         /* PMT table */
         int is_parsed;
-        struct ts_table table_02; /* table_id = 0x02 */
+        struct ts_tabl tabl; /* table_id is 0x02 */
 
         /* for STC calc */
         int64_t ADDa; /* PCR packet a: packet address */
@@ -359,8 +359,8 @@ struct ts_pid {
         uint32_t CRC_32_calc;
 };
 
-/* information about one packet, tell me as more as you can :-) */
-struct ts_input {
+/* input: information about one packet, tell me as more as you can :-) */
+struct ts_ipt {
         uint8_t TS[TS_PKT_SIZE]; /* TS data */
         uint8_t RS[16]; /* RS data */
         long long int ADDR; /* address of sync-byte(unit: byte) */
@@ -376,7 +376,7 @@ struct ts_input {
 };
 
 /* configurations for libts */
-struct ts_config {
+struct ts_cfg {
         int need_cc;   /* not 0: parse CC */
         int need_af;   /* not 0: parse AF(PCR) */
         int need_timestamp; /* not 0: calculate CTS, STC,  */
@@ -389,8 +389,8 @@ struct ts_config {
 
 /* object about one transfer stream */
 struct ts_obj {
-        struct ts_input input;
-        struct ts_config config;
+        struct ts_ipt ipt; /* input */
+        struct ts_cfg cfg; /* config */
 
         /* CTS */
         int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
@@ -465,7 +465,7 @@ struct ts_obj {
         int is_psi_si;
         int has_sect;
         struct ts_prog *prog0; /* program list of this stream */
-        struct ts_table *table0; /* PSI/SI table except PMT */
+        struct ts_tabl *tabl0; /* PSI/SI table except PMT */
 
         /* for bit-rate statistic */
         int64_t aim_interval; /* appointed interval */
