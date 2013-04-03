@@ -252,20 +252,20 @@ static void show_ratp(struct tsana_obj *obj);
 static int show_error(struct tsana_obj *obj);
 static void show_tcp(struct tsana_obj *obj);
 
-static void table_info_PAT(struct ts_sech *sech, uint8_t *section);
-static void table_info_CAT(struct ts_sech *sech, uint8_t *section);
-static void table_info_PMT(struct ts_sech *sech, uint8_t *section);
-static void table_info_TSDT(struct ts_sech *sech, uint8_t *section);
-static void table_info_NIT(struct ts_sech *sech, uint8_t *section);
-static void table_info_SDT(struct ts_sech *sech, uint8_t *section);
-static void table_info_BAT(struct ts_sech *sech, uint8_t *section);
-static void table_info_EIT(struct ts_sech *sech, uint8_t *section);
-static void table_info_TDT(struct ts_sech *sech, uint8_t *section);
-static void table_info_RST(struct ts_sech *sech, uint8_t *section);
-static void table_info_ST(struct ts_sech *sech, uint8_t *section);
-static void table_info_TOT(struct ts_sech *sech, uint8_t *section);
-static void table_info_DIT(struct ts_sech *sech, uint8_t *section);
-static void table_info_SIT(struct ts_sech *sech, uint8_t *section);
+static void table_info_PAT(struct ts_sect *sect, uint8_t *section);
+static void table_info_CAT(struct ts_sect *sect, uint8_t *section);
+static void table_info_PMT(struct ts_sect *sect, uint8_t *section);
+static void table_info_TSDT(struct ts_sect *sect, uint8_t *section);
+static void table_info_NIT(struct ts_sect *sect, uint8_t *section);
+static void table_info_SDT(struct ts_sect *sect, uint8_t *section);
+static void table_info_BAT(struct ts_sect *sect, uint8_t *section);
+static void table_info_EIT(struct ts_sect *sect, uint8_t *section);
+static void table_info_TDT(struct ts_sect *sect, uint8_t *section);
+static void table_info_RST(struct ts_sect *sect, uint8_t *section);
+static void table_info_ST(struct ts_sect *sect, uint8_t *section);
+static void table_info_TOT(struct ts_sect *sect, uint8_t *section);
+static void table_info_DIT(struct ts_sect *sect, uint8_t *section);
+static void table_info_SIT(struct ts_sect *sect, uint8_t *section);
 
 static void MJD_UTC(uint8_t *buf);
 static void UTC(uint8_t *buf);
@@ -372,7 +372,7 @@ static int state_parse_each(struct tsana_obj *obj)
         int has_report;
         struct ts_obj *ts = obj->ts;
         struct ts_pid *pid = ts->pid;
-        struct ts_sech *sech = &(ts->sech);
+        struct ts_sect *sect = ts->sect;
 
         /* filter for some mode */
         if(obj->aim.sec         ||
@@ -392,7 +392,7 @@ static int state_parse_each(struct tsana_obj *obj)
 
                 /* filter: table_id */
                 if(ANY_TABLE != obj->aim_table &&
-                   sech->table_id != obj->aim_table) {
+                   sect->table_id != obj->aim_table) {
                         return 0;
                 }
 
@@ -541,7 +541,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         int dat;
         size_t mp_order;
         struct tsana_obj *obj;
-        struct ts_config cfg;
+        struct ts_cfg cfg;
 
         obj = (struct tsana_obj *)malloc(sizeof(struct tsana_obj));
         if(NULL == obj) {
@@ -554,7 +554,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->state = STATE_PARSE_PSI;
         memset(&(obj->aim), 0, sizeof(struct aim));
 
-        memset(&cfg, 1, sizeof(struct ts_config));
+        memset(&cfg, 1, sizeof(struct ts_cfg));
         obj->is_outpsi = 0;
         obj->is_prepsi = 0;
         obj->is_dump = 0;
@@ -967,7 +967,7 @@ static int get_one_pkt(struct tsana_obj *obj)
         char *tag;
         char *pt = (char *)(obj->tbuf);
         struct ts_obj *ts = obj->ts;
-        struct ts_input *input = &(ts->input);
+        struct ts_ipt *ipt = &(ts->ipt);
         long long int data;
 
         if(NULL == fgets(obj->tbuf, PKT_TBUF, stdin)) {
@@ -976,35 +976,35 @@ static int get_one_pkt(struct tsana_obj *obj)
 
         strcpy(obj->tbak, obj->tbuf); /* for dump */
 
-        input->has_ts = 0;
-        input->has_rs = 0;
-        input->has_addr = 0;
-        input->has_mts = 0;
-        input->has_cts = 0;
+        ipt->has_ts = 0;
+        ipt->has_rs = 0;
+        ipt->has_addr = 0;
+        ipt->has_mts = 0;
+        ipt->has_cts = 0;
 
         while(0 == next_tag(&tag, &pt)) {
                 if(0 == strcmp(tag, "*ts")) {
-                        next_nbyte_hex(input->TS, &pt, 188);
-                        input->has_ts = 1;
+                        next_nbyte_hex(ipt->TS, &pt, 188);
+                        ipt->has_ts = 1;
                 }
                 else if(0 == strcmp(tag, "*rs")) {
-                        next_nbyte_hex(input->RS, &pt, 16);
-                        input->has_rs = 1;
+                        next_nbyte_hex(ipt->RS, &pt, 16);
+                        ipt->has_rs = 1;
                 }
                 else if(0 == strcmp(tag, "*addr")) {
                         next_nuint_hex(&data, &pt, 1);
-                        input->ADDR = data;
-                        input->has_addr = 1;
+                        ipt->ADDR = data;
+                        ipt->has_addr = 1;
                 }
                 else if(0 == strcmp(tag, "*mts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        input->MTS = (int64_t)data;
-                        input->has_mts = 1;
+                        ipt->MTS = (int64_t)data;
+                        ipt->has_mts = 1;
                 }
                 else if(0 == strcmp(tag, "*cts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        input->CTS = (int64_t)data;
-                        input->has_cts = 1;
+                        ipt->CTS = (int64_t)data;
+                        ipt->has_cts = 1;
                 }
                 else {
                         fprintf(stderr, "wrong tag: \"%s\"\n", tag);
@@ -1292,7 +1292,7 @@ static void show_tsh(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*tsh%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, ts->input.TS, 4);
+        b2t(str, ts->ipt.TS, 4);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1304,7 +1304,7 @@ static void show_ts(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*ts%s, ",
                 obj->color_green, obj->color_off);
-        b2t(str, ts->input.TS, 188);
+        b2t(str, ts->ipt.TS, 188);
         fprintf(stdout, "%s", str);
         return;
 }
@@ -1371,7 +1371,7 @@ static void show_sec(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
         char str[3 * 4096 + 3];
-        struct ts_sech *sech = &(ts->sech);
+        struct ts_sect *sect = ts->sect;
         struct ts_pid *pid = ts->pid;
 
         /* section_interval */
@@ -1380,11 +1380,11 @@ static void show_sec(struct tsana_obj *obj)
                 (double)(pid->sect_interval) / STC_MS);
 
         /* section_head */
-        b2t(str, pid->sect_data, 8);
+        b2t(str, sect->section, 8);
         fprintf(stdout, "%s", str);
 
         /* section_body */
-        b2t(str, pid->sect_data + 8, sech->section_length + 3 - 8);
+        b2t(str, sect->section + 8, sect->section_length + 3 - 8);
         fprintf(stdout, "%s", str);
 
         return;
@@ -1395,7 +1395,7 @@ static void show_si(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
         char str[3 * 8 + 3];
         int is_unknown_table_id = 0;
-        struct ts_sech *sech = &(ts->sech);
+        struct ts_sect *sect = ts->sect;
         struct ts_pid *pid = ts->pid;
 
         /* section_interval */
@@ -1404,99 +1404,99 @@ static void show_si(struct tsana_obj *obj)
                 (double)(pid->sect_interval) / STC_MS);
 
         /* section_head */
-        b2t(str, pid->sect_data, 8);
+        b2t(str, sect->section, 8);
         fprintf(stdout, "%s", str);
 
         /* section_body */
-        if(     0x00 == sech->table_id) {
-                table_info_PAT(sech, pid->sect_data);
+        if(     0x00 == sect->table_id) {
+                table_info_PAT(sect, sect->section);
         }
-        else if(0x01 == sech->table_id) {
-                table_info_CAT(sech, pid->sect_data);
+        else if(0x01 == sect->table_id) {
+                table_info_CAT(sect, sect->section);
         }
-        else if(0x02 == sech->table_id) {
-                table_info_PMT(sech, pid->sect_data);
+        else if(0x02 == sect->table_id) {
+                table_info_PMT(sect, sect->section);
         }
-        else if(0x03 == sech->table_id) {
-                table_info_TSDT(sech, pid->sect_data);
+        else if(0x03 == sect->table_id) {
+                table_info_TSDT(sect, sect->section);
         }
-        else if(0x04 <= sech->table_id && sech->table_id <= 0x3F) {
+        else if(0x04 <= sect->table_id && sect->table_id <= 0x3F) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
-        else if(0x40 == sech->table_id) { /* actual */
-                table_info_NIT(sech, pid->sect_data);
+        else if(0x40 == sect->table_id) { /* actual */
+                table_info_NIT(sect, sect->section);
         }
-        else if(0x41 == sech->table_id) { /* other */
-                table_info_NIT(sech, pid->sect_data);
+        else if(0x41 == sect->table_id) { /* other */
+                table_info_NIT(sect, sect->section);
         }
-        else if(0x42 == sech->table_id) { /* actual */
-                table_info_SDT(sech, pid->sect_data);
+        else if(0x42 == sect->table_id) { /* actual */
+                table_info_SDT(sect, sect->section);
         }
-        else if(0x43 <= sech->table_id && sech->table_id <= 0x45) {
+        else if(0x43 <= sect->table_id && sect->table_id <= 0x45) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
-        else if(0x46 == sech->table_id) { /* other */
-                table_info_SDT(sech, pid->sect_data);
+        else if(0x46 == sect->table_id) { /* other */
+                table_info_SDT(sect, sect->section);
         }
-        else if(0x47 <= sech->table_id && sech->table_id <= 0x49) {
+        else if(0x47 <= sect->table_id && sect->table_id <= 0x49) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
-        else if(0x4A == sech->table_id) {
-                table_info_BAT(sech, pid->sect_data);
+        else if(0x4A == sect->table_id) {
+                table_info_BAT(sect, sect->section);
         }
-        else if(0x4B <= sech->table_id && sech->table_id <= 0x4D) {
+        else if(0x4B <= sect->table_id && sect->table_id <= 0x4D) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
-        else if(0x4E == sech->table_id) { /* actual, P/F */
-                table_info_EIT(sech, pid->sect_data);
+        else if(0x4E == sect->table_id) { /* actual, P/F */
+                table_info_EIT(sect, sect->section);
         }
-        else if(0x4F == sech->table_id) { /* other, P/F */
-                table_info_EIT(sech, pid->sect_data);
+        else if(0x4F == sect->table_id) { /* other, P/F */
+                table_info_EIT(sect, sect->section);
         }
-        else if(0x50 <= sech->table_id && sech->table_id <= 0x5F) { /* actual, schedule */
-                table_info_EIT(sech, pid->sect_data);
+        else if(0x50 <= sect->table_id && sect->table_id <= 0x5F) { /* actual, schedule */
+                table_info_EIT(sect, sect->section);
         }
-        else if(0x60 <= sech->table_id && sech->table_id <= 0x6F) { /* other, schedule */
-                table_info_EIT(sech, pid->sect_data);
+        else if(0x60 <= sect->table_id && sect->table_id <= 0x6F) { /* other, schedule */
+                table_info_EIT(sect, sect->section);
         }
-        else if(0x70 == sech->table_id) {
-                table_info_TDT(sech, pid->sect_data);
+        else if(0x70 == sect->table_id) {
+                table_info_TDT(sect, sect->section);
         }
-        else if(0x71 == sech->table_id) {
-                table_info_RST(sech, pid->sect_data);
+        else if(0x71 == sect->table_id) {
+                table_info_RST(sect, sect->section);
         }
-        else if(0x72 == sech->table_id) {
-                table_info_ST(sech, pid->sect_data);
+        else if(0x72 == sect->table_id) {
+                table_info_ST(sect, sect->section);
         }
-        else if(0x73 == sech->table_id) {
-                table_info_TOT(sech, pid->sect_data);
+        else if(0x73 == sect->table_id) {
+                table_info_TOT(sect, sect->section);
         }
-        else if(0x74 <= sech->table_id && sech->table_id <= 0x7D) {
+        else if(0x74 <= sect->table_id && sect->table_id <= 0x7D) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
-        else if(0x7E == sech->table_id) {
-                table_info_DIT(sech, pid->sect_data);
+        else if(0x7E == sect->table_id) {
+                table_info_DIT(sect, sect->section);
         }
-        else if(0x7F == sech->table_id) {
-                table_info_SIT(sech, pid->sect_data);
+        else if(0x7F == sect->table_id) {
+                table_info_SIT(sect, sect->section);
         }
-        else if(0x80 <= sech->table_id && sech->table_id <= 0xFE) {
+        else if(0x80 <= sect->table_id && sect->table_id <= 0xFE) {
                 fprintf(stdout, "user table_id: ");
                 is_unknown_table_id = 1;
         }
-        else { /* (0xFF == sech->table_id) */
+        else { /* (0xFF == sect->table_id) */
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
 
         if(is_unknown_table_id) {
-                for(int i = 0; i < sech->section_length + 3; i++) {
-                        fprintf(stdout, "%02X ", pid->sect_data[i]);
+                for(int i = 0; i < sect->section_length + 3; i++) {
+                        fprintf(stdout, "%02X ", sect->section[i]);
                 }
         }
         return;
@@ -1693,11 +1693,11 @@ static void show_tcp(struct tsana_obj *obj)
 
         fprintf(stdout, "%s*tcp%s, ",
                 obj->color_green, obj->color_off);
-        atsc_mh_tcp(ts->input.TS);
+        atsc_mh_tcp(ts->ipt.TS);
         return;
 }
 
-static void table_info_PAT(struct ts_sech *psi, uint8_t *section)
+static void table_info_PAT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1742,7 +1742,7 @@ static void table_info_PAT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_CAT(struct ts_sech *psi, uint8_t *section)
+static void table_info_CAT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1769,7 +1769,7 @@ static void table_info_CAT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_PMT(struct ts_sech *psi, uint8_t *section)
+static void table_info_PMT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1851,7 +1851,7 @@ static void table_info_PMT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TSDT(struct ts_sech *psi, uint8_t *section)
+static void table_info_TSDT(struct ts_sect *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -1859,7 +1859,7 @@ static void table_info_TSDT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_NIT(struct ts_sech *psi, uint8_t *section)
+static void table_info_NIT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -1938,7 +1938,7 @@ static void table_info_NIT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_SDT(struct ts_sech *psi, uint8_t *section)
+static void table_info_SDT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -2003,7 +2003,7 @@ static void table_info_SDT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_BAT(struct ts_sech *psi, uint8_t *section)
+static void table_info_BAT(struct ts_sect *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -2011,7 +2011,7 @@ static void table_info_BAT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_EIT(struct ts_sech *psi, uint8_t *section)
+static void table_info_EIT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int section_length;
@@ -2079,7 +2079,7 @@ static void table_info_EIT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TDT(struct ts_sech *psi, uint8_t *section)
+static void table_info_TDT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
 
@@ -2088,7 +2088,7 @@ static void table_info_TDT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_RST(struct ts_sech *psi, uint8_t *section)
+static void table_info_RST(struct ts_sect *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -2096,7 +2096,7 @@ static void table_info_RST(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_ST(struct ts_sech *psi, uint8_t *section)
+static void table_info_ST(struct ts_sect *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -2104,7 +2104,7 @@ static void table_info_ST(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TOT(struct ts_sech *psi, uint8_t *section)
+static void table_info_TOT(struct ts_sect *psi, uint8_t *section)
 {
         uint8_t *p = section + 3;
         int descriptors_loop_length;
@@ -2122,7 +2122,7 @@ static void table_info_TOT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_DIT(struct ts_sech *psi, uint8_t *section)
+static void table_info_DIT(struct ts_sect *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;
@@ -2130,7 +2130,7 @@ static void table_info_DIT(struct ts_sech *psi, uint8_t *section)
         return;
 }
 
-static void table_info_SIT(struct ts_sech *psi, uint8_t *section)
+static void table_info_SIT(struct ts_sect *psi, uint8_t *section)
 {
         //uint8_t *p = section;
         //int section_length;

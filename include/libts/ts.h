@@ -220,8 +220,14 @@ struct ts_pesh {
         uint8_t PES_extension_field_length; /* 7-bit */
 };
 
-/* section head */
-struct ts_sech {
+/* node of section list */
+struct ts_sect {
+        struct znode cvfl; /* common variable for list */
+
+        /* section data */
+        uint8_t *section; /* point to the section buffer: 3 + section_length */
+
+        /* section info */
         uint8_t table_id; /* TABLE_ID_TABLE */
         uint8_t section_syntax_indicator; /* 1-bit */
         uint8_t private_indicator; /* 1-bit */
@@ -234,26 +240,8 @@ struct ts_sech {
         uint8_t section_number;
         uint8_t last_section_number;
 
-        int check_CRC; /* some table do not need to check CRC_32 */
-        int type; /* TS_TYPE_xxx */
-};
-
-/* node of section list */
-struct ts_sect {
-        struct znode cvfl; /* common variable for list */
-
-        /* section info */
-        uint8_t section_number;
-        uint16_t section_length;
-
-        /* section data */
-        uint8_t sech3[3]; /* will be the first 3-byte of this section */
-        uint8_t *section; /* will be the data after section_length, now it has sech3 */
-#if 0
-        /* maybe merge ts_sech to here */
         int check_CRC; /* bool, some table do not need to check CRC_32 */
         int type; /* TS_TYPE_xxx */
-#endif
 };
 
 /* node of PSI/SI table list */
@@ -344,16 +332,10 @@ struct ts_pid {
         /* only for PID with PSI/SI */
         struct ts_pkt *pkt0;
         int sect_size; /* accumulate packet by packet */
-        uint8_t sech3[3]; /* first 3-byte of this section */
         uint8_t table_id; /* TABLE_ID_TABLE */
         uint8_t section_syntax_indicator; /* 1-bit */
         uint8_t private_indicator; /* 1-bit */
         uint16_t section_length; /* 12-bit */
-#if 1
-        /* I will use pkt0 instead of sect_data */
-        int sect_idx; /* to index data in section */
-        uint8_t *sect_data; /* only PSI/SI pid has sect_data buffer */
-#endif
         int64_t sect_interval;
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
@@ -459,7 +441,7 @@ struct ts_obj {
         /* PSI/SI table */
         uint16_t transport_stream_id;
         int has_got_transport_stream_id;
-        struct ts_sech sech; /* info about section head before this packet */
+        struct ts_sect *sect; /* point to the node in sect_list */
         int is_pat_pmt_parsed;
         int is_psi_si_parsed;
         int is_psi_si;
