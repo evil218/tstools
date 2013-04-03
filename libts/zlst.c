@@ -13,19 +13,19 @@
 /* report micro */
 #define RPT(lvl, ...) do \
 { \
-    if(lvl <= rpt_lvl) \
-    { \
-        switch(lvl) \
+        if(lvl <= rpt_lvl) \
         { \
-            case RPT_ERR: fprintf(stderr, "\"%s\" line %d [err]: ", __FILE__, __LINE__); break; \
-            case RPT_WRN: fprintf(stderr, "\"%s\" line %d [wrn]: ", __FILE__, __LINE__); break; \
-            case RPT_INF: fprintf(stderr, "\"%s\" line %d [inf]: ", __FILE__, __LINE__); break; \
-            case RPT_DBG: fprintf(stderr, "\"%s\" line %d [dbg]: ", __FILE__, __LINE__); break; \
-            default:      fprintf(stderr, "\"%s\" line %d [???]: ", __FILE__, __LINE__); break; \
+                switch(lvl) \
+                { \
+                        case RPT_ERR: fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); break; \
+                        case RPT_WRN: fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); break; \
+                        case RPT_INF: fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); break; \
+                        case RPT_DBG: fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); break; \
+                        default:      fprintf(stderr, "%s: %d: ???: ", __FILE__, __LINE__); break; \
+                } \
+                fprintf(stderr, __VA_ARGS__); \
+                fprintf(stderr, "\n"); \
         } \
-        fprintf(stderr, __VA_ARGS__); \
-        fprintf(stderr, "\n"); \
-    } \
 } while (0)
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */

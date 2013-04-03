@@ -58,9 +58,6 @@ PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
 PRJ_OBJS += prjtobin.o
 PRJ_OBJS += prjtoip.o
-PRJ_OBJS += prjdtsdi.o
-PRJ_OBJS += prjtopcm.o
-PRJ_OBJS += prjatsc_mh_tcp.o
 
 PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 
@@ -69,8 +66,6 @@ PRJ_AIMS += catip
 PRJ_AIMS += tsana
 PRJ_AIMS += tobin
 PRJ_AIMS += toip
-PRJ_AIMS += dtsdi
-PRJ_AIMS += topcm
 
 # includes
 INCFLAGS  = -I. -I..
@@ -115,8 +110,6 @@ install:
 	-cp tsana $(INSTALLDIR)
 	-cp tobin $(INSTALLDIR)
 	-cp toip $(INSTALLDIR)
-	-cp dtsdi $(INSTALLDIR)
-	-cp topcm $(INSTALLDIR)
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts
@@ -124,8 +117,6 @@ uninstall:
 	-rm -f $(INSTALLDIR)/tsana
 	-rm -f $(INSTALLDIR)/tobin
 	-rm -f $(INSTALLDIR)/toip
-	-rm -f $(INSTALLDIR)/dtsdi
-	-rm -f $(INSTALLDIR)/topcm
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -161,7 +152,7 @@ catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjatsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o
 
 tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o

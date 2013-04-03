@@ -155,7 +155,6 @@ struct aim {
         int rats;
         int ratp;
         int err;
-        int tcp;
 };
 
 struct tsana_obj {
@@ -250,7 +249,6 @@ static void show_rate(struct tsana_obj *obj);
 static void show_rats(struct tsana_obj *obj);
 static void show_ratp(struct tsana_obj *obj);
 static int show_error(struct tsana_obj *obj);
-static void show_tcp(struct tsana_obj *obj);
 
 static void table_info_PAT(struct ts_sect *sect, uint8_t *section);
 static void table_info_CAT(struct ts_sect *sect, uint8_t *section);
@@ -273,8 +271,6 @@ static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
 static int coding_string(uint8_t *p, int len);
-
-void atsc_mh_tcp(uint8_t *ts_pack); /* atsc_mh_tcp.c */
 
 int main(int argc, char *argv[])
 {
@@ -464,9 +460,6 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.err && has_err) {
                 has_report = 1;
         }
-        if(obj->aim.tcp && 0x1FFA == ts->PID) {
-                has_report = 1;
-        }
 
         /* report */
         if(obj->aim.bg && has_report) {
@@ -524,9 +517,6 @@ static int state_parse_each(struct tsana_obj *obj)
                 if(0 != show_error(obj)) {
                         return -1;
                 }
-        }
-        if(obj->aim.tcp && 0x1FFA == ts->PID) {
-                show_tcp(obj);
         }
 
         if(has_report) {
@@ -668,10 +658,6 @@ static struct tsana_obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-err")) {
                                 obj->aim.err = 1;
-                                obj->mode = MODE_ALL;
-                        }
-                        else if(0 == strcmp(argv[i], "-tcp")) {
-                                obj->aim.tcp = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-c") ||
@@ -915,7 +901,6 @@ static void show_help()
                 " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
                 " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
                 " -err             \"*err, TR-101-290, datail, \"\n"
-                " -tcp             show TCP(ATSC MH) field information\n"
                 "\n"
                 " -c -color        enable colour effect to help read, default: mono\n"
                 " -start <x>       analyse from packet(x), default: 0, first packet\n"
@@ -1685,16 +1670,6 @@ static int show_error(struct tsana_obj *obj)
         /* ... */
 
         return 0;
-}
-
-static void show_tcp(struct tsana_obj *obj)
-{
-        struct ts_obj *ts = obj->ts;
-
-        fprintf(stdout, "%s*tcp%s, ",
-                obj->color_green, obj->color_off);
-        atsc_mh_tcp(ts->ipt.TS);
-        return;
 }
 
 static void table_info_PAT(struct ts_sect *psi, uint8_t *section)

@@ -462,9 +462,7 @@ int ts_parse_tsh(struct ts_obj *obj)
 #if 0
         RPT(RPT_DBG, "search 0x%04X in pid_list", obj->PID);
 #endif
-        //RPT(RPT_ERR, "&pid0: 0x%X, pid0: 0x%X", (int)&(obj->pid0), (int)(obj->pid0));
         obj->pid = (struct ts_pid *)zlst_search(&(obj->pid0), obj->PID); /* FIXME */
-        //RPT(RPT_ERR, "1");
         if(!(obj->pid)) {
                 struct ts_pid ts_pid, *new_pid = &ts_pid;
 
@@ -1071,7 +1069,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                 return -1;
                         }
 
-                        RPT(RPT_INF, "table_id: 0x%02X, section_length: %d", pid->table_id, pid->section_length);
+                        RPT(RPT_INF, "table_id: 0x%02X, length: 3 + %d", pid->table_id, pid->section_length);
                         zlst_push(&(pid->pkt0), new_pkt);
                 }
                 else { /* !(tsh->payload_unit_start_indicator) */
@@ -1080,6 +1078,10 @@ static int ts_ts2sect(struct ts_obj *obj)
         }
         else { /* (pid->pkt0) */
                 struct ts_pkt *new_pkt;
+
+                if(tsh->payload_unit_start_indicator) {
+                        dat = *(obj->cur)++; /* pointer_field */
+                }
 
                 /* collect section data */
                 new_pkt = (struct ts_pkt *)buddy_malloc(obj->mp, sizeof(struct ts_pkt));
@@ -1110,46 +1112,41 @@ static int ts_ts2sect(struct ts_obj *obj)
                 }
 
                 uint8_t *p = new_sect->section;
+                int left_length = 3 + pid->section_length;
                 struct ts_pkt *pkt;
 
+                //fprintf(stderr, "(%02X %4d) %4d: ", pid->table_id, pid->sect_size, left_length);
                 RPT(RPT_INF, "pkt list -> ts_sect and parse, table: 0x%02X", pid->table_id);
                 while(NULL != (pkt = (struct ts_pkt *)zlst_shift(&(pid->pkt0)))) {
-                        if(pkt->payload_size < pid->sect_size) {
+                        if(pkt->payload_size < left_length) {
                                 /* part of big section */
                                 memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, pkt->payload_size);
                                 p += pkt->payload_size;
-                                pid->sect_size -= pkt->payload_size;
+                                left_length -= pkt->payload_size;
                                 buddy_free(obj->mp, pkt);
+                                //fprintf(stderr, "-%4d = %4d, ", pkt->payload_size, left_length);
                         }
-                        else { /* (pkt->payload_size >= pid->sect_size) */
-                                if(pkt->payload_size > 3 + pid->section_length) {
-                                        /* small section in one packet */
-                                        memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, 3 + pid->section_length);
-                                        pkt->payload_size -= (3 + pid->section_length);
-                                        p += (3 + pid->section_length);
-                                        pid->sect_size -= (3 + pid->section_length);
-                                }
-                                else {
-                                        /* last part of big section */
-                                        memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, pid->sect_size);
-                                        pkt->payload_size -= pid->sect_size;
-                                        p += pid->sect_size;
-                                        pid->sect_size = 0;
-                                }
+                        else { /* (pkt->payload_size >= left_length) */
+                                /* last packet of the section */
+                                memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, left_length);
+                                pkt->payload_size -= left_length; /* maybe head of next section */
+                                //fprintf(stderr, "-%4d(%4d left)", left_length, pkt->payload_size);
                                 //dump(new_sect->section, 3 + pid->section_length);
                                 ts_parse_sect(obj, new_sect);
 
                                 obj->cur = pkt->pkt + TS_PKT_SIZE - pkt->payload_size;
-                                if(0 != pkt->payload_size && pkt->payload_unit_start_indicator && 0xFF != *(obj->cur)) {
+                                if(0 != pkt->payload_size && 0xFF != *(obj->cur)) {
                                         RPT(RPT_ERR, "data after CRC is not 0xFF");
+                                        dump(obj->cur, pkt->payload_size);
+                                        //pid->sect_size = pkt->payload_size;
                                         buddy_free(obj->mp, pkt); /* FIXME: it is head of a new section */
                                 }
                                 else {
-                                        RPT(RPT_INF, "free useless pkt(0x%04X), pkt: 0x%X", tsh->PID, (int)pkt);
                                         buddy_free(obj->mp, pkt);
                                 }
                         }
                 }
+                //fprintf(stderr, "\n");
         }
 
         return 0;
