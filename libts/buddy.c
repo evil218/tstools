@@ -238,8 +238,8 @@ void *buddy_malloc(intptr_t id, size_t NBYTES)
         p->tree[i] = 0; /* find the aim node */
 
         uint8_t *rslt = (p->pool + (i + 1) * (1<<order) - (p->size));
-        RPT(RPT_DBG, "malloc:  got %8lX/%8lX @ %8lX from pool",
-            (unsigned long)NBYTES, (unsigned long)1<<order, (unsigned long)rslt);
+        RPT(RPT_DBG, "malloc:  @ %8lX %8lX %8lX",
+            (unsigned long)rslt, (unsigned long)1<<order, (unsigned long)NBYTES);
 
         /* modify parent order */
         while(i) {
@@ -295,8 +295,8 @@ void buddy_free(intptr_t id, void *APTR)
                 return;
         }
         p->tree[i] = order;
-        RPT(RPT_DBG, "free: return         /%8lX @ %8lX to pool",
-            (unsigned long)1<<order, (unsigned long)APTR);
+        RPT(RPT_DBG, "free:    @ %8lX %8lX",
+            (unsigned long)APTR, (unsigned long)1<<order);
 
         /* modify parent order */
         int lorder;

@@ -1136,10 +1136,50 @@ static int ts_ts2sect(struct ts_obj *obj)
 
                                 obj->cur = pkt->pkt + TS_PKT_SIZE - pkt->payload_size;
                                 if(0 != pkt->payload_size && 0xFF != *(obj->cur)) {
-                                        RPT(RPT_ERR, "data after CRC is not 0xFF");
-                                        dump(obj->cur, pkt->payload_size);
-                                        //pid->sect_size = pkt->payload_size;
-                                        buddy_free(obj->mp, pkt); /* FIXME: it is head of a new section */
+                                        RPT(RPT_DBG, "data after CRC is not 0xFF");
+                                        //dump(obj->cur, pkt->payload_size);
+                                        pid->sect_size = pkt->payload_size;
+                                        //buddy_free(obj->mp, pkt); /* FIXME: it is head of a new section */
+
+                                        if(pid->sect_size >= 3) {
+                                                dat = *(obj->cur)++;
+                                                pid->table_id = dat;
+
+                                                dat = *(obj->cur)++;
+                                                pid->section_syntax_indicator = (dat & BIT(7)) >> 7;
+                                                pid->private_indicator = (dat & BIT(6)) >> 6;
+                                                pid->section_length = dat & 0x0F;
+
+                                                dat = *(obj->cur)++;
+                                                pid->section_length <<= 8;
+                                                pid->section_length  |= dat;
+
+                                                if(pid->section_syntax_indicator) {
+                                                        if(pid->section_length > NORMAL_SECTION_LENGTH_MAX) {
+                                                                RPT(RPT_ERR, "normal section_length(%d) > %d",
+                                                                    pid->section_length, NORMAL_SECTION_LENGTH_MAX);
+                                                                buddy_free(obj->mp, pkt);
+                                                                return -1;
+                                                        }
+                                                }
+                                                else { /* !(pid->section_syntax_indicator) */
+                                                        if(pid->section_length > PRIVATE_SECTION_LENGTH_MAX) {
+                                                                RPT(RPT_ERR, "private section_length(%d) > %d",
+                                                                    pid->section_length, PRIVATE_SECTION_LENGTH_MAX);
+                                                                buddy_free(obj->mp, pkt);
+                                                                return -1;
+                                                        }
+                                                }
+                                        }
+                                        else {
+                                                /* FIXME */
+                                                RPT(RPT_ERR, "section head in packet tail less than 3-byte");
+                                                buddy_free(obj->mp, pkt);
+                                                return -1;
+                                        }
+
+                                        RPT(RPT_INF, "table_id: 0x%02X, length: 3 + %d", pid->table_id, pid->section_length);
+                                        zlst_push(&(pid->pkt0), pkt);
                                 }
                                 else {
                                         buddy_free(obj->mp, pkt);
@@ -1306,7 +1346,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                     sect->last_section_number,
                     sect->table_id);
                 free_sect(obj->mp, new_sect);
-                return -1;
+                //return -1; FIXME: got SDT before PMT will lost service info, so parse again and again now
         }
         obj->sect = sect;
 
@@ -1846,7 +1886,10 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
                                 pt++; /* ignore type */
 
                                 prog->service_provider_len = *pt++;
-                                if(0 != prog->service_provider_len && !(prog->service_provider)) {
+                                if(0 != prog->service_provider_len) {
+                                        if(prog->service_provider) {
+                                                buddy_free(obj->mp, prog->service_provider);
+                                        }
                                         prog->service_provider = (uint8_t *)buddy_malloc(obj->mp, (uint16_t)1 + prog->service_provider_len);
                                         if(!(prog->service_provider)) {
                                                 RPT(RPT_ERR, "malloc for service_provider buffer failed");
@@ -1859,7 +1902,10 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
                                 pt += prog->service_provider_len; /* pass provider */
 
                                 prog->service_name_len = *pt++;
-                                if(0 != prog->service_name_len && !(prog->service_name)) {
+                                if(0 != prog->service_name_len) {
+                                        if(prog->service_name) {
+                                                buddy_free(obj->mp, prog->service_name);
+                                        }
                                         prog->service_name = (uint8_t *)buddy_malloc(obj->mp, (uint16_t)1 + prog->service_name_len);
                                         if(!(prog->service_name)) {
                                                 RPT(RPT_ERR, "malloc for service_name buffer failed");
