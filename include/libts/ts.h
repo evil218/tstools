@@ -331,11 +331,13 @@ struct ts_pid {
 
         /* only for PID with PSI/SI */
         struct ts_pkt *pkt0;
-        int sect_size; /* accumulate packet by packet */
+        int payload_total; /* accumulate size_of_payload packet by packet */
+        int has_new_sech; /* true, if second section head in pkt list */
+        int sech3_idx; /* 0~3, 3 means sech3 is OK */
+        uint8_t sech3[3]; /* collect first 3-byte to get section_length */
         uint8_t table_id; /* TABLE_ID_TABLE */
-        uint8_t section_syntax_indicator; /* 1-bit */
-        uint8_t private_indicator; /* 1-bit */
         uint16_t section_length; /* 12-bit */
+
         int64_t sect_interval;
         uint32_t CRC_32;
         uint32_t CRC_32_calc;
