@@ -1011,6 +1011,7 @@ static int ts_parse_af(struct ts_obj *obj)
 static int ts_ts2sect(struct ts_obj *obj)
 {
         uint8_t dat;
+        uint8_t *p;
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_pid *pid = obj->pid;
         struct ts_pkt *pkt;
@@ -1020,30 +1021,70 @@ static int ts_ts2sect(struct ts_obj *obj)
                 /* waiting for section head */
                 if(tsh->payload_unit_start_indicator) {
                         /* first packet of this section */
-                        struct ts_pkt *new_pkt = (struct ts_pkt *)buddy_malloc(obj->mp, sizeof(struct ts_pkt));
-                        if(!new_pkt) {
-                                RPT(RPT_ERR, "malloc for pkt node failed");
-                                return -1;
-                        }
-
-                        memcpy(new_pkt->pkt, obj->ipt.TS, TS_PKT_SIZE);
-                        new_pkt->payload_unit_start_indicator = 1;
-                        pid->has_new_sech = 0;
                         dat = *(obj->cur)++; /* pointer_field */
                         obj->cur += dat; /* point to section head now */
-                        new_pkt->payload_size = (obj->tail - obj->cur);
-                        pid->payload_total = new_pkt->payload_size;
-                        zlst_push(&(pid->pkt0), new_pkt);
+                        pid->has_new_sech = 0;
+                        pid->payload_total = (obj->tail - obj->cur);
+                        pid->section_length = PRIVATE_SECTION_LENGTH_MAX; /* suppose maximum length */
 
                         /* sect head 3-byte */
+                        p = obj->cur;
                         for(pid->sech3_idx = 0; pid->sech3_idx < 3; pid->sech3_idx++) {
-                                if(obj->cur != obj->tail) {
-                                        pid->sech3[pid->sech3_idx] = *(obj->cur)++;
+                                if(p >= obj->tail) {
+                                        break;
                                 }
+                                pid->sech3[pid->sech3_idx] = *p++;
                         }
 
-                        /* suppose section has maximum length */
-                        pid->section_length = PRIVATE_SECTION_LENGTH_MAX;
+                        /* get section_length for single packet section */
+                        if(3 == pid->sech3_idx) {
+                                dat = pid->sech3[0];
+                                pid->table_id = dat;
+
+                                dat = pid->sech3[1];
+                                pid->section_length = dat & 0x0F;
+
+                                dat = pid->sech3[2];
+                                pid->section_length <<= 8;
+                                pid->section_length  |= dat;
+                        }
+
+                        if(pid->section_length > pid->payload_total) {
+                                /* multi-packets section, make pkt list */
+                                struct ts_pkt *new_pkt = (struct ts_pkt *)buddy_malloc(obj->mp, sizeof(struct ts_pkt));
+                                if(!new_pkt) {
+                                        RPT(RPT_ERR, "malloc for pkt node failed");
+                                        return -1;
+                                }
+                                memcpy(new_pkt->pkt, obj->ipt.TS, TS_PKT_SIZE);
+                                new_pkt->payload_unit_start_indicator = 1;
+                                new_pkt->payload_size = (obj->tail - obj->cur);
+                                zlst_push(&(pid->pkt0), new_pkt);
+                        }
+                        else {
+                                /* single packet section, for efficienc: directly make section without pkt list */
+                                struct ts_sect *new_sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
+                                if(!new_sect) {
+                                        RPT(RPT_ERR, "malloc section node failed");
+                                        goto ts2sect_free_pkt_list;
+                                }
+
+                                new_sect->section = (uint8_t *)buddy_malloc(obj->mp, 3 + pid->section_length);
+                                if(!new_sect->section) {
+                                        RPT(RPT_ERR, "malloc data buffer of section node failed");
+                                        goto ts2sect_free_pkt_list;
+                                }
+
+#if 0
+#define DEBUG_SECTION_FRAGMENT
+#endif
+                                memcpy(new_sect->section, obj->cur, 3 + pid->section_length);
+#ifdef DEBUG_SECTION_FRAGMENT
+                                fprintf(stderr, "(%02X %4d) 3+%d.\n", pid->table_id, pid->payload_total, pid->section_length);
+#endif
+                                //dump(new_sect->section, 3 + pid->section_length);
+                                ts_parse_sect(obj, new_sect); /* note: ts_parse_sect() should free new_sect */
+                        }
                 }
                 else { /* !(tsh->payload_unit_start_indicator) */
                         RPT(RPT_DBG, "section async, ignore this packet");
@@ -1072,11 +1113,13 @@ static int ts_ts2sect(struct ts_obj *obj)
                 zlst_push(&(pid->pkt0), new_pkt);
 
                 /* sect head 3-byte */
+                p = obj->cur;
                 for(; pid->sech3_idx < 3; pid->sech3_idx++) {
-                        if(obj->cur != obj->tail) {
-                                pid->sech3[pid->sech3_idx] = *(obj->cur)++;
+                        if(p >= obj->tail) {
+                                break;
                         }
-                }
+                        pid->sech3[pid->sech3_idx] = *p++;
+               }
         }
 
         /* try to make section */
@@ -1129,15 +1172,11 @@ static int ts_ts2sect(struct ts_obj *obj)
                                 goto ts2sect_free_pkt_list;
                         }
 
-                        uint8_t *p = new_sect->section;
+                        p = new_sect->section;
                         int left_length = 3 + pid->section_length;
 
-#if 0
-#define DEBUG_SECTION_FRAGMENT
-#endif
-
 #ifdef DEBUG_SECTION_FRAGMENT
-                        fprintf(stderr, "(%02X %4d) %4d ", pid->table_id, pid->payload_total, left_length);
+                        fprintf(stderr, "(%02X %4d) 3+%d ", pid->table_id, pid->payload_total, pid->section_length);
 #endif
                         RPT(RPT_INF, "pkt list -> ts_sect and parse, table: 0x%02X", pid->table_id);
                         while(NULL != (pkt = (struct ts_pkt *)zlst_shift(&(pid->pkt0)))) {
@@ -1153,7 +1192,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                         left_length -= pkt->payload_size;
                                         buddy_free(obj->mp, pkt);
 #ifdef DEBUG_SECTION_FRAGMENT
-                                        fprintf(stderr, "-%4d = %4d ", pkt->payload_size, left_length);
+                                        fprintf(stderr, "- %3d = %4d ", pkt->payload_size, left_length);
 #endif
                                 }
                                 else { /* (pkt->payload_size >= left_length) */
@@ -1161,7 +1200,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                         memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, left_length);
                                         pkt->payload_size -= left_length; /* maybe head of next section */
 #ifdef DEBUG_SECTION_FRAGMENT
-                                        fprintf(stderr, "-%4d ", left_length);
+                                        fprintf(stderr, "- %3d ", left_length);
 #endif
                                         //dump(new_sect->section, 3 + pid->section_length);
                                         ts_parse_sect(obj, new_sect); /* note: ts_parse_sect() should free new_sect */
@@ -1171,26 +1210,26 @@ static int ts_ts2sect(struct ts_obj *obj)
                                                 obj->tail = pkt->pkt + TS_PKT_SIZE;
                                                 obj->cur = obj->tail - pkt->payload_size;
 #ifdef DEBUG_SECTION_FRAGMENT
-                                                fprintf(stderr, "(%4d of new sect)\n", pkt->payload_size);
+                                                fprintf(stderr, "(%d-byte new section head)\n", pkt->payload_size);
                                                 dump(obj->cur, pkt->payload_size);
 #endif
                                                 pid->payload_total = pkt->payload_size;
                                                 pid->has_new_sech = 0;
                                                 zlst_push(&(pid->pkt0), pkt);
+                                                pid->section_length = PRIVATE_SECTION_LENGTH_MAX; /* suppose maximum length */
 
                                                 /* sect head 3-byte */
+                                                p = obj->cur;
                                                 for(pid->sech3_idx = 0; pid->sech3_idx < 3; pid->sech3_idx++) {
-                                                        if(obj->cur != obj->tail) {
-                                                                pid->sech3[pid->sech3_idx] = *(obj->cur)++;
+                                                        if(p >= obj->tail) {
+                                                                break;
                                                         }
+                                                        pid->sech3[pid->sech3_idx] = *p++;
                                                 }
-
-                                                /* suppose section has maximum length */
-                                                pid->section_length = PRIVATE_SECTION_LENGTH_MAX;
                                         }
                                         else {
 #ifdef DEBUG_SECTION_FRAGMENT
-                                                fprintf(stderr, "(%4d of pad)\n", pkt->payload_size);
+                                                fprintf(stderr, "(%d-byte padding data)\n", pkt->payload_size);
 #endif
                                                 buddy_free(obj->mp, pkt);
                                         }
