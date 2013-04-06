@@ -111,57 +111,57 @@ struct stream_type_table {
 };
 
 static const struct stream_type_table STREAM_TYPE_TABLE[] = {
-        {0x00, TS_TYPE_RSV}, /* "Reserved", "ITU-T|ISO/IEC Reserved"}, */
-{0x01, TS_TYPE_VID}, /* "MPEG-1", "ISO/IEC 11172-2 Video"}, */
-{0x02, TS_TYPE_VID}, /* "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited"}, */
-{0x03, TS_TYPE_AUD}, /* "MPEG-1", "ISO/IEC 11172-3 Audio"}, */
-{0x04, TS_TYPE_AUD}, /* "MPEG-2", "ISO/IEC 13818-3 Audio"}, */
-{0x05, TS_TYPE_USR}, /* "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections"}, */
-{0x06, TS_TYPE_AUD}, /* "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM"}, */
-{0x07, TS_TYPE_USR}, /* "MHEG", "ISO/IEC 13522 MHEG"}, */
-{0x08, TS_TYPE_USR}, /* "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC"}, */
-{0x09, TS_TYPE_USR}, /* "H.222.1", "ITU-T Rec.H.222.1"}, */
-{0x0A, TS_TYPE_USR}, /* "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation"}, */
-{0x0B, TS_TYPE_USR}, /* "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages"}, */
-{0x0C, TS_TYPE_USR}, /* "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors"}, */
-{0x0D, TS_TYPE_USR}, /* "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections"}, */
-{0x0E, TS_TYPE_USR}, /* "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary"}, */
-{0x0F, TS_TYPE_AUD}, /* "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax"}, */
-{0x10, TS_TYPE_VID}, /* "MPEG-4", "ISO/IEC 14496-2 Visual"}, */
-{0x11, TS_TYPE_AUD}, /* "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax"}, */
-{0x12, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets"}, */
-{0x13, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections"}, */
-{0x14, TS_TYPE_USR}, /* "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol"}, */
-{0x15, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in PES packets"}, */
-{0x16, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in metadata_sections"}, */
-{0x17, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel"}, */
-{0x18, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel"}, */
-{0x19, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol"}, */
-{0x1A, TS_TYPE_USR}, /* "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)"}, */
-{0x1B, TS_TYPE_VID}, /* "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video"}, */
-{0x1C, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"}, */
-{0x1D, TS_TYPE_USR}, /* "MPEG-4", "ISO/IEC 14496-17 Text"}, */
-{0x1E, TS_TYPE_VID}, /* "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"}, */
-{0x42, TS_TYPE_VID}, /* "AVS", "Advanced Video Standard"}, */
-{0x7F, TS_TYPE_USR}, /* "IPMP", "IPMP stream"}, */
-{0x80, TS_TYPE_VID}, /* "SVAC|LPCM", "SVAC, LPCM of ATSC"}, */
-{0x81, TS_TYPE_AUD}, /* "AC3", "Dolby Digital ATSC"}, */
-{0x82, TS_TYPE_AUD}, /* "DTS", "DTS Audio"}, */
-{0x83, TS_TYPE_AUD}, /* "MLP", "MLP"}, */
-{0x84, TS_TYPE_AUD}, /* "DDP", "Dolby Digital Plus"}, */
-{0x85, TS_TYPE_AUD}, /* "DTSHD", "DTSHD"}, */
-{0x86, TS_TYPE_AUD}, /* "DTSHD_XLL", "DTSHD_XLL"}, */
-{0x90, TS_TYPE_AUD}, /* "G.711", "G.711(A)"}, */
-{0x92, TS_TYPE_AUD}, /* "G.722.1", "G.722.1"}, */
-{0x93, TS_TYPE_AUD}, /* "G.723.1", "G.723.1"}, */
-{0x99, TS_TYPE_AUD}, /* "G.729", "G.729"}, */
-{0x9A, TS_TYPE_AUD}, /* "AMR-NB", "AMR-NB"}, */
-{0x9B, TS_TYPE_AUD}, /* "SVAC", "SVAC"}, */
-{0xA1, TS_TYPE_AUD}, /* "DDP_2", "Dolby Digital Plus"}, */
-{0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2"}, */
-{0xEA, TS_TYPE_VID}, /* "VC1", "VC1"}, */
-{0xEA, TS_TYPE_AUD}, /* "WMA", "WMA"}, */
-{0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream"}, loop stop condition! */
+        {0x00, TS_TYPE_RSV}, /* "Reserved", "ITU-T|ISO/IEC Reserved" */
+        {0x01, TS_TYPE_VID}, /* "MPEG-1", "ISO/IEC 11172-2 Video" */
+        {0x02, TS_TYPE_VID}, /* "MPEG-2", "ITU-T Rec.H.262|ISO/IEC 13818-2 Video or MPEG-1 parameter limited" */
+        {0x03, TS_TYPE_AUD}, /* "MPEG-1", "ISO/IEC 11172-3 Audio" */
+        {0x04, TS_TYPE_AUD}, /* "MPEG-2", "ISO/IEC 13818-3 Audio" */
+        {0x05, TS_TYPE_USR}, /* "private", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 private_sections" */
+        {0x06, TS_TYPE_AUD}, /* "AC3|TT|LPCM", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 PES packets containing private data|Dolby Digital DVB|Linear PCM" */
+        {0x07, TS_TYPE_USR}, /* "MHEG", "ISO/IEC 13522 MHEG" */
+        {0x08, TS_TYPE_USR}, /* "DSM-CC", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 Annex A DSM-CC" */
+        {0x09, TS_TYPE_USR}, /* "H.222.1", "ITU-T Rec.H.222.1" */
+        {0x0A, TS_TYPE_USR}, /* "MPEG2 type A", "ISO/IEC 13818-6 type A: Multi-protocol Encapsulation" */
+        {0x0B, TS_TYPE_USR}, /* "MPEG2 type B", "ISO/IEC 13818-6 type B: DSM-CC U-N Messages" */
+        {0x0C, TS_TYPE_USR}, /* "MPEG2 type C", "ISO/IEC 13818-6 type C: DSM-CC Stream Descriptors" */
+        {0x0D, TS_TYPE_USR}, /* "MPEG2 type D", "ISO/IEC 13818-6 type D: DSM-CC Sections or DSM-CC Addressable Sections" */
+        {0x0E, TS_TYPE_USR}, /* "auxiliary", "ITU-T Rec.H.222.0|ISO/IEC 13818-1 auxiliary" */
+        {0x0F, TS_TYPE_AUD}, /* "AAC ADTS", "ISO/IEC 13818-7 Audio with ADTS transport syntax" */
+        {0x10, TS_TYPE_VID}, /* "MPEG-4", "ISO/IEC 14496-2 Visual" */
+        {0x11, TS_TYPE_AUD}, /* "AAC LATM", "ISO/IEC 14496-3 Audio with LATM transport syntax" */
+        {0x12, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets" */
+        {0x13, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC 14496_sections" */
+        {0x14, TS_TYPE_USR}, /* "MPEG-2", "ISO/IEC 13818-6 Synchronized Download Protocol" */
+        {0x15, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in PES packets" */
+        {0x16, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in metadata_sections" */
+        {0x17, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Data Carousel" */
+        {0x18, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Object Carousel" */
+        {0x19, TS_TYPE_USR}, /* "MPEG-2", "Metadata carried in ISO/IEC 13818-6 Synchronized Dowload Protocol" */
+        {0x1A, TS_TYPE_USR}, /* "IPMP", "IPMP stream(ISO/IEC 13818-11, MPEG-2 IPMP)" */
+        {0x1B, TS_TYPE_VID}, /* "H.264", "ITU-T Rec.H.264|ISO/IEC 14496-10 Video" */
+        {0x1C, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS" */
+        {0x1D, TS_TYPE_USR}, /* "MPEG-4", "ISO/IEC 14496-17 Text" */
+        {0x1E, TS_TYPE_VID}, /* "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3" */
+        {0x42, TS_TYPE_VID}, /* "AVS", "Advanced Video Standard" */
+        {0x7F, TS_TYPE_USR}, /* "IPMP", "IPMP stream" */
+        {0x80, TS_TYPE_VID}, /* "SVAC|LPCM", "SVAC, LPCM of ATSC" */
+        {0x81, TS_TYPE_AUD}, /* "AC3", "Dolby Digital ATSC" */
+        {0x82, TS_TYPE_AUD}, /* "DTS", "DTS Audio" */
+        {0x83, TS_TYPE_AUD}, /* "MLP", "MLP" */
+        {0x84, TS_TYPE_AUD}, /* "DDP", "Dolby Digital Plus" */
+        {0x85, TS_TYPE_AUD}, /* "DTSHD", "DTSHD" */
+        {0x86, TS_TYPE_AUD}, /* "DTSHD_XLL", "DTSHD_XLL" */
+        {0x90, TS_TYPE_AUD}, /* "G.711", "G.711(A)" */
+        {0x92, TS_TYPE_AUD}, /* "G.722.1", "G.722.1" */
+        {0x93, TS_TYPE_AUD}, /* "G.723.1", "G.723.1" */
+        {0x99, TS_TYPE_AUD}, /* "G.729", "G.729" */
+        {0x9A, TS_TYPE_AUD}, /* "AMR-NB", "AMR-NB" */
+        {0x9B, TS_TYPE_AUD}, /* "SVAC", "SVAC" */
+        {0xA1, TS_TYPE_AUD}, /* "DDP_2", "Dolby Digital Plus" */
+        {0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2" */
+        {0xEA, TS_TYPE_VID}, /* "VC1", "VC1" */
+        {0xEA, TS_TYPE_AUD}, /* "WMA", "WMA" */
+        {0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream" loop stop condition! */
 };
 
 enum {
@@ -1141,7 +1141,11 @@ static int ts_ts2sect(struct ts_obj *obj)
 #endif
                         RPT(RPT_INF, "pkt list -> ts_sect and parse, table: 0x%02X", pid->table_id);
                         while(NULL != (pkt = (struct ts_pkt *)zlst_shift(&(pid->pkt0)))) {
-                                /* FIXME: bad for "has_new_sech with bad section_length" */
+                                if(pkt->payload_unit_start_indicator && p != new_sect->section) {
+                                        /* use start_indicator instead of section_length to determine section end */
+                                        left_length = (int)(pkt->pkt[4]); /* pointer_field is just left length */
+                                }
+
                                 if(pkt->payload_size < left_length) {
                                         /* part of big section */
                                         memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, pkt->payload_size);
@@ -1162,10 +1166,10 @@ static int ts_ts2sect(struct ts_obj *obj)
                                         //dump(new_sect->section, 3 + pid->section_length);
                                         ts_parse_sect(obj, new_sect); /* note: ts_parse_sect() should free new_sect */
 
-                                        obj->tail = pkt->pkt + TS_PKT_SIZE;
-                                        obj->cur = obj->tail - pkt->payload_size;
-                                        if(0 != pkt->payload_size && 0xFF != *(obj->cur)) {
+                                        if(pkt->payload_unit_start_indicator && p != new_sect->section) {
                                                 /* new section */
+                                                obj->tail = pkt->pkt + TS_PKT_SIZE;
+                                                obj->cur = obj->tail - pkt->payload_size;
 #ifdef DEBUG_SECTION_FRAGMENT
                                                 fprintf(stderr, "(%4d of new sect)\n", pkt->payload_size);
                                                 dump(obj->cur, pkt->payload_size);
