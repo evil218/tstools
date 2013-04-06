@@ -2,29 +2,35 @@
  * name: ts.h
  * funx: analyse ts stream
  * 
- * obj:  +-  pid  ->  pid  -> .. ->  pid
+ * obj:  +-  pid         ->  pid         -> .. ->  pid
+ *       |    |               |
+ *       |   pkt             pkt
+ *       |    |               |
+ *       |   pkt             pkt
+ *       |    ..              ..
+ *       |   pkt             pkt
+ *       |
+ *       +-  tabl        ->  tabl        -> .. ->  tabl
+ *       |    |               |                     |
+ *       |   sect            sect                  sect
+ *       |    |               |                     |
+ *       |   sect            sect                  sect
+ *       |    ..              ..                    ..
+ *       |   sect            sect                  sect
  *       |
  *       +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
- *       |    |     |         |     |               |     |
- *       |   elem  sect      elem  sect            elem  sect
- *       |    |     |         |     |               |     |
- *       |   elem  sect      elem  sect            elem  sect
- *       |    ..    ..        ..    ..              ..    ..
- *       |   elem  sect      elem  sect            elem  sect
- *       |
- *       +-  tabl -> tabl -> .. -> tabl
- *            |       |             |
- *           sect    sect          sect
- *            |       |             |
- *           sect    sect          sect
- *            ..      ..            ..
- *           sect    sect          sect
+ *            |     |         |     |               |     |
+ *           elem  sect      elem  sect            elem  sect
+ *            |     |         |     |               |     |
+ *           elem  sect      elem  sect            elem  sect
+ *            ..    ..        ..    ..              ..    ..
+ *           elem  sect      elem  sect            elem  sect
  *
  * pid  list: sorted by PID
- * prog list: sorted by program_number
- * elem list: unsorted, just use the order in PMT
  * tabl list: sorted by table_id
  * sect list: sorted by section_number
+ * prog list: sorted by program_number
+ * elem list: unsorted, just use the order in PMT
  */
 
 #ifndef _TS_H
@@ -337,10 +343,6 @@ struct ts_pid {
         uint8_t sech3[3]; /* collect first 3-byte to get section_length */
         uint8_t table_id; /* TABLE_ID_TABLE */
         uint16_t section_length; /* 12-bit */
-
-        int64_t sect_interval;
-        uint32_t CRC_32;
-        uint32_t CRC_32_calc;
 };
 
 /* input: information about one packet, tell me as more as you can :-) */
@@ -444,10 +446,12 @@ struct ts_obj {
         uint16_t transport_stream_id;
         int has_got_transport_stream_id;
         struct ts_sect *sect; /* point to the node in sect_list */
+        int64_t sect_interval;
+        uint32_t CRC_32;
+        uint32_t CRC_32_calc;
         int is_pat_pmt_parsed;
         int is_psi_si_parsed;
         int is_psi_si;
-        int has_sect;
         struct ts_prog *prog0; /* program list of this stream */
         struct ts_tabl *tabl0; /* PSI/SI table except PMT */
 

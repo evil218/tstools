@@ -411,7 +411,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         obj->has_dts = 0; /* no DTS */
         obj->ES_len = 0; /* no ES */
         obj->is_psi_si = 0; /* not PSI/SI */
-        obj->has_sect = 0; /* not an end of a section */
+        obj->sect = NULL; /* not an end of a section */
         obj->has_rate = 0; /* not a new rate calculate peroid */
 
         /* begin */
@@ -462,7 +462,7 @@ int ts_parse_tsh(struct ts_obj *obj)
 #if 0
         RPT(RPT_DBG, "search 0x%04X in pid_list", obj->PID);
 #endif
-        obj->pid = (struct ts_pid *)zlst_search(&(obj->pid0), obj->PID); /* FIXME */
+        obj->pid = (struct ts_pid *)zlst_search(&(obj->pid0), obj->PID);
         if(!(obj->pid)) {
                 struct ts_pid ts_pid, *new_pid = &ts_pid;
 
@@ -1266,22 +1266,22 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         /* CRC check */
         if(new_sect->check_CRC) {
                 p = new_sect->section + 3 + new_sect->section_length - 4;
-                pid->CRC_32   = *p++;
-                pid->CRC_32 <<= 8;
-                pid->CRC_32  |= *p++;
-                pid->CRC_32 <<= 8;
-                pid->CRC_32  |= *p++;
-                pid->CRC_32 <<= 8;
-                pid->CRC_32  |= *p++;
+                obj->CRC_32   = *p++;
+                obj->CRC_32 <<= 8;
+                obj->CRC_32  |= *p++;
+                obj->CRC_32 <<= 8;
+                obj->CRC_32  |= *p++;
+                obj->CRC_32 <<= 8;
+                obj->CRC_32  |= *p++;
 
-                pid->CRC_32_calc = CRC_for_TS(new_sect->section, 3 + new_sect->section_length - 4, 32);
-                /*pid->CRC_32_calc = CRC(new_sect->section, 3 + new_sect->section_length - 4, 32); */
-                /*pid->CRC_32_calc = crc32(new_sect->section, 3 + new_sect->section_length - 4); */
-                if(pid->CRC_32_calc != pid->CRC_32) {
+                obj->CRC_32_calc = CRC_for_TS(new_sect->section, 3 + new_sect->section_length - 4, 32);
+                /*obj->CRC_32_calc = CRC(new_sect->section, 3 + new_sect->section_length - 4, 32); */
+                /*obj->CRC_32_calc = crc32(new_sect->section, 3 + new_sect->section_length - 4); */
+                if(obj->CRC_32_calc != obj->CRC_32) {
                         err->CRC_error = 1;
 #if 0
                         RPT(RPT_ERR, "CRC error(0x%08X! 0x%08X?)",
-                            pid->CRC_32_calc, pid->CRC_32);
+                            obj->CRC_32_calc, obj->CRC_32);
                         dump(obj->ipt.TS, TS_PKT_SIZE);
                         dump(new_sect->section, 3 + new_sect->section_length);
 #endif
@@ -1293,7 +1293,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         if(0x02 == new_sect->table_id) {
                 /* is PMT section */
                 if(!(pid->prog)) {
-                        RPT(RPT_WRN, "PMT: pid->prog is NULL");
+                        RPT(RPT_WRN, "PMT without corresponding program, ignore");
                         goto release_sect;
                 }
                 tabl = &(pid->prog->tabl);
@@ -1325,8 +1325,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         }
 
         /* get "psect0" */
-        struct znode **psect0;
-        psect0 = (struct znode **)&(tabl->sect0);
+        struct znode **psect0 = (struct znode **)&(tabl->sect0);
 
         /* new table version? */
         if(tabl->version_number != new_sect->version_number) {
@@ -1367,15 +1366,15 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 free_sect(obj->mp, new_sect);
                 //return -1; FIXME: got SDT before PMT will lost service info, so parse again and again now
         }
-        obj->sect = sect;
+        obj->sect = sect; /* has section */
 
         /* sect_interval */
         if(STC_OVF != tabl->STC &&
            STC_OVF != obj->STC) {
-                pid->sect_interval = ts_timestamp_diff(obj->STC, tabl->STC, STC_OVF);
+                obj->sect_interval = ts_timestamp_diff(obj->STC, tabl->STC, STC_OVF);
         }
         else {
-                pid->sect_interval = 0;
+                obj->sect_interval = 0;
         }
         tabl->STC = obj->STC;
 
@@ -1388,7 +1387,6 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         }
 
         /* parse */
-        obj->has_sect = 1;
         switch(sect->table_id) {
                 case 0x00:
                         if(0x0000 != pid->PID) {
@@ -1434,7 +1432,6 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         struct ts_sect *sect = obj->sect;
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_err *err = &(obj->err);
-        struct ts_pid *pid = obj->pid;
         uint8_t dat;
         uint8_t *cur = sect->section + 8;
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
@@ -1442,7 +1439,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PAT_error */
-        if(pid->sect_interval > 500 * STC_MS) {
+        if(obj->sect_interval > 500 * STC_MS) {
                 err->PAT_error = ERR_1_3_0;
         }
         if(0x00 != tsh->transport_scrambling_control) {
@@ -1623,7 +1620,6 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         struct ts_sect *sect = obj->sect;
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_err *err = &(obj->err);
-        struct ts_pid *pid = obj->pid;
         uint8_t dat;
         uint8_t *cur = sect->section + 8;
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
@@ -1631,7 +1627,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PMT_error */
-        if(pid->sect_interval > 500 * STC_MS) {
+        if(obj->sect_interval > 500 * STC_MS) {
                 err->PMT_error = ERR_1_5_0;
         }
         if(0x00 != tsh->transport_scrambling_control) {

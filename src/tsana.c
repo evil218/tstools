@@ -442,10 +442,10 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.es && ts->ES_len) {
                 has_report = 1;
         }
-        if(obj->aim.sec && ts->has_sect) {
+        if(obj->aim.sec && ts->sect) {
                 has_report = 1;
         }
-        if(obj->aim.si && ts->has_sect) {
+        if(obj->aim.si && ts->sect) {
                 has_report = 1;
         }
         if(obj->aim.rate && ts->has_rate) {
@@ -498,10 +498,10 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.es && ts->ES_len) {
                 show_es(obj);
         }
-        if(obj->aim.sec && ts->has_sect) {
+        if(obj->aim.sec && ts->sect) {
                 show_sec(obj);
         }
-        if(obj->aim.si && ts->has_sect) {
+        if(obj->aim.si && ts->sect) {
                 show_si(obj);
         }
         if(obj->aim.rate && ts->has_rate) {
@@ -1357,12 +1357,11 @@ static void show_sec(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
         char str[3 * 4096 + 3];
         struct ts_sect *sect = ts->sect;
-        struct ts_pid *pid = ts->pid;
 
         /* section_interval */
         fprintf(stdout, "%s*sec%s, %+9.3f, ",
                 obj->color_green, obj->color_off,
-                (double)(pid->sect_interval) / STC_MS);
+                (double)(ts->sect_interval) / STC_MS);
 
         /* section_head */
         b2t(str, sect->section, 8);
@@ -1381,12 +1380,11 @@ static void show_si(struct tsana_obj *obj)
         char str[3 * 8 + 3];
         int is_unknown_table_id = 0;
         struct ts_sect *sect = ts->sect;
-        struct ts_pid *pid = ts->pid;
 
         /* section_interval */
         fprintf(stdout, "%s*si%s, %+9.3f, ",
                 obj->color_green, obj->color_off,
-                (double)(pid->sect_interval) / STC_MS);
+                (double)(ts->sect_interval) / STC_MS);
 
         /* section_head */
         b2t(str, sect->section, 8);
@@ -1639,7 +1637,7 @@ static int show_error(struct tsana_obj *obj)
         }
         if(err->CRC_error) {
                 fprintf(stdout, "2.2 , CRC(0x%08X! 0x%08X?), ",
-                        ts->pid->CRC_32_calc, ts->pid->CRC_32);
+                        ts->CRC_32_calc, ts->CRC_32);
                 err->CRC_error = 0;
         }
         if(err->PCR_repetition_error) {
