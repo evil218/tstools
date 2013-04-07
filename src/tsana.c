@@ -18,6 +18,9 @@
 #include "ts.h" /* has "list.h" already */
 #include "UTF_GB.h"
 
+#include "param_xml.h"
+#include "ts_desc.h"
+
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
@@ -1179,6 +1182,17 @@ static void show_psi(struct tsana_obj *obj)
         }
 
         output_prog(obj);
+
+        /* xml output */
+        xmlDocPtr doc;
+        xmlNodePtr root;
+
+        doc = xmlNewDoc((xmlChar *)"1.0");
+        root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
+        param2xml(ts, root, pd_ts); /* param -> xml */
+        xmlDocSetRootElement(doc, root);
+        xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
+        xmlFreeDoc(doc);
         return;
 }
 

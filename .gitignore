@@ -1,5 +1,7 @@
 tags
 cscope.out
+psi.xml
+psi.xml.gz
 *.swp
 
 */catts
