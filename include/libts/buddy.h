@@ -19,6 +19,7 @@ int buddy_destroy(intptr_t id);
 int buddy_init(intptr_t id);
 int buddy_status(intptr_t id);
 void *buddy_malloc(intptr_t id, size_t NBYTES);
+void *buddy_realloc(intptr_t id, void *APTR, size_t NBYTES);
 void buddy_free(intptr_t id, void *APTR);
 
 #ifdef __cplusplus

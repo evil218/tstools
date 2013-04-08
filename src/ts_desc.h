@@ -29,7 +29,7 @@ struct pdesc pd_prog[] = {
         {PT_UINTu, 0, 1, OFFSET(struct ts_prog, program_number), "program_number", sizeof(uint16_t), 0, NULL, NULL},
         {PT_UINTX, 0, 1, OFFSET(struct ts_prog, PMT_PID), "PMT_PID", sizeof(uint16_t), 0, NULL, NULL},
         {PT_UINTX, 0, 1, OFFSET(struct ts_prog, PCR_PID), "PCR_PID", sizeof(uint16_t), 0, NULL, NULL},
-        {PT_LIST_, 0, 1, OFFSET(struct ts_prog, elem0), "elem0", sizeof(struct ts_elem *), (int)td_elem, NULL, NULL},
+        {PT_LIST_, 0, 1, OFFSET(struct ts_prog, elem0), "elem", sizeof(struct ts_elem *), (int)td_elem, NULL, NULL},
         {PT_NULL_, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };
 
@@ -40,7 +40,7 @@ struct tdesc td_prog[] = {
 
 struct pdesc pd_ts[] = {
         {PT_UINTu, 0, 1, OFFSET(struct ts_obj, transport_stream_id), "transport_stream_id", sizeof(uint16_t), 0, NULL, NULL},
-        {PT_LIST_, 0, 1, OFFSET(struct ts_obj, prog0), "prog0", sizeof(struct ts_prog *), (int)td_prog, NULL, NULL},
+        {PT_LIST_, 0, 1, OFFSET(struct ts_obj, prog0), "prog", sizeof(struct ts_prog *), (int)td_prog, NULL, NULL},
         {PT_NULL_, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };
 

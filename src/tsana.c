@@ -160,14 +160,15 @@ struct aim {
         int err;
 };
 
+static intptr_t mp; /* id of buddy memory pool, for list malloc and free */
+
 struct tsana_obj {
-        intptr_t mp; /* id of buddy memory pool, for list malloc and free */
         int mode;
         int state;
         struct aim aim;
 
-        int is_outpsi; /* output txt psi packet to stdout */
-        int is_prepsi; /* get psi information from file first */
+        int is_expsi; /* export PSI/SI into psi.xml */
+        int is_impsi; /* import PSI/SI from psi.xml */
         int is_dump; /* output packet directly */
         uint64_t aim_start; /* ignore some packets fisrt, default: 0(no ignore) */
         uint64_t aim_count; /* stop after analyse some packets, default: 0(no stop) */
@@ -219,6 +220,11 @@ static int state_parse_each(struct tsana_obj *obj);
 
 static struct tsana_obj *create(int argc, char *argv[]);
 static int destroy(struct tsana_obj *obj);
+
+static void xfree(void *pBlock);
+static void *xalloc(size_t nBytes);
+static void *xrealloc(void *pBlock, size_t newSize);
+static char *xstrdup(const char *SRC);
 
 static void show_help();
 static void show_version();
@@ -286,6 +292,31 @@ int main(int argc, char *argv[])
         }
         ts = obj->ts;
         ts->aim_interval = obj->aim_interval;
+        if(obj->is_impsi) {
+                xmlDocPtr doc;
+                xmlNodePtr root;
+
+                doc = xmlParseFile("psi.xml");
+                if(doc == NULL) {
+                        fprintf(stderr,"parse psi.xml failed\n");
+                        return -1;
+                }
+
+                root = xmlDocGetRootElement(doc);
+                if(root == NULL) {
+                        fprintf(stderr,"empty document\n");
+                        xmlFreeDoc(doc);
+                        return -1;
+                }
+
+                if (xmlStrcmp(root->name, (const xmlChar *) "ts")) {
+                        fprintf(stderr,"psi.xml: root node != ts");
+                        xmlFreeDoc(doc);
+                        return -1;
+                }
+                xml2param(ts, root, pd_ts);
+                xmlFreeDoc(doc);
+        }
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
                 if(GOT_WRONG_PKT == get_rslt) {
@@ -351,15 +382,8 @@ static void state_parse_psi(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        if(obj->is_outpsi && ts->is_psi_si) {
-                fprintf(stdout, "%s", obj->tbuf);
-        }
-
         if(ts->is_pat_pmt_parsed) {
-                obj->state = STATE_PARSE_EACH;
-                if(MODE_EXIT == obj->mode) {
-                        obj->state = STATE_EXIT;
-                }
+                obj->state = ((MODE_EXIT != obj->mode) ? STATE_PARSE_EACH : STATE_EXIT);
         }
         return;
 }
@@ -548,8 +572,8 @@ static struct tsana_obj *create(int argc, char *argv[])
         memset(&(obj->aim), 0, sizeof(struct aim));
 
         memset(&cfg, 1, sizeof(struct ts_cfg));
-        obj->is_outpsi = 0;
-        obj->is_prepsi = 0;
+        obj->is_expsi = 0;
+        obj->is_impsi = 0;
         obj->is_dump = 0;
         obj->cnt = 0;
         obj->aim_start = 0;
@@ -577,14 +601,12 @@ static struct tsana_obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-psi")) {
                                 obj->mode = MODE_PSI;
                         }
-                        else if(0 == strcmp(argv[i], "-outpsi")) {
-                                obj->is_outpsi = 1;
-                                obj->mode = MODE_EXIT;
+#if 1
+                        else if(0 == strcmp(argv[i], "-expsi")) {
+                                obj->is_expsi = 1;
                         }
-#if 0
-                        else if(0 == strcmp(argv[i], "-prepsi")) {
-                                obj->is_prepsi = 1;
-                                obj->mode = MODE_ALL;
+                        else if(0 == strcmp(argv[i], "-impsi")) {
+                                obj->is_impsi = 1;
                         }
 #endif
                         else if(0 == strcmp(argv[i], "-dump")) {
@@ -825,15 +847,21 @@ static struct tsana_obj *create(int argc, char *argv[])
         }
 
         /* create & init buddy module */
-        obj->mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
-        if(0 == obj->mp) {
+        mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
+        if(0 == mp) {
                 RPT(RPT_ERR, "malloc memory pool failed");
                 goto create_failed_with_obj;
         }
-        buddy_init(obj->mp); /* now, we can use xx_malloc() */
+        buddy_init(mp); /* now, we can use xx_malloc() */
+
+        /* init memory of libxml2 */
+        if(0 != xmlMemSetup(xfree, xalloc, xrealloc, xstrdup)) {
+                fprintf(stderr,"xmlMemSetup() failed.\n");
+                goto create_failed_with_mp;
+        }
 
         /* create & init ts module */
-        obj->ts = ts_create(obj->mp);
+        obj->ts = ts_create(mp);
         if(0 == obj->ts) {
                 RPT(RPT_ERR, "malloc ts object failed");
                 goto create_failed_with_mp;
@@ -843,7 +871,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         return obj;
 
 create_failed_with_mp:
-        buddy_destroy(obj->mp); /* return the memory to OS */
+        buddy_destroy(mp); /* return the memory to OS */
 create_failed_with_obj:
         free(obj);
         return NULL;
@@ -856,17 +884,52 @@ static int destroy(struct tsana_obj *obj)
         }
 
 #if 0
-        buddy_status(obj->mp); /* to debug the memory pool */
+        buddy_status(mp); /* to debug the memory pool */
 #endif
         ts_destroy(obj->ts);
 #if 0
-        buddy_status(obj->mp); /* to debug the memory pool */
+        buddy_status(mp); /* to debug the memory pool */
 #endif
-        buddy_destroy(obj->mp); /* return the memory to OS */
+        buddy_destroy(mp); /* return the memory to OS */
 
         free(obj);
 
         return 1;
+}
+
+static void xfree(void *pBlock)
+{
+        buddy_free(mp, pBlock);
+}
+
+static void *xalloc(size_t nBytes)
+{
+        return buddy_malloc(mp, nBytes);
+}
+
+static void *xrealloc(void *pBlock, size_t newSize)
+{
+        return buddy_realloc(mp, pBlock, newSize);
+}
+
+static char *xstrdup(const char *SRC)
+{
+        size_t len;
+        char *dst;
+
+        if(!SRC) {
+                return NULL;
+        }
+        len = strlen(SRC) + 1;
+        if(!len) {
+                return NULL;
+        }
+
+        dst = (char *)buddy_malloc(mp, len);
+        if(dst) {
+                memcpy(dst, SRC, len);
+        }
+        return dst;
 }
 
 static void show_help()
@@ -880,9 +943,9 @@ static void show_help()
                 " -lst             show PID list information, default option\n"
                 " -psi             show PSI tree information\n"
                 "\n"
-#if 0
-                " -outpsi          output PSI packet\n"
-                " -prepsi <file>   get PSI information from <file> first\n"
+#if 1
+                " -expsi           export PSI information into psi.xml\n"
+                " -impsi           import PSI information from psi.xml first\n"
 #endif
                 " -dump            dump cared packet\n"
                 "\n"
@@ -914,11 +977,6 @@ static void show_help()
                 " -type <type>     set cared PID type, default: any type(0)\n"
                 " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
                 " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
-                "\n"
-#if 0
-                " -prepsi <file>   get PSI information from <file> first\n"
-                " -si              show SI section information of cared <table>\n"
-#endif
                 "\n"
                 " -h, --help       display this information\n"
                 " -v, --version    display my version\n"
@@ -1183,16 +1241,18 @@ static void show_psi(struct tsana_obj *obj)
 
         output_prog(obj);
 
-        /* xml output */
-        xmlDocPtr doc;
-        xmlNodePtr root;
+        if(obj->is_expsi) {
+                xmlDocPtr doc;
+                xmlNodePtr root;
 
-        doc = xmlNewDoc((xmlChar *)"1.0");
-        root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
-        param2xml(ts, root, pd_ts); /* param -> xml */
-        xmlDocSetRootElement(doc, root);
-        xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
-        xmlFreeDoc(doc);
+                doc = xmlNewDoc((xmlChar *)"1.0");
+                root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
+                param2xml(ts, root, pd_ts);
+                xmlDocSetRootElement(doc, root);
+                xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
+                xmlFreeDoc(doc);
+        }
+
         return;
 }
 

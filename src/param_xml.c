@@ -1063,7 +1063,7 @@ static int xml2list(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 /* add list node with tdesc */
-                list = (struct znode *)malloc(tdesc->size);
+                list = (struct znode *)xmlMalloc(tdesc->size);
                 if(!list) {
                         dbg(1, "malloc znode failed, ignore");
                         continue;
@@ -1129,7 +1129,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 /* add list node with tdesc */
-                list = (struct znode *)malloc(tdesc->size);
+                list = (struct znode *)xmlMalloc(tdesc->size);
                 if(!list) {
                         dbg(1, "malloc znode failed, ignore");
                         continue;

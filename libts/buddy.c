@@ -1,6 +1,7 @@
 /* vim: set tabstop=8 shiftwidth=8: */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h> /* for memcpy */
 #include <stdint.h> /* for uintN_t, etc */
 
 #include "buddy.h"
@@ -250,6 +251,114 @@ void *buddy_malloc(intptr_t id, size_t NBYTES)
         return rslt;
 }
 
+void *buddy_realloc(intptr_t id, void *APTR, size_t NBYTES) /* FIXME: maybe wrong */
+{
+        struct buddy_pool *p = (struct buddy_pool *)id;
+
+        if(NULL == p) {
+                RPT(RPT_ERR, "realloc: bad id");
+                return NULL;
+        }
+        if(NULL == p->tree) {
+                RPT(RPT_ERR, "realloc: bad tree");
+                return NULL;
+        }
+        if(NULL == p->pool) {
+                RPT(RPT_ERR, "realloc: bad pool");
+                return NULL;
+        }
+        if(NULL == APTR) {
+                RPT(RPT_ERR, "realloc: bad APTR");
+                return NULL;
+        }
+        if(NBYTES <= 0) {
+                RPT(RPT_ERR, "realloc: bad NBYTES: %d", NBYTES);
+                return NULL;
+        }
+
+        /* determine offset, then search old node in the tree */
+        size_t offset = (uint8_t *)APTR - p->pool;
+        if(offset < 0 || offset >= p->size) {
+                RPT(RPT_ERR, "realloc: bad APTR: %lX", (unsigned long)APTR);
+                return NULL;
+        }
+
+        int old_order = p->omin;
+        int oi = 0; /* index of binary tree array */
+        int found = 0;
+        while(offset % (1<<old_order) == 0) {
+                oi = (1<<(p->omax - old_order)) - 1 + offset / (1<<old_order);
+                if(0 == p->tree[oi]) {
+                        found = 1;
+                        break;
+                }
+                old_order++;
+        }
+        if(!found) {
+                RPT(RPT_ERR, "realloc: bad APTR: %lX, illegal node or module bug", (unsigned long)APTR);
+                return NULL;
+        }
+
+        /* determine new_order in tree */
+        int new_order = MAX(smallest_order(NBYTES), p->omin);
+        if((int)(p->tree[0]) < new_order) {
+                RPT(RPT_ERR, "realloc: not enough space in pool");
+                return NULL;
+        }
+
+        /* maybe do not need to realloc */
+        if(new_order <= old_order) {
+                return APTR;
+        }
+
+        /* search new node in the tree */
+        int ni = 0; /* index of binary tree array */
+        for(int current_order = p->omax; current_order > new_order; current_order--) {
+                if(p->tree[LSUBTREE(ni)] >= new_order) {
+                        ni = LSUBTREE(ni);
+                }
+                else {
+                        ni = RSUBTREE(ni);
+                }
+        }
+
+        uint8_t *rslt = (p->pool + (ni + 1) * (1<<new_order) - (p->size));
+        RPT(RPT_DBG, "realloc: @ %8lX %8lX %8lX",
+            (unsigned long)rslt, (unsigned long)1<<new_order, (unsigned long)NBYTES);
+
+        /* modify tree for new */
+        p->tree[ni] = 0;
+        while(ni) {
+                ni = PARENT(ni);
+                p->tree[ni] = MAX(p->tree[LSUBTREE(ni)], p->tree[RSUBTREE(ni)]) ;
+        }
+
+        /* copy data */
+        memcpy(rslt, APTR, (1<<old_order));
+
+        /* modify tree for old */
+        int lorder;
+        int rorder;
+        RPT(RPT_DBG, "realloc: @ %8lX %8lX", (unsigned long)APTR, (unsigned long)1<<old_order);
+        p->tree[oi] = old_order;
+        while(oi) {
+                oi = PARENT(oi) ;
+                old_order++;
+
+                lorder = p->tree[LSUBTREE(oi)];
+                rorder = p->tree[RSUBTREE(oi)];
+                if(lorder == (old_order - 1) &&
+                   rorder == (old_order - 1)) {
+                        p->tree[oi] = old_order;
+                }
+                else {
+                        p->tree[oi] = MAX(lorder, rorder);
+                }
+        }
+
+        return rslt;
+}
+
 void buddy_free(intptr_t id, void *APTR)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
@@ -271,14 +380,13 @@ void buddy_free(intptr_t id, void *APTR)
                 return;
         }
 
-        /* determine offset */
+        /* determine offset, then search aim node in the tree */
         size_t offset = (uint8_t *)APTR - p->pool;
         if(offset < 0 || offset >= p->size) {
                 RPT(RPT_ERR, "free: bad APTR: %lX", (unsigned long)APTR);
                 return;
         }
 
-        /* search aim node in the tree */
         int order = p->omin;
         int i = 0; /* index of binary tree array */
         int found = 0;
@@ -294,13 +402,12 @@ void buddy_free(intptr_t id, void *APTR)
                 RPT(RPT_ERR, "free: bad APTR: %lX, illegal node or module bug", (unsigned long)APTR);
                 return;
         }
-        p->tree[i] = order;
-        RPT(RPT_DBG, "free:    @ %8lX %8lX",
-            (unsigned long)APTR, (unsigned long)1<<order);
 
-        /* modify parent order */
+        /* modify tree */
         int lorder;
         int rorder;
+        RPT(RPT_DBG, "free:    @ %8lX %8lX", (unsigned long)APTR, (unsigned long)1<<order);
+        p->tree[i] = order;
         while(i) {
                 i = PARENT(i) ;
                 order++;
