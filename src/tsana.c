@@ -306,16 +306,19 @@ int main(int argc, char *argv[])
                 if(root == NULL) {
                         fprintf(stderr,"empty document\n");
                         xmlFreeDoc(doc);
+                        xmlCleanupParser();
                         return -1;
                 }
 
                 if (xmlStrcmp(root->name, (const xmlChar *) "ts")) {
                         fprintf(stderr,"psi.xml: root node != ts");
                         xmlFreeDoc(doc);
+                        xmlCleanupParser();
                         return -1;
                 }
                 xml2param(ts, root, pd_ts);
                 xmlFreeDoc(doc);
+                xmlCleanupParser();
         }
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
@@ -1251,6 +1254,7 @@ static void show_psi(struct tsana_obj *obj)
                 xmlDocSetRootElement(doc, root);
                 xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
                 xmlFreeDoc(doc);
+                xmlCleanupParser();
         }
 
         return;

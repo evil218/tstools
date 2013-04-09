@@ -170,6 +170,9 @@ int buddy_status(intptr_t id)
         cnt = 0;
         acc = 0;
         fprintf(stderr,"buddy: ");
+#if 0
+        fprintf(stderr,"\n");
+#endif
         for(int i = 0; i < tree_size; i++) {
                 if(IS_POWER_OF_2(i + 1)) {
                         order--;
@@ -180,17 +183,42 @@ int buddy_status(intptr_t id)
                                 /* no subtree */
                                 cnt++;
                                 acc += (1 << order);
+#if 0
+                                uint8_t *buf = (p->pool + (i + 1) * (1<<order) - (p->size));
+                                for(int x = 0; x <(1 << order); x++) {
+                                        fprintf(stderr, "%c", *(buf + x));
+                                }
+                                fprintf(stderr, "\n");
+                                for(int x = 0; x <(1 << order); x++) {
+                                        fprintf(stderr, "%02X ", *(buf + x));
+                                }
+                                fprintf(stderr, "\n");
+#endif
                         }
                         else {
                                 /* depend on subtree */
                                 if(0 != p->tree[LSUBTREE(i)] || 0 != p->tree[RSUBTREE(i)]) {
                                         cnt++;
                                         acc += (1 << order);
+#if 0
+                                        uint8_t *buf = (p->pool + (i + 1) * (1<<order) - (p->size));
+                                        for(int x = 0; x <(1 << order); x++) {
+                                                fprintf(stderr, "%c", *(buf + x));
+                                        }
+                                        fprintf(stderr, "\n");
+                                        for(int x = 0; x <(1 << order); x++) {
+                                                fprintf(stderr, "%02X ", *(buf + x));
+                                        }
+                                        fprintf(stderr, "\n");
+#endif
                                 }
                         }
                 }
                 if(IS_POWER_OF_2(i + 2) && (0 != cnt)) {
                         fprintf(stderr,"%d x 0x%X, ", cnt, (1 << order));
+#if 0
+                        fprintf(stderr, "\n");
+#endif
                 }
         }
         fprintf(stderr,"(%d / %d) used\n", acc, (1 << p->omax));
