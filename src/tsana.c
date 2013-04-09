@@ -170,6 +170,7 @@ struct tsana_obj {
         int is_expsi; /* export PSI/SI into psi.xml */
         int is_impsi; /* import PSI/SI from psi.xml */
         int is_dump; /* output packet directly */
+        int is_mem; /* show memory info */
         uint64_t aim_start; /* ignore some packets fisrt, default: 0(no ignore) */
         uint64_t aim_count; /* stop after analyse some packets, default: 0(no stop) */
         uint16_t aim_pid;
@@ -292,10 +293,12 @@ int main(int argc, char *argv[])
         }
         ts = obj->ts;
         ts->aim_interval = obj->aim_interval;
+
         if(obj->is_impsi) {
                 xmlDocPtr doc;
                 xmlNodePtr root;
 
+                buddy_status(mp, obj->is_mem, "before xml init");
                 doc = xmlParseFile("psi.xml");
                 if(doc == NULL) {
                         fprintf(stderr,"parse psi.xml failed\n");
@@ -317,8 +320,10 @@ int main(int argc, char *argv[])
                         return -1;
                 }
                 xml2param(ts, root, pd_ts);
+                buddy_status(mp, obj->is_mem, "after xml2param");
                 xmlFreeDoc(doc);
                 xmlCleanupParser();
+                buddy_status(mp, obj->is_mem, "after xml clean");
         }
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
@@ -578,6 +583,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->is_expsi = 0;
         obj->is_impsi = 0;
         obj->is_dump = 0;
+        obj->is_mem = 0;
         obj->cnt = 0;
         obj->aim_start = 0;
         obj->aim_count = 0;
@@ -615,6 +621,9 @@ static struct tsana_obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-dump")) {
                                 obj->is_dump = 1;
                                 obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-mem")) {
+                                obj->is_mem = 1;
                         }
                         else if(0 == strcmp(argv[i], "-bg")) {
                                 obj->aim.bg = 1;
@@ -856,6 +865,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                 goto create_failed_with_obj;
         }
         buddy_init(mp); /* now, we can use xx_malloc() */
+        buddy_status(mp, obj->is_mem, "after buddy init");
 
         /* init memory of libxml2 */
         if(0 != xmlMemSetup(xfree, xalloc, xrealloc, xstrdup)) {
@@ -886,13 +896,10 @@ static int destroy(struct tsana_obj *obj)
                 return 0;
         }
 
-#if 0
-        buddy_status(mp); /* to debug the memory pool */
-#endif
+        buddy_status(mp, obj->is_mem, "before ts destroy");
         ts_destroy(obj->ts);
-#if 0
-        buddy_status(mp); /* to debug the memory pool */
-#endif
+        buddy_status(mp, obj->is_mem, "after ts destroy");
+
         buddy_destroy(mp); /* return the memory to OS */
 
         free(obj);
@@ -951,6 +958,7 @@ static void show_help()
                 " -impsi           import PSI information from psi.xml first\n"
 #endif
                 " -dump            dump cared packet\n"
+                " -mem             show memory status\n"
                 "\n"
                 " -bg              output background information\n"
                 " -cts             \"*cts, CTS, BASE, \"\n"
@@ -1248,13 +1256,17 @@ static void show_psi(struct tsana_obj *obj)
                 xmlDocPtr doc;
                 xmlNodePtr root;
 
+                buddy_status(mp, obj->is_mem, "before xml init");
                 doc = xmlNewDoc((xmlChar *)"1.0");
                 root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
                 param2xml(ts, root, pd_ts);
                 xmlDocSetRootElement(doc, root);
+                buddy_status(mp, obj->is_mem, "after param2xml");
                 xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
+                buddy_status(mp, obj->is_mem, "after xml save");
                 xmlFreeDoc(doc);
                 xmlCleanupParser();
+                buddy_status(mp, obj->is_mem, "after xml clean");
         }
 
         return;

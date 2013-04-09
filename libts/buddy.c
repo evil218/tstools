@@ -147,17 +147,21 @@ int buddy_init(intptr_t id)
         return 0;
 }
 
-int buddy_status(intptr_t id)
+int buddy_status(intptr_t id, int enable, const char *hint)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 
         if(NULL == p) {
-                RPT(RPT_ERR, "init: bad id");
+                RPT(RPT_ERR, "status: bad id");
                 return -1;
         }
         if(NULL == p->tree) {
-                RPT(RPT_ERR, "init: bad tree");
+                RPT(RPT_ERR, "status: bad tree");
                 return -1;
+        }
+        if(!enable) {
+                RPT(RPT_INF, "status: do nothing");
+                return 0;
         }
 
         int order;
@@ -215,13 +219,14 @@ int buddy_status(intptr_t id)
                         }
                 }
                 if(IS_POWER_OF_2(i + 2) && (0 != cnt)) {
-                        fprintf(stderr,"%d x 0x%X, ", cnt, (1 << order));
+                        fprintf(stderr,"%3d x 0x%X, ", cnt, (1 << order));
 #if 0
                         fprintf(stderr, "\n");
 #endif
                 }
         }
-        fprintf(stderr,"(%d / %d) used\n", acc, (1 << p->omax));
+        fprintf(stderr,"(%d / %d) used", acc, (1 << p->omax));
+        fprintf(stderr,": %s\n", ((hint) ? hint : ""));
         return 0;
 }
 
