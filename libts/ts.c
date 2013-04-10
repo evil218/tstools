@@ -175,6 +175,7 @@ enum {
 };
 
 static int init(struct ts_obj *obj);
+static int tidy(struct ts_obj *obj);
 static int state_next_pat(struct ts_obj *obj);
 static int state_next_pmt(struct ts_obj *obj);
 static int state_next_pkt(struct ts_obj *obj);
@@ -254,6 +255,9 @@ int ts_ioctl(struct ts_obj *obj, int cmd, int arg)
                                 RPT(RPT_ERR, "bad cfg");
                         }
                         break;
+                case TS_TIDY:
+                        tidy(obj);
+                        break;
                 default:
                         RPT(RPT_ERR, "bad cmd");
                         break;
@@ -303,6 +307,87 @@ static int init(struct ts_obj *obj)
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
         memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
 
+        return 0;
+}
+
+static int tidy(struct ts_obj *obj)
+{
+        struct ts_pid new_pid;
+        struct ts_prog *prog;
+        struct ts_elem *elem;
+
+        if(!(obj->prog0)) {
+                return -1;
+        }
+
+        /* add PAT pid */
+        new_pid.PID = 0x0000;
+        new_pid.type = TS_TYPE_PAT;
+        new_pid.prog = obj->prog0;
+        new_pid.elem = NULL;
+        new_pid.cnt = 0;
+        new_pid.lcnt = 0;
+        new_pid.is_CC_sync = 0;
+        update_pid_list(obj, &new_pid);
+        RPT(RPT_INF, "add pat pid: 0x%04X", new_pid.PID);
+
+        for(prog = obj->prog0; prog; prog = (struct ts_prog *)(((struct znode *)prog)->next)) {
+                RPT(RPT_INF, "has prog: %d", prog->program_number);
+                prog->program_info_len = 0;
+                prog->program_info = NULL;
+                prog->service_name_len = 0;
+                prog->service_name = NULL;
+                prog->service_provider_len = 0;
+                prog->service_provider = NULL;
+                prog->is_parsed = 1;
+                prog->ADDa = 0;
+                prog->PCRa = STC_OVF;
+                prog->ADDb = 0;
+                prog->PCRb = STC_OVF;
+                prog->is_STC_sync = 0;
+
+                /* add PMT pid */
+                new_pid.PID = prog->PMT_PID;
+                new_pid.type = TS_TYPE_PMT;
+                new_pid.prog = prog;
+                new_pid.elem = NULL;
+                new_pid.cnt = 0;
+                new_pid.lcnt = 0;
+                new_pid.is_CC_sync = 0;
+                update_pid_list(obj, &new_pid);
+                RPT(RPT_INF, "add pmt pid: 0x%04X", new_pid.PID);
+
+                /* add PCR pid */
+                new_pid.PID = prog->PCR_PID;
+                new_pid.type = ((0x1FFF != new_pid.PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
+                new_pid.prog = prog;
+                new_pid.elem = NULL;
+                new_pid.cnt = 0;
+                new_pid.lcnt = 0;
+                new_pid.is_CC_sync = 0;
+                update_pid_list(obj, &new_pid);
+                RPT(RPT_INF, "add pcr pid: 0x%04X", new_pid.PID);
+
+                for(elem = prog->elem0; elem; elem = (struct ts_elem *)(((struct znode *)elem)->next)) {
+                        RPT(RPT_INF, "has elem: 0x%04X", elem->PID);
+                        elem->es_info_len = 0;
+                        elem->es_info = NULL;
+                        elem->PTS = STC_BASE_OVF;
+                        elem->DTS = STC_BASE_OVF;
+                        elem->is_pes_align = 0;
+
+                        /* add elem pid */
+                        new_pid.PID = elem->PID;
+                        new_pid.type = elem->type;
+                        new_pid.prog = prog;
+                        new_pid.elem = elem;
+                        new_pid.cnt = 0;
+                        new_pid.lcnt = 0;
+                        new_pid.is_CC_sync = 0;
+                        update_pid_list(obj, &new_pid);
+                        RPT(RPT_INF, "add elem pid: 0x%04X", new_pid.PID);
+                }
+        }
         return 0;
 }
 
@@ -479,7 +564,6 @@ int ts_parse_tsh(struct ts_obj *obj)
                 new_pid->elem = NULL;
                 new_pid->cnt = 1;
                 new_pid->lcnt = 0;
-                /*new_pid->CC = tsh->continuity_counter; */
                 new_pid->is_CC_sync = 0;
 
                 obj->pid = update_pid_list(obj, new_pid);

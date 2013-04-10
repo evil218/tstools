@@ -16,6 +16,7 @@ extern "C" {
 
 struct pdesc pd_elem[] = {
         {PT_UINTX, 0, 1, OFFSET(struct ts_elem, PID), "PID", sizeof(uint16_t), 0, NULL, NULL},
+        {PT_UINTX, 0, 1, OFFSET(struct ts_elem, type), "type", sizeof(int), 0, NULL, NULL},
         {PT_UINTX, 0, 1, OFFSET(struct ts_elem, stream_type), "stream_type", sizeof(uint8_t), 0, NULL, NULL},
         {PT_NULL_, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };

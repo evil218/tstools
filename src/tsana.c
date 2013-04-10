@@ -167,7 +167,6 @@ struct tsana_obj {
         int state;
         struct aim aim;
 
-        int is_expsi; /* export PSI/SI into psi.xml */
         int is_impsi; /* import PSI/SI from psi.xml */
         int is_dump; /* output packet directly */
         int is_mem; /* show memory info */
@@ -197,6 +196,7 @@ struct tsana_obj {
 
 enum {
         MODE_LST,
+        MODE_EXPSI,
         MODE_PSI,
         MODE_ALL, /* depend on struct aim */
         MODE_EXIT
@@ -239,6 +239,9 @@ static void output_elem(void *PELEM, uint16_t pcr_pid);
 
 static void show_lst(struct tsana_obj *obj);
 static void show_psi(struct tsana_obj *obj);
+
+static int export_psi(struct tsana_obj *obj);
+static int import_psi(struct tsana_obj *obj);
 
 static void show_pkt(struct tsana_obj *obj);
 static void show_bg(struct tsana_obj *obj);
@@ -295,35 +298,7 @@ int main(int argc, char *argv[])
         ts->aim_interval = obj->aim_interval;
 
         if(obj->is_impsi) {
-                xmlDocPtr doc;
-                xmlNodePtr root;
-
-                buddy_status(mp, obj->is_mem, "before xml init");
-                doc = xmlParseFile("psi.xml");
-                if(doc == NULL) {
-                        fprintf(stderr,"parse psi.xml failed\n");
-                        return -1;
-                }
-
-                root = xmlDocGetRootElement(doc);
-                if(root == NULL) {
-                        fprintf(stderr,"empty document\n");
-                        xmlFreeDoc(doc);
-                        xmlCleanupParser();
-                        return -1;
-                }
-
-                if (xmlStrcmp(root->name, (const xmlChar *) "ts")) {
-                        fprintf(stderr,"psi.xml: root node != ts");
-                        xmlFreeDoc(doc);
-                        xmlCleanupParser();
-                        return -1;
-                }
-                xml2param(ts, root, pd_ts);
-                buddy_status(mp, obj->is_mem, "after xml2param");
-                xmlFreeDoc(doc);
-                xmlCleanupParser();
-                buddy_status(mp, obj->is_mem, "after xml clean");
+                import_psi(obj);
         }
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
@@ -372,6 +347,9 @@ int main(int argc, char *argv[])
                 switch(obj->mode) {
                         case MODE_LST:
                                 show_lst(obj);
+                                break;
+                        case MODE_EXPSI:
+                                export_psi(obj);
                                 break;
                         case MODE_PSI:
                                 show_psi(obj);
@@ -438,6 +416,11 @@ static int state_parse_each(struct tsana_obj *obj)
         if(MODE_LST == obj->mode) {
                 if(!(obj->is_dump)) {
                         show_lst(obj);
+                }
+        }
+        if(MODE_EXPSI == obj->mode) {
+                if(!(obj->is_dump)) {
+                        export_psi(obj);
                 }
         }
         if(MODE_PSI == obj->mode) {
@@ -580,7 +563,6 @@ static struct tsana_obj *create(int argc, char *argv[])
         memset(&(obj->aim), 0, sizeof(struct aim));
 
         memset(&cfg, 1, sizeof(struct ts_cfg));
-        obj->is_expsi = 0;
         obj->is_impsi = 0;
         obj->is_dump = 0;
         obj->is_mem = 0;
@@ -610,14 +592,12 @@ static struct tsana_obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-psi")) {
                                 obj->mode = MODE_PSI;
                         }
-#if 1
                         else if(0 == strcmp(argv[i], "-expsi")) {
-                                obj->is_expsi = 1;
+                                obj->mode = MODE_EXPSI;
                         }
                         else if(0 == strcmp(argv[i], "-impsi")) {
                                 obj->is_impsi = 1;
                         }
-#endif
                         else if(0 == strcmp(argv[i], "-dump")) {
                                 obj->is_dump = 1;
                                 obj->mode = MODE_ALL;
@@ -1242,6 +1222,70 @@ static void show_lst(struct tsana_obj *obj)
         return;
 }
 
+static int export_psi(struct tsana_obj *obj)
+{
+        struct ts_obj *ts = obj->ts;
+
+        if(!(ts->is_psi_si_parsed)) {
+                return -1;
+        }
+
+        xmlDocPtr doc;
+        xmlNodePtr root;
+
+        buddy_status(mp, obj->is_mem, "before xml init");
+        doc = xmlNewDoc((xmlChar *)"1.0");
+        root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
+        param2xml(ts, root, pd_ts);
+        xmlDocSetRootElement(doc, root);
+        buddy_status(mp, obj->is_mem, "after param2xml");
+        xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
+        buddy_status(mp, obj->is_mem, "after xml save");
+        xmlFreeDoc(doc);
+        xmlCleanupParser();
+        buddy_status(mp, obj->is_mem, "after xml clean");
+
+        output_prog(obj);
+        return 0;
+}
+
+static int import_psi(struct tsana_obj *obj)
+{
+        struct ts_obj *ts = obj->ts;
+        xmlDocPtr doc;
+        xmlNodePtr root;
+
+        buddy_status(mp, obj->is_mem, "before xml init");
+        doc = xmlParseFile("psi.xml");
+        if(doc == NULL) {
+                fprintf(stderr,"parse psi.xml failed\n");
+                return -1;
+        }
+
+        root = xmlDocGetRootElement(doc);
+        if(root == NULL) {
+                fprintf(stderr,"empty document\n");
+                xmlFreeDoc(doc);
+                xmlCleanupParser();
+                return -1;
+        }
+
+        if (xmlStrcmp(root->name, (const xmlChar *) "ts")) {
+                fprintf(stderr,"psi.xml: root node != ts");
+                xmlFreeDoc(doc);
+                xmlCleanupParser();
+                return -1;
+        }
+        xml2param(ts, root, pd_ts);
+        buddy_status(mp, obj->is_mem, "after xml2param");
+        xmlFreeDoc(doc);
+        xmlCleanupParser();
+        buddy_status(mp, obj->is_mem, "after xml clean");
+
+        ts_ioctl(ts, TS_TIDY, 0);
+        return 0;
+}
+
 static void show_psi(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
@@ -1251,24 +1295,6 @@ static void show_psi(struct tsana_obj *obj)
         }
 
         output_prog(obj);
-
-        if(obj->is_expsi) {
-                xmlDocPtr doc;
-                xmlNodePtr root;
-
-                buddy_status(mp, obj->is_mem, "before xml init");
-                doc = xmlNewDoc((xmlChar *)"1.0");
-                root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
-                param2xml(ts, root, pd_ts);
-                xmlDocSetRootElement(doc, root);
-                buddy_status(mp, obj->is_mem, "after param2xml");
-                xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
-                buddy_status(mp, obj->is_mem, "after xml save");
-                xmlFreeDoc(doc);
-                xmlCleanupParser();
-                buddy_status(mp, obj->is_mem, "after xml clean");
-        }
-
         return;
 }
 

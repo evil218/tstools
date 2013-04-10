@@ -322,10 +322,9 @@ struct ts_pid {
 
         uint16_t PID; /* 13-bit */
         int type; /* TS_TYPE_xxx */
-#if 1
+
         struct ts_prog *prog; /* should be prog0 if does not belong to any program */
         struct ts_elem *elem; /* should be NULL if not video or audio packet */
-#endif
 
         /* for continuity_counter check */
         int is_CC_sync;
@@ -484,8 +483,9 @@ struct ts_obj *ts_create(intptr_t mp);
 int ts_destroy(struct ts_obj *obj);
 
 /* cmd */
-#define TS_INIT         (0)
-#define TS_SCFG         (1)
+#define TS_INIT         (0) /* init object for new application */
+#define TS_SCFG         (1) /* set ts_cfg to object */
+#define TS_TIDY         (2) /* tidy wild pointer in object */
 int ts_ioctl(struct ts_obj *obj, int cmd, int arg);
 
 int ts_parse_tsh(struct ts_obj *obj);
