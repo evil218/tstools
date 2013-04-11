@@ -293,7 +293,6 @@ static int init(struct ts_obj *obj)
         obj->cnt = -1; /* count ts packet from 0 */
         obj->has_got_transport_stream_id = 0;
         obj->transport_stream_id = 0;
-        obj->cnt = 0;
         obj->CC_lost = 0;
         obj->is_pat_pmt_parsed = 0;
         obj->is_psi_si_parsed = 0;
@@ -315,24 +314,25 @@ static int tidy(struct ts_obj *obj)
         struct ts_pid new_pid;
         struct ts_prog *prog;
         struct ts_elem *elem;
-
-        if(!(obj->prog0)) {
-                return -1;
-        }
+        struct ts_tabl *tabl;
+        struct ts_pid *pid;
 
         /* add PAT pid */
-        new_pid.PID = 0x0000;
-        new_pid.type = TS_TYPE_PAT;
-        new_pid.prog = obj->prog0;
-        new_pid.elem = NULL;
-        new_pid.cnt = 0;
-        new_pid.lcnt = 0;
-        new_pid.is_CC_sync = 0;
-        update_pid_list(obj, &new_pid);
-        RPT(RPT_INF, "add pat pid: 0x%04X", new_pid.PID);
+        if(obj->prog0) {
+                new_pid.PID = 0x0000;
+                new_pid.type = TS_TYPE_PAT;
+                new_pid.prog = obj->prog0;
+                new_pid.elem = NULL;
+                new_pid.cnt = 0;
+                new_pid.lcnt = 0;
+                new_pid.is_CC_sync = 0;
+                update_pid_list(obj, &new_pid);
+                RPT(RPT_INF, "add pat pid: 0x%04X", new_pid.PID);
+        }
 
+        /* prog list */
         for(prog = obj->prog0; prog; prog = (struct ts_prog *)(((struct znode *)prog)->next)) {
-                RPT(RPT_INF, "has prog: %d", prog->program_number);
+                RPT(RPT_INF, "tidy prog: %d", prog->program_number);
                 prog->program_info_len = 0;
                 prog->program_info = NULL;
                 prog->service_name_len = 0;
@@ -340,6 +340,7 @@ static int tidy(struct ts_obj *obj)
                 prog->service_provider_len = 0;
                 prog->service_provider = NULL;
                 prog->is_parsed = 1;
+                prog->tabl.STC = STC_OVF;
                 prog->ADDa = 0;
                 prog->PCRa = STC_OVF;
                 prog->ADDb = 0;
@@ -368,8 +369,9 @@ static int tidy(struct ts_obj *obj)
                 update_pid_list(obj, &new_pid);
                 RPT(RPT_INF, "add pcr pid: 0x%04X", new_pid.PID);
 
+                /* elem list */
                 for(elem = prog->elem0; elem; elem = (struct ts_elem *)(((struct znode *)elem)->next)) {
-                        RPT(RPT_INF, "has elem: 0x%04X", elem->PID);
+                        RPT(RPT_INF, "tidy elem: 0x%04X", elem->PID);
                         elem->es_info_len = 0;
                         elem->es_info = NULL;
                         elem->PTS = STC_BASE_OVF;
@@ -388,6 +390,34 @@ static int tidy(struct ts_obj *obj)
                         RPT(RPT_INF, "add elem pid: 0x%04X", new_pid.PID);
                 }
         }
+
+        /* tabl list */
+        for(tabl = obj->tabl0; tabl; tabl = (struct ts_tabl *)(((struct znode *)tabl)->next)) {
+                RPT(RPT_INF, "tidy tabl: 0x%02X", tabl->table_id);
+                tabl->STC = STC_OVF;
+        }
+
+        /* pid list */
+        for(pid = obj->pid0; pid; pid = (struct ts_pid *)(((struct znode *)pid)->next)) {
+                RPT(RPT_INF, "tidy pid: 0x%02X", pid->PID);
+                if((obj->prog0) &&
+                   (pid->PID < 0x0020 || pid->PID == 0x1FFF)) {
+                        pid->prog = obj->prog0;
+                }
+                else {
+                        /* pid->prog is NULL(by xml2list) or set by front code */
+                }
+                /* pid->elem is NULL(by xml2list) or set by front code */
+                pid->cnt = 0;
+                pid->lcnt = 0;
+                pid->is_CC_sync = 0;
+        }
+
+        /* obj */
+        obj->state = STATE_NEXT_PKT;
+        obj->has_got_transport_stream_id = 0;
+        obj->is_pat_pmt_parsed = 1;
+        obj->is_psi_si_parsed = 1;
         return 0;
 }
 
@@ -554,7 +584,7 @@ int ts_parse_tsh(struct ts_obj *obj)
                 /* meet new PID, add it in pid_list */
                 new_pid->PID = obj->PID;
                 new_pid->type = pid_type(new_pid->PID);
-                if((obj->prog0) && 
+                if((obj->prog0) &&
                    (new_pid->PID < 0x0020 || new_pid->PID == 0x1FFF)) {
                         new_pid->prog = obj->prog0;
                 }
