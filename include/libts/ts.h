@@ -268,7 +268,7 @@ struct ts_elem {
         uint16_t PID; /* 13-bit */
         int type; /* TS_TYPE_xxx */
         uint8_t stream_type;
-        uint16_t es_info_len;
+        int es_info_len;
         uint8_t *es_info; /* point to NULL if len is 0 */
 
         /* for PTS/DTS mark */
@@ -285,11 +285,11 @@ struct ts_prog {
         uint16_t PMT_PID; /* 13-bit */
         uint16_t PCR_PID; /* 13-bit */
         uint16_t program_number;
-        uint16_t program_info_len;
+        int program_info_len;
         uint8_t *program_info; /* point to NULL if len is 0 */
-        uint8_t service_name_len;
+        int service_name_len;
         uint8_t *service_name; /* point to NULL if len is 0 */
-        uint8_t service_provider_len;
+        int service_provider_len;
         uint8_t *service_provider; /* point to NULL if len is 0 */
 
         /* elementary stream list */

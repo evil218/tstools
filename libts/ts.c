@@ -269,7 +269,7 @@ static int init(struct ts_obj *obj)
 {
         /* clear the pid list */
         struct ts_pid *pid;
-        while(NULL != (pid = zlst_pop(&(obj->pid0)))) {
+        while(NULL != (pid = (struct ts_pid *)zlst_pop(&(obj->pid0)))) {
                 free_pid(obj->mp, pid);
         }
         obj->pid0 = NULL;
@@ -333,12 +333,6 @@ static int tidy(struct ts_obj *obj)
         /* prog list */
         for(prog = obj->prog0; prog; prog = (struct ts_prog *)(((struct znode *)prog)->next)) {
                 RPT(RPT_INF, "tidy prog: %d", prog->program_number);
-                prog->program_info_len = 0;
-                prog->program_info = NULL;
-                prog->service_name_len = 0;
-                prog->service_name = NULL;
-                prog->service_provider_len = 0;
-                prog->service_provider = NULL;
                 prog->is_parsed = 1;
                 prog->tabl.STC = STC_OVF;
                 prog->ADDa = 0;
@@ -372,8 +366,6 @@ static int tidy(struct ts_obj *obj)
                 /* elem list */
                 for(elem = prog->elem0; elem; elem = (struct ts_elem *)(((struct znode *)elem)->next)) {
                         RPT(RPT_INF, "tidy elem: 0x%04X", elem->PID);
-                        elem->es_info_len = 0;
-                        elem->es_info = NULL;
                         elem->PTS = STC_BASE_OVF;
                         elem->DTS = STC_BASE_OVF;
                         elem->is_pes_align = 0;
@@ -466,6 +458,7 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
         while(NULL != (elem = (struct ts_elem *)zlst_pop(&(prog->elem0)))) {
                 if(elem->es_info) {
                         buddy_free(mp, elem->es_info);
+                        elem->es_info_len = 0;
                 }
                 buddy_free(mp, elem);
         }
@@ -477,12 +470,15 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
 
         if(prog->program_info) {
                 buddy_free(mp, prog->program_info);
+                prog->program_info_len = 0;
         }
         if(prog->service_name) {
                 buddy_free(mp, prog->service_name);
+                prog->service_name_len = 0;
         }
         if(prog->service_provider) {
                 buddy_free(mp, prog->service_provider);
+                prog->service_provider_len = 0;
         }
         buddy_free(mp, prog);
         return 0;

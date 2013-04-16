@@ -55,6 +55,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 static const xmlChar xStrIdx[] = "idx";
 static const xmlChar xStrTyp[] = "typ";
+static const xmlChar xStrCnt[] = "cnt";
 
 static int sint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
 static int uint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
@@ -106,7 +107,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
         do { \
                 /* convert into str[], optimized with 3-case */ \
                 switch(FORMAT) { \
-                case 'x': \
+                case PT_FMT_x: \
                         *STR++ = '0'; \
                         *STR++ = 'x'; \
                         for(i = 0; i < UINT64_MAX_DEC_LENGTH; i++) { \
@@ -116,7 +117,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
                                 if(!udat) {break;} \
                         } \
                 break; \
-                case 'X': \
+                case PT_FMT_X: \
                         *STR++ = '0'; \
                         *STR++ = 'x'; \
                         for(i = 0; i < UINT64_MAX_DEC_LENGTH; i++) { \
@@ -126,7 +127,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
                                 if(!udat) {break;} \
                         } \
                 break; \
-                default: /* 'u' or others */ \
+                default: /* PT_FMT_u or others */ \
                         for(i = 0; i < UINT64_MAX_DEC_LENGTH; i++) { \
                                 str[i] = (char)(udat % 10) + '0'; \
                                 udat /= 10; \
@@ -152,6 +153,9 @@ static const uintmax_t uintmax_imax = +9223372036854775807ULL;
 static const uintmax_t uintmax_imin = +9223372036854775808ULL;
 static const uintmax_t uintmax_umax = 18446744073709551615ULL;
 
+static int uint2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size);
+static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size);
+
 static  intmax_t strtoimax(const char *nptr, char **endptr, int base);
 static uintmax_t strtoumax(const char *nptr, char **endptr, int base);
 
@@ -166,15 +170,15 @@ int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         cur_pdesc->toxml(mem_base, xnode, cur_pdesc);
                         continue;
                 }
-                switch(cur_pdesc->type & PT_TYP_MASK) {
-                        case PT_SINT: sint2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_UINT: uint2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_FLOT: flot2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_STRI: stri2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_ENUM: enum2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_STRU: stru2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_LIST: list2xml(mem_base, xnode, cur_pdesc); break;
-                        case PT_VLST: vlst2xml(mem_base, xnode, cur_pdesc); break;
+                switch(PT_TYP(cur_pdesc->type)) {
+                        case PT_TYP_SINT: sint2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_UINT: uint2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_FLOT: flot2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_STRI: stri2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_ENUM: enum2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_STRU: stru2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_LIST: list2xml(mem_base, xnode, cur_pdesc); break;
+                        case PT_TYP_VLST: vlst2xml(mem_base, xnode, cur_pdesc); break;
                         default: RPT(RPT_INF, "param2xml: bad type(0x%X)", cur_pdesc->type); break;
                 }
         }
@@ -211,15 +215,15 @@ int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         cur_pdesc->xmlto(mem_base, sub_xnode, cur_pdesc);
                         continue;
                 }
-                switch(cur_pdesc->type & PT_TYP_MASK) {
-                        case PT_SINT: xml2sint(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_UINT: xml2uint(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_FLOT: xml2flot(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_STRI: xml2stri(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_ENUM: xml2enum(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_STRU: xml2stru(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_LIST: xml2list(mem_base, sub_xnode, cur_pdesc); break;
-                        case PT_VLST: xml2vlst(mem_base, sub_xnode, cur_pdesc); break;
+                switch(PT_TYP(cur_pdesc->type)) {
+                        case PT_TYP_SINT: xml2sint(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_UINT: xml2uint(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_FLOT: xml2flot(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_STRI: xml2stri(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_ENUM: xml2enum(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_STRU: xml2stru(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_LIST: xml2list(mem_base, sub_xnode, cur_pdesc); break;
+                        case PT_TYP_VLST: xml2vlst(mem_base, sub_xnode, cur_pdesc); break;
                         default: RPT(RPT_INF, "xml2param: bad type(0x%X)", cur_pdesc->type); break;
                 }
         }
@@ -291,8 +295,8 @@ static int sint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 RPT(RPT_INF, "sint2xml: %s", str_ctnt);
-                xmlAddChild(xnode, sub_xnode);
                 xmlNodeAddContent(sub_xnode, (const xmlChar *)str_ctnt);
+                xmlAddChild(xnode, sub_xnode);
         }
         return 0;
 }
@@ -300,13 +304,63 @@ static int sint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 static int uint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
         int i;
-        char *p;
-        char fmt = (char)(pdesc->type & PT_FMT_MASK);
-        char *mem = (char *)mem_base + pdesc->offset;
+        uint8_t *mem = (uint8_t *)mem_base + pdesc->offset;
         int count = pdesc->count;
+
+        if(PT_ACS_X == PT_ACS(pdesc->type)) {
+                xmlNode *sub_xnode;
+                struct adesc *adesc = (struct adesc *)(pdesc->aux);
+                int *cob; /* count of buffer */
+
+                if(!adesc) {
+                        return -1;
+                }
+                cob = (int *)((uint8_t *)mem_base + adesc->boffset);
+
+                for(i = 0; i < count; i++, mem += pdesc->size, cob++) {
+                        if(0 == *cob) {
+                                continue;
+                        }
+
+                        sub_xnode = xmlNewNode(NULL, (const xmlChar *)pdesc->name);
+                        if(!sub_xnode) {
+                                return -1;
+                        }
+
+#ifdef MORE_IDX
+                        if(i) {
+                                char str_idx[10];
+
+                                sprintf(str_idx, "%d", i);
+                                xmlNewProp(sub_xnode, xStrIdx, (const xmlChar *)str_idx);
+                        }
+#endif
+                        {
+                                char str_idx[10];
+
+                                sprintf(str_idx, "%d", *cob);
+                                xmlNewProp(sub_xnode, xStrCnt, (const xmlChar *)str_idx);
+                        }
+
+                        RPT(RPT_INF, "uint2xml: cob %d, size: %d", *cob, adesc->size);
+                        uint2node(*((void **)mem), sub_xnode, pdesc, *cob, adesc->size);
+                        xmlAddChild(xnode, sub_xnode);
+                }
+        }
+        else { /* PT_ACS_S */
+                RPT(RPT_INF, "uint2xml: coa %d, size: %d", count, pdesc->size);
+                uint2node(mem, xnode, pdesc, count, pdesc->size);
+        }
+        return 0;
+}
+
+static int uint2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size)
+{
+        int i;
+        char *p;
+        char fmt = (char)PT_FMT(pdesc->type);
         xmlNode *sub_xnode;
         char str_ctnt[CTNT_LENGTH];
-
         int data_str_idx; /* in uint2str micro: index of data_str */
         char data_str[UINT64_MAX_DEC_LENGTH]; /* in uint2str micro: string of one data */
 
@@ -326,7 +380,7 @@ static int uint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         xmlNewProp(sub_xnode, xStrIdx, (const xmlChar *)str_idx);
                 }
 
-                switch(pdesc->size) {
+                switch(size) {
                         case sizeof(uint8_t):
                                 for(p = str_ctnt, n = 0; (i < count) && (n < 16); i++, n++) {
                                         uint8_t udat = *(((uint8_t *)mem) + i);
@@ -356,14 +410,14 @@ static int uint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 }
                                 break;
                         default:
-                                sprintf(str_ctnt, "unsupported data size(%d)", pdesc->size);
+                                sprintf(str_ctnt, "unsupported data size(%d)", size);
                                 i = count; /* stop converter */
                                 break;
                 }
 
-                RPT(RPT_INF, "uint2xml: %s", str_ctnt);
-                xmlAddChild(xnode, sub_xnode);
+                RPT(RPT_INF, "uint2node: %s", str_ctnt);
                 xmlNodeAddContent(sub_xnode, (const xmlChar *)str_ctnt);
+                xmlAddChild(xnode, sub_xnode);
         }
         return 0;
 }
@@ -380,13 +434,13 @@ static int flot2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
         char str_ctnt[CTNT_LENGTH];
 
         /* fmt and lfmt, use [gG] to auto choose [fF] or [eE] format */
-        if('G' == (pdesc->type & PT_FMT_MASK)) {
-                        fmt = "%.*G";
-                        lfmt = "%.*LG";
+        if(PT_FMT_G == (char)PT_FMT(pdesc->type)) {
+                fmt = "%.*G";
+                lfmt = "%.*LG";
         }
-        else {
-                        fmt = "%.*g";
-                        lfmt = "%.*Lg";
+        else { /* PT_FMT_g or others */
+                fmt = "%.*g";
+                lfmt = "%.*Lg";
         }
 
         i = 0;
@@ -434,8 +488,8 @@ static int flot2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 RPT(RPT_INF, "flot2xml: %s", str_ctnt);
-                xmlAddChild(xnode, sub_xnode);
                 xmlNodeAddContent(sub_xnode, (const xmlChar *)str_ctnt);
+                xmlAddChild(xnode, sub_xnode);
         }
         return 0;
 }
@@ -463,8 +517,8 @@ static int stri2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 #endif
 
                 RPT(RPT_INF, "stri2xml: %s", mem);
-                xmlAddChild(xnode, sub_xnode);
                 xmlNodeAddContent(sub_xnode, (const xmlChar *)mem);
+                xmlAddChild(xnode, sub_xnode);
         }
         return 0;
 }
@@ -503,8 +557,8 @@ static int enum2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 RPT(RPT_INF, "enum2xml: %s", enum_item->key);
-                xmlAddChild(xnode, sub_xnode);
                 xmlNodeAddContent(sub_xnode, (const xmlChar *)(enum_item->key));
+                xmlAddChild(xnode, sub_xnode);
         }
         return 0;
 }
@@ -566,9 +620,9 @@ static int list2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 RPT(RPT_INF, "list2xml[%d]:", i);
                 for(list = *(struct znode **)mem, sub_i = 0; list; list = list->next, sub_i++) {
                         xmlNode *sub_sub_xnode;
-                        struct tdesc *tdesc = (struct tdesc *)(pdesc->aux);
+                        struct adesc *adesc = (struct adesc *)(pdesc->aux);
 
-                        if(!tdesc) {
+                        if(!adesc) {
                                 continue;
                         }
 
@@ -587,7 +641,7 @@ static int list2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 #endif
 
                         RPT(RPT_INF, "node[%d]:", sub_i);
-                        param2xml(list, sub_sub_xnode, tdesc->pdesc);
+                        param2xml(list, sub_sub_xnode, adesc->pdesc);
                         xmlAddChild(sub_xnode, sub_sub_xnode);
                 }
                 xmlAddChild(xnode, sub_xnode);
@@ -623,23 +677,23 @@ static int vlst2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 RPT(RPT_INF, "vlst2xml[%d]:", i);
                 for(list = *(struct znode **)mem, sub_i = 0; list; list = list->next, sub_i++) {
                         xmlNode *sub_sub_xnode;
-                        struct tdesc *tdesc;
+                        struct adesc *adesc;
 
-                        /* search in tdesc array */
+                        /* search in adesc array */
                         if(!(pdesc->aux)) {
                                 continue;
                         }
-                        for(tdesc = (struct tdesc *)(pdesc->aux); tdesc->name; tdesc++) {
-                                if(xmlStrEqual((xmlChar *)(tdesc->name),
+                        for(adesc = (struct adesc *)(pdesc->aux); adesc->name; adesc++) {
+                                if(xmlStrEqual((xmlChar *)(adesc->name),
                                                (xmlChar *)(list->name))) {
                                         break;
                                 }
                         }
-                        if(!(tdesc->name)) {
-                                tdesc = (struct tdesc *)(pdesc->aux);
+                        if(!(adesc->name)) {
+                                adesc = (struct adesc *)(pdesc->aux);
                         }
 
-                        /* got tdesc */
+                        /* got adesc */
                         sub_sub_xnode = xmlNewNode(NULL, (const xmlChar *)pdesc->name);
                         if(!sub_sub_xnode) {
                                 return -1;
@@ -656,7 +710,7 @@ static int vlst2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 
                         RPT(RPT_INF, "node[%d]:", sub_i);
                         xmlNewProp(sub_sub_xnode, xStrTyp, (const xmlChar *)list->name);
-                        param2xml(list, sub_sub_xnode, tdesc->pdesc);
+                        param2xml(list, sub_sub_xnode, adesc->pdesc);
                         xmlAddChild(sub_xnode, sub_sub_xnode);
                 }
                 xmlAddChild(xnode, sub_xnode);
@@ -761,11 +815,74 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 
 static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
+        char *mem = (char *)mem_base + pdesc->offset;
+
+        if(PT_ACS_X == PT_ACS(pdesc->type)) {
+                xmlChar *idx;
+                xmlChar *cnt;
+                int *cob; /* count of buffer */
+                struct adesc *adesc = (struct adesc *)(pdesc->aux);
+
+                if(!adesc) {
+                        return -1;
+                }
+
+                /* adjust pdesc->index, calc mem */
+                idx = xmlGetProp(xnode, xStrIdx);
+                if(idx) {
+                        pdesc->index = atoi((char *)idx);
+                        xmlFree(idx);
+                }
+                if(pdesc->index >= pdesc->count) {
+                        RPT(RPT_WRN, "xml2uint: idx(%d) >= count(%d), ignore", pdesc->index, pdesc->count);
+                        return -1;
+                }
+                mem += (pdesc->index * pdesc->size);
+
+                /* get count of buffer */
+                cob = (int *)((uint8_t *)mem_base + adesc->boffset);
+                cob += pdesc->index;
+                cnt = xmlGetProp(xnode, xStrCnt);
+                if(!cnt) {
+                        return -1;
+                }
+                *cob = atoi((char *)cnt);
+                xmlFree(cnt);
+                if(0 == *cob) {
+                        RPT(RPT_ERR, "xml2uint: count of buffer is zero");
+                        return -1;
+                }
+
+                RPT(RPT_INF, "xml2uint: xmlMalloc: %d * %d", *cob, adesc->size);
+                *((void **)mem) = xmlMalloc(*cob * adesc->size);
+                if(!*((void **)mem)) {
+                        return -1;
+                }
+                //RPT(RPT_ERR, "xml2uint: xmlMalloc: @ 0x%X (%d)", (int)*((void **)mem), *cob * adesc->size);
+
+                pdesc->index = 0;
+                for(xmlNode *sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
+                        if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
+                                /* FIXME: why many sub_xnode has name "text"? */
+                                continue;
+                        }
+                        RPT(RPT_INF, "xml2uint: cob %d, size %d", *cob, adesc->size);
+                        node2uint(*((void **)mem), sub_xnode, pdesc, *cob, adesc->size);
+                }
+        }
+        else { /* PT_ACS_S */
+                RPT(RPT_INF, "xml2uint: coa %d, size %d", pdesc->count, pdesc->size);
+                node2uint(mem, xnode, pdesc, pdesc->count, pdesc->size);
+        }
+        return 0;
+}
+
+static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size)
+{
         xmlChar *idx;
         xmlChar *ctnt;
         char *p;
         char *endp;
-        char *mem = (char *)mem_base + pdesc->offset;
 
         /* adjust pdesc->index, calc mem */
         idx = xmlGetProp(xnode, xStrIdx);
@@ -773,11 +890,11 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 pdesc->index = atoi((char *)idx);
                 xmlFree(idx);
         }
-        if(pdesc->index >= pdesc->count) {
-                RPT(RPT_INF, "xml2uint: idx(%d) >= count(%d), ignore", pdesc->index, pdesc->count);
+        if(pdesc->index >= count) {
+                RPT(RPT_INF, "node2uint: idx(%d) >= count(%d), ignore", pdesc->index, count);
                 return -1;
         }
-        mem += (pdesc->index * pdesc->size);
+        mem += (pdesc->index * size);
 
         /* get uint one by one */
         ctnt = xmlNodeGetContent(xnode);
@@ -785,7 +902,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 return -1;
         }
         p = (char *)ctnt;
-        switch(pdesc->size) {
+        switch(size) {
                 case sizeof(uint8_t):
                         {
                                 uint8_t data;
@@ -794,7 +911,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (uint8_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2uint[%d]: 0x%X", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%X", pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -809,7 +926,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (uint16_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2uint[%d]: 0x%X", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%X", pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -824,7 +941,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (uint32_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2uint[%d]: 0x%X", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%X", pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -839,7 +956,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (uint64_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2uint[%d]: 0x%llX", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%llX", pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -847,7 +964,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         }
                         break;
                 default:
-                        RPT(RPT_INF, "xml2uint: bad data size(%d)", pdesc->size);
+                        RPT(RPT_INF, "node2uint: bad data size(%d)", size);
                         break;
         }
         xmlFree(ctnt);
@@ -1058,7 +1175,7 @@ static int xml2list(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 return -1;
         };
         for(sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
-                struct tdesc *tdesc;
+                struct adesc *adesc;
 
                 if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
                         /* FIXME: why many sub_xnode has name "text"? */
@@ -1067,23 +1184,23 @@ static int xml2list(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 if(!(pdesc->aux)) {
                         continue;
                 }
-                tdesc = (struct tdesc *)(pdesc->aux);
-                if(!tdesc) {
+                adesc = (struct adesc *)(pdesc->aux);
+                if(!adesc) {
                         continue;
                 }
-                if(!(tdesc->name)) {
+                if(!(adesc->name)) {
                         continue;
                 }
 
-                /* add list node with tdesc */
-                list = (struct znode *)xmlMalloc(tdesc->size);
+                /* add list node with adesc */
+                list = (struct znode *)xmlMalloc(adesc->size);
                 if(!list) {
                         RPT(RPT_INF, "malloc znode failed, ignore");
                         continue;
                 }
-                memset(list, 0, tdesc->size);
+                memset(list, 0, adesc->size);
                 zlst_push(mem, list);
-                xml2param(list, sub_xnode, tdesc->pdesc);
+                xml2param(list, sub_xnode, adesc->pdesc);
         }
 
         return 0;
@@ -1116,7 +1233,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 return -1;
         };
         for(sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
-                struct tdesc *tdesc;
+                struct adesc *adesc;
                 xmlChar *type_name;
 
                 if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
@@ -1127,31 +1244,31 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         continue;
                 }
 
-                /* search in tdesc array */
+                /* search in adesc array */
                 type_name = xmlGetProp(sub_xnode, xStrTyp);
                 if(!type_name) {
                         continue;
                 }
-                for(tdesc = (struct tdesc *)(pdesc->aux); tdesc->name; tdesc++) {
-                        if(xmlStrEqual((xmlChar *)(tdesc->name), type_name)) {
+                for(adesc = (struct adesc *)(pdesc->aux); adesc->name; adesc++) {
+                        if(xmlStrEqual((xmlChar *)(adesc->name), type_name)) {
                                 break;
                         }
                 }
                 xmlFree(type_name);
-                if(!(tdesc->name)) {
+                if(!(adesc->name)) {
                         continue;
                 }
 
-                /* add list node with tdesc */
-                list = (struct znode *)xmlMalloc(tdesc->size);
+                /* add list node with adesc */
+                list = (struct znode *)xmlMalloc(adesc->size);
                 if(!list) {
                         RPT(RPT_INF, "malloc znode failed, ignore");
                         continue;
                 }
-                memset(list, 0, tdesc->size);
-                zlst_set_name(list, tdesc->name);
+                memset(list, 0, adesc->size);
+                zlst_set_name(list, adesc->name);
                 zlst_push(mem, list);
-                xml2param(list, sub_xnode, tdesc->pdesc);
+                xml2param(list, sub_xnode, adesc->pdesc);
         }
 
         return 0;
