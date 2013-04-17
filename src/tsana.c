@@ -1124,8 +1124,6 @@ static void output_prog(struct tsana_obj *obj)
                 }
 
                 /* program_info */
-                //RPT(RPT_ERR, "program_info_len %d", prog->program_info_len);
-                //RPT(RPT_ERR, "program_info @ %X", (int)prog->program_info);
                 if(prog->program_info) {
                         fprintf(stdout, "program_info, %s%02X",
                                 obj->color_yellow,

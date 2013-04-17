@@ -858,7 +858,6 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 if(!*((void **)mem)) {
                         return -1;
                 }
-                //RPT(RPT_ERR, "xml2uint: xmlMalloc: @ 0x%X (%d)", (int)*((void **)mem), *cob * adesc->size);
 
                 pdesc->index = 0;
                 for(xmlNode *sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
