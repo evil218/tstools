@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
+#include <inttypes.h> /* for PRId64, etc */
 #include <sys/time.h> /* for gettimeofday(), etc */
 
 #ifdef PLATFORM_mingw
@@ -120,7 +121,7 @@ int main(int argc, char *argv[])
                                         lMTS = ts_timestamp_add(MTS, -dMTS, MTS_OVF);
                                 }
                                 else {
-                                        RPT(RPT_WRN, "!(0 < dMTS < 100ms): %lld", dMTS);
+                                        RPT(RPT_WRN, "!(0 < dMTS < 100ms): %" PRId64, dMTS);
                                         gettimeofday(&tv_pkt, NULL);
                                         lMTS = MTS;
                                 }

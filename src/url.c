@@ -137,7 +137,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
                                 size_t rslt;
 
                                 rslt = udp_read(url->udp, url->buf);
-                                RPT(RPT_INF, "read %d-byte", rslt);
+                                RPT(RPT_INF, "read %zd-byte", rslt);
                                 if(rslt > 0) {
                                         url->ts_cnt += rslt;
                                         url->pbuf = url->buf;

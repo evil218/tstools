@@ -348,7 +348,7 @@ struct ts_pid {
 struct ts_ipt {
         uint8_t TS[TS_PKT_SIZE]; /* TS data */
         uint8_t RS[16]; /* RS data */
-        long long int ADDR; /* address of sync-byte(unit: byte) */
+        int64_t ADDR; /* address of sync-byte(unit: byte) */
         int64_t MTS; /* MTS Time Stamp */
         int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
 
@@ -433,8 +433,8 @@ struct ts_obj {
         struct ts_pid *pid; /* point to the node in pid_list */
 
         /* TS information */
-        long long int ADDR; /* address of sync-byte(unit: byte) */
-        long long int cnt; /* count of this packet in this stream, start from 0 */
+        int64_t ADDR; /* address of sync-byte(unit: byte) */
+        int64_t cnt; /* count of this packet in this stream, start from 0 */
 
         struct ts_tsh tsh; /* info about ts head of this packet */
         struct ts_af af; /* info about af of this packet */
@@ -486,7 +486,7 @@ int ts_destroy(struct ts_obj *obj);
 #define TS_INIT         (0) /* init object for new application */
 #define TS_SCFG         (1) /* set ts_cfg to object */
 #define TS_TIDY         (2) /* tidy wild pointer in object */
-int ts_ioctl(struct ts_obj *obj, int cmd, int arg);
+int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg);
 
 int ts_parse_tsh(struct ts_obj *obj);
 int ts_parse_tsb(struct ts_obj *obj);

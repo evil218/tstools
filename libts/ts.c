@@ -235,7 +235,7 @@ int ts_destroy(struct ts_obj *obj)
         return 0;
 }
 
-int ts_ioctl(struct ts_obj *obj, int cmd, int arg)
+int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");

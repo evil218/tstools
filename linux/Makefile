@@ -53,13 +53,12 @@ PRJ_OBJS  = prjudp.o
 PRJ_OBJS += prjurl.o
 PRJ_OBJS += prjif.o
 PRJ_OBJS += prjUTF_GB.o
+PRJ_OBJS += prjparam_xml.o
 PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
 PRJ_OBJS += prjtobin.o
-PRJ_OBJS += prjdtsdi.o
-PRJ_OBJS += prjtopcm.o
-PRJ_OBJS += prjatsc_mh_tcp.o
+PRJ_OBJS += prjtoip.o
 
 PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 
@@ -67,12 +66,12 @@ PRJ_AIMS  = catts
 PRJ_AIMS += catip
 PRJ_AIMS += tsana
 PRJ_AIMS += tobin
-PRJ_AIMS += dtsdi
-PRJ_AIMS += topcm
+PRJ_AIMS += toip
 
 # includes
 INCFLAGS  = -I. -I..
 INCFLAGS += -I../include/libts
+INCFLAGS += -I/usr/include/libxml2
 
 # compiler and its options
 CC = gcc
@@ -112,16 +111,14 @@ install:
 	-cp catip $(INSTALLDIR)
 	-cp tsana $(INSTALLDIR)
 	-cp tobin $(INSTALLDIR)
-	-cp dtsdi $(INSTALLDIR)
-	-cp topcm $(INSTALLDIR)
+	-cp toip $(INSTALLDIR)
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts
 	-rm -f $(INSTALLDIR)/catip
 	-rm -f $(INSTALLDIR)/tsana
 	-rm -f $(INSTALLDIR)/tobin
-	-rm -f $(INSTALLDIR)/dtsdi
-	-rm -f $(INSTALLDIR)/topcm
+	-rm -f $(INSTALLDIR)/toip
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -157,10 +154,13 @@ catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjatsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjparam_xml.o -L/usr/lib/x86_64-linux-gnu -lxml2
 
 tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
+
+toip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
 
 dtsdi: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)

@@ -6,10 +6,6 @@
 #include "zlst.h"
 #include "param_xml.h"
 
-#ifdef HAVE_STDINT_H
-#include <stdint.h> /* for uint32_t, etc */
-#endif
-
 /* report level */
 #define RPT_ERR (1) /* error, system error */
 #define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
@@ -36,15 +32,28 @@
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
+/* for SUPPORT_LONG_DOUBLE */
 #ifdef DBL_DIG
+#pragma message("has DBL_DIG")
 #ifdef LDBL_DIG
+#pragma message("has LDBL_DIG")
 #if DBL_DIG != LDBL_DIG /* in system like VxWorks5.5, "double" is equal to "long double" */
-#ifdef  HAVE_STRTOLD
+#pragma message("DBL_DIG != LDBL_DIG")
+#ifdef HAVE_STRTOLD
+#pragma message("HAVE_STRTOLD: param_xml will support long double")
 #define SUPPORT_LONG_DOUBLE
-#endif /* HAVE_STRTOLD */
-#endif /* DBL_DIG != LDBL_DIG */
-#endif /* LDBL_DIG */
-#endif /* DBL_DIG */
+#else
+#pragma message("ndef HAVE_STRTOLD: param_xml will NOT support long double")
+#endif
+#else
+#pragma message("DBL_DIG == LDBL_DIG")
+#endif
+#else
+#pragma message("no LDBL_DIG")
+#endif
+#else
+#pragma message("no DBL_DIG")
+#endif
 
 #if 1
 #define MORE_IDX /* more "idx" attribute in XML */
@@ -143,6 +152,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
                 *STR = '\0'; \
         } while(0)
 
+#if 0
 #ifndef INTMAX_MAX
 typedef int64_t intmax_t;
 typedef uint64_t uintmax_t;
@@ -153,11 +163,12 @@ static const uintmax_t uintmax_imax = +9223372036854775807ULL;
 static const uintmax_t uintmax_imin = +9223372036854775808ULL;
 static const uintmax_t uintmax_umax = 18446744073709551615ULL;
 
-static int uint2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size);
-static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size);
-
 static  intmax_t strtoimax(const char *nptr, char **endptr, int base);
 static uintmax_t strtoumax(const char *nptr, char **endptr, int base);
+#endif
+
+static int uint2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size);
+static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int size);
 
 /* module interface */
 int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
@@ -289,7 +300,7 @@ static int sint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 }
                                 break;
                         default:
-                                sprintf(str_ctnt, "unsupported data size(%d)", pdesc->size);
+                                sprintf(str_ctnt, "unsupported data size(%zd)", pdesc->size);
                                 i = count; /* stop converter */
                                 break;
                 }
@@ -342,13 +353,13 @@ static int uint2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 xmlNewProp(sub_xnode, xStrCnt, (const xmlChar *)str_idx);
                         }
 
-                        RPT(RPT_INF, "uint2xml: cob %d, size: %d", *cob, adesc->size);
+                        RPT(RPT_INF, "uint2xml: cob %d, size: %zd", *cob, adesc->size);
                         uint2node(*((void **)mem), sub_xnode, pdesc, *cob, adesc->size);
                         xmlAddChild(xnode, sub_xnode);
                 }
         }
         else { /* PT_ACS_S */
-                RPT(RPT_INF, "uint2xml: coa %d, size: %d", count, pdesc->size);
+                RPT(RPT_INF, "uint2xml: coa %d, size: %zd", count, pdesc->size);
                 uint2node(mem, xnode, pdesc, count, pdesc->size);
         }
         return 0;
@@ -426,22 +437,10 @@ static int flot2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
         int i;
         char *p;
-        char *fmt; /* float or double */
-        char *lfmt; /* long double */
         char *mem = (char *)mem_base + pdesc->offset;
         int count = pdesc->count;
         xmlNode *sub_xnode;
         char str_ctnt[CTNT_LENGTH];
-
-        /* fmt and lfmt, use [gG] to auto choose [fF] or [eE] format */
-        if(PT_FMT_G == (char)PT_FMT(pdesc->type)) {
-                fmt = "%.*G";
-                lfmt = "%.*LG";
-        }
-        else { /* PT_FMT_g or others */
-                fmt = "%.*g";
-                lfmt = "%.*Lg";
-        }
 
         i = 0;
         while(i < count) {
@@ -463,26 +462,25 @@ static int flot2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         case sizeof(float):
                                 for(p = str_ctnt, n = 0; (i < count) && (n < 8); i++, n++) {
                                         if(n) {*p++ = DATA_SPACE;}
-                                        p += sprintf(p, fmt, FLT_DIG, *(((float *)mem) + i));
+                                        p += sprintf(p, "%.*g", FLT_DIG, *(((float *)mem) + i));
                                 }
                                 break;
                         case sizeof(double):
                                 for(p = str_ctnt, n = 0; (i < count) && (n < 4); i++, n++) {
                                         if(n) {*p++ = DATA_SPACE;}
-                                        p += sprintf(p, fmt, DBL_DIG, *(((double *)mem) + i));
+                                        p += sprintf(p, "%.*g", DBL_DIG, *(((double *)mem) + i));
                                 }
                                 break;
 #ifdef SUPPORT_LONG_DOUBLE
                         case sizeof(long double):
                                 for(p = str_ctnt, n = 0; (i < count) && (n < 4); i++, n++) {
                                         if(n) {*p++ = DATA_SPACE;}
-                                        fmt = "g";
-                                        p += sprintf(p, lfmt, LDBL_DIG, *(((long double *)mem) + i));
+                                        p += sprintf(p, "%.*Lg", LDBL_DIG, *(((long double *)mem) + i));
                                 }
                                 break;
 #endif
                         default:
-                                sprintf(str_ctnt, "unsupported data size(%d)", pdesc->size);
+                                sprintf(str_ctnt, "unsupported data size(%zd)", pdesc->size);
                                 i = count; /* stop converter */
                                 break;
                 }
@@ -753,7 +751,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (int8_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2sint[%d]: %d", pdesc->index, data);
+                                        RPT(RPT_INF, "xml2sint[%d]: %" PRId8, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -768,7 +766,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (int16_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2sint[%d]: %d", pdesc->index, data);
+                                        RPT(RPT_INF, "xml2sint[%d]: %" PRId16, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -783,7 +781,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (int32_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2sint[%d]: %d", pdesc->index, data);
+                                        RPT(RPT_INF, "xml2sint[%d]: %" PRId32, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -798,7 +796,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 while(1) {
                                         data = (int64_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "xml2sint[%d]: %lld", pdesc->index, data);
+                                        RPT(RPT_INF, "xml2sint[%d]: %" PRId64, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -806,7 +804,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         }
                         break;
                 default:
-                        RPT(RPT_INF, "xml2sint: bad data size(%d)", pdesc->size);
+                        RPT(RPT_INF, "xml2sint: bad data size(%zd)", pdesc->size);
                         break;
         }
         xmlFree(ctnt);
@@ -853,7 +851,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         return -1;
                 }
 
-                RPT(RPT_INF, "xml2uint: xmlMalloc: %d * %d", *cob, adesc->size);
+                RPT(RPT_INF, "xml2uint: xmlMalloc: %d * %zd", *cob, adesc->size);
                 *((void **)mem) = xmlMalloc(*cob * adesc->size);
                 if(!*((void **)mem)) {
                         return -1;
@@ -865,12 +863,12 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                                 /* FIXME: why many sub_xnode has name "text"? */
                                 continue;
                         }
-                        RPT(RPT_INF, "xml2uint: cob %d, size %d", *cob, adesc->size);
+                        RPT(RPT_INF, "xml2uint: cob %d, size %zd", *cob, adesc->size);
                         node2uint(*((void **)mem), sub_xnode, pdesc, *cob, adesc->size);
                 }
         }
         else { /* PT_ACS_S */
-                RPT(RPT_INF, "xml2uint: coa %d, size %d", pdesc->count, pdesc->size);
+                RPT(RPT_INF, "xml2uint: coa %d, size %zd", pdesc->count, pdesc->size);
                 node2uint(mem, xnode, pdesc, pdesc->count, pdesc->size);
         }
         return 0;
@@ -910,7 +908,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                                 while(1) {
                                         data = (uint8_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%X", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX8, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -925,7 +923,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                                 while(1) {
                                         data = (uint16_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%X", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX16, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -940,7 +938,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                                 while(1) {
                                         data = (uint32_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%X", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX32, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -955,7 +953,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                                 while(1) {
                                         data = (uint64_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%llX", pdesc->index, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX64, pdesc->index, data);
                                         *cur_mem++ = data;
                                         pdesc->index++;
                                         p = endp;
@@ -1045,7 +1043,7 @@ static int xml2flot(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         break;
 #endif
                 default:
-                        RPT(RPT_INF, "xml2flot: bad data size(%d)", pdesc->size);
+                        RPT(RPT_INF, "xml2flot: bad data size(%zd)", pdesc->size);
                         break;
         }
         xmlFree(ctnt);
@@ -1316,7 +1314,6 @@ static int ftostr(double data, char *str)
 
         return i+j+4;
 }
-#endif
 
 static intmax_t strtoimax(const char *nptr, char **endptr, int base)
 {
@@ -1501,3 +1498,4 @@ noconv:
 
         return (acc);
 }
+#endif

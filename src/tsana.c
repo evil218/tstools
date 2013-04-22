@@ -9,7 +9,7 @@
 #include <unistd.h> /* for isatty() */
 #include <string.h> /* for strcmp(), etc */
 #include <time.h> /* for localtime(), etc */
-#include <stdint.h> /* for uint?_t, etc */
+#include <inttypes.h> /* for uint?_t, PRIX64, etc */
 
 #include "version.h"
 #include "common.h"
@@ -37,7 +37,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
-#define MP_ORDER_DEFAULT (20) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
+#define MP_ORDER_DEFAULT ((size_t)20) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
 struct pid_type_table {
         int   type; /* TS_TYPE_xxx */
@@ -809,7 +809,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-mp': %u, use %d instead!\n",
+                                                "bad variable for '-mp': %u, use %zd instead!\n",
                                                 dat, MP_ORDER_DEFAULT);
                                 }
                         }
@@ -860,7 +860,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                 goto create_failed_with_mp;
         }
         ts_ioctl(obj->ts, TS_INIT, 0);
-        ts_ioctl(obj->ts, TS_SCFG, (int)&cfg);
+        ts_ioctl(obj->ts, TS_SCFG, (intptr_t)&cfg);
         return obj;
 
 create_failed_with_mp:
@@ -967,7 +967,7 @@ static void show_help()
                 " -prog <prog>     set cared prog, default: any program(0x0000)\n"
                 " -type <type>     set cared PID type, default: any type(0)\n"
                 " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
-                " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
+                " -mp <mp>         set memory pool size order(16-%zd), default: %zd, means 2^%zd bytes\n"
                 "\n"
                 " -h, --help       display this information\n"
                 " -v, --version    display my version\n"
@@ -1310,9 +1310,9 @@ static void show_bg(struct tsana_obj *obj)
         strftime(str, 32, "%H:%M:%S", lt);
 
         fprintf(stdout,
-                "%s*bg%s, %s%s%s, %llu, %s0x%llX%s, %lld, %s0x%04X%s, ",
+                "%s*bg%s, %s%s%s, %"PRIu64", %s0x%"PRIX64"%s, %"PRId64", %s0x%04X%s, ",
                 obj->color_green, obj->color_off,
-                obj->color_yellow, str, obj->color_off, (long long int)ts->CTS,
+                obj->color_yellow, str, obj->color_off, ts->CTS,
                 obj->color_yellow, ts->ADDR, obj->color_off, ts->ADDR,
                 obj->color_yellow, ts->PID, obj->color_off);
         return;
@@ -1323,9 +1323,8 @@ static void show_cts(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
 
         fprintf(stdout,
-                "%s*cts%s, %13llu, %10llu, ",
-                obj->color_green, obj->color_off,
-                (long long int)ts->CTS, (long long int)ts->CTS_base);
+                "%s*cts%s, %13"PRIu64", %10"PRIu64", ",
+                obj->color_green, obj->color_off, ts->CTS, ts->CTS_base);
         return;
 }
 
@@ -1334,9 +1333,8 @@ static void show_stc(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
 
         fprintf(stdout,
-                "%s*stc%s, %13llu, %10llu, ",
-                obj->color_green, obj->color_off,
-                (long long int)ts->STC, (long long int)ts->STC_base);
+                "%s*stc%s, %13"PRIu64", %10"PRIu64", ",
+                obj->color_green, obj->color_off, ts->STC, ts->STC_base);
         return;
 }
 
@@ -1345,11 +1343,9 @@ static void show_pcr(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
 
         if(ts->has_pcr) {
-                fprintf(stdout, "%s*pcr%s, %13lld, %10lld, %3d, %+7.3f, %+4.0f, ",
+                fprintf(stdout, "%s*pcr%s, %13"PRIu64", %10"PRIu64", %3d, %+7.3f, %+4.0f, ",
                         obj->color_green, obj->color_off,
-                        (long long int)ts->PCR,
-                        (long long int)ts->PCR_base,
-                        ts->PCR_ext,
+                        ts->PCR, ts->PCR_base, ts->PCR_ext,
                         (double)(ts->PCR_interval) / STC_MS,
                         (double)(ts->PCR_jitter) * 1e3 / STC_US);
         }
@@ -1365,15 +1361,15 @@ static void show_pts(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
 
         if(ts->has_pts) {
-                fprintf(stdout, "%s*pts%s, %10lld, %+8.3f, %+8.3f, ",
+                fprintf(stdout, "%s*pts%s, %10"PRIu64", %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
-                        (long long int)ts->PTS,
+                        ts->PTS,
                         (double)(ts->PTS_interval) / (90), /* ms */
                         (double)(ts->PTS_minus_STC) / (90)); /* ms */
 
-                fprintf(stdout, "%s*dts%s, %10lld, %+8.3f, %+8.3f, ",
+                fprintf(stdout, "%s*dts%s, %10"PRIu64", %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
-                        (long long int)ts->DTS,
+                        ts->DTS,
                         (double)(ts->DTS_interval) / (90), /* ms */
                         (double)(ts->DTS_minus_STC) / (90)); /* ms */
         }
@@ -1414,7 +1410,7 @@ static void show_mts(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        fprintf(stdout, "%s*mts%s, %llX, ",
+        fprintf(stdout, "%s*mts%s, %" PRIX64 ", ",
                 obj->color_green, obj->color_off,
                 ts->CTS & 0x3FFFFFFF);
         return;

@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#include <inttypes.h> /* for intptr_t, int64_t, PRIX64, etc */
+
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
@@ -89,7 +91,7 @@ extern "C" {
 
 /* byte offset of member in structure */
 #ifndef OFFSET
-#define OFFSET(structure, member) ((int) &(((structure *) 0) -> member))
+#define OFFSET(structure, member) ((intptr_t)&(((structure *)0)->member))
 #endif
 
 /* for enum lookup table */
@@ -100,9 +102,9 @@ struct enume {
 
 /* auxiliary description */
 struct adesc {
-        int aoffset; /* array count parameter offset */
-        int boffset; /* buffer count parameter offset */
-        int size; /* n-byte, sizeof(one param) */
+        intptr_t aoffset; /* array count parameter offset */
+        intptr_t boffset; /* buffer count parameter offset */
+        intptr_t size; /* n-byte, sizeof(one param) */
         struct pdesc *pdesc; /* each parameter of struct xxx */
         const char *name; /* name of struct xxx */
 };
@@ -112,10 +114,10 @@ struct pdesc {
         int type; /* [PT_SINT, PT_VLST, ...] */
         int index; /* index of current array item, modified by param_xml.c */
         int count; /* array count */
-        int offset; /* memory offset from struct head */
+        intptr_t offset; /* memory offset from struct head */
         const char *name; /* node name(xml), param name(struct) */
-        int size; /* n-byte, sizeof(param) */
-        int aux; /* data or pointer to auxiliary description */
+        intptr_t size; /* n-byte, sizeof(param) */
+        intptr_t aux; /* data or pointer to auxiliary description */
 
         /* callback function, for user expansion */
         int (*toxml)(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);

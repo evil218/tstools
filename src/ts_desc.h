@@ -69,7 +69,7 @@ struct pdesc pd_elem[] = {
         {PT_UINTX_SS, 0, 1, OFFSET(struct ts_elem, PID), "PID", sizeof(uint16_t), 0, NULL, NULL},
         {PT_UINTX_SS, 0, 1, OFFSET(struct ts_elem, type), "type", sizeof(int), 0, NULL, NULL},
         {PT_UINTX_SS, 0, 1, OFFSET(struct ts_elem, stream_type), "stream_type", sizeof(uint8_t), 0, NULL, NULL},
-        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_elem, es_info), "es_info", sizeof(void *), (int)ad_es_info, NULL, NULL},
+        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_elem, es_info), "es_info", sizeof(void *), (intptr_t)ad_es_info, NULL, NULL},
         {PT_NULL, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };
 
@@ -94,11 +94,11 @@ struct pdesc pd_prog[] = {
         {PT_UINTu_SS, 0, 1, OFFSET(struct ts_prog, program_number), "program_number", sizeof(uint16_t), 0, NULL, NULL},
         {PT_UINTX_SS, 0, 1, OFFSET(struct ts_prog, PMT_PID), "PMT_PID", sizeof(uint16_t), 0, NULL, NULL},
         {PT_UINTX_SS, 0, 1, OFFSET(struct ts_prog, PCR_PID), "PCR_PID", sizeof(uint16_t), 0, NULL, NULL},
-        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, program_info), "program_info", sizeof(void *), (int)ad_program_info, NULL, NULL},
-        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, service_name), "service_name", sizeof(void *), (int)ad_service_name, NULL, NULL},
-        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, service_provider), "service_provider", sizeof(void *), (int)ad_service_provider, NULL, NULL},
-        {PT_LIST__XS, 0, 1, OFFSET(struct ts_prog, elem0), "elem", sizeof(struct ts_elem *), (int)ad_elem, NULL, NULL},
-        {PT_STRU__SS, 0, 1, OFFSET(struct ts_prog, tabl), "tabl", sizeof(struct ts_tabl), (int)pd_tabl, NULL, NULL},
+        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, program_info), "program_info", sizeof(void *), (intptr_t)ad_program_info, NULL, NULL},
+        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, service_name), "service_name", sizeof(void *), (intptr_t)ad_service_name, NULL, NULL},
+        {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, service_provider), "service_provider", sizeof(void *), (intptr_t)ad_service_provider, NULL, NULL},
+        {PT_LIST__XS, 0, 1, OFFSET(struct ts_prog, elem0), "elem", sizeof(struct ts_elem *), (intptr_t)ad_elem, NULL, NULL},
+        {PT_STRU__SS, 0, 1, OFFSET(struct ts_prog, tabl), "tabl", sizeof(struct ts_tabl), (intptr_t)pd_tabl, NULL, NULL},
         {PT_NULL, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };
 
@@ -109,9 +109,9 @@ struct adesc ad_prog[] = {
 
 struct pdesc pd_ts[] = {
         {PT_UINTu_SS, 0, 1, OFFSET(struct ts_obj, transport_stream_id), "transport_stream_id", sizeof(uint16_t), 0, NULL, NULL},
-        {PT_LIST__XS, 0, 1, OFFSET(struct ts_obj, prog0), "prog", sizeof(struct ts_prog *), (int)ad_prog, NULL, NULL},
-        {PT_LIST__XS, 0, 1, OFFSET(struct ts_obj, tabl0), "tabl", sizeof(struct ts_tabl *), (int)ad_tabl, NULL, NULL},
-        {PT_LIST__XS, 0, 1, OFFSET(struct ts_obj, pid0), "pid", sizeof(struct ts_pid *), (int)ad_pid, NULL, NULL},
+        {PT_LIST__XS, 0, 1, OFFSET(struct ts_obj, prog0), "prog", sizeof(struct ts_prog *), (intptr_t)ad_prog, NULL, NULL},
+        {PT_LIST__XS, 0, 1, OFFSET(struct ts_obj, tabl0), "tabl", sizeof(struct ts_tabl *), (intptr_t)ad_tabl, NULL, NULL},
+        {PT_LIST__XS, 0, 1, OFFSET(struct ts_obj, pid0), "pid", sizeof(struct ts_pid *), (intptr_t)ad_pid, NULL, NULL},
         {PT_NULL, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };
 
