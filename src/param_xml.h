@@ -13,8 +13,8 @@
  *                       |
  *                  (pdesc tree): parameter descriptive tree
  * 
- * 2008-11-20, LI Xin, parse xml file into param struct
  * 2011-09-18, ZHOU Cheng, collate PT_????; modified to avoid "callback funx"
+ * 2008-11-20, LI Xin, parse xml file into param struct
  */
 
 #ifndef _PARAM_XML_H
@@ -33,7 +33,7 @@ extern "C" {
 #define PT_TYP_MASK (0xF000) /* basic type */
 #define PT_ACS_MASK (0x0800) /* access mode */
 #define PT_CNT_MASK (0x0400) /* array count mode */
-#define PT_FMT_MASK (0x000F) /* txt format */
+#define PT_FMT_MASK (0x000F) /* text format */
 
 #define PT_TYP(x) ((x) & PT_TYP_MASK)
 #define PT_ACS(x) ((x) & PT_ACS_MASK)
@@ -51,41 +51,41 @@ extern "C" {
 #define PT_TYP_LIST (0x7000) /* list, should use "zlst" module */
 #define PT_TYP_VLST (0x8000) /* like PT_LIST, but each node can be different struct */
 
-/* array access mode */
+/* access mode */
 #define PT_ACS_S (0x0000) /* static: direct access */
 #define PT_ACS_X (0x0800) /* dynamic buffer(need xmlMalloc and xmlFree) */
 
-/* count mode */
+/* array count mode */
 #define PT_CNT_S (0x0000) /* static: pdesc->count */
 #define PT_CNT_X (0x0400) /* dynamic: another parameter */
 
-/* convert format */
+/* text format */
 #define PT_FMT_u (0x0001) /* %u */
 #define PT_FMT_x (0x0002) /* %x */
 #define PT_FMT_X (0x0003) /* %X */
-#define PT_FMT_g (0x0004) /* %g */
-#define PT_FMT_G (0x0005) /* %G */
 
 #define PT_TYP_UINTu (PT_TYP_UINT | PT_FMT_u)
 #define PT_TYP_UINTx (PT_TYP_UINT | PT_FMT_x)
 #define PT_TYP_UINTX (PT_TYP_UINT | PT_FMT_X)
-#define PT_TYP_FLOTg (PT_TYP_FLOT | PT_FMT_g)
-#define PT_TYP_FLOTG (PT_TYP_FLOT | PT_FMT_G)
 
 /* data format in XML */
 #define PT_NULL     (PT_TYP_NULL) /* should be ZERO to avoid endless loop! */
-#define PT_SINT__SS (PT_TYP_SINT  | PT_ACS_S | PT_CNT_S) /*   intN_t  a[20]; */
-#define PT_UINTu_SS (PT_TYP_UINTu | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; */
-#define PT_UINTx_SS (PT_TYP_UINTx | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; */
-#define PT_UINTX_SS (PT_TYP_UINTX | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; */
-#define PT_FLOTg_SS (PT_TYP_FLOTg | PT_ACS_S | PT_CNT_S) /*    float  a[20]; */
-#define PT_FLOTG_SS (PT_TYP_FLOTG | PT_ACS_S | PT_CNT_S) /*    float  a[20]; */
+
+#define PT_SINT__SS (PT_TYP_SINT  | PT_ACS_S | PT_CNT_S) /*   intN_t  a[20]; %d */
+#define PT_UINTu_SS (PT_TYP_UINTu | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; %u */
+#define PT_UINTx_SS (PT_TYP_UINTx | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; %x */
+#define PT_UINTX_SS (PT_TYP_UINTX | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; %X */
+#define PT_FLOT__SS (PT_TYP_FLOT  | PT_ACS_S | PT_CNT_S) /*    float  a[20]; */
 #define PT_STRI__SS (PT_TYP_STRI  | PT_ACS_S | PT_CNT_S) /*     char  a[20][max_size] */
 #define PT_ENUM__SS (PT_TYP_ENUM  | PT_ACS_S | PT_CNT_S) /*      int  a[20]; */
 #define PT_STRU__SS (PT_TYP_STRU  | PT_ACS_S | PT_CNT_S) /* struct x  a[20]; */
-#define PT_UINTu_XS (PT_TYP_UINTu | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; int a_len[20]; */
-#define PT_UINTx_XS (PT_TYP_UINTx | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; int a_len[20]; */
-#define PT_UINTX_XS (PT_TYP_UINTX | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; int a_len[20]; */
+
+#define PT_SINT__XS (PT_TYP_SINT  | PT_ACS_X | PT_CNT_S) /*   intN_t *a[20]; %d, int a_len[20]; */
+#define PT_UINTu_XS (PT_TYP_UINTu | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; %u, int a_len[20]; */
+#define PT_UINTx_XS (PT_TYP_UINTx | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; %x, int a_len[20]; */
+#define PT_UINTX_XS (PT_TYP_UINTX | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; %X, int a_len[20]; */
+#define PT_FLOT__XS (PT_TYP_FLOT  | PT_ACS_X | PT_CNT_S) /*    float *a[20]; */
+#define PT_STRU__XS (PT_TYP_STRU  | PT_ACS_X | PT_CNT_S) /* struct x *a[20];     int a_len[20]; */
 #define PT_LIST__XS (PT_TYP_LIST  | PT_ACS_X | PT_CNT_S) /* struct x *a[20]; */
 #define PT_VLST__XS (PT_TYP_VLST  | PT_ACS_X | PT_CNT_S) /*     void *a[20]; */
 

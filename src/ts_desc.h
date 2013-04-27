@@ -98,7 +98,7 @@ struct pdesc pd_prog[] = {
         {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, service_name), "service_name", sizeof(void *), (intptr_t)ad_service_name, NULL, NULL},
         {PT_UINTX_XS, 0, 1, OFFSET(struct ts_prog, service_provider), "service_provider", sizeof(void *), (intptr_t)ad_service_provider, NULL, NULL},
         {PT_LIST__XS, 0, 1, OFFSET(struct ts_prog, elem0), "elem", sizeof(struct ts_elem *), (intptr_t)ad_elem, NULL, NULL},
-        {PT_STRU__SS, 0, 1, OFFSET(struct ts_prog, tabl), "tabl", sizeof(struct ts_tabl), (intptr_t)pd_tabl, NULL, NULL},
+        {PT_STRU__SS, 0, 1, OFFSET(struct ts_prog, tabl), "tabl", sizeof(struct ts_tabl), (intptr_t)ad_tabl, NULL, NULL},
         {PT_NULL, 0, 0, 0, "", 0, 0, NULL, NULL} /* PT_NULL means tail of struct pdesc array */
 };
 
