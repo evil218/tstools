@@ -26,6 +26,13 @@ extern "C" {
 
 #include <inttypes.h> /* for intptr_t, int64_t, PRIX64, etc */
 
+/* offsetof macro */
+#include <stddef.h> /* for offsetof */
+#ifndef offsetof
+#pragma message("define offsetof macro ourself")
+#define offsetof(s, m) (size_t)&(((s *)0)->m)
+#endif
+
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
@@ -53,11 +60,11 @@ extern "C" {
 
 /* access mode */
 #define PT_ACS_S (0x0000) /* static: direct access */
-#define PT_ACS_X (0x0800) /* dynamic buffer(need xmlMalloc and xmlFree) */
+#define PT_ACS_X (0x0800) /* dynamic: use another int parameter to determine the count of buffer */
 
 /* array count mode */
 #define PT_CNT_S (0x0000) /* static: pdesc->count */
-#define PT_CNT_X (0x0400) /* dynamic: another parameter */
+#define PT_CNT_X (0x0400) /* variable: use another int parameter to determine the count in array */
 
 /* text format */
 #define PT_FMT_u (0x0001) /* %u */
@@ -68,42 +75,52 @@ extern "C" {
 #define PT_TYP_UINTx (PT_TYP_UINT | PT_FMT_x)
 #define PT_TYP_UINTX (PT_TYP_UINT | PT_FMT_X)
 
-/* data format in XML */
-#define PT_NULL     (PT_TYP_NULL) /* should be ZERO to avoid endless loop! */
+/* supported type of this module */
+#define PT_NULL PT_TYP_NULL, 0, 0, 0, 0 /* end of struct pdesc array */
 
-#define PT_SINT__SS (PT_TYP_SINT  | PT_ACS_S | PT_CNT_S) /*   intN_t  a[20]; %d */
-#define PT_UINTu_SS (PT_TYP_UINTu | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; %u */
-#define PT_UINTx_SS (PT_TYP_UINTx | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; %x */
-#define PT_UINTX_SS (PT_TYP_UINTX | PT_ACS_S | PT_CNT_S) /*  uintN_t  a[20]; %X */
-#define PT_FLOT__SS (PT_TYP_FLOT  | PT_ACS_S | PT_CNT_S) /*    float  a[20]; */
-#define PT_STRI__SS (PT_TYP_STRI  | PT_ACS_S | PT_CNT_S) /*     char  a[20][max_size] */
-#define PT_ENUM__SS (PT_TYP_ENUM  | PT_ACS_S | PT_CNT_S) /*      int  a[20]; */
-#define PT_STRU__SS (PT_TYP_STRU  | PT_ACS_S | PT_CNT_S) /* struct x  a[20]; */
+#define PT_SINT__SS(s, m, t)      (PT_TYP_SINT  | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(t)                /*   intN_t  a[20]; %d */
+#define PT_UINTu_SS(s, m, t)      (PT_TYP_UINTu | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(t)                /*  uintN_t  a[20]; %u */
+#define PT_UINTx_SS(s, m, t)      (PT_TYP_UINTx | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(t)                /*  uintN_t  a[20]; %x */
+#define PT_UINTX_SS(s, m, t)      (PT_TYP_UINTX | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(t)                /*  uintN_t  a[20]; %X */
+#define PT_FLOT__SS(s, m, t)      (PT_TYP_FLOT  | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(t)                /*    float  a[20]; */
+#define PT_STRI__SS(s, m)         (PT_TYP_STRI  | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(((s *)0)->m[0])   /*     char  a[20][?]; */
+#define PT_ENUM__SS(s, m)         (PT_TYP_ENUM  | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(int)              /*      int  a[20]; */
+#define PT_STRU__SS(s, m, t)      (PT_TYP_STRU  | PT_ACS_S | PT_CNT_S), offsetof(s, m), 0, 0, sizeof(t)                /* struct x  a[20]; */
 
-#define PT_SINT__XS (PT_TYP_SINT  | PT_ACS_X | PT_CNT_S) /*   intN_t *a[20]; %d, int a_len[20]; */
-#define PT_UINTu_XS (PT_TYP_UINTu | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; %u, int a_len[20]; */
-#define PT_UINTx_XS (PT_TYP_UINTx | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; %x, int a_len[20]; */
-#define PT_UINTX_XS (PT_TYP_UINTX | PT_ACS_X | PT_CNT_S) /*  uintN_t *a[20]; %X, int a_len[20]; */
-#define PT_FLOT__XS (PT_TYP_FLOT  | PT_ACS_X | PT_CNT_S) /*    float *a[20]; */
-#define PT_STRU__XS (PT_TYP_STRU  | PT_ACS_X | PT_CNT_S) /* struct x *a[20];     int a_len[20]; */
-#define PT_LIST__XS (PT_TYP_LIST  | PT_ACS_X | PT_CNT_S) /* struct x *a[20]; */
-#define PT_VLST__XS (PT_TYP_VLST  | PT_ACS_X | PT_CNT_S) /*     void *a[20]; */
+#define PT_SINT__SX(s, m, cia, t) (PT_TYP_SINT  | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(t)              /*   intN_t  a[20];    int a_cia; %d */
+#define PT_UINTu_SX(s, m, cia, t) (PT_TYP_UINTu | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(t)              /*  uintN_t  a[20];    int a_cia; %u */
+#define PT_UINTx_SX(s, m, cia, t) (PT_TYP_UINTx | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(t)              /*  uintN_t  a[20];    int a_cia; %x */
+#define PT_UINTX_SX(s, m, cia, t) (PT_TYP_UINTX | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(t)              /*  uintN_t  a[20];    int a_cia; %X */
+#define PT_FLOT__SX(s, m, cia, t) (PT_TYP_FLOT  | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(t)              /*    float  a[20];    int a_cia; */
+#define PT_STRI__SX(s, m, cia)    (PT_TYP_STRI  | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(((s *)0)->m[0]) /*     char  a[20][?]; int a_cia; */
+#define PT_STRU__SX(s, m, cia, t) (PT_TYP_STRU  | PT_ACS_S | PT_CNT_X), offsetof(s, m), 0, offsetof(s, cia), sizeof(t)              /* struct x  a[20];    int a_cia; */
 
-/* byte offset of member in structure */
-#ifndef OFFSET
-#define OFFSET(structure, member) ((intptr_t)&(((structure *)0)->member))
-#endif
+#define PT_SINT__XS(s, m, cob, t) (PT_TYP_SINT  | PT_ACS_X | PT_CNT_S), offsetof(s, m), offsetof(s, cob), 0, sizeof(t) /*   intN_t *a[20]; int a_cob[20]; %d */
+#define PT_UINTu_XS(s, m, cob, t) (PT_TYP_UINTu | PT_ACS_X | PT_CNT_S), offsetof(s, m), offsetof(s, cob), 0, sizeof(t) /*  uintN_t *a[20]; int a_cob[20]; %u */
+#define PT_UINTx_XS(s, m, cob, t) (PT_TYP_UINTx | PT_ACS_X | PT_CNT_S), offsetof(s, m), offsetof(s, cob), 0, sizeof(t) /*  uintN_t *a[20]; int a_cob[20]; %x */
+#define PT_UINTX_XS(s, m, cob, t) (PT_TYP_UINTX | PT_ACS_X | PT_CNT_S), offsetof(s, m), offsetof(s, cob), 0, sizeof(t) /*  uintN_t *a[20]; int a_cob[20]; %X */
+#define PT_FLOT__XS(s, m, cob, t) (PT_TYP_FLOT  | PT_ACS_X | PT_CNT_S), offsetof(s, m), offsetof(s, cob), 0, sizeof(t) /*    float *a[20]; int a_cob[20]; */
+#define PT_STRU__XS(s, m, cob, t) (PT_TYP_STRU  | PT_ACS_X | PT_CNT_S), offsetof(s, m), offsetof(s, cob), 0, sizeof(t) /* struct x *a[20]; int a_cob[20]; */
+#define PT_LIST__XS(s, m, t)      (PT_TYP_LIST  | PT_ACS_X | PT_CNT_S), offsetof(s, m),                0, 0, sizeof(t) /* struct x *a[20]; */
+#define PT_VLST__XS(s, m)         (PT_TYP_VLST  | PT_ACS_X | PT_CNT_S), offsetof(s, m),           0, 0, sizeof(void *) /*     void *a[20]; */
+
+#define PT_SINT__XX(s, m, cob, cia, t) (PT_TYP_SINT  | PT_ACS_X | PT_CNT_X), offsetof(s, m), offsetof(s, cob), offsetof(s, cia), sizeof(t) /*   intN_t *a[20]; int a_cob[20]; int a_cia; %d */
+#define PT_UINTu_XX(s, m, cob, cia, t) (PT_TYP_UINTu | PT_ACS_X | PT_CNT_X), offsetof(s, m), offsetof(s, cob), offsetof(s, cia), sizeof(t) /*  uintN_t *a[20]; int a_cob[20]; int a_cia; %u */
+#define PT_UINTx_XX(s, m, cob, cia, t) (PT_TYP_UINTx | PT_ACS_X | PT_CNT_X), offsetof(s, m), offsetof(s, cob), offsetof(s, cia), sizeof(t) /*  uintN_t *a[20]; int a_cob[20]; int a_cia; %x */
+#define PT_UINTX_XX(s, m, cob, cia, t) (PT_TYP_UINTX | PT_ACS_X | PT_CNT_X), offsetof(s, m), offsetof(s, cob), offsetof(s, cia), sizeof(t) /*  uintN_t *a[20]; int a_cob[20]; int a_cia; %X */
+#define PT_FLOT__XX(s, m, cob, cia, t) (PT_TYP_FLOT  | PT_ACS_X | PT_CNT_X), offsetof(s, m), offsetof(s, cob), offsetof(s, cia), sizeof(t) /*    float *a[20]; int a_cob[20]; int a_cia; */
+#define PT_STRU__XX(s, m, cob, cia, t) (PT_TYP_STRU  | PT_ACS_X | PT_CNT_X), offsetof(s, m), offsetof(s, cob), offsetof(s, cia), sizeof(t) /* struct x *a[20]; int a_cob[20]; int a_cia; */
+#define PT_LIST__XX(s, m,      cia, t) (PT_TYP_LIST  | PT_ACS_X | PT_CNT_X), offsetof(s, m),                0, offsetof(s, cia), sizeof(t) /* struct x *a[20];                int a_cia; */
+#define PT_VLST__XX(s, m,      cia)    (PT_TYP_VLST  | PT_ACS_X | PT_CNT_X), offsetof(s, m),           0, offsetof(s, cia), sizeof(void *) /*     void *a[20];                int a_cia; */
 
 /* for enum lookup table */
 struct enume {
-        const char *key;
+        const char *key; /* "" is the end of table, and the default item */
         int value;
 };
 
 /* auxiliary description */
 struct adesc {
-        intptr_t aoffset; /* array count parameter offset */
-        intptr_t boffset; /* buffer count parameter offset */
         intptr_t size; /* n-byte, sizeof(one param) */
         struct pdesc *pdesc; /* each parameter of struct xxx */
         const char *name; /* name of struct xxx */
@@ -111,17 +128,17 @@ struct adesc {
 
 /* parameter description */
 struct pdesc {
-        int type; /* [PT_SINT, PT_VLST, ...] */
-        int index; /* index of current array item, modified by param_xml.c */
-        int count; /* array count */
-        intptr_t offset; /* memory offset from struct head */
-        const char *name; /* node name(xml), param name(struct) */
+        int iob; /* index of buffer, modified by param_xml.c */
+        int ioa; /* index of array, modified by param_xml.c */
+        int count; /* count of array */
+        int type; /* [PT_SINT_.., PT_VLST_.., ...] */
+        size_t offset; /* memory offset from struct head */
+        size_t boffset; /* "count of buffer" parameter offset */
+        size_t aoffset; /* "count in array" parameter offset */
         intptr_t size; /* n-byte, sizeof(param) */
+        const char *name; /* node name(xml), param name(struct) */
+        struct pdesc *pdesc; /* sub pdesc array */
         intptr_t aux; /* data or pointer to auxiliary description */
-
-        /* callback function, for user expansion */
-        int (*toxml)(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
-        int (*xmlto)(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
 };
 
 /* module interface, reentrant */
