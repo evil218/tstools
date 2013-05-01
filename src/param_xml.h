@@ -24,7 +24,27 @@
 extern "C" {
 #endif
 
-#include <inttypes.h> /* for intptr_t, int64_t, PRIX64, etc */
+#ifdef OS_VXWORKS
+        #ifdef __x86_64__
+                #define __PRI64 "l"
+                typedef long intptr_t;
+        #else
+                #define __PRI64 "ll"
+                typedef int intptr_t;
+        #endif
+
+        #define PRId8  "d"
+        #define PRId16 "d"
+        #define PRId32 "d"
+        #define PRId64 __PRI64"d"
+
+        #define PRIX8  "X"
+        #define PRIX16 "X"
+        #define PRIX32 "X"
+        #define PRIX64 __PRI64"X"
+#else /* not OS_VXWORKS */
+        #include <inttypes.h> /* for intptr_t, int64_t, PRIX64, etc */
+#endif
 
 /* offsetof macro */
 #include <stddef.h> /* for offsetof */
@@ -121,7 +141,7 @@ struct enume {
 
 /* auxiliary description */
 struct adesc {
-        intptr_t size; /* n-byte, sizeof(one param) */
+        size_t size; /* n-byte, sizeof(one param) */
         struct pdesc *pdesc; /* each parameter of struct xxx */
         const char *name; /* name of struct xxx */
 };
@@ -135,7 +155,7 @@ struct pdesc {
         size_t offset; /* memory offset from struct head */
         size_t boffset; /* "count of buffer" parameter offset */
         size_t aoffset; /* "count in array" parameter offset */
-        intptr_t size; /* n-byte, sizeof(param) */
+        size_t size; /* n-byte, sizeof(param) */
         const char *name; /* node name(xml), param name(struct) */
         struct pdesc *pdesc; /* sub pdesc array */
         intptr_t aux; /* data or pointer to auxiliary description */

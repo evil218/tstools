@@ -1,4 +1,4 @@
-# Makefile for linux
+# Makefile for linux and cygwin
 #
 # Take a look at the beginning,
 # modify the variables to suit your environment.
@@ -18,7 +18,16 @@
 MAKEFLAGS += --no-print-directory
 
 # env
+ARCH:=$(shell uname -m)
+BIT32:=i686
+BIT64:=x86_64
+
+ifeq ($(TERM),cygwin)
+PLATFORM = cygwin
+else
 PLATFORM = linux
+CFLAGS += -DHAVE_STRTOLD
+endif
 
 ifeq ($(DEBUG),1)
 TYPE = debug
@@ -154,7 +163,11 @@ catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
 
 tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+ifeq ($(ARCH),$(BIT64))
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjparam_xml.o -L/usr/lib/x86_64-linux-gnu -lxml2
+else
+	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjparam_xml.o -L/bin -lxml2-2
+endif
 
 tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o

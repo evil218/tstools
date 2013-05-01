@@ -43,7 +43,8 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #pragma message("no true strtold() in your system, param_xml will NOT support long double")
 #endif
 #else
-#pragma message("DBL_DIG == LDBL_DIG, param_xml will NOT support long double")
+/* #pragma message("DBL_DIG == LDBL_DIG, param_xml will NOT support long double") FIXME: VxWorks need "pragma info" */
+#pragma info (DBL_DIG == LDBL_DIG): param_xml will NOT support "long double"
 #endif
 #else
 #pragma message("no LDBL_DIG, param_xml will NOT support long double")
@@ -423,7 +424,7 @@ static int stri2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 cia = (int *)((uint8_t *)mem_base + pdesc->aoffset);
                 count = ((*cia < count) ? *cia : count);
         }
-        RPT(RPT_INF, "stri2xml: %s[%d][%d]", pdesc->name, count, pdesc->size);
+        RPT(RPT_INF, "stri2xml: %s[%d][%zd]", pdesc->name, count, pdesc->size);
 
         for(i = 0; i < count; i++, mem += pdesc->size) {
                 sub_xnode = xmlNewNode(NULL, (const xmlChar *)pdesc->name);
@@ -696,6 +697,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 xmlChar *idx;
                 xmlChar *cnt;
                 int *cob; /* count of buffer */
+                xmlNode *sub_xnode;
 
                 /* adjust pdesc->ioa, calc mem */
                 idx = xmlGetProp(xnode, xStrIdx);
@@ -732,7 +734,7 @@ static int xml2sint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 pdesc->iob = 0;
-                for(xmlNode *sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
+                for(sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
                         if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
                                 /* FIXME: why many sub_xnode has name "text"? */
                                 continue;
@@ -764,6 +766,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 xmlChar *idx;
                 xmlChar *cnt;
                 int *cob; /* count of buffer */
+                xmlNode *sub_xnode;
 
                 /* adjust pdesc->ioa, calc mem */
                 idx = xmlGetProp(xnode, xStrIdx);
@@ -800,7 +803,7 @@ static int xml2uint(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 pdesc->iob = 0;
-                for(xmlNode *sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
+                for(sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
                         if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
                                 /* FIXME: why many sub_xnode has name "text"? */
                                 continue;
@@ -832,6 +835,7 @@ static int xml2flot(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 xmlChar *idx;
                 xmlChar *cnt;
                 int *cob; /* count of buffer */
+                xmlNode *sub_xnode;
 
                 /* adjust pdesc->ioa, calc mem */
                 idx = xmlGetProp(xnode, xStrIdx);
@@ -868,7 +872,7 @@ static int xml2flot(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 pdesc->iob = 0;
-                for(xmlNode *sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
+                for(sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
                         if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
                                 /* FIXME: why many sub_xnode has name "text"? */
                                 continue;
@@ -983,6 +987,7 @@ static int xml2stru(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 xmlChar *idx;
                 xmlChar *cnt;
                 int *cob; /* count of buffer */
+                xmlNode *sub_xnode;
 
                 /* adjust pdesc->ioa, calc mem */
                 idx = xmlGetProp(xnode, xStrIdx);
@@ -1019,7 +1024,7 @@ static int xml2stru(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
 
                 pdesc->iob = 0;
-                for(xmlNode *sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
+                for(sub_xnode = xnode->xmlChildrenNode; sub_xnode; sub_xnode = sub_xnode->next) {
                         if(!xmlStrEqual((xmlChar *)(pdesc->name), sub_xnode->name)) {
                                 /* FIXME: why many sub_xnode has name "text"? */
                                 continue;
@@ -1298,7 +1303,7 @@ static int uint2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count)
                                 }
                                 break;
                         default:
-                                sprintf(str_ctnt, "unsupported data size(%d)", pdesc->size);
+                                sprintf(str_ctnt, "unsupported data size(%zd)", pdesc->size);
                                 i = count; /* stop converter */
                                 break;
                 }
@@ -1371,8 +1376,9 @@ static int flot2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count)
 static int stru2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count)
 {
         int i;
+        uint8_t *the_mem = (uint8_t *)mem;
 
-        for(i = 0; i < count; i++, mem += pdesc->size) {
+        for(i = 0; i < count; i++, the_mem += pdesc->size) {
                 xmlNode *sub_xnode;
 
                 sub_xnode = xmlNewNode(NULL, (const xmlChar *)pdesc->name);
@@ -1391,7 +1397,7 @@ static int stru2node(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count)
 #endif
 
                 RPT(RPT_INF, "stru2node[%d]:", i);
-                param2xml(mem, sub_xnode, (struct pdesc *)(pdesc->pdesc));
+                param2xml(the_mem, sub_xnode, (struct pdesc *)(pdesc->pdesc));
                 xmlAddChild(xnode, sub_xnode);
         }
         return 0;
@@ -1403,6 +1409,7 @@ static int node2sint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
         xmlChar *ctnt;
         char *p;
         char *endp;
+        uint8_t *the_mem = (uint8_t *)mem;
 
         /* adjust *idx, calc mem */
         xIdx = xmlGetProp(xnode, xStrIdx);
@@ -1414,7 +1421,7 @@ static int node2sint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 RPT(RPT_INF, "node2sint: idx(%d) >= count(%d), ignore", *idx, count);
                 return -1;
         }
-        mem += (*idx * pdesc->size);
+        the_mem += (*idx * pdesc->size);
 
         /* get sint one by one */
         ctnt = xmlNodeGetContent(xnode);
@@ -1427,12 +1434,12 @@ static int node2sint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(int8_t):
                         {
                                 int8_t data;
-                                int8_t *cur_mem = (int8_t *)mem;
+                                int8_t *cur_mem = (int8_t *)the_mem;
 
                                 while(1) {
                                         data = (int8_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2sint[%d]: %" PRId8, *idx, data);
+                                        RPT(RPT_INF, "node2sint[%d]: %"PRId8, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1442,12 +1449,12 @@ static int node2sint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(int16_t):
                         {
                                 int16_t data;
-                                int16_t *cur_mem = (int16_t *)mem;
+                                int16_t *cur_mem = (int16_t *)the_mem;
 
                                 while(1) {
                                         data = (int16_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2sint[%d]: %" PRId16, *idx, data);
+                                        RPT(RPT_INF, "node2sint[%d]: %"PRId16, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1457,12 +1464,12 @@ static int node2sint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(int32_t):
                         {
                                 int32_t data;
-                                int32_t *cur_mem = (int32_t *)mem;
+                                int32_t *cur_mem = (int32_t *)the_mem;
 
                                 while(1) {
                                         data = (int32_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2sint[%d]: %" PRId32, *idx, data);
+                                        RPT(RPT_INF, "node2sint[%d]: %"PRId32, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1472,12 +1479,12 @@ static int node2sint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(int64_t):
                         {
                                 int64_t data;
-                                int64_t *cur_mem = (int64_t *)mem;
+                                int64_t *cur_mem = (int64_t *)the_mem;
 
                                 while(1) {
                                         data = (int64_t)strtoimax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2sint[%d]: %" PRId64, *idx, data);
+                                        RPT(RPT_INF, "node2sint[%d]: %"PRId64, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1498,6 +1505,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
         xmlChar *ctnt;
         char *p;
         char *endp;
+        uint8_t *the_mem = (uint8_t *)mem;
 
         /* adjust *idx, calc mem */
         xIdx = xmlGetProp(xnode, xStrIdx);
@@ -1509,7 +1517,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 RPT(RPT_INF, "node2uint: idx(%d) >= count(%d), ignore", *idx, count);
                 return -1;
         }
-        mem += (*idx * pdesc->size);
+        the_mem += (*idx * pdesc->size);
 
         /* get uint one by one */
         ctnt = xmlNodeGetContent(xnode);
@@ -1522,12 +1530,12 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(uint8_t):
                         {
                                 uint8_t data;
-                                uint8_t *cur_mem = (uint8_t *)mem;
+                                uint8_t *cur_mem = (uint8_t *)the_mem;
 
                                 while(1) {
                                         data = (uint8_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX8, *idx, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%"PRIX8, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1537,12 +1545,12 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(uint16_t):
                         {
                                 uint16_t data;
-                                uint16_t *cur_mem = (uint16_t *)mem;
+                                uint16_t *cur_mem = (uint16_t *)the_mem;
 
                                 while(1) {
                                         data = (uint16_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX16, *idx, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%"PRIX16, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1552,12 +1560,12 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(uint32_t):
                         {
                                 uint32_t data;
-                                uint32_t *cur_mem = (uint32_t *)mem;
+                                uint32_t *cur_mem = (uint32_t *)the_mem;
 
                                 while(1) {
                                         data = (uint32_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX32, *idx, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%"PRIX32, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1567,12 +1575,12 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(uint64_t):
                         {
                                 uint64_t data;
-                                uint64_t *cur_mem = (uint64_t *)mem;
+                                uint64_t *cur_mem = (uint64_t *)the_mem;
 
                                 while(1) {
                                         data = (uint64_t)strtoumax(p, &endp, 0);
                                         if(p == endp) {break;}
-                                        RPT(RPT_INF, "node2uint[%d]: 0x%" PRIX64, *idx, data);
+                                        RPT(RPT_INF, "node2uint[%d]: 0x%"PRIX64, *idx, data);
                                         *cur_mem++ = data;
                                         (*idx)++;
                                         p = endp;
@@ -1580,7 +1588,7 @@ static int node2uint(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                         }
                         break;
                 default:
-                        RPT(RPT_INF, "node2uint: bad data size(%d)", pdesc->size);
+                        RPT(RPT_INF, "node2uint: bad data size(%zd)", pdesc->size);
                         break;
         }
         xmlFree(ctnt);
@@ -1593,6 +1601,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
         xmlChar *ctnt;
         char *p;
         char *endp;
+        uint8_t *the_mem = (uint8_t *)mem;
 
         /* adjust *idx, calc mem */
         xIdx = xmlGetProp(xnode, xStrIdx);
@@ -1604,7 +1613,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 RPT(RPT_INF, "node2flot: idx(%d) >= count(%d), ignore", *idx, count);
                 return -1;
         }
-        mem += (*idx * pdesc->size);
+        the_mem += (*idx * pdesc->size);
 
         /* get float one by one */
         ctnt = xmlNodeGetContent(xnode);
@@ -1617,7 +1626,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(float):
                         {
                                 float data;
-                                float *cur_mem = (float *)mem;
+                                float *cur_mem = (float *)the_mem;
 
                                 while(1) {
                                         data = (float)strtod(p, &endp); /* strtof() is seldom */
@@ -1632,7 +1641,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(double):
                         {
                                 double data;
-                                double *cur_mem = (double *)mem;
+                                double *cur_mem = (double *)the_mem;
 
                                 while(1) {
                                         data = strtod(p, &endp);
@@ -1648,7 +1657,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 case sizeof(long double):
                         {
                                 long double data;
-                                long double *cur_mem = (long double *)mem;
+                                long double *cur_mem = (long double *)the_mem;
 
                                 while(1) {
                                         data = strtold(p, &endp);
@@ -1672,6 +1681,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
 static int node2stru(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int *idx)
 {
         xmlChar *xIdx;
+        uint8_t *the_mem = (uint8_t *)mem;
 
         /* adjust *idx, calc mem */
         xIdx = xmlGetProp(xnode, xStrIdx);
@@ -1683,12 +1693,12 @@ static int node2stru(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
                 RPT(RPT_INF, "node2stru: idx(%d) >= count(%d), ignore", *idx, count);
                 return -1;
         }
-        mem += (*idx * pdesc->size);
+        the_mem += (*idx * pdesc->size);
 
         /* get struct */
         RPT(RPT_INF, "node2stru[%d]:", *idx);
         (*idx)++;
-        xml2param(mem, xnode, (struct pdesc *)(pdesc->pdesc));
+        xml2param(the_mem, xnode, (struct pdesc *)(pdesc->pdesc));
         return 0;
 }
 
