@@ -9,6 +9,7 @@
 #include <unistd.h> /* for isatty() */
 #include <string.h> /* for strcmp(), etc */
 #include <time.h> /* for localtime(), etc */
+#include<sys/time.h> /* for gettimeofday() */
 #include <inttypes.h> /* for uint?_t, PRIX64, etc */
 
 #include "version.h"
@@ -140,7 +141,8 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
 };
 
 struct aim {
-        int bg;
+        int time;
+        int addr;
         int cts;
         int stc;
         int pcr;
@@ -186,6 +188,7 @@ struct tsana_obj {
         char *color_purple;
         char *color_cyan;
         char *color_white;
+        struct timeval tv; /* the arrive time of this packet */
 
         uint64_t cnt; /* packet analysed */
         char tbuf[PKT_TBUF];
@@ -222,10 +225,12 @@ static int state_parse_each(struct tsana_obj *obj);
 static struct tsana_obj *create(int argc, char *argv[]);
 static int destroy(struct tsana_obj *obj);
 
+#ifndef PLATFORM_mingw
 static void xfree(void *pBlock);
 static void *xalloc(size_t nBytes);
 static void *xrealloc(void *pBlock, size_t newSize);
 static char *xstrdup(const char *SRC);
+#endif
 
 static void show_help();
 static void show_version();
@@ -240,11 +245,14 @@ static void output_elem(void *PELEM, uint16_t pcr_pid);
 static void show_lst(struct tsana_obj *obj);
 static void show_psi(struct tsana_obj *obj);
 
+#ifndef PLATFORM_mingw
 static int export_psi(struct tsana_obj *obj);
 static int import_psi(struct tsana_obj *obj);
+#endif
 
 static void show_pkt(struct tsana_obj *obj);
-static void show_bg(struct tsana_obj *obj);
+static void show_time(struct tsana_obj *obj);
+static void show_addr(struct tsana_obj *obj);
 static void show_cts(struct tsana_obj *obj);
 static void show_stc(struct tsana_obj *obj);
 static void show_pcr(struct tsana_obj *obj);
@@ -297,9 +305,11 @@ int main(int argc, char *argv[])
         ts = obj->ts;
         ts->aim_interval = obj->aim_interval;
 
+#ifndef PLATFORM_mingw
         if(obj->is_impsi) {
                 import_psi(obj);
         }
+#endif
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
                 if(GOT_WRONG_PKT == get_rslt) {
@@ -312,6 +322,7 @@ int main(int argc, char *argv[])
                         continue;
                 }
 
+                gettimeofday(&(obj->tv), NULL); /* record the arrive time */
                 ts_parse_tsb(obj->ts);
                 switch(obj->state) {
                         case STATE_PARSE_PSI:
@@ -348,12 +359,14 @@ int main(int argc, char *argv[])
                         case MODE_LST:
                                 show_lst(obj);
                                 break;
+#ifndef PLATFORM_mingw
                         case MODE_EXPSI:
                                 export_psi(obj);
                                 break;
                         case MODE_PSI:
                                 show_psi(obj);
                                 break;
+#endif
                         default:
                                 break;
                 }
@@ -418,11 +431,13 @@ static int state_parse_each(struct tsana_obj *obj)
                         show_lst(obj);
                 }
         }
+#ifndef PLATFORM_mingw
         if(MODE_EXPSI == obj->mode) {
                 if(!(obj->is_dump)) {
                         export_psi(obj);
                 }
         }
+#endif
         if(MODE_PSI == obj->mode) {
                 if(!(obj->is_dump)) {
                         show_psi(obj);
@@ -480,8 +495,11 @@ static int state_parse_each(struct tsana_obj *obj)
         }
 
         /* report */
-        if(obj->aim.bg && has_report) {
-                show_bg(obj);
+        if(obj->aim.time && has_report) {
+                show_time(obj);
+        }
+        if(obj->aim.addr && has_report) {
+                show_addr(obj);
         }
         if(obj->aim.cts && has_report) {
                 show_cts(obj);
@@ -583,6 +601,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->color_purple = "";
         obj->color_cyan = "";
         obj->color_white = "";
+        timerclear(&(obj->tv));
 
         for(i = 1; i < argc; i++) {
                 if('-' == argv[i][0]) {
@@ -605,8 +624,12 @@ static struct tsana_obj *create(int argc, char *argv[])
                         else if(0 == strcmp(argv[i], "-mem")) {
                                 obj->is_mem = 1;
                         }
-                        else if(0 == strcmp(argv[i], "-bg")) {
-                                obj->aim.bg = 1;
+                        else if(0 == strcmp(argv[i], "-time")) {
+                                obj->aim.time = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-addr")) {
+                                obj->aim.addr = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-cts")) {
@@ -847,11 +870,13 @@ static struct tsana_obj *create(int argc, char *argv[])
         buddy_init(mp); /* now, we can use xx_malloc() */
         buddy_status(mp, obj->is_mem, "after buddy init");
 
+#ifndef PLATFORM_mingw
         /* init memory of libxml2 */
         if(0 != xmlMemSetup(xfree, xalloc, xrealloc, xstrdup)) {
                 fprintf(stderr,"xmlMemSetup() failed.\n");
                 goto create_failed_with_mp;
         }
+#endif
 
         /* create & init ts module */
         obj->ts = ts_create(mp);
@@ -887,6 +912,7 @@ static int destroy(struct tsana_obj *obj)
         return 1;
 }
 
+#ifndef PLATFORM_mingw
 static void xfree(void *pBlock)
 {
         buddy_free(mp, pBlock);
@@ -921,6 +947,7 @@ static char *xstrdup(const char *SRC)
         }
         return dst;
 }
+#endif
 
 static void show_help()
 {
@@ -940,7 +967,8 @@ static void show_help()
                 " -dump            dump cared packet\n"
                 " -mem             show memory status\n"
                 "\n"
-                " -bg              output background information\n"
+                " -time            \"*time, YYYY-mm-dd HH:MM:SS, second, usecond, \"\n"
+                " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
                 " -cts             \"*cts, CTS, BASE, \"\n"
                 " -stc             \"*stc, STC, BASE, \"\n"
                 " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"\n"
@@ -973,7 +1001,7 @@ static void show_help()
                 " -v, --version    display my version\n"
                 "\n"
                 "Examples:\n"
-                "  \"catts xxx.ts | tsana -c -bg -pcr -pts\" -- report all PCR/PTS/DTS information\n"
+                "  \"catts xxx.ts | tsana -c -time -addr -pcr -pts\" -- report all PCR/PTS/DTS information\n"
                 "\n"
                 "Report bugs to <zhoucheng@tsinghua.org.cn>.\n",
                 BUDDY_ORDER_MAX, MP_ORDER_DEFAULT, MP_ORDER_DEFAULT);
@@ -1222,6 +1250,7 @@ static void show_lst(struct tsana_obj *obj)
         return;
 }
 
+#ifndef PLATFORM_mingw
 static int export_psi(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
@@ -1285,6 +1314,7 @@ static int import_psi(struct tsana_obj *obj)
         ts_ioctl(ts, TS_TIDY, 0);
         return 0;
 }
+#endif
 
 static void show_psi(struct tsana_obj *obj)
 {
@@ -1298,21 +1328,28 @@ static void show_psi(struct tsana_obj *obj)
         return;
 }
 
-static void show_bg(struct tsana_obj *obj)
+static void show_time(struct tsana_obj *obj)
 {
-        time_t tp;
         struct tm *lt; /* local time */
-        char str[16]; /* "12:38:00" */
-        struct ts_obj *ts = obj->ts;
+        char str_hms[32]; /* "2013-05-19 12:38:00" */
 
-        time(&tp);
-        lt = localtime(&tp);
-        strftime(str, 32, "%H:%M:%S", lt);
+        lt = localtime(&(obj->tv.tv_sec));
+        strftime(str_hms, 32, "%Y-%m-%d %H:%M:%S", lt);
 
         fprintf(stdout,
-                "%s*bg%s, %s%s%s, %"PRIu64", %s0x%"PRIX64"%s, %"PRId64", %s0x%04X%s, ",
+                "%s*time%s, %s%s%s, %ld, %06ld, ",
                 obj->color_green, obj->color_off,
-                obj->color_yellow, str, obj->color_off, ts->CTS,
+                obj->color_yellow, str_hms, obj->color_off, obj->tv.tv_sec, obj->tv.tv_usec);
+        return;
+}
+
+static void show_addr(struct tsana_obj *obj)
+{
+        struct ts_obj *ts = obj->ts;
+
+        fprintf(stdout,
+                "%s*addr%s, %s0x%"PRIX64"%s, %"PRId64", %s0x%04X%s, ",
+                obj->color_green, obj->color_off,
                 obj->color_yellow, ts->ADDR, obj->color_off, ts->ADDR,
                 obj->color_yellow, ts->PID, obj->color_off);
         return;

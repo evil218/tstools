@@ -53,14 +53,12 @@ PRJ_OBJS  = prjudp.o
 PRJ_OBJS += prjurl.o
 PRJ_OBJS += prjif.o
 PRJ_OBJS += prjUTF_GB.o
+#PRJ_OBJS += prjparam_xml.o
 PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
 PRJ_OBJS += prjtobin.o
 PRJ_OBJS += prjtoip.o
-PRJ_OBJS += prjdtsdi.o
-PRJ_OBJS += prjtopcm.o
-PRJ_OBJS += prjatsc_mh_tcp.o
 
 PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
 
@@ -69,8 +67,6 @@ PRJ_AIMS += catip.exe
 PRJ_AIMS += tsana.exe
 PRJ_AIMS += tobin.exe
 PRJ_AIMS += toip.exe
-PRJ_AIMS += dtsdi.exe
-PRJ_AIMS += topcm.exe
 
 # includes
 INCFLAGS  = -I. -I..
@@ -115,8 +111,6 @@ install:
 	-cp tsana.exe $(INSTALLDIR)
 	-cp tobin.exe $(INSTALLDIR)
 	-cp toip.exe $(INSTALLDIR)
-	-cp dtsdi.exe $(INSTALLDIR)
-	-cp topcm.exe $(INSTALLDIR)
 
 uninstall:
 	-rm -f $(INSTALLDIR)/catts.exe
@@ -124,8 +118,6 @@ uninstall:
 	-rm -f $(INSTALLDIR)/tsana.exe
 	-rm -f $(INSTALLDIR)/tobin.exe
 	-rm -f $(INSTALLDIR)/toip.exe
-	-rm -f $(INSTALLDIR)/dtsdi.exe
-	-rm -f $(INSTALLDIR)/topcm.exe
 
 # creates the dependency file
 libdep: $(LIB_DEP)
@@ -161,7 +153,7 @@ catip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjcatip.o $(LIBS) prjif.o prjudp.o prjurl.o -lwsock32
 
 tsana.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjtsana.o $(LIBS) prjif.o prjUTF_GB.o prjatsc_mh_tcp.o
+	$(LD) $(LDFLAGS) -o $@ prjtsana.o $(LIBS) prjif.o prjUTF_GB.o # prjparam_xml.o -lxml2
 
 tobin.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjtobin.o $(LIBS) prjif.o
