@@ -189,6 +189,7 @@ struct tsana_obj {
         char *color_cyan;
         char *color_white;
         struct timeval tv; /* the arrive time of this packet */
+        struct timeval ltv; /* last arrive time */
 
         uint64_t cnt; /* packet analysed */
         char tbuf[PKT_TBUF];
@@ -602,6 +603,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->color_cyan = "";
         obj->color_white = "";
         timerclear(&(obj->tv));
+        timerclear(&(obj->ltv));
 
         for(i = 1; i < argc; i++) {
                 if('-' == argv[i][0]) {
@@ -967,7 +969,7 @@ static void show_help()
                 " -dump            dump cared packet\n"
                 " -mem             show memory status\n"
                 "\n"
-                " -time            \"*time, YYYY-mm-dd HH:MM:SS, second, usecond, \"\n"
+                " -time            \"*time, YYYY-mm-dd HH:MM:SS, second, usecond, delta_time(ms), \"\n"
                 " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
                 " -cts             \"*cts, CTS, BASE, \"\n"
                 " -stc             \"*stc, STC, BASE, \"\n"
@@ -1332,14 +1334,25 @@ static void show_time(struct tsana_obj *obj)
 {
         struct tm *lt; /* local time */
         char str_hms[32]; /* "2013-05-19 12:38:00" */
+        struct timeval dtv; /* delta arrive time */
+
+        if(!timerisset(&(obj->ltv))) {
+                /* init last arrive time */
+                obj->ltv.tv_sec = obj->tv.tv_sec;
+                obj->ltv.tv_usec = obj->tv.tv_usec;
+        }
+        timersub(&(obj->tv), &(obj->ltv), &dtv); /* calc delta arrive time */
+        obj->ltv.tv_sec = obj->tv.tv_sec;
+        obj->ltv.tv_usec = obj->tv.tv_usec;
 
         lt = localtime(&(obj->tv.tv_sec));
         strftime(str_hms, 32, "%Y-%m-%d %H:%M:%S", lt);
 
         fprintf(stdout,
-                "%s*time%s, %s%s%s, %ld, %06ld, ",
+                "%s*time%s, %s%s%s, %ld, %06ld, %.6f, ",
                 obj->color_green, obj->color_off,
-                obj->color_yellow, str_hms, obj->color_off, obj->tv.tv_sec, obj->tv.tv_usec);
+                obj->color_yellow, str_hms, obj->color_off, obj->tv.tv_sec, obj->tv.tv_usec,
+                dtv.tv_sec * 1000.0 + dtv.tv_usec / 1000.0);
         return;
 }
 
