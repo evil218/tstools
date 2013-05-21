@@ -3,6 +3,12 @@ cscope.out
 psi.xml
 psi.xml.gz
 *.swp
+*.pc
+
+config.h
+config.mak
+config.log
+ts_config.h
 
 */catts
 */catip
