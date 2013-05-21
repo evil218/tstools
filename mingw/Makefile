@@ -53,7 +53,7 @@ PRJ_OBJS  = prjudp.o
 PRJ_OBJS += prjurl.o
 PRJ_OBJS += prjif.o
 PRJ_OBJS += prjUTF_GB.o
-#PRJ_OBJS += prjparam_xml.o
+PRJ_OBJS += prjparam_xml.o
 PRJ_OBJS += prjcatts.o
 PRJ_OBJS += prjcatip.o
 PRJ_OBJS += prjtsana.o
@@ -71,6 +71,7 @@ PRJ_AIMS += toip.exe
 # includes
 INCFLAGS  = -I. -I..
 INCFLAGS += -I../include/libts
+INCFLAGS += -I/include/libxml2
 
 # compiler and its options
 CC = gcc
@@ -153,7 +154,7 @@ catip.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjcatip.o $(LIBS) prjif.o prjudp.o prjurl.o -lwsock32
 
 tsana.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prjtsana.o $(LIBS) prjif.o prjUTF_GB.o # prjparam_xml.o -lxml2
+	$(LD) $(LDFLAGS) -o $@ prjtsana.o $(LIBS) prjif.o prjUTF_GB.o prjparam_xml.o -L/lib -lxml2
 
 tobin.exe: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
 	$(LD) $(LDFLAGS) -o $@ prjtobin.o $(LIBS) prjif.o

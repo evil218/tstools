@@ -22,6 +22,18 @@
 #include "param_xml.h"
 #include "ts_desc.h"
 
+#ifndef timersub /* for mingw */
+#define timersub(a, b, result)                                                \
+  do {                                                                        \
+    (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;                             \
+    (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;                          \
+    if ((result)->tv_usec < 0) {                                              \
+      --(result)->tv_sec;                                                     \
+      (result)->tv_usec += 1000000;                                           \
+    }                                                                         \
+  } while (0)
+#endif
+
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
@@ -226,12 +238,10 @@ static int state_parse_each(struct tsana_obj *obj);
 static struct tsana_obj *create(int argc, char *argv[]);
 static int destroy(struct tsana_obj *obj);
 
-#ifndef PLATFORM_mingw
 static void xfree(void *pBlock);
-static void *xalloc(size_t nBytes);
+static void *xmalloc(size_t nBytes);
 static void *xrealloc(void *pBlock, size_t newSize);
 static char *xstrdup(const char *SRC);
-#endif
 
 static void show_help();
 static void show_version();
@@ -246,10 +256,8 @@ static void output_elem(void *PELEM, uint16_t pcr_pid);
 static void show_lst(struct tsana_obj *obj);
 static void show_psi(struct tsana_obj *obj);
 
-#ifndef PLATFORM_mingw
 static int export_psi(struct tsana_obj *obj);
 static int import_psi(struct tsana_obj *obj);
-#endif
 
 static void show_pkt(struct tsana_obj *obj);
 static void show_time(struct tsana_obj *obj);
@@ -306,11 +314,9 @@ int main(int argc, char *argv[])
         ts = obj->ts;
         ts->aim_interval = obj->aim_interval;
 
-#ifndef PLATFORM_mingw
         if(obj->is_impsi) {
                 import_psi(obj);
         }
-#endif
 
         while(STATE_EXIT != obj->state && GOT_EOF != (get_rslt = get_one_pkt(obj))) {
                 if(GOT_WRONG_PKT == get_rslt) {
@@ -360,14 +366,12 @@ int main(int argc, char *argv[])
                         case MODE_LST:
                                 show_lst(obj);
                                 break;
-#ifndef PLATFORM_mingw
                         case MODE_EXPSI:
                                 export_psi(obj);
                                 break;
                         case MODE_PSI:
                                 show_psi(obj);
                                 break;
-#endif
                         default:
                                 break;
                 }
@@ -432,13 +436,11 @@ static int state_parse_each(struct tsana_obj *obj)
                         show_lst(obj);
                 }
         }
-#ifndef PLATFORM_mingw
         if(MODE_EXPSI == obj->mode) {
                 if(!(obj->is_dump)) {
                         export_psi(obj);
                 }
         }
-#endif
         if(MODE_PSI == obj->mode) {
                 if(!(obj->is_dump)) {
                         show_psi(obj);
@@ -872,13 +874,15 @@ static struct tsana_obj *create(int argc, char *argv[])
         buddy_init(mp); /* now, we can use xx_malloc() */
         buddy_status(mp, obj->is_mem, "after buddy init");
 
-#ifndef PLATFORM_mingw
         /* init memory of libxml2 */
-        if(0 != xmlMemSetup(xfree, xalloc, xrealloc, xstrdup)) {
-                fprintf(stderr,"xmlMemSetup() failed.\n");
+        RPT(RPT_INF, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+            xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
+        if(0 != xmlMemSetup(xfree, xmalloc, xrealloc, xstrdup)) {
+                RPT(RPT_ERR, "xmlMemSetup() failed.\n");
                 goto create_failed_with_mp;
         }
-#endif
+        RPT(RPT_INF, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+            xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
 
         /* create & init ts module */
         obj->ts = ts_create(mp);
@@ -914,13 +918,12 @@ static int destroy(struct tsana_obj *obj)
         return 1;
 }
 
-#ifndef PLATFORM_mingw
 static void xfree(void *pBlock)
 {
         buddy_free(mp, pBlock);
 }
 
-static void *xalloc(size_t nBytes)
+static void *xmalloc(size_t nBytes)
 {
         return buddy_malloc(mp, nBytes);
 }
@@ -949,7 +952,6 @@ static char *xstrdup(const char *SRC)
         }
         return dst;
 }
-#endif
 
 static void show_help()
 {
@@ -964,7 +966,7 @@ static void show_help()
                 "\n"
 #if 1
                 " -expsi           export PSI information into psi.xml\n"
-                " -impsi           import PSI information from psi.xml first\n"
+                " -impsi           import PSI information from psi.xml before analyse\n"
 #endif
                 " -dump            dump cared packet\n"
                 " -mem             show memory status\n"
@@ -973,7 +975,7 @@ static void show_help()
                 " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
                 " -cts             \"*cts, CTS, BASE, \"\n"
                 " -stc             \"*stc, STC, BASE, \"\n"
-                " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), \"\n"
+                " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), continuity(ms), jitter(ns), \"\n"
                 " -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"\n"
                 " -tsh             \"*tsh, 47, xx, xx, xx, \"\n"
                 " -ts              \"*ts, 47, ..., xx, \"\n"
@@ -1074,7 +1076,7 @@ static int get_one_pkt(struct tsana_obj *obj)
                         ipt->has_cts = 1;
                 }
                 else {
-                        fprintf(stderr, "wrong tag: \"%s\"\n", tag);
+                        RPT(RPT_ERR, "wrong tag: \"%s\"\n", tag);
                 }
         }
         return GOT_RIGHT_PKT;
@@ -1252,7 +1254,6 @@ static void show_lst(struct tsana_obj *obj)
         return;
 }
 
-#ifndef PLATFORM_mingw
 static int export_psi(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
@@ -1264,6 +1265,17 @@ static int export_psi(struct tsana_obj *obj)
         xmlDocPtr doc;
         xmlNodePtr root;
 
+        if(!xmlFree) {
+                /* FIXME: libxml2@mingw problem */
+                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                    xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
+                xmlMemGet(&xmlFree, &xmlMalloc, &xmlRealloc, &xmlMemStrdup);
+                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                    xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
+
+                RPT(RPT_ERR, "  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
+                    xfree, xmalloc, xrealloc, xstrdup);
+        }
         buddy_status(mp, obj->is_mem, "before xml init");
         doc = xmlNewDoc((xmlChar *)"1.0");
         root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
@@ -1273,8 +1285,9 @@ static int export_psi(struct tsana_obj *obj)
         xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
         buddy_status(mp, obj->is_mem, "after xml save");
         xmlFreeDoc(doc);
+        buddy_status(mp, obj->is_mem, "after xmlFreeDoc");
         xmlCleanupParser();
-        buddy_status(mp, obj->is_mem, "after xml clean");
+        buddy_status(mp, obj->is_mem, "after xmlCleanupParser");
 
         output_prog(obj);
         return 0;
@@ -1288,21 +1301,32 @@ static int import_psi(struct tsana_obj *obj)
 
         buddy_status(mp, obj->is_mem, "before xml init");
         doc = xmlParseFile("psi.xml");
+        if(!xmlFree) {
+                /* FIXME: libxml2@mingw problem */
+                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                    xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
+                xmlMemGet(&xmlFree, &xmlMalloc, &xmlRealloc, &xmlMemStrdup);
+                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                    xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
+
+                RPT(RPT_ERR, "  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
+                    xfree, xmalloc, xrealloc, xstrdup);
+        }
         if(doc == NULL) {
-                fprintf(stderr,"parse psi.xml failed\n");
+                RPT(RPT_ERR, "parse psi.xml failed\n");
                 return -1;
         }
 
         root = xmlDocGetRootElement(doc);
         if(root == NULL) {
-                fprintf(stderr,"empty document\n");
+                RPT(RPT_ERR, "empty document\n");
                 xmlFreeDoc(doc);
                 xmlCleanupParser();
                 return -1;
         }
 
         if (xmlStrcmp(root->name, (const xmlChar *) "ts")) {
-                fprintf(stderr,"psi.xml: root node != ts");
+                RPT(RPT_ERR, "psi.xml: root node != ts");
                 xmlFreeDoc(doc);
                 xmlCleanupParser();
                 return -1;
@@ -1316,7 +1340,6 @@ static int import_psi(struct tsana_obj *obj)
         ts_ioctl(ts, TS_TIDY, 0);
         return 0;
 }
-#endif
 
 static void show_psi(struct tsana_obj *obj)
 {
@@ -1393,14 +1416,15 @@ static void show_pcr(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
 
         if(ts->has_pcr) {
-                fprintf(stdout, "%s*pcr%s, %13"PRIu64", %10"PRIu64", %3d, %+7.3f, %+4.0f, ",
+                fprintf(stdout, "%s*pcr%s, %13"PRIu64", %10"PRIu64", %3d, %+7.3f, %+7.3f, %+4.0f, ",
                         obj->color_green, obj->color_off,
                         ts->PCR, ts->PCR_base, ts->PCR_ext,
                         (double)(ts->PCR_interval) / STC_MS,
+                        (double)(ts->PCR_continuity) / STC_MS,
                         (double)(ts->PCR_jitter) * 1e3 / STC_US);
         }
         else {
-                fprintf(stdout, "%s*pcr%s,              ,           ,    ,        ,     , ",
+                fprintf(stdout, "%s*pcr%s,              ,           ,    ,        ,        ,     , ",
                         obj->color_green, obj->color_off);
         }
         return;
