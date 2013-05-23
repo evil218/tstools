@@ -223,7 +223,10 @@ die() {
     exit 1
 }
 
-rm -f tstool_config.h config.h config.mak config.log ts.pc ts.def conftest*
+rm -f tstool_config.h config.h config.mak config.log ts.pc ts.def conftest* .depend
+
+echo [inf] check your compile environment, then generating:
+echo [inf] tstool_config.h config.h config.mak config.log ts.pc
 
 SRCPATH="$(cd $(dirname $0); pwd)"
 [ "$SRCPATH" = "$(pwd)" ] && SRCPATH=.
@@ -248,7 +251,7 @@ pic="no"
 vis="no"
 compiler="GNU"
 
-CFLAGS="$CFLAGS -Wall -Werror -I. -I\$(SRCPATH)/include/libts -I/usr/include/libxml2"
+CFLAGS="$CFLAGS -Wall -Werror -I. -I\$(SRCPATH)/include/libts"
 LDFLAGS="$LDFLAGS"
 LDFLAGSCLI="$LDFLAGSCLI"
 ASFLAGS="$ASFLAGS"
@@ -607,7 +610,12 @@ cc_check || die "No working C compiler found."
 
 if [ $compiler != ICL ]; then
     if cc_check '' -std=gnu99 'for( int i = 0; i < 9; i++ );' ; then
-        CFLAGS="$CFLAGS -std=gnu99"
+        if [[ $host_os = mingw* ]]; then
+            echo [wrn] $host_os, we have to use c99 instead of gnu99 for "%zd" now...
+            CFLAGS="$CFLAGS -std=c99"
+        else
+            CFLAGS="$CFLAGS -std=gnu99"
+        fi
     elif cc_check '' -std=c99 'for( int i = 0; i < 9; i++ );' ; then
         CFLAGS="$CFLAGS -std=c99 -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE"
     elif ! cc_check '' '' 'for( int i = 0; i < 9; i++ );' ; then
@@ -916,5 +924,5 @@ rm conftest.log
 [ "$SRCPATH" != "." ] && ln -sf ${SRCPATH}/Makefile ./Makefile
 
 echo
-echo "You can run 'make' or 'make fprofiled' now."
+echo "You can run 'make' then 'make install' now."
 

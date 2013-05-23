@@ -1,12 +1,19 @@
 tstools README
 --------------
 
-1) Documentation
-----------------
+Documentation
+=============
 
 * Read doc/tstools.html.
 
-2) Licensing
-------------
+Licensing
+=========
 
 * See the LICENSE file.
+
+Building
+========
+
+	$ ./configure
+	$ make
+    $ make install
