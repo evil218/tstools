@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
 
-#include "version.h"
+#include "tstool_config.h"
 #include "common.h"
 #include "if.h"
 #include "url.h"

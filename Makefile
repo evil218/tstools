@@ -12,182 +12,116 @@
 #   make install
 #   make uninstall
 #
-# 20120212, ZHOU Cheng <zhoucheng@tsinghua.org.cn>
+# 20130522, ZHOU Cheng <zhoucheng@tsinghua.org.cn>
 
 include config.mak
 
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory
 
-# env
-ARCH:=$(shell uname -m)
-BIT32:=i686
-BIT64:=x86_64
-
-ifeq ($(TERM),cygwin)
-PLATFORM = cygwin
-else
-PLATFORM = linux
-CFLAGS += -DHAVE_STRTOLD
-endif
-
-ifeq ($(DEBUG),1)
-TYPE = debug
-else
-TYPE = release
-endif
-
-# names and dirs
-NAME = ts1
-LIB_NAME = lib$(NAME).a
-
-LIB_SRCDIR = ../libts
-
-PRJ_NAME = tstools
-PRJ_SRCDIR = ../src
-
-INSTALLDIR = /usr/local/bin
-
 # files
-LIB_DEP = lib.d
+LIB_SRCS  = libts/crc.c
+LIB_SRCS += libts/zlst.c
+LIB_SRCS += libts/buddy.c
+LIB_SRCS += libts/ts.c
 
-LIB_OBJS  = libcrc.o
-LIB_OBJS += libzlst.o
-LIB_OBJS += libbuddy.o
-LIB_OBJS += libts.o
+LIB_OBJS += $(LIB_SRCS:%.c=%.o)
 
-LIB_SRCS = $(subst .o,.c,$(subst lib,$(LIB_SRCDIR)/,$(LIB_OBJS)))
+PRJ_SRCS  = src/udp.c
+PRJ_SRCS += src/url.c
+PRJ_SRCS += src/if.c
+PRJ_SRCS += src/UTF_GB.c
+PRJ_SRCS += src/param_xml.c
+PRJ_SRCS += src/catts.c
+PRJ_SRCS += src/catip.c
+PRJ_SRCS += src/tsana.c
+PRJ_SRCS += src/tobin.c
+PRJ_SRCS += src/toip.c
 
-PRJ_DEP = prj.d
+PRJ_OBJS += $(PRJ_SRCS:%.c=%.o)
 
-PRJ_OBJS  = prjudp.o
-PRJ_OBJS += prjurl.o
-PRJ_OBJS += prjif.o
-PRJ_OBJS += prjUTF_GB.o
-PRJ_OBJS += prjparam_xml.o
-PRJ_OBJS += prjcatts.o
-PRJ_OBJS += prjcatip.o
-PRJ_OBJS += prjtsana.o
-PRJ_OBJS += prjtobin.o
-PRJ_OBJS += prjtoip.o
-
-PRJ_SRCS = $(subst .o,.c,$(subst prj,$(PRJ_SRCDIR)/,$(PRJ_OBJS)))
-
-PRJ_AIMS  = catts
-PRJ_AIMS += catip
-PRJ_AIMS += tsana
-PRJ_AIMS += tobin
-PRJ_AIMS += toip
-
-# includes
-INCFLAGS  = -I. -I..
-INCFLAGS += -I../include/libts
-INCFLAGS += -I/usr/include/libxml2
-
-# compiler and its options
-CC = gcc
-CFLAGS += -Wall -Werror
-CFLAGS += -std=gnu99
-CFLAGS += -DPLATFORM_$(PLATFORM)
-ifeq ($(DEBUG),1)
-CFLAGS += -D_DEBUG -g
-else
-CFLAGS += -DNDEBUG -O2
-endif
-
-# archiver and its options
-AR = ar
-ARFLAGS = -r
-
-# linker and its options
-LD = gcc
-LDFLAGS += 
-LIBS += -L. -l$(NAME)
+PRJ_AIMS  = catts$(EXE)
+PRJ_AIMS += catip$(EXE)
+PRJ_AIMS += tsana$(EXE)
+PRJ_AIMS += tobin$(EXE)
+PRJ_AIMS += toip$(EXE)
 
 # aims
 all: lib prj
 
-lib: libdep $(LIB_NAME)
+lib: $(LIBTS)
 
-prj: prjdep $(PRJ_AIMS)
+prj: $(PRJ_AIMS)
 
 clean:
-	-rm -f lib.d $(LIB_NAME) $(LIB_OBJS)
-	-rm -f prj.d $(PRJ_AIMS) $(PRJ_OBJS)
+	rm -f $(LIBTS) $(LIB_OBJS) .depend
+	rm -f $(PRJ_AIMS) $(PRJ_OBJS)
 
 distclean: clean
-	rm -f config.mak ts_config.h config.h config.log ts.pc ts.def
+	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def
 
 rebuild: clean all
 
 install:
-	-cp catts $(INSTALLDIR)
-	-cp catip $(INSTALLDIR)
-	-cp tsana $(INSTALLDIR)
-	-cp tobin $(INSTALLDIR)
-	-cp toip $(INSTALLDIR)
+	install -d $(DESTDIR)$(bindir)
+	install catts$(EXE) $(DESTDIR)$(bindir)
+	install catip$(EXE) $(DESTDIR)$(bindir)
+	install tsana$(EXE) $(DESTDIR)$(bindir)
+	install tobin$(EXE) $(DESTDIR)$(bindir)
+	install toip$(EXE) $(DESTDIR)$(bindir)
 
 uninstall:
-	-rm -f $(INSTALLDIR)/catts
-	-rm -f $(INSTALLDIR)/catip
-	-rm -f $(INSTALLDIR)/tsana
-	-rm -f $(INSTALLDIR)/tobin
-	-rm -f $(INSTALLDIR)/toip
+	rm -f $(DESTDIR)$(bindir)/catts$(EXE)
+	rm -f $(DESTDIR)$(bindir)/catip$(EXE)
+	rm -f $(DESTDIR)$(bindir)/tsana$(EXE)
+	rm -f $(DESTDIR)$(bindir)/tobin$(EXE)
+	rm -f $(DESTDIR)$(bindir)/toip$(EXE)
 
-# creates the dependency file
-libdep: $(LIB_DEP)
+lib-static: $(LIBX264)
+lib-shared: $(SONAME)
 
-$(LIB_DEP): $(LIB_SRCS)
-	@echo make $@ for $(LIB_SRCS)
-	@$(CC) $(INCFLAGS) -MM $(LIB_SRCS) > $@
+$(LIBTS): .depend $(LIB_OBJS)
+	rm -f $@
+	$(AR)$@ $(LIB_OBJS)
+	$(if $(RANLIB), $(RANLIB) $@)
 
-prjdep: $(PRJ_DEP)
+$(SONAME): .depend $(LIB_OBJS) $(OBJSO)
+	$(LD)$@ $(OBJS) $(OBJSO) $(SOFLAGS) $(LDFLAGS)
 
-$(PRJ_DEP): $(PRJ_SRCS)
-	@echo make $@ for $(PRJ_SRCS)
-	@$(CC) $(INCFLAGS) -MM $(PRJ_SRCS) > $@
+catts$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
+	$(LD)$@ $(LDFLAGS) src/catts.o $(LIBTS) src/if.o
 
-version:
-	../version.sh > ../version.h
+catip$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
+	$(LD)$@ $(LDFLAGS) src/catip.o $(LIBTS) src/if.o src/udp.o src/url.o
 
-# rule for compilation
-lib%.o: $(LIB_SRCDIR)/%.c
-	-$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
-
-prj%.o: $(PRJ_SRCDIR)/%.c
-	-$(CC) $(CFLAGS) $(INCFLAGS) -o $@ -c $<
-
-# creates the aim
-$(LIB_NAME): $(LIB_OBJS) $(LIB_DEP)
-	$(AR) $(ARFLAGS) $@ $(LIB_OBJS)
-
-catts: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
-
-catip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
-
-tsana: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
+tsana$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
 ifeq ($(ARCH),$(BIT64))
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjparam_xml.o -L/usr/lib/x86_64-linux-gnu -lxml2
+	$(LD)$@ $(LDFLAGS) src/tsana.o $(LIBTS) src/if.o src/UTF_GB.o src/param_xml.o -L/usr/lib/x86_64-linux-gnu -lxml2
 else
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjUTF_GB.o prjparam_xml.o -L/bin -lxml2-2
+	$(LD)$@ $(LDFLAGS) src/tsana.o $(LIBTS) src/if.o src/UTF_GB.o src/param_xml.o -L/bin -lxml2-2
 endif
 
-tobin: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
+tobin$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
+	$(LD)$@ $(LDFLAGS) src/tobin.o $(LIBTS) src/if.o
 
-toip: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o prjudp.o prjurl.o
+toip$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
+	$(LD)$@ $(LDFLAGS) src/toip.o $(LIBTS) src/if.o src/udp.o src/url.o
 
-dtsdi: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS)
+dtsdi$(EXE): $(PRJ_OBJS) $(LIBTS)
+	$(LD)$@ $(LDFLAGS) src/dtsdi.o $(LIBTS)
 
-topcm: $(PRJ_OBJS) $(PRJ_DEP) $(LIB_NAME)
-	$(LD) $(LDFLAGS) -o $@ prj$@.o $(LIBS) prjif.o
+topcm$(EXE): $(PRJ_OBJS) $(LIBTS)
+	$(LD)$@ $(LDFLAGS) src/topcm.o $(LIBTS) src/if.o
 
-# Source dependencies
--include $(LIB_DEP)
--include $(PRJ_DEP)
+.depend: config.mak
+	@rm -f .depend
+	@echo make $@
+	@$(foreach SRC, $(addprefix $(SRCPATH)/, $(LIB_SRCS) $(PRJ_SRCS)), $(CC) $(CFLAGS) $(SRC) $(DEPMT) $(SRC:$(SRCPATH)/%.c=%.o) $(DEPMM) 1>> .depend;)
 
-# THE END
+config.mak:
+	./configure
+
+depend: .depend
+ifneq ($(wildcard .depend),)
+include .depend
+endif

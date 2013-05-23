@@ -2433,7 +2433,7 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
                 pesh->PES_extension_flag_2 = (dat & (BIT(0))) >> 0;
 
                 if(pesh->PES_private_data_flag) {
-                        for(int i = 16; i > 0; i--) {
+                        for(int i = 0; i < 16; i++) {
                                 pesh->PES_private_data[i] = *(obj->cur)++;
                         }
                 }

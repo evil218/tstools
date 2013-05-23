@@ -23,9 +23,10 @@ Standard options:
 Configuration options:
   --enable-shared          build shared library
   --enable-static          build static library
+  --disable-xml            disable '-expsi' and '-impsi' features
 
 Advanced options:
-  --enable-asm            disable platform-specific assembly optimizations
+  --enable-asm             disable platform-specific assembly optimizations
   --enable-debug           add -g
   --enable-gprof           add -pg
   --enable-strip           add -s
@@ -222,12 +223,12 @@ die() {
     exit 1
 }
 
-rm -f ts_config.h config.h config.mak config.log ts.pc ts.def conftest*
+rm -f tstool_config.h config.h config.mak config.log ts.pc ts.def conftest*
 
 SRCPATH="$(cd $(dirname $0); pwd)"
 [ "$SRCPATH" = "$(pwd)" ] && SRCPATH=.
 [ -n "$(echo $SRCPATH | grep ' ')" ] && die "Out of tree builds are impossible with whitespace in source path."
-[ -e "$SRCPATH/config.h" -o -e "$SRCPATH/ts_config.h" ] && die "Out of tree builds are impossible with config.h/ts_config.h in source dir."
+[ -e "$SRCPATH/config.h" -o -e "$SRCPATH/tstool_config.h" ] && die "Out of tree builds are impossible with config.h/tstool_config.h in source dir."
 
 prefix='/usr/local'
 exec_prefix='${prefix}'
@@ -238,6 +239,7 @@ DEVNULL='/dev/null'
 
 shared="no"
 static="no"
+xml="yes"
 asm="no"
 debug="no"
 gprof="no"
@@ -246,7 +248,7 @@ pic="no"
 vis="no"
 compiler="GNU"
 
-CFLAGS="$CFLAGS -Wall -I. -I\$(SRCPATH)"
+CFLAGS="$CFLAGS -Wall -Werror -I. -I\$(SRCPATH)/include/libts -I/usr/include/libxml2"
 LDFLAGS="$LDFLAGS"
 LDFLAGSCLI="$LDFLAGSCLI"
 ASFLAGS="$ASFLAGS"
@@ -284,6 +286,9 @@ for opt do
             ;;
         --enable-static)
             static="yes"
+            ;;
+        --disable-xml)
+            xml="no"
             ;;
         --enable-asm)
             asm="auto"
@@ -735,9 +740,11 @@ elif cc_check "stdio.h" "" "_fseeki64(stdin,0,0);" ; then
     define ftell _ftelli64
 fi
 
-if cc_check '' -Wshadow ; then
-    CFLAGS="-Wshadow $CFLAGS"
-fi
+#if cc_check '' -Wshadow ; then
+#    CFLAGS="-Wshadow $CFLAGS"
+#fi
+
+[ $xml = yes ] && define HAVE_XML && tstool_xml=1 || tstool_xml=0
 
 #define undefined vars as 0
 for var in $CONFIG_HAVE; do
@@ -789,7 +796,8 @@ rm -f conftest*
 
 # generate exported config file
 
-cat > ts_config.h << EOF
+cat > tstool_config.h << EOF
+#define TSTOOL_XML $tstool_xml
 EOF
 
 # generate config files
@@ -871,7 +879,7 @@ if [ "$static" = "yes" ]; then
     echo 'install: install-lib-static' >> config.mak
 fi
 
-${SRCPATH}/version.sh "${SRCPATH}" >> ts_config.h
+${SRCPATH}/version.sh "${SRCPATH}" >> tstool_config.h
 
 cat > ts.pc << EOF
 prefix=$prefix
@@ -881,7 +889,7 @@ includedir=$includedir
 
 Name: ts
 Description: H.264 (MPEG4 AVC) encoder library
-Version: $(grep POINTVER < ts_config.h | sed -e 's/.* "//; s/".*//')
+Version: $(grep POINTVER < tstool_config.h | sed -e 's/.* "//; s/".*//')
 Libs: -L$libdir -lts
 Libs.private: $libm
 Cflags: -I$includedir
@@ -892,6 +900,7 @@ platform:      $ARCH
 system:        $SYS
 shared:        $shared
 static:        $static
+xml:           $xml
 asm:           $asm
 debug:         $debug
 gprof:         $gprof

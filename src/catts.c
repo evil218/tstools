@@ -8,7 +8,7 @@
 #include <string.h> /* for strcmp, etc */
 #include <stdint.h> /* for uintN_t, etc */
 
-#include "version.h"
+#include "tstool_config.h"
 #include "common.h"
 #include "if.h"
 
