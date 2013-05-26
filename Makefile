@@ -19,7 +19,7 @@ include config.mak
 
 ifeq ($(SYS),WINDOWS)
 CFLAGS += -I/include/libxml2
-LDFLAGS_SOCK = -lwsock32
+LDFLAGS_SOCK = -lws2_32
 LDFLAGS_XML = -L/lib -lxml2
 else
 CFLAGS += -I/usr/include/libxml2
