@@ -225,8 +225,7 @@ die() {
 
 rm -f tstool_config.h config.h config.mak config.log ts.pc ts.def conftest* .depend
 
-echo [inf] check your compile environment, then generating:
-echo [inf] tstool_config.h config.h config.mak config.log ts.pc
+echo [inf] generating: tstool_config.h config.h config.mak config.log ts.pc
 
 SRCPATH="$(cd $(dirname $0); pwd)"
 [ "$SRCPATH" = "$(pwd)" ] && SRCPATH=.

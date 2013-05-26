@@ -39,11 +39,12 @@ struct udp {
         socklen_t socklen;
 
         char addr[32];
+        char src_addr[32]; /* for IGMP v3 */
 };
 
 static int report(const char *str);
 
-intptr_t udp_open(char *addr, unsigned short port, char *mode)
+intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
 {
         struct udp *udp;
 
@@ -54,6 +55,11 @@ intptr_t udp_open(char *addr, unsigned short port, char *mode)
         }
 
         strcpy(udp->addr, addr);
+
+        udp->src_addr[0] = '\0';
+        if(src_addr) {
+                strcpy(udp->src_addr, src_addr);
+        }
 
 #ifdef SYS_WINDOWS
         WSADATA wsaData;
@@ -117,16 +123,34 @@ intptr_t udp_open(char *addr, unsigned short port, char *mode)
         }
 
         /* manage multicast */
-        {
-                struct ip_mreq imreq;
+        if(IN_MULTICAST(ntohl(inet_addr(udp->addr)))) {
+                if('\0' == udp->src_addr[0]) {
+                        struct ip_mreq imreq;
 
-                imreq.imr_multiaddr.s_addr = inet_addr(addr);
-                if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr))) {
+                        RPT(RPT_INF, "IP_ADD_MEMBERSHIP: %s", udp->addr);
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
+                        imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                                      (char *)&imreq, sizeof(imreq)) < 0) {
-                                report("join multicast membership failed");
+                                      (char *)&imreq, sizeof(imreq)) != 0) {
+                                report("IP_ADD_MEMBERSHIP failed");
                         }
+                }
+                else {
+#ifdef SYS_WINDOWS
+                        RPT(RPT_ERR, "do NOT support IP_ADD_SOURCE_MEMBERSHIP in mingw now");
+                        return (intptr_t)NULL;
+#else
+                        struct ip_mreq_source mreqsrc;
+
+                        RPT(RPT_INF, "IP_ADD_SOURCE_MEMBERSHIP: %s@%s", udp->src_addr, udp->addr);
+                        mreqsrc.imr_interface.s_addr = htonl(INADDR_ANY);
+                        mreqsrc.imr_multiaddr.s_addr = inet_addr(udp->addr);
+                        mreqsrc.imr_sourceaddr.s_addr = inet_addr(udp->src_addr);
+                        if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
+                                      (char *)&mreqsrc, sizeof(mreqsrc)) != 0) {
+                                report("IP_ADD_SOURCE_MEMBERSHIP failed");
+                        }
+#endif
                 }
         }
 
@@ -144,16 +168,33 @@ int udp_close(intptr_t id)
         }
 
         /* manage multicast */
-        {
-                struct ip_mreq imreq;
+        if(IN_MULTICAST(ntohl(inet_addr(udp->addr)))) {
+                if('\0' == udp->src_addr[0]) {
+                        struct ip_mreq imreq;
 
-                imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
-                if(IN_MULTICAST(ntohl(imreq.imr_multiaddr.s_addr))) {
+                        RPT(RPT_INF, "IP_DROP_MEMBERSHIP: %s", udp->addr);
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
+                        imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-                                      (char *)&imreq, sizeof(imreq)) < 0) {
-                                report("quit multicast membership failed");
+                                      (char *)&imreq, sizeof(imreq)) != 0) {
+                                report("IP_DROP_MEMBERSHIP failed");
                         }
+                }
+                else {
+#ifdef SYS_WINDOWS
+                        RPT(RPT_ERR, "do NOT support IP_DROP_SOURCE_MEMBERSHIP in mingw now");
+#else
+                        struct ip_mreq_source mreqsrc;
+
+                        RPT(RPT_INF, "IP_DROP_SOURCE_MEMBERSHIP: %s@%s", udp->src_addr, udp->addr);
+                        mreqsrc.imr_interface.s_addr = htonl(INADDR_ANY);
+                        mreqsrc.imr_multiaddr.s_addr = inet_addr(udp->addr);
+                        mreqsrc.imr_sourceaddr.s_addr = inet_addr(udp->src_addr);
+                        if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
+                                      (char *)&mreqsrc, sizeof(mreqsrc)) != 0) {
+                                report("IP_DROP_SOURCE_MEMBERSHIP failed");
+                        }
+#endif
                 }
         }
 

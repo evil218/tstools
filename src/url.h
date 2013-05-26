@@ -28,7 +28,7 @@ struct url {
 
         /* part of URL */
         int  scheme; /* SCH_XXX */
-        char *user;
+        char *user; /* maybe source host(IGMP V3) */
         char *password;
         char *host;
         uint16_t port;

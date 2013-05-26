@@ -94,7 +94,7 @@ static void show_help()
 {
         puts("'catip' read TS over IP, translate 0xXY to 'XY ' format, then send to stdout.");
         puts("");
-        puts("Usage: catip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
+        puts("Usage: catip [OPTION] udp://*@*:* [OPTION]");
         puts("");
         puts("Options:");
         puts("");
@@ -102,8 +102,9 @@ static void show_help()
         puts(" -v, --version    print my version only");
         puts("");
         puts("Examples:");
-        puts("  catip udp://@:1234");
-        puts("  catip udp://@224.165.54.210:1234");
+        puts("  catip udp://:1234");
+        puts("  catip udp://224.165.54.31:1234");
+        puts("  catip udp://192.165.54.36@224.165.54.31:1234");
         puts("");
         puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;

@@ -26,8 +26,11 @@ struct url *url_open(const char *str, char *mode)
                 return NULL;
         }
         url->url[0] = '\0';
+        url->user = NULL;
+        url->password = NULL;
         url->host = NULL;
         url->port = 0;
+        url->disk = NULL;
         url->path_fname = NULL;
 
         if(0 != parse_url(url, str)) {
@@ -39,7 +42,7 @@ struct url *url_open(const char *str, char *mode)
                 case SCH_UDP:
                         url->pbuf = url->buf;
                         url->ts_cnt = 0;
-                        url->udp = udp_open(url->host, url->port, mode);
+                        url->udp = udp_open(url->user, url->host, url->port, mode);
                         if(0 == url->udp) {
                                 printf("Socket error!\n");
                                 free(url);
@@ -222,23 +225,23 @@ static int parse_url(struct url *url, const char *str)
                         url->port = atoi(rslt);
                         RPT(RPT_DBG, "port: %d", url->port);
                 }
-                else if(0 == memcmp(pattern, "*://@*:*", 8)) { /* udp://@host:port, VLC only */
-                        rslt = strtok(NULL, "@");
-                        RPT(RPT_DBG, "prefix: %s", rslt);
-
+                else if(0 == memcmp(pattern, "*://:*", 6)) { /* udp://:port */
                         rslt = strtok(NULL, ":");
-                        url->host = rslt;
+                        RPT(RPT_DBG, "prefix: %s", rslt);
+                        url->host = "127.0.0.1";
                         RPT(RPT_DBG, "host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
                         RPT(RPT_DBG, "port: %d", url->port);
                 }
-                else if(0 == memcmp(pattern, "*://:*", 6) ||  /* udp://:port */
-                        0 == memcmp(pattern, "*://@:*", 7)) { /* udp://@:port, VLC only */
+                else if(0 == memcmp(pattern, "*://*@*:*", 9)) { /* udp://saddr@maddr:port, udp://user@host:port */
+                        rslt = strtok(NULL, "@");
+                        url->user = rslt + 2; /* add 2 to pass "//" */
+                        RPT(RPT_DBG, "user: %s", url->user);
+
                         rslt = strtok(NULL, ":");
-                        RPT(RPT_DBG, "prefix: %s", rslt);
-                        url->host = "127.0.0.1";
+                        url->host = rslt;
                         RPT(RPT_DBG, "host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
