@@ -1,21 +1,10 @@
-# Makefile for linux, cygwin and mingw
-# (need ./configure first)
-#
-# Take a look at the beginning,
-# modify the variables to suit your environment.
-# Having done that, you can do a
-#
-#   make [all]
-#   make lib
-#   make prj
-#   make clean
-#   make rebuild
-#   make install
-#   make uninstall
-#
+# Makefile
+# 
 # 20130522, ZHOU Cheng <zhoucheng@tsinghua.org.cn>
 
 include config.mak
+
+GENERATED =
 
 ifeq ($(SYS),WINDOWS)
 CFLAGS += -I/include/libxml2
@@ -30,8 +19,7 @@ LDFLAGS_XML = -L/lib -lxml2
 endif
 endif
 
-# Do not print "Entering directory ..."
-MAKEFLAGS += --no-print-directory
+all: default lib prj
 
 # files
 LIB_SRCS  = libts/crc.c
@@ -60,38 +48,13 @@ PRJ_AIMS += tsana$(EXE)
 PRJ_AIMS += tobin$(EXE)
 PRJ_AIMS += toip$(EXE)
 
-# aims
-all: lib prj
-
 lib: $(LIBTS)
 
 prj: $(PRJ_AIMS)
 
-clean:
-	rm -f $(LIBTS) $(LIB_OBJS) .depend
-	rm -f $(PRJ_AIMS) $(PRJ_OBJS) psi.xml psi.xml.gz
+.PHONY: all default clean distclean install uninstall lib-static lib-shared install-lib-dev install-lib-static install-lib-shared
 
-distclean: clean
-	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def
-
-rebuild: clean all
-
-install: $(PRJ_AIMS)
-	install -d $(DESTDIR)$(bindir)
-	install catts$(EXE) $(DESTDIR)$(bindir)
-	install catip$(EXE) $(DESTDIR)$(bindir)
-	install tsana$(EXE) $(DESTDIR)$(bindir)
-	install tobin$(EXE) $(DESTDIR)$(bindir)
-	install toip$(EXE) $(DESTDIR)$(bindir)
-
-uninstall:
-	rm -f $(DESTDIR)$(bindir)/catts$(EXE)
-	rm -f $(DESTDIR)$(bindir)/catip$(EXE)
-	rm -f $(DESTDIR)$(bindir)/tsana$(EXE)
-	rm -f $(DESTDIR)$(bindir)/tobin$(EXE)
-	rm -f $(DESTDIR)$(bindir)/toip$(EXE)
-
-lib-static: $(LIBX264)
+lib-static: $(LIBTS)
 lib-shared: $(SONAME)
 
 $(LIBTS): .depend $(LIB_OBJS)
@@ -125,7 +88,7 @@ topcm$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
 
 .depend: config.mak
 	@rm -f .depend
-	@echo make $@
+	@echo $@
 	@$(foreach SRC, $(addprefix $(SRCPATH)/, $(LIB_SRCS) $(PRJ_SRCS)), $(CC) $(CFLAGS) $(SRC) $(DEPMT) $(SRC:$(SRCPATH)/%.c=%.o) $(DEPMM) 1>> .depend;)
 
 config.mak:
@@ -135,3 +98,35 @@ depend: .depend
 ifneq ($(wildcard .depend),)
 include .depend
 endif
+
+clean:
+	rm -f $(LIBTS) $(LIB_OBJS) .depend
+	rm -f $(PRJ_AIMS) $(PRJ_OBJS) psi.xml psi.xml.gz
+
+distclean: clean
+	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def TAGS
+
+install: $(PRJ_AIMS)
+	install -d $(DESTDIR)$(bindir)
+	install catts$(EXE) $(DESTDIR)$(bindir)
+	install catip$(EXE) $(DESTDIR)$(bindir)
+	install tsana$(EXE) $(DESTDIR)$(bindir)
+	install tobin$(EXE) $(DESTDIR)$(bindir)
+	install toip$(EXE) $(DESTDIR)$(bindir)
+
+uninstall:
+	rm -f $(DESTDIR)$(bindir)/catts$(EXE)
+	rm -f $(DESTDIR)$(bindir)/catip$(EXE)
+	rm -f $(DESTDIR)$(bindir)/tsana$(EXE)
+	rm -f $(DESTDIR)$(bindir)/tobin$(EXE)
+	rm -f $(DESTDIR)$(bindir)/toip$(EXE)
+
+etags: TAGS
+
+TAGS:
+	etags $(LIB_SRCS) $(PRJ_SRCS)
+
+mode:
+	find . -type f -exec chmod 644 {} \;
+	find . -type d -exec chmod 755 {} \;
+	chmod 755 config.guess config.sub configure version.sh

@@ -225,8 +225,6 @@ die() {
 
 rm -f tstool_config.h config.h config.mak config.log ts.pc ts.def conftest* .depend
 
-echo [inf] generating: tstool_config.h config.h config.mak config.log ts.pc
-
 SRCPATH="$(cd $(dirname $0); pwd)"
 [ "$SRCPATH" = "$(pwd)" ] && SRCPATH=.
 [ -n "$(echo $SRCPATH | grep ' ')" ] && die "Out of tree builds are impossible with whitespace in source path."
@@ -805,6 +803,7 @@ rm -f conftest*
 
 cat > tstool_config.h << EOF
 #define TSTOOL_XML $tstool_xml
+
 EOF
 
 # generate config files

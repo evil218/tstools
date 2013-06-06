@@ -115,7 +115,7 @@ static void show_version()
 {
         char str[100];
 
-        sprintf(str, "tobin of tstools v%s.%s.%s", VER_MAJOR, VER_MINOR, VER_RELEA);
+        sprintf(str, "tobin of tstools v%s (%s)", VERSION_STR, REVISION);
         puts(str);
         sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
         puts(str);

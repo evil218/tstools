@@ -1,5 +1,9 @@
 #!/bin/bash
 
+MAJOR=1
+MINOR=0
+RELEA=0
+
 git rev-list HEAD | sort > config.git-hash
 LOCALVER=`wc -l config.git-hash | awk '{print $1}'`
 if [ $LOCALVER \> 1 ] ; then
@@ -18,6 +22,10 @@ else
 fi
 rm -f config.git-hash
  
-echo "#define VER_MAJOR \"1\""
-echo "#define VER_MINOR \"0\""
-echo "#define VER_RELEA \"$GIT_VERSION\""
+echo "#define VER_MAJOR $MAJOR"
+echo "#define VER_MINOR $MINOR"
+echo "#define VER_RELEA $RELEA"
+echo "#define VERSION $MAJOR.$MINOR.$RELEA"
+echo "#define VERSION_STR \"$MAJOR.$MINOR.$RELEA\""
+echo "#define LOCALVER $LOCALVER"
+echo "#define REVISION \"$GIT_VERSION\""

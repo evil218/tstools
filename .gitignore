@@ -4,6 +4,7 @@ config.h
 config.mak
 config.log
 tstool_config.h
+TAGS
 
 *.a
 *.lib
