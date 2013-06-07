@@ -3,7 +3,7 @@
 #include <float.h> /* for FLT_DIG, DBL_DIG, LDBL_DIG, etc */
 #include <ctype.h> /* for isspace() */
 
-#include "zlst.h"
+#include "libzlst/zlst.h"
 #include "param_xml.h"
 
 /* report level */

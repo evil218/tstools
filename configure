@@ -21,8 +21,8 @@ Standard options:
   --extra-rcflags=ERCFLAGS add ERCFLAGS to RCFLAGS
 
 Configuration options:
-  --enable-shared          build shared library
-  --enable-static          build static library
+  --disable-shared         build shared library
+  --disable-static         build static library
   --disable-xml            disable '-expsi' and '-impsi' features
 
 Advanced options:
@@ -237,8 +237,8 @@ libdir='${exec_prefix}/lib'
 includedir='${prefix}/include'
 DEVNULL='/dev/null'
 
-shared="no"
-static="no"
+shared="yes"
+static="yes"
 xml="yes"
 asm="no"
 debug="no"
@@ -248,7 +248,7 @@ pic="no"
 vis="no"
 compiler="GNU"
 
-CFLAGS="$CFLAGS -Wall -Werror -I. -I\$(SRCPATH)/include/libts"
+CFLAGS="$CFLAGS -Wall -Werror -I. -I.."
 LDFLAGS="$LDFLAGS"
 LDFLAGSCLI="$LDFLAGSCLI"
 ASFLAGS="$ASFLAGS"
@@ -281,11 +281,11 @@ for opt do
         --includedir=*)
             includedir="$optarg"
             ;;
-        --enable-shared)
-            shared="yes"
+        --disable-shared)
+            shared="no"
             ;;
-        --enable-static)
-            static="yes"
+        --disable-static)
+            static="no"
             ;;
         --disable-xml)
             xml="no"
@@ -818,12 +818,11 @@ includedir=$includedir
 ARCH=$ARCH
 SYS=$SYS
 CC=$CC
-CFLAGS=$CFLAGS
+CFLAGS+=$CFLAGS
 DEPMM=$DEPMM
 DEPMT=$DEPMT
 LD=$LD
-LDFLAGS=$LDFLAGS
-LIBTS=$LIBTS
+LDFLAGS+=$LDFLAGS
 AR=$AR
 RANLIB=$RANLIB
 STRIP=$STRIP
@@ -834,10 +833,6 @@ RCFLAGS=$RCFLAGS
 EXE=$EXE
 HAVE_GETOPT_LONG=$HAVE_GETOPT_LONG
 DEVNULL=$DEVNULL
-PROF_GEN_CC=$PROF_GEN_CC
-PROF_GEN_LD=$PROF_GEN_LD
-PROF_USE_CC=$PROF_USE_CC
-PROF_USE_LD=$PROF_USE_LD
 EOF
 
 if [ $compiler = ICL ]; then
@@ -848,7 +843,7 @@ fi
 if [ "$shared" = "yes" ]; then
     API=$(grep '#define X264_BUILD' < ${SRCPATH}/ts.h | cut -f 3 -d ' ')
     if [ "$SYS" = "WINDOWS" -o "$SYS" = "CYGWIN" ]; then
-        echo "SONAME=libts-$API.dll" >> config.mak
+        #echo "SONAME=libts-$API.dll" >> config.mak
         if [ $compiler = ICL ]; then
             echo 'IMPLIBNAME=libts.dll.lib' >> config.mak
             # GNU ld on windows defaults to exporting all global functions if there are no explicit __declspec(dllexport) declarations
@@ -860,7 +855,7 @@ if [ "$shared" = "yes" ]; then
             # export API variables/data. must be flagged with the DATA keyword
             grep "extern.*ts" ${SRCPATH}/ts.h | sed -e "s/.*\(ts\w*\)\W.*/\1 DATA/;" >> ts.def
         else
-            echo 'IMPLIBNAME=libts.dll.a' >> config.mak
+            #echo 'IMPLIBNAME=libts.dll.a' >> config.mak
             echo "SOFLAGS=-shared -Wl,--out-implib,\$(IMPLIBNAME) -Wl,--enable-auto-image-base $SOFLAGS" >> config.mak
         fi
     elif [ "$SYS" = "MACOSX" ]; then

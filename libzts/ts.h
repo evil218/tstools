@@ -40,7 +40,7 @@
 extern "C" {
 #endif
 
-#include "zlst.h"
+#include "libzlst/zlst.h"
 
 #define STC_BASE_MS  (90)        /* 90 clk == 1(ms) */
 #define STC_BASE_1S  (90 * 1000) /* do NOT use 1e3 */
