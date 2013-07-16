@@ -54,10 +54,16 @@ int main(int argc, char *argv[])
                 return -1;
         }
 
+        pkt_addr = 0;
         judge_type();
         while(0 < (cnt = fread(bbuf, 1, npline, fd_i))) {
                 switch(type) {
                         case FILE_TS:
+                                if(0x47 != bbuf[0]) {
+                                        pkt_addr -= ((pkt_addr >= npline) ? npline : 0);
+                                        judge_type();
+                                        continue;
+                                }
                                 fprintf(stdout, "*ts, ");
                                 b2t(tbuf, bbuf, 188);
                                 fprintf(stdout, "%s", tbuf);
@@ -65,6 +71,11 @@ int main(int argc, char *argv[])
                                 fprintf(stdout, "*addr, %llX, \n", pkt_addr);
                                 break;
                         case FILE_MTS:
+                                if(0x47 != bbuf[4]) {
+                                        pkt_addr -= ((pkt_addr >= npline) ? npline : 0);
+                                        judge_type();
+                                        continue;
+                                }
                                 fprintf(stdout, "*ts, ");
                                 b2t(tbuf, bbuf + 4, 188);
                                 fprintf(stdout, "%s", tbuf);
@@ -75,6 +86,11 @@ int main(int argc, char *argv[])
                                 fprintf(stdout, "*mts, %llX, \n", pkt_mts);
                                 break;
                         case FILE_TSRS:
+                                if(0x47 != bbuf[0]) {
+                                        pkt_addr -= ((pkt_addr >= npline) ? npline : 0);
+                                        judge_type();
+                                        continue;
+                                }
                                 fprintf(stdout, "*ts, ");
                                 b2t(tbuf, bbuf, 188);
                                 fprintf(stdout, "%s", tbuf);
@@ -112,7 +128,7 @@ static int deal_with_parameter(int argc, char *argv[])
 
         if(1 == argc) {
                 /* no parameter */
-                fprintf(stderr, "No binary file to process...\n\n");
+                RPT(RPT_ERR, "No binary file to process...\n\n");
                 show_help();
                 return -1;
         }
@@ -123,7 +139,7 @@ static int deal_with_parameter(int argc, char *argv[])
                            0 == strcmp(argv[i], "--start")) {
                                 i++;
                                 if(i >= argc) {
-                                        fprintf(stderr, "no parameter for 'start'!\n");
+                                        RPT(RPT_ERR, "no parameter for 'start'!\n");
                                         return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
@@ -131,7 +147,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                         aim_start = dat;
                                 }
                                 else {
-                                        fprintf(stderr,
+                                        RPT(RPT_ERR,
                                                 "bad variable for 'start': %u(0 < x), use 0 instead!\n",
                                                 dat);
                                 }
@@ -140,7 +156,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 0 == strcmp(argv[i], "--stop")) {
                                 i++;
                                 if(i >= argc) {
-                                        fprintf(stderr, "no parameter for 'stop'!\n");
+                                        RPT(RPT_ERR, "no parameter for 'stop'!\n");
                                         return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
@@ -148,7 +164,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                         aim_stop = dat;
                                 }
                                 else {
-                                        fprintf(stderr,
+                                        RPT(RPT_ERR,
                                                 "bad variable for 'stop': %u(0 < x), use 0 instead!\n",
                                                 dat);
                                 }
@@ -157,7 +173,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 0 == strcmp(argv[i], "--width")) {
                                 i++;
                                 if(i >= argc) {
-                                        fprintf(stderr, "no parameter for 'width'!\n");
+                                        RPT(RPT_ERR, "no parameter for 'width'!\n");
                                         return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
@@ -165,9 +181,38 @@ static int deal_with_parameter(int argc, char *argv[])
                                         npline = dat;
                                 }
                                 else {
-                                        fprintf(stderr,
+                                        RPT(RPT_ERR,
                                                 "bad variable for 'width': %u(0 < x < %u), use 16 instead!\n",
                                                 dat, LINE_LENGTH_MAX / 3);
+                                }
+                        }
+                        else if(0 == strcmp(argv[i], "-l"))
+                        {
+                                i++;
+                                if(i >= argc)
+                                {
+                                        RPT(RPT_ERR, "no parameter for '-l'!");
+                                        exit(EXIT_FAILURE);
+                                }
+                                if(0 == strcmp(argv[i], "dbg"))
+                                {
+                                        rpt_lvl = RPT_DBG;
+                                        RPT(RPT_INF, "repot level: 'dbg'");
+                                }
+                                else if(0 == strcmp(argv[i], "inf"))
+                                {
+                                        rpt_lvl = RPT_INF;
+                                        RPT(RPT_INF, "repot level: 'inf'");
+                                }
+                                else if(0 == strcmp(argv[i], "wrn"))
+                                {
+                                        rpt_lvl = RPT_WRN;
+                                        RPT(RPT_INF, "repot level: 'wrn'");
+                                }
+                                else
+                                {
+                                        rpt_lvl = RPT_ERR;
+                                        RPT(RPT_INF, "repot level: 'err'");
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-h") ||
@@ -204,6 +249,8 @@ static int show_help()
         puts(" -w, --width <n>          n-byte per line for FILE_BIN, default: 16");
         puts(" -s, --start <a>          cat from, default: 0(from first byte)");
         puts(" -p, --stop <b>           cat to, default: 0(to last byte)");
+        puts("");
+        puts(" -l <level>               set report level(dbg|inf|wrn|err), default: wrn");
         puts(" -h, --help               display this information");
         puts(" -v, --version            display my version");
         puts("");
@@ -241,24 +288,27 @@ static int judge_type()
         uint8_t dat;
         int sync_cnt = 0;
         int state = FILE_UNKNOWN;
+        long long int off = 0;
 
-        pkt_addr = 0;
+        RPT(RPT_INF, "judge type from 0x%llX +%lld", pkt_addr, off);
         type = FILE_UNKNOWN;
         while(FILE_UNKNOWN == type) {
                 switch(state) {
                         case FILE_UNKNOWN:
-                                fseek(fd_i, pkt_addr, SEEK_SET);
+                                fseek(fd_i, pkt_addr + off, SEEK_SET);
                                 if(1 != fread(&dat, 1, 1, fd_i)) {
                                         return -1;
                                 }
                                 if(0x47 == dat) {
+                                        RPT(RPT_INF, "first 0x47 at +%lld, maybe TS", off);
                                         sync_cnt = 1;
                                         state = FILE_TS;
                                 }
                                 else {
-                                        pkt_addr++;
-                                        if(pkt_addr > ASYNC_BYTE) {
-                                                pkt_addr = aim_start;
+                                        off++;
+                                        if(off > ASYNC_BYTE) {
+                                                RPT(RPT_INF, "unlock over %d-byte, it is BIN", ASYNC_BYTE);
+                                                off = 0;
                                                 type = FILE_BIN;
                                                 state = FILE_BIN;
                                         }
@@ -270,14 +320,16 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
+                                        RPT(RPT_INF, "meet 0x47, maybe TS");
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
+                                                RPT(RPT_INF, "it is TS");
                                                 npline = 188;
                                                 type = FILE_TS;
                                         }
                                 }
                                 else {
-                                        fseek(fd_i, pkt_addr + 1, SEEK_SET);
+                                        fseek(fd_i, pkt_addr + off + 1, SEEK_SET);
                                         sync_cnt = 1;
                                         state = FILE_MTS;
                                 }
@@ -288,22 +340,24 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
+                                        RPT(RPT_INF, "meet 0x47, maybe MTS");
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
-                                                if(pkt_addr < 4) {
-                                                        fseek(fd_i, pkt_addr + 1, SEEK_SET);
+                                                if(off < 4) {
+                                                        fseek(fd_i, pkt_addr + off + 1, SEEK_SET);
                                                         sync_cnt = 1;
                                                         state = FILE_TSRS;
                                                 }
                                                 else {
-                                                        pkt_addr -= 4;
+                                                        RPT(RPT_INF, "it is MTS");
+                                                        off -= 4;
                                                         npline = 192;
                                                         type = FILE_MTS;
                                                 }
                                         }
                                 }
                                 else {
-                                        fseek(fd_i, pkt_addr + 1, SEEK_SET);
+                                        fseek(fd_i, pkt_addr + off + 1, SEEK_SET);
                                         sync_cnt = 1;
                                         state = FILE_TSRS;
                                 }
@@ -314,16 +368,19 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
+                                        RPT(RPT_INF, "meet 0x47, maybe TSRS");
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
+                                                RPT(RPT_INF, "it is TSRS");
                                                 npline = 204;
                                                 type = FILE_TSRS;
                                         }
                                 }
                                 else {
-                                        pkt_addr = aim_start;
-                                        type = FILE_BIN;
-                                        state = FILE_BIN;
+                                        off++;
+                                        type = FILE_UNKNOWN;
+                                        state = FILE_UNKNOWN;
+                                        RPT(RPT_INF, "judge type from 0x%llX +%lld", pkt_addr, off);
                                 }
                                 break;
                         default:
@@ -332,10 +389,11 @@ static int judge_type()
                 }
         }
 
-        fseek(fd_i, pkt_addr, SEEK_SET);
-        if(pkt_addr != 0) {
-                fprintf(stderr, "%lld-byte passed\n", pkt_addr);
+        if(off != 0) {
+                RPT(RPT_WRN, "pass %lld-byte from 0x%llX (%lld)", off, pkt_addr, pkt_addr);
         }
+        pkt_addr += off;
+        fseek(fd_i, pkt_addr, SEEK_SET);
         return 0;
 }
 
