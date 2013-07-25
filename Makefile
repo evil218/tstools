@@ -22,8 +22,7 @@ endif
 all: default lib prj
 
 # files
-LIB_SRCS  = libts/crc.c
-LIB_SRCS += libts/zlst.c
+LIB_SRCS  = libts/zlst.c
 LIB_SRCS += libts/buddy.c
 LIB_SRCS += libts/ts.c
 
@@ -63,7 +62,7 @@ $(LIBTS): .depend $(LIB_OBJS)
 	$(if $(RANLIB), $(RANLIB) $@)
 
 $(SONAME): .depend $(LIB_OBJS) $(OBJSO)
-	$(LD)$@ $(OBJS) $(OBJSO) $(SOFLAGS) $(LDFLAGS)
+	$(LD)$@ $(LIB_OBJS) $(OBJSO) $(SOFLAGS) $(LDFLAGS)
 
 catts$(EXE): $(PRJ_OBJS) .depend $(LIBTS)
 	$(LD)$@ $(LDFLAGS) src/catts.o $(LIBTS) src/if.o
@@ -100,7 +99,7 @@ include .depend
 endif
 
 clean:
-	rm -f $(LIBTS) $(LIB_OBJS) .depend
+	rm -f $(LIBTS) $(SONAME) $(IMPLIBNAME) $(LIB_OBJS) .depend
 	rm -f $(PRJ_AIMS) $(PRJ_OBJS) psi.xml psi.xml.gz
 
 distclean: clean

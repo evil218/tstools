@@ -608,8 +608,8 @@ cc_check || die "No working C compiler found."
 if [ $compiler != ICL ]; then
     if cc_check '' -std=gnu99 'for( int i = 0; i < 9; i++ );' ; then
         if [[ $host_os = mingw* ]]; then
-            echo [wrn] $host_os, we have to use c99 instead of gnu99 for "%zd" now...
-            CFLAGS="$CFLAGS -std=c99"
+            echo [wrn] $host_os, define SYS_WINDOWS, we have to use c99 instead of gnu99 for "%zd" now
+            CFLAGS="$CFLAGS -DSYS_WINDOWS -DDLL_EXPORT -std=c99"
         else
             CFLAGS="$CFLAGS -std=gnu99"
         fi
@@ -806,6 +806,8 @@ cat > tstool_config.h << EOF
 
 EOF
 
+${SRCPATH}/version.sh "${SRCPATH}" >> tstool_config.h
+
 # generate config files
 
 cat > config.mak << EOF
@@ -846,7 +848,7 @@ if [ $compiler = ICL ]; then
 fi
 
 if [ "$shared" = "yes" ]; then
-    API=$(grep '#define X264_BUILD' < ${SRCPATH}/ts.h | cut -f 3 -d ' ')
+    API=$(grep '#define VERSION ' < ${SRCPATH}/tstool_config.h | cut -f 3 -d ' ')
     if [ "$SYS" = "WINDOWS" -o "$SYS" = "CYGWIN" ]; then
         echo "SONAME=libts-$API.dll" >> config.mak
         if [ $compiler = ICL ]; then
@@ -885,8 +887,6 @@ if [ "$static" = "yes" ]; then
     echo 'install: install-lib-static' >> config.mak
 fi
 
-${SRCPATH}/version.sh "${SRCPATH}" >> tstool_config.h
-
 cat > ts.pc << EOF
 prefix=$prefix
 exec_prefix=$exec_prefix
@@ -894,7 +894,7 @@ libdir=$libdir
 includedir=$includedir
 
 Name: ts
-Description: H.264 (MPEG4 AVC) encoder library
+Description: MPEG TS analyse library
 Version: $(grep POINTVER < tstool_config.h | sed -e 's/.* "//; s/".*//')
 Libs: -L$libdir -lts
 Libs.private: $libm

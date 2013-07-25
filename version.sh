@@ -17,7 +17,7 @@ if [ $LOCALVER \> 1 ] ; then
     VER="$VER $(git rev-list HEAD -n 1 | cut -c 1-8)"
     GIT_VERSION=$VER
 else
-    GIT_VERSION=
+    GIT_VERSION=git_not_found
     VER="x"
 fi
 rm -f config.git-hash

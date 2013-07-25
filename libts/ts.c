@@ -8,7 +8,6 @@
 #include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
 
-#include "crc.h"
 #include "buddy.h"
 #include "ts.h"
 
@@ -202,7 +201,7 @@ static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(uint8_t stream_type);
 static int dump(uint8_t *buf, int len);
 
-struct ts_obj *ts_create(intptr_t mp)
+DLL_API struct ts_obj *ts_create(intptr_t mp)
 {
         struct ts_obj *obj;
 
@@ -223,7 +222,7 @@ struct ts_obj *ts_create(intptr_t mp)
         return obj;
 }
 
-int ts_destroy(struct ts_obj *obj)
+DLL_API int ts_destroy(struct ts_obj *obj)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -235,7 +234,7 @@ int ts_destroy(struct ts_obj *obj)
         return 0;
 }
 
-int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
+DLL_API int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -484,7 +483,7 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
         return 0;
 }
 
-int ts_parse_tsh(struct ts_obj *obj)
+DLL_API int ts_parse_tsh(struct ts_obj *obj)
 {
         struct ts_ipt *ipt;
 
@@ -689,7 +688,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         return 0;
 }
 
-int ts_parse_tsb(struct ts_obj *obj)
+DLL_API int ts_parse_tsb(struct ts_obj *obj)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -1423,9 +1422,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 obj->CRC_32 <<= 8;
                 obj->CRC_32  |= *p++;
 
-                obj->CRC_32_calc = CRC_for_TS(new_sect->section, 3 + new_sect->section_length - 4, 32);
-                /*obj->CRC_32_calc = CRC(new_sect->section, 3 + new_sect->section_length - 4, 32); */
-                /*obj->CRC_32_calc = crc32(new_sect->section, 3 + new_sect->section_length - 4); */
+                obj->CRC_32_calc = ts_crc(new_sect->section, 3 + new_sect->section_length - 4, 32);
                 if(obj->CRC_32_calc != obj->CRC_32) {
                         err->CRC_error = 1;
 #if 0
@@ -2605,6 +2602,75 @@ static int dump(uint8_t *buf, int len)
         return 0;
 }
 
+DLL_API uint32_t ts_crc(void *buf, size_t size, int mode)
+{
+        int bitcount = 0;
+        int bitinbyte = 0;
+        unsigned short databit;
+        unsigned short shiftreg[32];
+        /*                      0 1 2 3 4 5 6 7 8 */
+        unsigned short g08[] = {1,1,1,0,0,0,0,0,1};
+        /*                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 */
+        unsigned short g16[] = {1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1};
+        /*                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 */
+        unsigned short g32[] = {1,1,1,0,1,1,0,1,1,0,1,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,1};
+
+        unsigned short *g;
+        int i,nrbits;
+        char *data;
+        int cnt;
+        uint32_t crc;
+
+        switch(mode) {
+                case  8: g = g08; cnt =  8; break;
+                case 16: g = g16; cnt = 16; break;
+                default: g = g32; cnt = 32; break;
+        }
+
+        /* Initialize shift register's to '1' */
+        for(i = 0; i < cnt; i++) {
+                shiftreg[i] = 1;
+        }
+
+        /* Calculate nr of data bits */
+        nrbits = ((int) size) * 8;
+        data = buf;
+
+        while(bitcount < nrbits) {
+                /* Fetch bit from bitstream */
+                databit = (short int) (*data  & (0x80 >> bitinbyte));
+                databit = databit >> (7 - bitinbyte);
+                bitinbyte++;
+                bitcount++;
+                if(bitinbyte == 8) {
+                        bitinbyte = 0;
+                        data++;
+                }
+
+                /* Perform the shift and modula 2 addition */
+                databit ^= shiftreg[cnt - 1];
+                i = cnt - 1;
+                while (i != 0) {
+                        if (g[i]) {
+                                shiftreg[i] = shiftreg[i-1] ^ databit;
+                        }
+                        else {
+                                shiftreg[i] = shiftreg[i-1];
+                        }
+                        i--;
+                }
+                shiftreg[0] = databit;
+        }
+
+        /* make CRC an UIMSBF */
+        crc = 0;
+        for(i = 0; i < cnt; i++) {
+                crc = (crc << 1) | ((unsigned int) shiftreg[cnt - 1 - i]);
+        }
+
+        return crc;
+}
+
 #define timestamp_assert(expr, ...) \
         do { \
                 if(!(expr)) { \
@@ -2616,7 +2682,7 @@ static int dump(uint8_t *buf, int len)
                 } \
         }while(0)
 
-int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
+DLL_API int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
         int64_t t1; /* t0 + td */
 #if 1
@@ -2636,7 +2702,7 @@ int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
         return t1; /* [0, ovf) */
 }
 
-int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
+DLL_API int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
 {
         int64_t td; /* t1 - t0 */
         int64_t hovf = ovf >> 1; /* half overflow */
