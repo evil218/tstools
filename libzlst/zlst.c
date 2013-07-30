@@ -31,7 +31,7 @@
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 /* to tail */
-DLL_API void zlst_push(void *PHEAD, void *ZNODE)
+void zlst_push(void *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
@@ -66,7 +66,7 @@ DLL_API void zlst_push(void *PHEAD, void *ZNODE)
 }
 
 /* to head */
-DLL_API void zlst_unshift(void *PHEAD, void *ZNODE)
+void zlst_unshift(void *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
@@ -103,7 +103,7 @@ DLL_API void zlst_unshift(void *PHEAD, void *ZNODE)
 
 /* from tail */
 /* it's up to the caller to free the node! */
-DLL_API void *zlst_pop(void *PHEAD)
+void *zlst_pop(void *PHEAD)
 {
         struct znode *head;
         struct znode *tail;
@@ -139,7 +139,7 @@ DLL_API void *zlst_pop(void *PHEAD)
 
 /* from head */
 /* it's up to the caller to free the node! */
-DLL_API void *zlst_shift(void *PHEAD)
+void *zlst_shift(void *PHEAD)
 {
         struct znode *head;
 
@@ -169,7 +169,7 @@ DLL_API void *zlst_shift(void *PHEAD)
 
 /* sort with key, small key first */
 /* if not return 0, it's up to the caller to free the uninserted node! */
-DLL_API int zlst_insert(void *PHEAD, void *ZNODE)
+int zlst_insert(void *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
@@ -230,7 +230,7 @@ DLL_API int zlst_insert(void *PHEAD, void *ZNODE)
 }
 
 /* it's up to the caller to free the node! */
-DLL_API void *zlst_delete(void *PHEAD, void *ZNODE)
+void *zlst_delete(void *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
@@ -280,7 +280,7 @@ DLL_API void *zlst_delete(void *PHEAD, void *ZNODE)
         return znode;
 }
 
-DLL_API void *zlst_search(void *PHEAD, int key)
+void *zlst_search(void *PHEAD, int key)
 {
         struct znode *head;
         struct znode *znode;
@@ -307,7 +307,7 @@ DLL_API void *zlst_search(void *PHEAD, int key)
         return NULL;
 }
 
-DLL_API void zlst_set_key(void *ZNODE, int key)
+void zlst_set_key(void *ZNODE, int key)
 {
         struct znode *znode;
 
@@ -322,7 +322,7 @@ DLL_API void zlst_set_key(void *ZNODE, int key)
         return;
 }
 
-DLL_API void zlst_set_name(void *ZNODE, const char *name)
+void zlst_set_name(void *ZNODE, const char *name)
 {
         struct znode *znode;
 

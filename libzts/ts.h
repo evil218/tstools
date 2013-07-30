@@ -479,29 +479,19 @@ struct ts_obj {
         uint8_t *tail; /* point to the next data after TS[] */
 };
 
-#ifdef SYS_WINDOWS
-# ifdef DLL_EXPORT
-#  define DLL_API __declspec(dllexport)
-# else
-#  define DLL_API __declspec(dllimport)
-# endif
-#else
-# define DLL_API
-#endif
-
-DLL_API struct ts_obj *ts_create(intptr_t mp);
-DLL_API int ts_destroy(struct ts_obj *obj);
+struct ts_obj *ts_create(intptr_t mp);
+int ts_destroy(struct ts_obj *obj);
 
 /* cmd */
 #define TS_INIT         (0) /* init object for new application */
 #define TS_SCFG         (1) /* set ts_cfg to object */
 #define TS_TIDY         (2) /* tidy wild pointer in object */
-DLL_API int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg);
+int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg);
 
-DLL_API int ts_parse_tsh(struct ts_obj *obj);
-DLL_API int ts_parse_tsb(struct ts_obj *obj);
+int ts_parse_tsh(struct ts_obj *obj);
+int ts_parse_tsb(struct ts_obj *obj);
 
-DLL_API uint32_t ts_crc(void *buf, size_t size, int mode);
+uint32_t ts_crc(void *buf, size_t size, int mode);
 
 /* calculate timestamp:
  *      t0: [0, ovf);
@@ -511,10 +501,10 @@ DLL_API uint32_t ts_crc(void *buf, size_t size, int mode);
  */
 
 /* return: t1 = t0 + td */
-DLL_API int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf);
+int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf);
 
 /* return: td = t1 - t0 */
-DLL_API int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
+int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf);
 
 #ifdef __cplusplus
 }

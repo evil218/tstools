@@ -201,7 +201,7 @@ static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(uint8_t stream_type);
 static int dump(uint8_t *buf, int len);
 
-DLL_API struct ts_obj *ts_create(intptr_t mp)
+struct ts_obj *ts_create(intptr_t mp)
 {
         struct ts_obj *obj;
 
@@ -222,7 +222,7 @@ DLL_API struct ts_obj *ts_create(intptr_t mp)
         return obj;
 }
 
-DLL_API int ts_destroy(struct ts_obj *obj)
+int ts_destroy(struct ts_obj *obj)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -234,7 +234,7 @@ DLL_API int ts_destroy(struct ts_obj *obj)
         return 0;
 }
 
-DLL_API int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
+int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -483,7 +483,7 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
         return 0;
 }
 
-DLL_API int ts_parse_tsh(struct ts_obj *obj)
+int ts_parse_tsh(struct ts_obj *obj)
 {
         struct ts_ipt *ipt;
 
@@ -688,7 +688,7 @@ DLL_API int ts_parse_tsh(struct ts_obj *obj)
         return 0;
 }
 
-DLL_API int ts_parse_tsb(struct ts_obj *obj)
+int ts_parse_tsb(struct ts_obj *obj)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -2602,7 +2602,7 @@ static int dump(uint8_t *buf, int len)
         return 0;
 }
 
-DLL_API uint32_t ts_crc(void *buf, size_t size, int mode)
+uint32_t ts_crc(void *buf, size_t size, int mode)
 {
         int bitcount = 0;
         int bitinbyte = 0;
@@ -2682,7 +2682,7 @@ DLL_API uint32_t ts_crc(void *buf, size_t size, int mode)
                 } \
         }while(0)
 
-DLL_API int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
+int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
         int64_t t1; /* t0 + td */
 #if 1
@@ -2702,7 +2702,7 @@ DLL_API int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
         return t1; /* [0, ovf) */
 }
 
-DLL_API int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
+int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
 {
         int64_t td; /* t1 - t0 */
         int64_t hovf = ovf >> 1; /* half overflow */

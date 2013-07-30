@@ -32,16 +32,6 @@
 extern "C" {
 #endif
 
-#ifdef SYS_WINDOWS
-# ifdef DLL_EXPORT
-#  define DLL_API __declspec(dllexport)
-# else
-#  define DLL_API __declspec(dllimport)
-# endif
-#else
-# define DLL_API
-#endif
-
 struct znode { /* list node */
         struct znode *next;
         struct znode *prev;
@@ -52,16 +42,16 @@ struct znode { /* list node */
 
 /* note: PHEAD will be convert to (struct znode **) type! */
 /* note: ZNODE will be convert to (struct znode  *) type! */
-DLL_API void zlst_push(void *PHEAD, void *ZNODE);
-DLL_API void zlst_unshift(void *PHEAD, void *ZNODE);
-DLL_API void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
-DLL_API void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
-DLL_API int zlst_insert(void *PHEAD, void *ZNODE); /* small key first; if not return 0, it's up to the caller to free the uninserted node! */
-DLL_API void *zlst_delete(void *PHEAD, void *ZNODE); /* It's up to the caller to free the node! */
+void zlst_push(void *PHEAD, void *ZNODE);
+void zlst_unshift(void *PHEAD, void *ZNODE);
+void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
+void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
+int zlst_insert(void *PHEAD, void *ZNODE); /* small key first; if not return 0, it's up to the caller to free the uninserted node! */
+void *zlst_delete(void *PHEAD, void *ZNODE); /* It's up to the caller to free the node! */
 
-DLL_API void *zlst_search(void *PHEAD, int key);
-DLL_API void zlst_set_key(void *ZNODE, int key);
-DLL_API void zlst_set_name(void *ZNODE, const char *name);
+void *zlst_search(void *PHEAD, int key);
+void zlst_set_key(void *ZNODE, int key);
+void zlst_set_name(void *ZNODE, const char *name);
 
 #ifdef __cplusplus
 }

@@ -9,17 +9,11 @@ TAGS
 *.a
 *.lib
 *.dll
+*.exe
 
 */*.o
 */*.d
 */*.obj
-
-catts
-catip
-tsana
-tobin
-toip
-*.exe
 
 tags
 cscope.out

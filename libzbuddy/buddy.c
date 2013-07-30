@@ -50,7 +50,7 @@ struct buddy_pool
 
 static size_t smallest_order(size_t size);
 
-DLL_API intptr_t buddy_create(size_t order_max, size_t order_min)
+intptr_t buddy_create(size_t order_max, size_t order_min)
 {
         if(order_max > BUDDY_ORDER_MAX) {
                 RPT(RPT_ERR, "create: bad order_max: %zd > %zd", order_max, BUDDY_ORDER_MAX);
@@ -99,7 +99,7 @@ DLL_API intptr_t buddy_create(size_t order_max, size_t order_min)
         return (intptr_t)p;
 }
 
-DLL_API int buddy_destroy(intptr_t id)
+int buddy_destroy(intptr_t id)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 
@@ -122,7 +122,7 @@ DLL_API int buddy_destroy(intptr_t id)
         return 0;
 }
 
-DLL_API int buddy_init(intptr_t id)
+int buddy_init(intptr_t id)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 
@@ -145,7 +145,7 @@ DLL_API int buddy_init(intptr_t id)
         return 0;
 }
 
-DLL_API int buddy_status(intptr_t id, int enable, const char *hint)
+int buddy_status(intptr_t id, int enable, const char *hint)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 
@@ -228,7 +228,7 @@ DLL_API int buddy_status(intptr_t id, int enable, const char *hint)
         return 0;
 }
 
-DLL_API void *buddy_malloc(intptr_t id, size_t size)
+void *buddy_malloc(intptr_t id, size_t size)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 
@@ -281,7 +281,7 @@ DLL_API void *buddy_malloc(intptr_t id, size_t size)
         return rslt;
 }
 
-DLL_API void *buddy_realloc(intptr_t id, void *ptr, size_t size) /* FIXME: need to be test */
+void *buddy_realloc(intptr_t id, void *ptr, size_t size) /* FIXME: need to be test */
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 
@@ -388,7 +388,7 @@ DLL_API void *buddy_realloc(intptr_t id, void *ptr, size_t size) /* FIXME: need 
         return rslt;
 }
 
-DLL_API void buddy_free(intptr_t id, void *ptr)
+void buddy_free(intptr_t id, void *ptr)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
 

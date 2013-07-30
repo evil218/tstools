@@ -21,8 +21,7 @@ Standard options:
   --extra-rcflags=ERCFLAGS add ERCFLAGS to RCFLAGS
 
 Configuration options:
-  --enable-shared          build shared library
-  --enable-static          build static library
+  --enable-static          build static library[shared]
   --disable-xml            disable '-expsi' and '-impsi' features
 
 Advanced options:
@@ -237,7 +236,7 @@ libdir='${exec_prefix}/lib'
 includedir='${prefix}/include'
 DEVNULL='/dev/null'
 
-shared="no"
+shared="yes"
 static="no"
 xml="yes"
 asm="no"
@@ -248,7 +247,7 @@ pic="no"
 vis="no"
 compiler="GNU"
 
-CFLAGS="$CFLAGS -Wall -Werror -I. -I\$(SRCPATH)/include/libts"
+CFLAGS="$CFLAGS -Wall -Werror -I. -I.."
 LDFLAGS="$LDFLAGS"
 LDFLAGSCLI="$LDFLAGSCLI"
 ASFLAGS="$ASFLAGS"
@@ -281,10 +280,8 @@ for opt do
         --includedir=*)
             includedir="$optarg"
             ;;
-        --enable-shared)
-            shared="yes"
-            ;;
         --enable-static)
+            shared="no"
             static="yes"
             ;;
         --disable-xml)
@@ -608,8 +605,8 @@ cc_check || die "No working C compiler found."
 if [ $compiler != ICL ]; then
     if cc_check '' -std=gnu99 'for( int i = 0; i < 9; i++ );' ; then
         if [[ $host_os = mingw* ]]; then
-            echo [wrn] $host_os, define SYS_WINDOWS, we have to use c99 instead of gnu99 for "%zd" now
-            CFLAGS="$CFLAGS -DSYS_WINDOWS -DDLL_EXPORT -std=c99"
+            echo [wrn] $host_os, we have to use c99 instead of gnu99 for "%zd" now
+            CFLAGS="$CFLAGS -std=c99"
         else
             CFLAGS="$CFLAGS -std=gnu99"
         fi
@@ -825,7 +822,6 @@ DEPMM=$DEPMM
 DEPMT=$DEPMT
 LD=$LD
 LDFLAGS=$LDFLAGS
-LIBTS=$LIBTS
 AR=$AR
 RANLIB=$RANLIB
 STRIP=$STRIP
@@ -836,11 +832,12 @@ RCFLAGS=$RCFLAGS
 EXE=$EXE
 HAVE_GETOPT_LONG=$HAVE_GETOPT_LONG
 DEVNULL=$DEVNULL
-PROF_GEN_CC=$PROF_GEN_CC
-PROF_GEN_LD=$PROF_GEN_LD
-PROF_USE_CC=$PROF_USE_CC
-PROF_USE_LD=$PROF_USE_LD
 EOF
+#LIBTS=$LIBTS
+#PROF_GEN_CC=$PROF_GEN_CC
+#PROF_GEN_LD=$PROF_GEN_LD
+#PROF_USE_CC=$PROF_USE_CC
+#PROF_USE_LD=$PROF_USE_LD
 
 if [ $compiler = ICL ]; then
     echo '%.o: %.c' >> config.mak
@@ -850,9 +847,9 @@ fi
 if [ "$shared" = "yes" ]; then
     API=$(grep '#define VERSION ' < ${SRCPATH}/tstool_config.h | cut -f 3 -d ' ')
     if [ "$SYS" = "WINDOWS" -o "$SYS" = "CYGWIN" ]; then
-        echo "SONAME=libts-$API.dll" >> config.mak
+        #echo "SONAME=libts-$API.dll" >> config.mak
         if [ $compiler = ICL ]; then
-            echo 'IMPLIBNAME=libts.dll.lib' >> config.mak
+            #echo 'IMPLIBNAME=libts.dll.lib' >> config.mak
             # GNU ld on windows defaults to exporting all global functions if there are no explicit __declspec(dllexport) declarations
             # MSVC link does not act similarly, so it is required to make an export definition out of ts.h and use it at link time
             echo "SOFLAGS=-dll -def:ts.def -implib:\$(IMPLIBNAME) $SOFLAGS" >> config.mak
@@ -862,29 +859,31 @@ if [ "$shared" = "yes" ]; then
             # export API variables/data. must be flagged with the DATA keyword
             grep "extern.*ts" ${SRCPATH}/ts.h | sed -e "s/.*\(ts\w*\)\W.*/\1 DATA/;" >> ts.def
         else
-            echo 'IMPLIBNAME=libts.dll.a' >> config.mak
+            #echo 'IMPLIBNAME=libts.dll.a' >> config.mak
             echo "SOFLAGS=-shared -Wl,--out-implib,\$(IMPLIBNAME) -Wl,--enable-auto-image-base $SOFLAGS" >> config.mak
         fi
     elif [ "$SYS" = "MACOSX" ]; then
         echo "SOSUFFIX=dylib" >> config.mak
-        echo "SONAME=libts.$API.dylib" >> config.mak
+        #echo "SONAME=libts.$API.dylib" >> config.mak
         echo "SOFLAGS=-shared -dynamiclib -Wl,-single_module -Wl,-read_only_relocs,suppress -install_name \$(DESTDIR)\$(libdir)/\$(SONAME) $SOFLAGS" >> config.mak
     elif [ "$SYS" = "SunOS" ]; then
         echo "SOSUFFIX=so" >> config.mak
-        echo "SONAME=libts.so.$API" >> config.mak
+        #echo "SONAME=libts.so.$API" >> config.mak
         echo "SOFLAGS=-shared -Wl,-h,\$(SONAME) $SOFLAGS" >> config.mak
     else
         echo "SOSUFFIX=so" >> config.mak
-        echo "SONAME=libts.so.$API" >> config.mak
+        #echo "SONAME=libts.so.$API" >> config.mak
         echo "SOFLAGS=-shared -Wl,-soname,\$(SONAME) $SOFLAGS" >> config.mak
     fi
-    echo 'default: lib-shared' >> config.mak
-    echo 'install: install-lib-shared' >> config.mak
+    #echo 'default: lib-shared' >> config.mak
+    #echo 'install: install-lib-shared' >> config.mak
+    echo 'LIB=shared' >> config.mak
 fi
 
 if [ "$static" = "yes" ]; then
-    echo 'default: lib-static' >> config.mak
-    echo 'install: install-lib-static' >> config.mak
+    #echo 'default: lib-static' >> config.mak
+    #echo 'install: install-lib-static' >> config.mak
+    echo 'LIB=static' >> config.mak
 fi
 
 cat > ts.pc << EOF
