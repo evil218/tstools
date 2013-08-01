@@ -2,11 +2,13 @@
 # Makefile for libzlst
 #
 
+ifneq ($(wildcard ../config.mak),)
 include ../config.mak
+endif
 
 VMAJOR = 1
 VMINOR = 0
-VMICRO = 0
+VRELEA = 0
 
 obj-y := catts.o
 

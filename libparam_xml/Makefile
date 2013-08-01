@@ -2,16 +2,19 @@
 # Makefile for libzlst
 #
 
+ifneq ($(wildcard ../config.mak),)
 include ../config.mak
+endif
 
 VMAJOR = 1
 VMINOR = 0
-VMICRO = 0
+VRELEA = 0
 
 obj-y := param_xml.o
 
 NAME = param_xml
 TYPE = lib
+DESC = parameter xml convertor
 HEADERS = param_xml.h
 
 CFLAGS += -I../libzlst

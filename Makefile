@@ -6,22 +6,31 @@
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory
 
-DIRS := libzutil
-DIRS += libzlst
-DIRS += libzbuddy
-DIRS += libzts
-DIRS += libparam_xml
-DIRS += catts
-DIRS += catip
-DIRS += tsana
-DIRS += tobin
+LIB_DIRS := libzutil
+LIB_DIRS += libzlst
+LIB_DIRS += libzbuddy
+LIB_DIRS += libzts
+LIB_DIRS += libparam_xml
 
-define make_dirs
-	@for dir in $(DIRS); do $(MAKE) -C $$dir $@; done
+EXE_DIRS := catts
+EXE_DIRS += catip
+EXE_DIRS += tsana
+EXE_DIRS += tobin
+
+define make_lib_dirs
+	@for dir in $(LIB_DIRS); do $(MAKE) -C $$dir $@; done
 endef
 
-all head clean install uninstall:
-	$(make_dirs)
+define make_exe_dirs
+	@for dir in $(EXE_DIRS); do $(MAKE) -C $$dir $@; done
+endef
+
+all clean install uninstall:
+	$(make_lib_dirs)
+	$(make_exe_dirs)
+
+pc:
+	$(make_lib_dirs)
 
 distclean: clean
 	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def TAGS

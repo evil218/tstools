@@ -886,20 +886,6 @@ if [ "$static" = "yes" ]; then
     echo 'LIB=static' >> config.mak
 fi
 
-cat > ts.pc << EOF
-prefix=$prefix
-exec_prefix=$exec_prefix
-libdir=$libdir
-includedir=$includedir
-
-Name: ts
-Description: MPEG TS analyse library
-Version: $(grep POINTVER < tstool_config.h | sed -e 's/.* "//; s/".*//')
-Libs: -L$libdir -lts
-Libs.private: $libm
-Cflags: -I$includedir
-EOF
-
 cat > conftest.log <<EOF
 platform:      $ARCH
 system:        $SYS
