@@ -49,8 +49,6 @@ endif
 
 pc: lib$(NAME).pc
 
-../config.mak: Makefile
-
 lib$(NAME).pc: ../config.mak
 	@echo make lib$(NAME).pc
 	@echo prefix=$(prefix) > lib$(NAME).pc

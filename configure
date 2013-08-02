@@ -860,7 +860,7 @@ if [ "$shared" = "yes" ]; then
             grep "extern.*ts" ${SRCPATH}/ts.h | sed -e "s/.*\(ts\w*\)\W.*/\1 DATA/;" >> ts.def
         else
             #echo 'IMPLIBNAME=libts.dll.a' >> config.mak
-            echo "SOFLAGS=-shared -Wl,--out-implib,\$(IMPLIBNAME) -Wl,--enable-auto-image-base $SOFLAGS" >> config.mak
+            echo "SOFLAGS=-shared -Wl,--out-implib,\$(IMPLIBNAME),--output-def,lib\$(NAME).def,--enable-auto-image-base $SOFLAGS" >> config.mak
         fi
     elif [ "$SYS" = "MACOSX" ]; then
         echo "SOSUFFIX=dylib" >> config.mak
