@@ -783,7 +783,6 @@ static int state_next_pkt(struct ts_obj *obj)
         struct ts_af *af = &(obj->af);
         struct ts_pid *pid = obj->pid;
         struct ts_elem *elem = pid->elem; /* may be NULL */
-        struct ts_prog *prog = pid->prog; /* may be NULL */
         struct ts_err *err = &(obj->err);
 
         /* CC */
@@ -825,6 +824,9 @@ static int state_next_pkt(struct ts_obj *obj)
 
         /* PCR flush */
         if(obj->cfg.need_af && obj->has_pcr) {
+                struct znode *znode_prog;
+                struct ts_prog *prog;
+
                 obj->PCR_base = af->program_clock_reference_base;
                 obj->PCR_ext  = af->program_clock_reference_extension;
 
@@ -832,6 +834,7 @@ static int state_next_pkt(struct ts_obj *obj)
                 obj->PCR *= 300;
                 obj->PCR += obj->PCR_ext;
 
+                prog = pid->prog; /* maybe NULL */
                 if(prog) {
                         if(!prog->is_STC_sync) {
                                 /* use PCR as STC, suppose PCR_jitter is zero */
@@ -873,6 +876,18 @@ static int state_next_pkt(struct ts_obj *obj)
                                 /* !(-500ns < jitter < +500ns) */
                                 err->PCR_accuracy_error = 1;
                         }
+                }
+                else {
+                        RPT(RPT_ERR, "No program use this PCR packet(0x%04X)!", tsh->PID);
+                }
+
+                /* traverse prog_list: maybe some of them use this PCR PID */
+                for(znode_prog = (struct znode *)(obj->prog0); znode_prog; znode_prog = znode_prog->next) {
+                        prog = (struct ts_prog *)znode_prog;
+
+                        if(prog->PCR_PID != obj->PID) {
+                                continue;
+                        }
 
                         /* PCRa: the PCR packet before last PCR packet */
                         prog->PCRa = prog->PCRb;
@@ -906,12 +921,11 @@ static int state_next_pkt(struct ts_obj *obj)
                                 }
 
                                 /* first count clear */
-                                if(is_first_count_clear &&
-                                   prog->PCR_PID == obj->prog0->PCR_PID) {
-                                        struct znode *znode;
+                                if(is_first_count_clear && prog == obj->prog0) {
+                                        struct znode *znode_pid;
 
-                                        for(znode = (struct znode *)(obj->pid0); znode; znode = znode->next) {
-                                                struct ts_pid *pid_item = (struct ts_pid *)znode;
+                                        for(znode_pid = (struct znode *)(obj->pid0); znode_pid; znode_pid = znode_pid->next) {
+                                                struct ts_pid *pid_item = (struct ts_pid *)znode_pid;
                                                 if(pid_item->prog == prog) {
                                                         pid_item->lcnt = 0;
                                                         pid_item->cnt = 0;
@@ -933,9 +947,6 @@ static int state_next_pkt(struct ts_obj *obj)
                                         obj->CTS0 = obj->CTS;
                                 }
                         }
-                }
-                else {
-                        RPT(RPT_ERR, "No program use this PCR packet(0x%04X)!", tsh->PID);
                 }
         }
 

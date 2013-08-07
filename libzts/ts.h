@@ -31,6 +31,8 @@
  * sect list: sorted by section_number
  * prog list: sorted by program_number
  * elem list: unsorted, just use the order in PMT
+ *
+ * 2009-04-01, ZHOU Cheng, Init for tstools
  */
 
 #ifndef _TS_H
@@ -323,6 +325,7 @@ struct ts_pid {
         uint16_t PID; /* 13-bit */
         int type; /* TS_TYPE_xxx */
 
+        /* pay attention: PCR PID maybe belongs to many prog!!! */
         struct ts_prog *prog; /* should be prog0 if does not belong to any program */
         struct ts_elem *elem; /* should be NULL if not video or audio packet */
 

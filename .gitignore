@@ -9,11 +9,12 @@ TAGS
 *.a
 *.lib
 *.dll
+*.def
 *.exe
 
-*/*.o
-*/*.d
-*/*.obj
+*.o
+*.d
+*.obj
 
 tags
 cscope.out
