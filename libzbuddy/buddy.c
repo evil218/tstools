@@ -13,9 +13,9 @@
 #define RPT_DBG (4) /* debug information */
 
 /* report micro */
-#define RPT(lvl, ...) do \
+#define RPT(lvl, fmt...) do \
 { \
-        if(lvl <= rpt_lvl) \
+        if((int)lvl <= rpt_lvl) \
         { \
                 switch(lvl) \
                 { \
@@ -25,7 +25,7 @@
                         case RPT_DBG: fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); break; \
                         default:      fprintf(stderr, "%s: %d: ???: ", __FILE__, __LINE__); break; \
                 } \
-                fprintf(stderr, __VA_ARGS__); \
+                fprintf(stderr, fmt); \
                 fprintf(stderr, "\n"); \
         } \
 } while (0)
@@ -50,8 +50,11 @@ struct buddy_pool
 
 static size_t smallest_order(size_t size);
 
-intptr_t buddy_create(size_t order_max, size_t order_min)
+/*@only@*/ intptr_t buddy_create(size_t order_max, size_t order_min)
 {
+        struct buddy_pool *p;
+        size_t tree_size;
+
         if(order_max > BUDDY_ORDER_MAX) {
                 RPT(RPT_ERR, "create: bad order_max: %zd > %zd", order_max, BUDDY_ORDER_MAX);
                 return 0; /* failed */
@@ -67,7 +70,7 @@ intptr_t buddy_create(size_t order_max, size_t order_min)
                 return 0; /* failed */
         }
 
-        struct buddy_pool *p = (struct buddy_pool *)malloc(sizeof(struct buddy_pool));
+        p = (struct buddy_pool *)malloc(sizeof(struct buddy_pool));
         if(NULL == p) {
                 RPT(RPT_ERR, "create: create buddy pool object failed");
                 return 0; /* failed */
@@ -75,9 +78,9 @@ intptr_t buddy_create(size_t order_max, size_t order_min)
 
         p->omax = order_max;
         p->omin = order_min;
-        p->size = (1 << order_max);
+        p->size = ((size_t)1 << order_max);
 
-        size_t tree_size = (1 << (p->omax - p->omin + 1)) - 1;
+        tree_size = (1 << (p->omax - p->omin + 1)) - 1;
         p->tree = (uint8_t *)malloc(tree_size); /* FIXME: memalign? */
         if(NULL == p->tree) {
                 RPT(RPT_ERR, "create: malloc tree(%zd-byte) failed", tree_size);

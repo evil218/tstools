@@ -247,7 +247,7 @@ pic="no"
 vis="no"
 compiler="GNU"
 
-CFLAGS="$CFLAGS -Wall -Werror -I. -I.."
+CFLAGS="$CFLAGS -Wall -Werror"
 LDFLAGS="$LDFLAGS"
 LDFLAGSCLI="$LDFLAGSCLI"
 ASFLAGS="$ASFLAGS"

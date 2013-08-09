@@ -6,15 +6,16 @@ ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
+obj-y := zlst.o
+
 VMAJOR = 1
 VMINOR = 0
 VRELEA = 0
-
-obj-y := zlst.o
-
 NAME = zlst
 TYPE = lib
 DESC = common bidirection list
 HEADERS = zlst.h
+INCDIRS := -I. -I..
+CFLAGS += $(INCDIRS)
 
 include ../common.mak

@@ -6,21 +6,21 @@ ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
+obj-y := tsana.o
+
 VMAJOR = 1
 VMINOR = 0
 VRELEA = 0
-
-obj-y := tsana.o
-
 NAME = tsana
 TYPE = exe
-
-CFLAGS += -I../libzutil
-CFLAGS += -I../libzbuddy
-CFLAGS += -I../libzts
-CFLAGS += -I../libzlst
-CFLAGS += -I../libparam_xml
-CFLAGS += -I/usr/include/libxml2
+INCDIRS := -I. -I..
+INCDIRS += -I../libzutil
+INCDIRS += -I../libzbuddy
+INCDIRS += -I../libzts
+INCDIRS += -I../libzlst
+INCDIRS += -I../libparam_xml
+INCDIRS += -I/usr/include/libxml2
+CFLAGS += $(INCDIRS)
 
 LDFLAGS += -L../libzutil -lzutil
 LDFLAGS += -L../libzbuddy -lzbuddy

@@ -25,7 +25,7 @@ define make_exe_dirs
 	@for dir in $(EXE_DIRS); do $(MAKE) -C $$dir $@; done
 endef
 
-all clean install uninstall:
+all clean install uninstall lint:
 	$(make_lib_dirs)
 	$(make_exe_dirs)
 
