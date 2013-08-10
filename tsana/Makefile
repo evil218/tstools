@@ -24,6 +24,7 @@ CFLAGS += $(INCDIRS)
 
 LDFLAGS += -L../libzutil -lzutil
 LDFLAGS += -L../libzbuddy -lzbuddy
+LDFLAGS += -L../libzlst -lzlst
 LDFLAGS += -L../libzts -lzts
 LDFLAGS += -L../libparam_xml -lparam_xml
 

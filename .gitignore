@@ -13,6 +13,12 @@ lib*.so*
 *.def
 *.exe
 
+catts
+catip
+tsana
+tobin
+toip
+
 *.o
 *.d
 *.obj

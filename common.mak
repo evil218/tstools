@@ -34,6 +34,9 @@ $(LIB_STATIC): .depend $(obj-y)
 
 $(LIB_SHARED): .depend $(obj-y)
 	$(LD)$@ $(obj-y) $(SOFLAGS) $(LDFLAGS)
+ifneq ($(SONAME),)
+	ln -fs $(LIB_SHARED) lib$(NAME).so
+endif
 
 $(NAME)$(EXE): .depend $(obj-y)
 	$(LD)$@ $(obj-y) $(LDFLAGS)
@@ -83,7 +86,7 @@ ifneq ($(IMPLIBNAME),)
 	-install -m 644 $(IMPLIBNAME) $(libdir)
 else ifneq ($(SONAME),)
 	-install -m 755 $(aim) $(libdir)
-	-ln -f -s $(libdir)/$(aim) $(libdir)/$(SONAME)
+	-ln -fs $(aim) $(libdir)/$(SONAME)
 	-ldconfig $(libdir)
 endif
 
