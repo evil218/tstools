@@ -50,7 +50,7 @@ struct buddy_pool
 
 static size_t smallest_order(size_t size);
 
-/*@only@*/ intptr_t buddy_create(size_t order_max, size_t order_min)
+intptr_t buddy_create(size_t order_max, size_t order_min)
 {
         struct buddy_pool *p;
         size_t tree_size;
@@ -104,8 +104,9 @@ static size_t smallest_order(size_t size);
 
 int buddy_destroy(intptr_t id)
 {
-        struct buddy_pool *p = (struct buddy_pool *)id;
+        struct buddy_pool *p;
 
+        p = (struct buddy_pool *)id;
         if(NULL == p) {
                 RPT(RPT_ERR, "destroy: bad id");
                 return -1;
@@ -127,8 +128,12 @@ int buddy_destroy(intptr_t id)
 
 int buddy_init(intptr_t id)
 {
-        struct buddy_pool *p = (struct buddy_pool *)id;
+        struct buddy_pool *p;
+        size_t tree_size;
+        size_t order;
+        size_t i;
 
+        p= (struct buddy_pool *)id;
         if(NULL == p) {
                 RPT(RPT_ERR, "init: bad id");
                 return -1;
@@ -138,8 +143,8 @@ int buddy_init(intptr_t id)
                 return -1;
         }
 
-        size_t tree_size = (1 << (p->omax - p->omin + 1)) - 1;
-        for(size_t order = p->omax + 1, i = 0; i < tree_size; i++) {
+        tree_size = (1 << (p->omax - p->omin + 1)) - 1;
+        for(order = p->omax + 1, i = 0; i < tree_size; i++) {
                 if(IS_POWER_OF_2(i + 1)) {
                         order--;
                 }
@@ -150,8 +155,14 @@ int buddy_init(intptr_t id)
 
 int buddy_status(intptr_t id, int enable, const char *hint)
 {
-        struct buddy_pool *p = (struct buddy_pool *)id;
+        struct buddy_pool *p;
+        size_t order;
+        size_t tree_size;
+        size_t cnt;
+        size_t acc;
+        size_t i;
 
+        p = (struct buddy_pool *)id;
         if(NULL == p) {
                 RPT(RPT_ERR, "status: bad id");
                 return -1;
@@ -165,11 +176,6 @@ int buddy_status(intptr_t id, int enable, const char *hint)
                 return 0;
         }
 
-        size_t order;
-        size_t tree_size;
-        size_t cnt;
-        size_t acc;
-
         order = p->omax + 1;
         tree_size = (1 << (p->omax - p->omin + 1)) - 1;
         cnt = 0;
@@ -178,7 +184,7 @@ int buddy_status(intptr_t id, int enable, const char *hint)
 #if 0
         fprintf(stderr,"\n");
 #endif
-        for(size_t i = 0; i < tree_size; i++) {
+        for(i = 0; i < tree_size; i++) {
                 if(IS_POWER_OF_2(i + 1)) {
                         order--;
                         cnt = 0;

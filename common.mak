@@ -64,7 +64,7 @@ lib$(NAME).pc: ../config.mak
 	@echo Cflags: -I$(includedir) >> lib$(NAME).pc
 
 lint: $(SRCS)
-	-splint -formatcode $(INCDIRS) $(SRCS)
+	-splint -linelen 160 -formatcode $(INCDIRS) $(SRCS)
 
 install-lib-dev:
 	-install -d $(includedir)

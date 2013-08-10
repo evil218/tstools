@@ -33,10 +33,14 @@ extern "C" {
 #endif
 
 struct znode { /* list node */
+        /*@temp@*/
         struct znode *next;
+        /*@temp@*/
         struct znode *prev;
+        /*@temp@*/
         struct znode *tail; /* only head->tail is valid! */
         int key; /* for sort list: use zlst_set_key() before zlst_insert()! */
+        /*@temp@*/
         const char *name; /* for variable type list: use zlst_set_name() before zlst_push()! */
 };
 
@@ -44,11 +48,16 @@ struct znode { /* list node */
 /* note: ZNODE will be convert to (struct znode  *) type! */
 void zlst_push(void *PHEAD, void *ZNODE);
 void zlst_unshift(void *PHEAD, void *ZNODE);
+/*@null@*/
 void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
+/*@null@*/
 void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
 int zlst_insert(void *PHEAD, void *ZNODE); /* small key first; if not return 0, it's up to the caller to free the uninserted node! */
-void *zlst_delete(void *PHEAD, void *ZNODE); /* It's up to the caller to free the node! */
+/*@null@*/
+void *zlst_delete(void *PHEAD, /*@dependent@*/ void *ZNODE); /* It's up to the caller to free the node! */
 
+/*@null@*/
+/*@temp@*/
 void *zlst_search(void *PHEAD, int key);
 void zlst_set_key(void *ZNODE, int key);
 void zlst_set_name(void *ZNODE, const char *name);
