@@ -14,14 +14,20 @@ extern "C" {
 
 #define BUDDY_ORDER_MAX (8 * sizeof(size_t))
 
-intptr_t buddy_create(size_t order_max, size_t order_min);
-int buddy_destroy(intptr_t id);
-int buddy_init(intptr_t id);
-int buddy_status(intptr_t id, int enable, const char *hint); /* for debug */
+/*@only@*/
+/*@null@*/
+void *buddy_create(size_t order_max, size_t order_min);
+int buddy_destroy(/*@only@*/ /*@null@*/ void *id);
+int buddy_init(void *id);
+int buddy_status(void *id, int enable, const char *hint); /* for debug */
 
-void *buddy_malloc(intptr_t id, size_t size);
-void *buddy_realloc(intptr_t id, void *ptr, size_t size); /* need to be test */
-void buddy_free(intptr_t id, void *ptr);
+/*@dependent@*/
+/*@null@*/
+void *buddy_malloc(void *id, size_t size);
+/*@dependent@*/
+/*@null@*/
+void *buddy_realloc(void *id, void *ptr, size_t size); /* need to be test */
+void buddy_free(/*@null@*/ void *id, /*@dependent@*/ /*@null@*/ void *ptr);
 
 #ifdef __cplusplus
 }

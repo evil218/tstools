@@ -475,14 +475,14 @@ struct ts_obj {
 
         /* special variables for ts object */
         int state;
-        intptr_t mp; /* id of buddy memory pool, for list malloc and free */
+        void *mp; /* id of buddy memory pool, for list malloc and free */
 
         /* special variables for packet analyse */
         uint8_t *cur; /* point to the current data in TS[] */
         uint8_t *tail; /* point to the next data after TS[] */
 };
 
-struct ts_obj *ts_create(intptr_t mp);
+struct ts_obj *ts_create(void *mp);
 int ts_destroy(struct ts_obj *obj);
 
 /* cmd */

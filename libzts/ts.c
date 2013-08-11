@@ -191,17 +191,17 @@ static int ts_parse_pesh_switch(struct ts_obj *obj);
 static int ts_parse_pesh_detail(struct ts_obj *obj);
 
 static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid);
-static int free_pid(intptr_t mp, struct ts_pid *pid);
-static int free_sect(intptr_t mp, struct ts_sect *sect);
-static int free_tabl(intptr_t mp, struct ts_tabl *tabl);
-static int free_prog(intptr_t mp, struct ts_prog *prog);
+static int free_pid(void *mp, struct ts_pid *pid);
+static int free_sect(void *mp, struct ts_sect *sect);
+static int free_tabl(void *mp, struct ts_tabl *tabl);
+static int free_prog(void *mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(uint8_t stream_type);
 static int dump(uint8_t *buf, int len);
 
-struct ts_obj *ts_create(intptr_t mp)
+struct ts_obj *ts_create(void *mp)
 {
         struct ts_obj *obj;
 
@@ -412,7 +412,7 @@ static int tidy(struct ts_obj *obj)
         return 0;
 }
 
-static int free_pid(intptr_t mp, struct ts_pid *pid)
+static int free_pid(void *mp, struct ts_pid *pid)
 {
         struct ts_pkt *pkt;
 
@@ -425,7 +425,7 @@ static int free_pid(intptr_t mp, struct ts_pid *pid)
         return 0;
 }
 
-static int free_sect(intptr_t mp, struct ts_sect *sect)
+static int free_sect(void *mp, struct ts_sect *sect)
 {
         if(sect->section) {
                 buddy_free(mp, sect->section);
@@ -435,7 +435,7 @@ static int free_sect(intptr_t mp, struct ts_sect *sect)
         return 0;
 }
 
-static int free_tabl(intptr_t mp, struct ts_tabl *tabl)
+static int free_tabl(void *mp, struct ts_tabl *tabl)
 {
         struct ts_sect *sect;
 
@@ -448,7 +448,7 @@ static int free_tabl(intptr_t mp, struct ts_tabl *tabl)
         return 0;
 }
 
-static int free_prog(intptr_t mp, struct ts_prog *prog)
+static int free_prog(void *mp, struct ts_prog *prog)
 {
         struct ts_elem *elem;
         struct ts_sect *sect;

@@ -176,7 +176,7 @@ struct aim {
         int err;
 };
 
-static intptr_t mp; /* id of buddy memory pool, for list malloc and free */
+static void *mp; /* id of buddy memory pool, for list malloc and free */
 
 struct tsana_obj {
         int mode;
