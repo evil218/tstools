@@ -29,7 +29,7 @@ typedef int socklen_t;
 #include "common.h"
 #include "udp.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 #define UDP_LENGTH_MAX (1536)
 
@@ -50,7 +50,7 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
 
         udp = (struct udp *)malloc(sizeof(struct udp));
         if(NULL == udp) {
-                RPT(RPT_ERR, "malloc failed");
+                RPTERR("malloc failed");
                 return (intptr_t)NULL;
         }
 
@@ -65,7 +65,7 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
         WSADATA wsaData;
         if(WSAStartup(MAKEWORD(1,1), &wsaData) == SOCKET_ERROR)
         {
-                RPT(RPT_ERR, "WSAStartup error");
+                RPTERR("WSAStartup error");
                 return (intptr_t)NULL;
         }
 #endif
@@ -127,7 +127,7 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
                 if('\0' == udp->src_addr[0]) {
                         struct ip_mreq imreq;
 
-                        RPT(RPT_INF, "IP_ADD_MEMBERSHIP: %s", udp->addr);
+                        RPTINF("IP_ADD_MEMBERSHIP: %s", udp->addr);
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
@@ -138,7 +138,7 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
                 else {
                         struct ip_mreq_source mreqsrc;
 
-                        RPT(RPT_INF, "IP_ADD_SOURCE_MEMBERSHIP: %s@%s", udp->src_addr, udp->addr);
+                        RPTINF("IP_ADD_SOURCE_MEMBERSHIP: %s@%s", udp->src_addr, udp->addr);
                         mreqsrc.imr_interface.s_addr = htonl(INADDR_ANY);
                         mreqsrc.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         mreqsrc.imr_sourceaddr.s_addr = inet_addr(udp->src_addr);
@@ -158,7 +158,7 @@ int udp_close(intptr_t id)
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-                RPT(RPT_ERR, "bad id");
+                RPTERR("bad id");
                 return -1;
         }
 
@@ -167,7 +167,7 @@ int udp_close(intptr_t id)
                 if('\0' == udp->src_addr[0]) {
                         struct ip_mreq imreq;
 
-                        RPT(RPT_INF, "IP_DROP_MEMBERSHIP: %s", udp->addr);
+                        RPTINF("IP_DROP_MEMBERSHIP: %s", udp->addr);
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
@@ -178,7 +178,7 @@ int udp_close(intptr_t id)
                 else {
                         struct ip_mreq_source mreqsrc;
 
-                        RPT(RPT_INF, "IP_DROP_SOURCE_MEMBERSHIP: %s@%s", udp->src_addr, udp->addr);
+                        RPTINF("IP_DROP_SOURCE_MEMBERSHIP: %s@%s", udp->src_addr, udp->addr);
                         mreqsrc.imr_interface.s_addr = htonl(INADDR_ANY);
                         mreqsrc.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         mreqsrc.imr_sourceaddr.s_addr = inet_addr(udp->src_addr);
@@ -206,7 +206,7 @@ size_t udp_read(intptr_t id, void *buf)
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-                RPT(RPT_ERR, "bad id");
+                RPTERR("bad id");
                 return -1;
         }
 
@@ -234,7 +234,7 @@ size_t udp_write(intptr_t id, const void *buf, int len)
         struct udp *udp = (struct udp *)id;
 
         if(NULL == udp) {
-                RPT(RPT_ERR, "bad id");
+                RPTERR("bad id");
                 return -1;
         }
 
@@ -255,6 +255,6 @@ static int report(const char *str)
 #else
         err = errno;
 #endif
-        RPT(RPT_ERR, "%s, errno: %d", str, err);
+        RPTERR("%s, errno: %d", str, err);
         return 0;
 }

@@ -12,7 +12,7 @@
 #include "common.h"
 #include "url.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 static int parse_url(struct url *url, const char *str);
 
@@ -22,7 +22,7 @@ struct url *url_open(const char *str, char *mode)
 
         url = (struct url *)malloc(sizeof(struct url));
         if(NULL == url) {
-                RPT(RPT_ERR, "malloc 'struct url' failed");
+                RPTERR("malloc 'struct url' failed");
                 return NULL;
         }
         url->url[0] = '\0';
@@ -140,7 +140,7 @@ size_t url_read(void *buf, size_t size, size_t nobj, struct url *url)
                                 size_t rslt;
 
                                 rslt = udp_read(url->udp, url->buf);
-                                RPT(RPT_INF, "read %zd-byte", rslt);
+                                RPTINF("read %zd-byte", rslt);
                                 if(rslt > 0) {
                                         url->ts_cnt += rslt;
                                         url->pbuf = url->buf;
@@ -194,7 +194,7 @@ static int parse_url(struct url *url, const char *str)
                         *pd = '*';
                 }
         }
-        RPT(RPT_DBG, "pattern: %s", pattern);
+        RPTDBG("pattern: %s", pattern);
 
         /* get scheme */
         if(0 == memcmp(pattern, "*://", 4)) {
@@ -205,10 +205,10 @@ static int parse_url(struct url *url, const char *str)
                         *ps = (char)tolower((int)*ps);
                 }
 
-                RPT(RPT_DBG, "scheme: %s", url->url);
+                RPTDBG("scheme: %s", url->url);
         }
         else {
-                RPT(RPT_DBG, "scheme: file");
+                RPTDBG("scheme: file");
                 url->scheme = SCH_LFILE;
         }
 
@@ -219,34 +219,34 @@ static int parse_url(struct url *url, const char *str)
                 if(0 == memcmp(pattern, "*://*:*", 7)) { /* udp://host:port */
                         rslt = strtok(NULL, ":");
                         url->host = rslt + 2; /* add 2 to pass "//" */
-                        RPT(RPT_DBG, "host: %s", url->host);
+                        RPTDBG("host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
-                        RPT(RPT_DBG, "port: %d", url->port);
+                        RPTDBG("port: %d", url->port);
                 }
                 else if(0 == memcmp(pattern, "*://:*", 6)) { /* udp://:port */
                         rslt = strtok(NULL, ":");
-                        RPT(RPT_DBG, "prefix: %s", rslt);
+                        RPTDBG("prefix: %s", rslt);
                         url->host = "127.0.0.1";
-                        RPT(RPT_DBG, "host: %s", url->host);
+                        RPTDBG("host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
-                        RPT(RPT_DBG, "port: %d", url->port);
+                        RPTDBG("port: %d", url->port);
                 }
                 else if(0 == memcmp(pattern, "*://*@*:*", 9)) { /* udp://saddr@maddr:port, udp://user@host:port */
                         rslt = strtok(NULL, "@");
                         url->user = rslt + 2; /* add 2 to pass "//" */
-                        RPT(RPT_DBG, "user: %s", url->user);
+                        RPTDBG("user: %s", url->user);
 
                         rslt = strtok(NULL, ":");
                         url->host = rslt;
-                        RPT(RPT_DBG, "host: %s", url->host);
+                        RPTDBG("host: %s", url->host);
 
                         rslt = strtok(NULL, "/");
                         url->port = atoi(rslt);
-                        RPT(RPT_DBG, "port: %d", url->port);
+                        RPTDBG("port: %d", url->port);
                 }
                 else {
                         fprintf(stderr, "URL syntax error for UDP scheme!\n");

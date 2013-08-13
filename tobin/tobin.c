@@ -11,7 +11,7 @@
 #include "common.h"
 #include "if.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
         fd_o = fopen(file_o, "wb");
         if(NULL == fd_o) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_o);
+                RPTERR("open \"%s\" failed", file_o);
                 return -1;
         }
 
@@ -81,7 +81,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
+                                RPTERR("wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }

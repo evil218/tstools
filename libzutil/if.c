@@ -107,41 +107,42 @@ int next_tag(char **tag, char **text)
         char ch;
 
         /* search head('*') */
-        while(1) {
-                ch = *(*text);
-                if('*' == ch) {
-                        /* tag head */
-                        *tag = *text;
-                        (*text)++;
-                        break;
-                }
-                if('\0' == ch || 0x0A == ch || 0x0D == ch) {
-                        /* normal EOL */
-                        *(*text) = '\0';
-                        return NEOL;
-                }
-                (*text)++;
+        do {
+                ch = *(*text)++;
+        } while(('*' != ch) &&
+                ('\0' != ch) && ('\n' != ch) && ('\r' != ch));
+
+        if('*' == ch) {
+                /* tag head */
+                *tag = *text - 1;
+        }
+        else {
+                /* normal EOL */
+                (*text)--;
+                *(*text) = '\0';
+                return NEOL;
         }
 
         /* search tail(',' or '\033') */
-        while(1) {
-                ch = *(*text);
-                if(',' == ch) {
-                        /* tag tail */
-                        *(*text) = '\0';
-                        (*text)++; /* point to ' ' after ',' */
-                        return 0;
-                }
+        do {
+                ch = *(*text)++;
                 if('\033' == ch) {
                         /* tag tail, it is color tags */
-                        *(*text) = '\0';
+                        *(*text - 1) = '\0';
                 }
-                if('\0' == ch || 0x0A == ch || 0x0D == ch) {
-                        /* unexpected EOL */
-                        *(*text) = '\0';
-                        return UEOL;
-                }
-                (*text)++;
+        } while((',' != ch) &&
+                ('\0' != ch) && ('\n' != ch) && ('\r' != ch));
+
+        if(',' == ch) {
+                /* tag tail */
+                *(*text - 1) = '\0';
+                return 0; /* *text point to ' ' after ',' */
+        }
+        else {
+                /* unexpected EOL */
+                (*text)--;
+                *(*text) = '\0';
+                return UEOL;
         }
 }
 
@@ -155,7 +156,7 @@ int next_nbyte_hex(uint8_t *byte, char **text, int max)
 
                 /* white space */
                 s = *(*text);
-                if('\0' == s || 0x0A == s || 0x0D == s) {
+                if('\0' == s || '\n' == s || '\r' == s) {
                         break;
                 }
                 if(',' == s) {
@@ -167,14 +168,14 @@ int next_nbyte_hex(uint8_t *byte, char **text, int max)
 
                 /* hi */
                 h = *(*text);
-                if('\0' == h || 0x0A == h || 0x0D == h) {
+                if('\0' == h || '\n' == h || '\r' == h) {
                         break;
                 }
                 (*text)++;
 
                 /* lo */
                 l = *(*text);
-                if('\0' == l || 0x0A == l || 0x0D == l) {
+                if('\0' == l || '\n' == l || '\r' == l) {
                         break;
                 }
                 (*text)++;
@@ -196,7 +197,7 @@ int next_nuint_hex(long long int *sint, char **text, int max)
 
                 /* white space */
                 s = *(*text);
-                if('\0' == s || 0x0A == s || 0x0D == s) {
+                if('\0' == s || '\n' == s || '\r' == s) {
                         break;
                 }
                 if(',' == s) {
@@ -208,7 +209,7 @@ int next_nuint_hex(long long int *sint, char **text, int max)
 
                 while(1) {
                         x = *(*text);
-                        if('\0' == x || 0x0A == x || 0x0D == x) {
+                        if('\0' == x || '\n' == x || '\r' == x) {
                                 break;
                         }
                         else if(('0' <= x) && (x <= '9')) {

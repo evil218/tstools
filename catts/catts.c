@@ -12,7 +12,7 @@
 #include "common.h"
 #include "if.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 enum FILE_TYPE
 {
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_i);
+                RPTERR("open \"%s\" failed", file_i);
                 return -1;
         }
 
@@ -128,7 +128,7 @@ static int deal_with_parameter(int argc, char *argv[])
 
         if(1 == argc) {
                 /* no parameter */
-                RPT(RPT_ERR, "No binary file to process...\n\n");
+                RPTERR("No binary file to process...\n\n");
                 show_help();
                 return -1;
         }
@@ -139,7 +139,7 @@ static int deal_with_parameter(int argc, char *argv[])
                            0 == strcmp(argv[i], "--start")) {
                                 i++;
                                 if(i >= argc) {
-                                        RPT(RPT_ERR, "no parameter for 'start'!\n");
+                                        RPTERR("no parameter for 'start'!\n");
                                         return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
@@ -147,16 +147,14 @@ static int deal_with_parameter(int argc, char *argv[])
                                         aim_start = dat;
                                 }
                                 else {
-                                        RPT(RPT_ERR,
-                                                "bad variable for 'start': %u(0 < x), use 0 instead!\n",
-                                                dat);
+                                        RPTERR("bad variable for 'start': %u(0 < x), use 0 instead!\n", dat);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-p") ||
                                 0 == strcmp(argv[i], "--stop")) {
                                 i++;
                                 if(i >= argc) {
-                                        RPT(RPT_ERR, "no parameter for 'stop'!\n");
+                                        RPTERR("no parameter for 'stop'!\n");
                                         return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
@@ -164,16 +162,14 @@ static int deal_with_parameter(int argc, char *argv[])
                                         aim_stop = dat;
                                 }
                                 else {
-                                        RPT(RPT_ERR,
-                                                "bad variable for 'stop': %u(0 < x), use 0 instead!\n",
-                                                dat);
+                                        RPTERR("bad variable for 'stop': %u(0 < x), use 0 instead!\n", dat);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-w") ||
                                 0 == strcmp(argv[i], "--width")) {
                                 i++;
                                 if(i >= argc) {
-                                        RPT(RPT_ERR, "no parameter for 'width'!\n");
+                                        RPTERR("no parameter for 'width'!\n");
                                         return -1;
                                 }
                                 sscanf(argv[i], "%i" , &dat);
@@ -181,9 +177,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                         npline = dat;
                                 }
                                 else {
-                                        RPT(RPT_ERR,
-                                                "bad variable for 'width': %u(0 < x < %u), use 16 instead!\n",
-                                                dat, LINE_LENGTH_MAX / 3);
+                                        RPTERR("bad variable for 'width': %u(0 < x < %u), use 16 instead!\n", dat, LINE_LENGTH_MAX / 3);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-l"))
@@ -191,28 +185,28 @@ static int deal_with_parameter(int argc, char *argv[])
                                 i++;
                                 if(i >= argc)
                                 {
-                                        RPT(RPT_ERR, "no parameter for '-l'!");
+                                        RPTERR("no parameter for '-l'!");
                                         exit(EXIT_FAILURE);
                                 }
                                 if(0 == strcmp(argv[i], "dbg"))
                                 {
-                                        rpt_lvl = RPT_DBG;
-                                        RPT(RPT_INF, "repot level: 'dbg'");
+                                        rpt_lvl = DBG_LVL;
+                                        RPTINF("repot level: 'dbg'");
                                 }
                                 else if(0 == strcmp(argv[i], "inf"))
                                 {
-                                        rpt_lvl = RPT_INF;
-                                        RPT(RPT_INF, "repot level: 'inf'");
+                                        rpt_lvl = INF_LVL;
+                                        RPTINF("repot level: 'inf'");
                                 }
                                 else if(0 == strcmp(argv[i], "wrn"))
                                 {
-                                        rpt_lvl = RPT_WRN;
-                                        RPT(RPT_INF, "repot level: 'wrn'");
+                                        rpt_lvl = WRN_LVL;
+                                        RPTINF("repot level: 'wrn'");
                                 }
                                 else
                                 {
-                                        rpt_lvl = RPT_ERR;
-                                        RPT(RPT_INF, "repot level: 'err'");
+                                        rpt_lvl = ERR_LVL;
+                                        RPTINF("repot level: 'err'");
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-h") ||
@@ -226,7 +220,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                RPT(RPT_ERR, "Wrong parameter: %s", argv[i]);
+                                RPTERR("Wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }
@@ -290,7 +284,7 @@ static int judge_type()
         int state = FILE_UNKNOWN;
         long long int off = 0;
 
-        RPT(RPT_INF, "judge type from 0x%llX +%lld", pkt_addr, off);
+        RPTINF("judge type from 0x%llX +%lld", pkt_addr, off);
         type = FILE_UNKNOWN;
         while(FILE_UNKNOWN == type) {
                 switch(state) {
@@ -300,14 +294,14 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
-                                        RPT(RPT_INF, "first 0x47 at +%lld, maybe TS", off);
+                                        RPTINF("first 0x47 at +%lld, maybe TS", off);
                                         sync_cnt = 1;
                                         state = FILE_TS;
                                 }
                                 else {
                                         off++;
                                         if(off > ASYNC_BYTE) {
-                                                RPT(RPT_INF, "unlock over %d-byte, it is BIN", ASYNC_BYTE);
+                                                RPTINF("unlock over %d-byte, it is BIN", ASYNC_BYTE);
                                                 off = 0;
                                                 type = FILE_BIN;
                                                 state = FILE_BIN;
@@ -320,10 +314,10 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
-                                        RPT(RPT_INF, "meet 0x47, maybe TS");
+                                        RPTINF("meet 0x47, maybe TS");
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
-                                                RPT(RPT_INF, "it is TS");
+                                                RPTINF("it is TS");
                                                 npline = 188;
                                                 type = FILE_TS;
                                         }
@@ -340,7 +334,7 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
-                                        RPT(RPT_INF, "meet 0x47, maybe MTS");
+                                        RPTINF("meet 0x47, maybe MTS");
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
                                                 if(off < 4) {
@@ -349,7 +343,7 @@ static int judge_type()
                                                         state = FILE_TSRS;
                                                 }
                                                 else {
-                                                        RPT(RPT_INF, "it is MTS");
+                                                        RPTINF("it is MTS");
                                                         off -= 4;
                                                         npline = 192;
                                                         type = FILE_MTS;
@@ -368,10 +362,10 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
-                                        RPT(RPT_INF, "meet 0x47, maybe TSRS");
+                                        RPTINF("meet 0x47, maybe TSRS");
                                         sync_cnt++;
                                         if(sync_cnt >= SYNC_TIME) {
-                                                RPT(RPT_INF, "it is TSRS");
+                                                RPTINF("it is TSRS");
                                                 npline = 204;
                                                 type = FILE_TSRS;
                                         }
@@ -380,17 +374,17 @@ static int judge_type()
                                         off++;
                                         type = FILE_UNKNOWN;
                                         state = FILE_UNKNOWN;
-                                        RPT(RPT_INF, "judge type from 0x%llX +%lld", pkt_addr, off);
+                                        RPTINF("judge type from 0x%llX +%lld", pkt_addr, off);
                                 }
                                 break;
                         default:
-                                RPT(RPT_ERR, "bad state: %d", state);
+                                RPTERR("bad state: %d", state);
                                 return -1;
                 }
         }
 
         if(off != 0) {
-                RPT(RPT_WRN, "pass %lld-byte from 0x%llX (%lld)", off, pkt_addr, pkt_addr);
+                RPTWRN("pass %lld-byte from 0x%llX (%lld)", off, pkt_addr, pkt_addr);
         }
         pkt_addr += off;
         fseek(fd_i, pkt_addr, SEEK_SET);

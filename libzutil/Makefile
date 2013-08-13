@@ -26,4 +26,6 @@ ifeq ($(SYS),WINDOWS)
 LDFLAGS += -lws2_32
 endif
 
+LINTFLAGS := +posixlib
+
 include ../common.mak

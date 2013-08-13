@@ -12,7 +12,7 @@
 #include "if.h"
 #include "url.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
         fd_i = url_open(file_i, "rb");
         if(NULL == fd_i) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_i);
+                RPTERR("open \"%s\" failed", file_i);
                 return -1;
         }
 
@@ -78,7 +78,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
+                                RPTERR("wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }

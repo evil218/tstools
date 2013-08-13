@@ -36,7 +36,7 @@
   } while (0)
 #endif
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 #define PKT_BBUF                        (256) /* 188 or 204 */
 #define PKT_TBUF                        (PKT_BBUF * 3 + 10)
@@ -576,7 +576,7 @@ static struct tsana_obj *create(int argc, char *argv[])
 
         obj = (struct tsana_obj *)malloc(sizeof(struct tsana_obj));
         if(NULL == obj) {
-                RPT(RPT_ERR, "malloc failed");
+                RPTERR("malloc failed");
                 return NULL;
         }
 
@@ -870,26 +870,26 @@ static struct tsana_obj *create(int argc, char *argv[])
         /* create & init buddy module */
         mp = buddy_create(mp_order, 6); /* borrow a big memory from OS */
         if(0 == mp) {
-                RPT(RPT_ERR, "malloc memory pool failed");
+                RPTERR("malloc memory pool failed");
                 goto create_failed_with_obj;
         }
         buddy_init(mp); /* now, we can use xx_malloc() */
         buddy_status(mp, obj->is_mem, "after buddy init");
 
         /* init memory of libxml2 */
-        RPT(RPT_INF, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+        RPTINF("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
             xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
         if(0 != xmlMemSetup(xfree, xmalloc, xrealloc, xstrdup)) {
-                RPT(RPT_ERR, "xmlMemSetup() failed.\n");
+                RPTERR("xmlMemSetup() failed.\n");
                 goto create_failed_with_mp;
         }
-        RPT(RPT_INF, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+        RPTINF("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
             xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
 
         /* create & init ts module */
         obj->ts = ts_create(mp);
         if(0 == obj->ts) {
-                RPT(RPT_ERR, "malloc ts object failed");
+                RPTERR("malloc ts object failed");
                 goto create_failed_with_mp;
         }
         ts_ioctl(obj->ts, TS_INIT, 0);
@@ -1078,7 +1078,7 @@ static int get_one_pkt(struct tsana_obj *obj)
                         ipt->has_cts = 1;
                 }
                 else {
-                        RPT(RPT_ERR, "wrong tag: \"%s\"\n", tag);
+                        RPTERR("wrong tag: \"%s\"\n", tag);
                 }
         }
         return GOT_RIGHT_PKT;
@@ -1269,13 +1269,13 @@ static int export_psi(struct tsana_obj *obj)
 
         if(!xmlFree) {
                 /* FIXME: libxml2@mingw problem */
-                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                RPTERR("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
                     xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
                 xmlMemGet(&xmlFree, &xmlMalloc, &xmlRealloc, &xmlMemStrdup);
-                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                RPTERR("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
                     xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
 
-                RPT(RPT_ERR, "  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
+                RPTERR("  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
                     xfree, xmalloc, xrealloc, xstrdup);
         }
         buddy_status(mp, obj->is_mem, "before xml init");
@@ -1305,30 +1305,30 @@ static int import_psi(struct tsana_obj *obj)
         doc = xmlParseFile("psi.xml");
         if(!xmlFree) {
                 /* FIXME: libxml2@mingw problem */
-                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                RPTERR("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
                     xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
                 xmlMemGet(&xmlFree, &xmlMalloc, &xmlRealloc, &xmlMemStrdup);
-                RPT(RPT_ERR, "xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
+                RPTERR("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
                     xmlFree, xmlMalloc, xmlRealloc, xmlMemStrdup);
 
-                RPT(RPT_ERR, "  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
+                RPTERR("  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
                     xfree, xmalloc, xrealloc, xstrdup);
         }
         if(doc == NULL) {
-                RPT(RPT_ERR, "parse psi.xml failed\n");
+                RPTERR("parse psi.xml failed\n");
                 return -1;
         }
 
         root = xmlDocGetRootElement(doc);
         if(root == NULL) {
-                RPT(RPT_ERR, "empty document\n");
+                RPTERR("empty document\n");
                 xmlFreeDoc(doc);
                 xmlCleanupParser();
                 return -1;
         }
 
         if (xmlStrcmp(root->name, (const xmlChar *) "ts")) {
-                RPT(RPT_ERR, "psi.xml: root node != ts");
+                RPTERR("psi.xml: root node != ts");
                 xmlFreeDoc(doc);
                 xmlCleanupParser();
                 return -1;
