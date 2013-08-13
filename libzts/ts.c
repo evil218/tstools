@@ -173,8 +173,8 @@ enum {
         STATE_NEXT_PKT  /* parse packet with current lists */
 };
 
-static int init(struct ts_obj *obj);
-static int tidy(struct ts_obj *obj);
+static void init(/*@out@*/ struct ts_obj *obj);
+static void tidy(struct ts_obj *obj);
 static int state_next_pat(struct ts_obj *obj);
 static int state_next_pmt(struct ts_obj *obj);
 static int state_next_pkt(struct ts_obj *obj);
@@ -191,19 +191,26 @@ static int ts_parse_pesh_switch(struct ts_obj *obj);
 static int ts_parse_pesh_detail(struct ts_obj *obj);
 
 static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid);
-static int free_pid(void *mp, struct ts_pid *pid);
-static int free_sect(void *mp, struct ts_sect *sect);
-static int free_tabl(void *mp, struct ts_tabl *tabl);
-static int free_prog(void *mp, struct ts_prog *prog);
+static void free_pid(void *mp, struct ts_pid *pid);
+static void free_sect(void *mp, struct ts_sect *sect);
+static void free_tabl(void *mp, struct ts_tabl *tabl);
+static void free_prog(void *mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(uint8_t stream_type);
 static int dump(uint8_t *buf, int len);
 
-struct ts_obj *ts_create(void *mp)
+/*@only@*/
+/*@null@*/
+struct ts_obj *ts_create(/*@null@*/ void *mp)
 {
         struct ts_obj *obj;
+
+        if(!mp) {
+                RPT(RPT_ERR, "bad memory pool");
+                return NULL;
+        }
 
         obj = (struct ts_obj *)malloc(sizeof(struct ts_obj));
         if(!obj) {
@@ -214,15 +221,15 @@ struct ts_obj *ts_create(void *mp)
         obj->mp = mp;
 
         /* prepare for ts_init() */
-        /* do NOT forgot to call ts_init() before use */
         obj->pid0 = NULL; /* no pid list now */
         obj->prog0 = NULL; /* no prog list now */
         obj->tabl0 = NULL; /* no tabl list now */
+        init(obj);
 
         return obj;
 }
 
-int ts_destroy(struct ts_obj *obj)
+int ts_destroy(/*@only@*/ /*@null@*/ struct ts_obj *obj)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -234,7 +241,7 @@ int ts_destroy(struct ts_obj *obj)
         return 0;
 }
 
-int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
+int ts_ioctl(struct ts_obj *obj, int cmd, void *arg)
 {
         if(!obj) {
                 RPT(RPT_ERR, "bad obj");
@@ -264,24 +271,25 @@ int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
         return 0;
 }
 
-static int init(struct ts_obj *obj)
+static void init(/*@out@*/ struct ts_obj *obj)
 {
-        /* clear the pid list */
         struct ts_pid *pid;
+        struct ts_prog *prog;
+        struct ts_tabl *tabl;
+
+        /* clear the pid list */
         while(NULL != (pid = (struct ts_pid *)zlst_pop(&(obj->pid0)))) {
                 free_pid(obj->mp, pid);
         }
         obj->pid0 = NULL;
 
         /* clear the prog list */
-        struct ts_prog *prog;
         while(NULL != (prog = (struct ts_prog *)zlst_pop(&(obj->prog0)))) {
                 free_prog(obj->mp, prog);
         }
         obj->prog0 = NULL;
 
         /* clear the table list */
-        struct ts_tabl *tabl;
         while(NULL != (tabl = (struct ts_tabl *)zlst_pop(&(obj->tabl0)))) {
                 free_tabl(obj->mp, tabl);
         }
@@ -297,18 +305,17 @@ static int init(struct ts_obj *obj)
         obj->is_psi_si_parsed = 0;
         obj->concerned_pid = 0x0000; /* PAT_PID */
         obj->interval = 0;
-        obj->CTS = 0L;
-        obj->CTS0 = 0L;
-        obj->lCTS = 0L; /* for MTS file only, must init as 0L */
+        obj->CTS = (int64_t)0;
+        obj->CTS0 = (int64_t)0;
+        obj->lCTS = (int64_t)0; /* for MTS file only, must init as 0L */
         obj->STC = STC_OVF;
 
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
         memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
-
-        return 0;
+        return;
 }
 
-static int tidy(struct ts_obj *obj)
+static void tidy(struct ts_obj *obj)
 {
         struct ts_pid new_pid;
         struct ts_prog *prog;
@@ -409,10 +416,10 @@ static int tidy(struct ts_obj *obj)
         obj->has_got_transport_stream_id = 0;
         obj->is_pat_pmt_parsed = 1;
         obj->is_psi_si_parsed = 1;
-        return 0;
+        return;
 }
 
-static int free_pid(void *mp, struct ts_pid *pid)
+static void free_pid(void *mp, struct ts_pid *pid)
 {
         struct ts_pkt *pkt;
 
@@ -422,20 +429,20 @@ static int free_pid(void *mp, struct ts_pid *pid)
         }
 
         buddy_free(mp, pid);
-        return 0;
+        return;
 }
 
-static int free_sect(void *mp, struct ts_sect *sect)
+static void free_sect(void *mp, struct ts_sect *sect)
 {
         if(sect->section) {
                 buddy_free(mp, sect->section);
         }
 
         buddy_free(mp, sect);
-        return 0;
+        return;
 }
 
-static int free_tabl(void *mp, struct ts_tabl *tabl)
+static void free_tabl(void *mp, struct ts_tabl *tabl)
 {
         struct ts_sect *sect;
 
@@ -445,10 +452,10 @@ static int free_tabl(void *mp, struct ts_tabl *tabl)
         }
 
         buddy_free(mp, tabl);
-        return 0;
+        return;
 }
 
-static int free_prog(void *mp, struct ts_prog *prog)
+static void free_prog(void *mp, struct ts_prog *prog)
 {
         struct ts_elem *elem;
         struct ts_sect *sect;
@@ -480,12 +487,16 @@ static int free_prog(void *mp, struct ts_prog *prog)
                 prog->service_provider_len = 0;
         }
         buddy_free(mp, prog);
-        return 0;
+        return;
 }
 
 int ts_parse_tsh(struct ts_obj *obj)
 {
         struct ts_ipt *ipt;
+        uint8_t dat;
+        struct ts_tsh *tsh;
+        struct ts_err *err;
+        struct ts_pid *pid; /* maybe NULL */
 
         if(!obj) {
                 RPT(RPT_ERR, "ts_parse_tsh: bad obj");
@@ -509,9 +520,8 @@ int ts_parse_tsh(struct ts_obj *obj)
         dump(ipt->TS, TS_PKT_SIZE); /* debug only */
 #endif
 
-        uint8_t dat;
-        struct ts_tsh *tsh = &(obj->tsh);
-        struct ts_err *err = &(obj->err);
+        tsh = &(obj->tsh);
+        err = &(obj->err);
 
         /* init for a new ts packet */
         obj->AF_len = 0; /* no AF */
@@ -597,7 +607,7 @@ int ts_parse_tsh(struct ts_obj *obj)
                 }
         }
 
-        struct ts_pid *pid = obj->pid; /* maybe NULL */
+        pid = obj->pid; /* maybe NULL */
 
         /* calc STC and CTS, should be as early as possible */
         if(obj->cfg.need_timestamp) {
@@ -2685,7 +2695,7 @@ uint32_t ts_crc(void *buf, size_t size, int mode)
 #define timestamp_assert(expr, ...) \
         do { \
                 if(!(expr)) { \
-                        fprintf(stderr, "\"%s\", line %d: assert (%s) failed: ", \
+                        fprintf(stderr, "%s: %d: assert (%s) failed: ", \
                                 __FILE__, __LINE__, #expr); \
                         fprintf(stderr, __VA_ARGS__); \
                         fprintf(stderr, "\n"); \

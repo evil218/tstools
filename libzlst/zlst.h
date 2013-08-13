@@ -49,7 +49,7 @@ struct znode { /* list node */
 void zlst_push(void *PHEAD, void *ZNODE);
 void zlst_unshift(void *PHEAD, void *ZNODE);
 /*@null@*/
-void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
+void *zlst_pop(/*@out@*/ /*@null@*/ void *PHEAD); /* It's up to the caller to free the node! */
 /*@null@*/
 void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
 int zlst_insert(void *PHEAD, void *ZNODE); /* small key first; if not return 0, it's up to the caller to free the uninserted node! */

@@ -35,10 +35,8 @@ pc:
 distclean: clean
 	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def TAGS
 
-etags: TAGS
-
-TAGS:
-	etags $(LIB_SRCS) $(PRJ_SRCS)
+tag:
+	ctags -R *
 
 mode:
 	find . -type f -exec chmod 644 {} \;

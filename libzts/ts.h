@@ -46,7 +46,7 @@ extern "C" {
 
 #define STC_BASE_MS  (90)        /* 90 clk == 1(ms) */
 #define STC_BASE_1S  (90 * 1000) /* do NOT use 1e3 */
-#define STC_BASE_OVF (1LL << 33) /* 0x0200000000 */
+#define STC_BASE_OVF (((int64_t)1) << 33) /* 0x0200000000 */
 
 #define STC_US  (27)                 /* 27 clk == 1(us) */
 #define STC_MS  (27 * 1000)          /* do NOT use 1e3  */
@@ -233,6 +233,7 @@ struct ts_sect {
         struct znode cvfl; /* common variable for list */
 
         /* section data */
+        /*@temp@*/
         uint8_t *section; /* point to the section buffer: 3 + section_length */
 
         /* section info */
@@ -256,6 +257,7 @@ struct ts_sect {
 struct ts_tabl {
         struct znode cvfl; /* common variable for list */
 
+        /*@temp@*/
         struct ts_sect *sect0; /* section list of this table */
         uint8_t table_id; /* 0x00~0xFF */
         uint8_t version_number;
@@ -271,6 +273,7 @@ struct ts_elem {
         int type; /* TS_TYPE_xxx */
         uint8_t stream_type;
         int es_info_len;
+        /*@temp@*/
         uint8_t *es_info; /* point to NULL if len is 0 */
 
         /* for PTS/DTS mark */
@@ -288,13 +291,17 @@ struct ts_prog {
         uint16_t PCR_PID; /* 13-bit */
         uint16_t program_number;
         int program_info_len;
+        /*@temp@*/
         uint8_t *program_info; /* point to NULL if len is 0 */
         int service_name_len;
+        /*@temp@*/
         uint8_t *service_name; /* point to NULL if len is 0 */
         int service_provider_len;
+        /*@temp@*/
         uint8_t *service_provider; /* point to NULL if len is 0 */
 
         /* elementary stream list */
+        /*@temp@*/
         struct ts_elem *elem0;
 
         /* PMT table */
@@ -326,7 +333,9 @@ struct ts_pid {
         int type; /* TS_TYPE_xxx */
 
         /* pay attention: PCR PID maybe belongs to many prog!!! */
+        /*@temp@*/
         struct ts_prog *prog; /* should be prog0 if does not belong to any program */
+        /*@temp@*/
         struct ts_elem *elem; /* should be NULL if not video or audio packet */
 
         /* for continuity_counter check */
@@ -338,6 +347,7 @@ struct ts_pid {
         uint32_t lcnt; /* packet received from PCRa to PCRb */
 
         /* only for PID with PSI/SI */
+        /*@temp@*/
         struct ts_pkt *pkt0;
         int payload_total; /* accumulate size_of_payload packet by packet */
         int has_new_sech; /* true, if second section head in pkt list */
@@ -398,7 +408,8 @@ struct ts_obj {
         int CC_lost; /* lost != 0 means CC wrong */
 
         /* AF */
-        uint8_t *AF; /* point to adaptation_fields */
+        /*@temp@*/
+        uint8_t *AF; /* point to adaptation_fields in ipt.TS[] */
         int AF_len; /* 0 means no AF */
 
         /* PCR */
@@ -411,7 +422,8 @@ struct ts_obj {
         int64_t PCR_jitter; /* PCR - STC */
 
         /* PES */
-        uint8_t *PES; /* point to PES fragment */
+        /*@temp@*/
+        uint8_t *PES; /* point to PES fragment in ipt.TS[] */
         int PES_len; /* 0 means no PES */
 
         /* PTS */
@@ -427,12 +439,14 @@ struct ts_obj {
         int64_t DTS_minus_STC;
 
         /* ES */
-        uint8_t *ES; /* point to ES fragment */
+        /*@temp@*/
+        uint8_t *ES; /* point to ES fragment in ipt.TS[] */
         int ES_len; /* 0 means no ES */
 
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
 
+        /*@temp@*/
         struct ts_pid *pid; /* point to the node in pid_list */
 
         /* TS information */
@@ -442,11 +456,13 @@ struct ts_obj {
         struct ts_tsh tsh; /* info about ts head of this packet */
         struct ts_af af; /* info about af of this packet */
         struct ts_pesh pesh; /* info about pesh of this packet */
+        /*@temp@*/
         struct ts_pid *pid0; /* pid list of this stream */
 
         /* PSI/SI table */
         uint16_t transport_stream_id;
         int has_got_transport_stream_id;
+        /*@temp@*/
         struct ts_sect *sect; /* point to the node in sect_list */
         int64_t sect_interval;
         uint32_t CRC_32;
@@ -454,7 +470,9 @@ struct ts_obj {
         int is_pat_pmt_parsed;
         int is_psi_si_parsed;
         int is_psi_si;
+        /*@temp@*/
         struct ts_prog *prog0; /* program list of this stream */
+        /*@temp@*/
         struct ts_tabl *tabl0; /* PSI/SI table except PMT */
 
         /* for bit-rate statistic */
@@ -475,21 +493,26 @@ struct ts_obj {
 
         /* special variables for ts object */
         int state;
+        /*@temp@*/
         void *mp; /* id of buddy memory pool, for list malloc and free */
 
         /* special variables for packet analyse */
+        /*@temp@*/
         uint8_t *cur; /* point to the current data in TS[] */
+        /*@temp@*/
         uint8_t *tail; /* point to the next data after TS[] */
 };
 
-struct ts_obj *ts_create(void *mp);
-int ts_destroy(struct ts_obj *obj);
+/*@only@*/
+/*@null@*/
+struct ts_obj *ts_create(/*@null@*/ void *mp);
+int ts_destroy(/*@only@*/ /*@null@*/ struct ts_obj *obj);
 
 /* cmd */
 #define TS_INIT         (0) /* init object for new application */
 #define TS_SCFG         (1) /* set ts_cfg to object */
 #define TS_TIDY         (2) /* tidy wild pointer in object */
-int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg);
+int ts_ioctl(struct ts_obj *obj, int cmd, void *arg);
 
 int ts_parse_tsh(struct ts_obj *obj);
 int ts_parse_tsb(struct ts_obj *obj);

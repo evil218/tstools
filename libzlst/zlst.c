@@ -91,7 +91,7 @@ void zlst_unshift(void *PHEAD, void *ZNODE)
 /* from tail */
 /* it's up to the caller to free the node! */
 /*@null@*/
-void *zlst_pop(void *PHEAD)
+void *zlst_pop(/*@out@*/ /*@null@*/ void *PHEAD)
 {
         struct znode *head;
         struct znode *tail;
