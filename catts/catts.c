@@ -234,43 +234,42 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static int show_help()
 {
-        puts("'catts' read binary file, translate 0xXY to 'XY ' format, then send to stdout.");
-        puts("");
-        puts("Usage: catts [OPTION] file [OPTION]");
-        puts("");
-        puts("Options:");
-        puts("");
-        puts(" -w, --width <n>          n-byte per line for FILE_BIN, default: 16");
-        puts(" -s, --start <a>          cat from, default: 0(from first byte)");
-        puts(" -p, --stop <b>           cat to, default: 0(to last byte)");
-        puts("");
-        puts(" -l <level>               set report level(dbg|inf|wrn|err), default: wrn");
-        puts(" -h, --help               display this information");
-        puts(" -v, --version            display my version");
-        puts("");
-        puts("Examples:");
-        puts("  catts xxx.ts");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        fprintf(stdout,
+                "'catts' read binary file, translate 0xXY to 'XY ' format, then send to stdout.\n"
+                "\n"
+                "Usage: catts [OPTION] file [OPTION]\n"
+                "\n"
+                "Options:\n"
+                "\n"
+                " -w, --width <n>          n-byte per line for FILE_BIN, default: 16\n"
+                " -s, --start <a>          cat from, default: 0(from first byte)\n"
+                " -p, --stop <b>           cat to, default: 0(to last byte)\n"
+                "\n"
+                " -l <level>               set report level(dbg|inf|wrn|err), default: wrn\n"
+                " -h, --help               display this information\n"
+                " -v, --version            display my version\n"
+                "\n"
+                "Examples:\n"
+                "  catts xxx.ts\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return 0;
 }
 
 static int show_version()
 {
-        char str[100];
-
-        sprintf(str, "catts of tstools v%s (%s)", VERSION_STR, REVISION);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "catts of tstools v%s (%s)"
+                "Build time: %s %s"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.\n",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return 0;
 }
 

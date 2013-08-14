@@ -92,39 +92,38 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'catip' read TS over IP, translate 0xXY to 'XY ' format, then send to stdout.");
-        puts("");
-        puts("Usage: catip [OPTION] udp://*@*:* [OPTION]");
-        puts("");
-        puts("Options:");
-        puts("");
-        puts(" -h, --help       print this information only");
-        puts(" -v, --version    print my version only");
-        puts("");
-        puts("Examples:");
-        puts("  catip udp://:1234");
-        puts("  catip udp://224.165.54.31:1234");
-        puts("  catip udp://192.165.54.36@224.165.54.31:1234");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        fprintf(stdout,
+                "'catip' read TS over IP, translate 0xXY to 'XY ' format, then send to stdout.\n"
+                "\n"
+                "Usage: catip [OPTION] udp://*@*:* [OPTION]\n"
+                "\n"
+                "Options:\n"
+                "\n"
+                " -h, --help       print this information only\n"
+                " -v, --version    print my version only\n"
+                "\n"
+                "Examples:\n"
+                "  catip udp://:1234\n"
+                "  catip udp://224.165.54.31:1234\n"
+                "  catip udp://192.165.54.36@224.165.54.31:1234\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return;
 }
 
 static void show_version()
 {
-        char str[100];
-
-        sprintf(str, "catip of tstools v%s (%s)", VERSION_STR, REVISION);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "catip of tstools v%s (%s)\n"
+                "Build time: %s %s\n"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.\n",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return;
 }

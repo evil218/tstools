@@ -95,37 +95,36 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'tobin' read from stdin, translate 'XY ' to 0xXY, send to file.");
-        puts("");
-        puts("Usage: tobin [OPTION] file [OPTION]");
-        puts("");
-        puts("Options:");
-        puts("");
-        puts(" -h, --help       print this information only");
-        puts(" -v, --version    print my version only");
-        puts("");
-        puts("Examples:");
-        puts("  tobin xxx.ts");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        fprintf(stdout,
+                "'tobin' read from stdin, translate 'XY ' to 0xXY, send to file."
+                "\n"
+                "Usage: tobin [OPTION] file [OPTION]\n"
+                "\n"
+                "Options:\n"
+                "\n"
+                " -h, --help       print this information only\n"
+                " -v, --version    print my version only\n"
+                "\n"
+                "Examples:\n"
+                "  tobin xxx.ts\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.");
         return;
 }
 
 static void show_version()
 {
-        char str[100];
-
-        sprintf(str, "tobin of tstools v%s (%s)", VERSION_STR, REVISION);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "tobin of tstools v%s (%s)"
+                "Build time: %s %s"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return;
 }
