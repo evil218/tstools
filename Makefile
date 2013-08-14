@@ -6,11 +6,11 @@
 # Do not print "Entering directory ..."
 MAKEFLAGS += --no-print-directory
 
-LIB_DIRS := libzutil
-LIB_DIRS += libzlst
+LIB_DIRS := libzlst
 LIB_DIRS += libzbuddy
 LIB_DIRS += libzts
 LIB_DIRS += libparam_xml
+LIB_DIRS += libzutil
 
 EXE_DIRS := catts
 EXE_DIRS += catip
