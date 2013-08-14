@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
                            0 == strcmp(tag, "*pes") ||
                            0 == strcmp(tag, "*es")) {
                                 cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
-                                fwrite(bbuf, cnt, 1, fd_o);
+                                (void)fwrite(bbuf, (size_t)cnt, 1, fd_o);
                         }
                 }
         }
@@ -96,7 +96,7 @@ static int deal_with_parameter(int argc, char *argv[])
 static void show_help()
 {
         fprintf(stdout,
-                "'tobin' read from stdin, translate 'XY ' to 0xXY, send to file."
+                "'tobin' read from stdin, translate 'XY ' to 0xXY, send to file.\n"
                 "\n"
                 "Usage: tobin [OPTION] file [OPTION]\n"
                 "\n"
@@ -108,15 +108,15 @@ static void show_help()
                 "Examples:\n"
                 "  tobin xxx.ts\n"
                 "\n"
-                "Report bugs to <zhoucheng@tsinghua.org.cn>.");
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return;
 }
 
 static void show_version()
 {
         fprintf(stdout,
-                "tobin of tstools v%s (%s)"
-                "Build time: %s %s"
+                "tobin of tstools v%s (%s)\n"
+                "Build time: %s %s\n"
                 "\n"
                 "Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.\n"
                 "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
@@ -124,7 +124,7 @@ static void show_version()
                 "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
                 "A PARTICULAR PURPOSE.\n"
                 "\n"
-                "Written by ZHOU Cheng.",
+                "Written by ZHOU Cheng.\n",
                 VERSION_STR, REVISION, __DATE__, __TIME__);
         return;
 }

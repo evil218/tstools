@@ -17,7 +17,7 @@ static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static long long int pkt_addr = 0;
+static intmax_t pkt_addr = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -39,12 +39,12 @@ int main(int argc, char *argv[])
         }
 
         pkt_addr = 0;
-        while(1 == url_read(bbuf, npline, 1, fd_i)) {
+        while(1 == url_read(bbuf, (size_t)npline, 1, fd_i)) {
                 fprintf(stdout, "*ts, ");
                 b2t(tbuf, bbuf, 188);
                 fprintf(stdout, "%s", tbuf);
 
-                fprintf(stdout, "*addr, %llX, \n", pkt_addr);
+                fprintf(stdout, "*addr, %jX, \n", pkt_addr);
 
                 pkt_addr += npline;
         }

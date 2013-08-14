@@ -33,7 +33,7 @@ pc:
 	$(make_lib_dirs)
 
 distclean: clean
-	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def TAGS
+	rm -f config.mak tstool_config.h config.h config.log ts.pc ts.def tags
 
 tag:
 	ctags -R *

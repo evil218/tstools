@@ -34,4 +34,6 @@ else
 LDFLAGS += -L/usr/lib -lxml2
 endif
 
+LINTFLAGS := +posixlib
+
 include ../common.mak
