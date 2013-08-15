@@ -1848,7 +1848,12 @@ static int show_error(struct tsana_obj *obj)
                 err->PTS_error = 0;
         }
         if(err->CAT_error) {
-                fprintf(stdout, "2.6 , CAT, ");
+                if((1<<0) & err->CAT_error) {
+                        fprintf(stdout, "2.6 , CAT(scrambling program without CAT), ");
+                }
+                if((1<<1) & err->CAT_error) {
+                        fprintf(stdout, "2.6 , CAT(table_id error in PID 0x0001), ");
+                }
                 err->CAT_error = 0;
         }
 

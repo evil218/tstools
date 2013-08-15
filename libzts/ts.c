@@ -1554,8 +1554,12 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != sect->table_id) {
                 err->PAT_error |= ERR_1_3_1;
-                dump(obj->ipt.TS, TS_PKT_SIZE);
-                dump(sect->section, 8);
+                goto release_sect;
+        }
+
+        /* CAT_error(table_id error) */
+        if(0x0001 == pid->PID && 0x01 != sect->table_id) {
+                err->CAT_error |= ERR_2_6_1;
                 goto release_sect;
         }
 

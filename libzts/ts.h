@@ -108,9 +108,9 @@ struct ts_err {
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
-#define ERR_1_3_0 (1<<0)
-#define ERR_1_3_1 (1<<1)
-#define ERR_1_3_2 (1<<2)
+#define ERR_1_3_0 (1<<0) /* PAT occur more than 500ms */
+#define ERR_1_3_1 (1<<1) /* table_id error in PID 0x0000 */
+#define ERR_1_3_2 (1<<2) /* PAT Scrambling_control_field is not 00 */
         int PAT_error; /* 1.3 ---- 1.3a of TR 101 290 V1.2.1 2001-05 */
         int Continuity_count_error; /* 1.4 */
 #define ERR_1_5_0 (1<<0)
@@ -126,6 +126,8 @@ struct ts_err {
         int PCR_discontinuity_indicator_error; /* 2.3b */
         int PCR_accuracy_error; /* 2.4 */
         int PTS_error; /* 2.5 ---- repetition_error */
+#define ERR_2_6_0 (1<<0) /* scrambling program without CAT */
+#define ERR_2_6_1 (1<<1) /* table_id error in PID 0x0001 */
         int CAT_error; /* 2.6 */
 
         /* Third priority: application dependant monitoring */
