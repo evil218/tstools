@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
+#include <inttypes.h> /* for uint?_t, PRIX64, etc */
 
 #include "tstool_config.h"
 #include "common.h"
@@ -17,7 +18,7 @@ static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static intmax_t pkt_addr = 0;
+static int64_t pkt_addr = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -44,7 +45,7 @@ int main(int argc, char *argv[])
                 b2t(tbuf, bbuf, 188);
                 fprintf(stdout, "%s", tbuf);
 
-                fprintf(stdout, "*addr, %jX, \n", pkt_addr);
+                fprintf(stdout, "*addr, %"PRIX64", \n", pkt_addr);
 
                 pkt_addr += npline;
         }

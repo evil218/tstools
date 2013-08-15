@@ -22,7 +22,7 @@ static void ucs4_to_utf8(uint32_t ucs4, char **utf8);
 static void ucs4_to_utf16(uint32_t ucs4, uint16_t **utf16, int endian);
 static void utf16_to_ucs4(const uint16_t **utf16, uint32_t *ucs4, int endian);
 
-static uint16_t half_search(uint16_t dat, uint16_t dflt, int hi, const uint16_t *p);
+static uint16_t half_search(uint16_t dat, uint16_t dflt, size_t hi, const uint16_t *p);
 
 int utf8_gb(const char *utf8, char *gb, size_t cnt)
 {
@@ -31,12 +31,12 @@ int utf8_gb(const char *utf8, char *gb, size_t cnt)
         uint32_t ucs4; /* UCS-4 data */
         uint16_t utf16; /* UTF-16 data */
         uint16_t gb2; /*  GB 2-byte data */
-        int max = sizeof(GB2UCS) / 4 - 1; /* high index */
+        size_t max = sizeof(GB2UCS) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 cnt -= utf8_to_ucs4(&putf, &ucs4);
                 if(0x00000000 != (ucs4 & 0xFFFF0000)) {
-                        fprintf(stderr, "UCS data(0x%08X) is bigger than 0xFFFF!\n", ucs4);
+                        fprintf(stderr, "UCS data(0x%08X) is bigger than 0xFFFF!\n", (unsigned int)ucs4);
                         break;
                 }
                 utf16 = (uint16_t)ucs4;
@@ -66,10 +66,10 @@ int gb_utf8(const char *gb, char *utf8, size_t cnt)
         uint32_t ucs4; /* UCS-4 data */
         uint16_t ucs2; /* UCS-2 data */
         uint16_t gb2; /*  GB 2-byte data */
-        int max = sizeof(GB2UCS) / 4 - 1; /* high index */
+        size_t max = sizeof(GB2UCS) / 4 - 1; /* high index */
 
         while(cnt > 0) {
-                gb2 = *gb++;
+                gb2 = (uint16_t)*gb++;
                 if(gb2 == 0x0000) {
                         break;
                 }
@@ -97,7 +97,7 @@ int utf16_gb(const uint16_t *utf16, char *gb, size_t cnt, int endian)
         int wc = 0; /* word count */
         uint16_t utf_16; /* UTF-16 data */
         uint16_t gb2; /* GB 2-byte data */
-        int max = sizeof(UCS2GB) / 4 - 1; /* high index */
+        size_t max = sizeof(UCS2GB) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 utf_16 = *utf16++;
@@ -133,7 +133,7 @@ int gb_utf16(const char *gb, uint16_t *utf16, size_t cnt, int endian)
         int wc = 0; /* word count */
         uint16_t gb2; /*  GB 2-byte data */
         uint16_t utf_16; /* UTF-16 data */
-        int max = sizeof(GB2UCS) / 4 - 1; /* high index */
+        size_t max = sizeof(GB2UCS) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 gb2 = (uint16_t)*gb++;
@@ -209,7 +209,7 @@ static int utf8_to_ucs4(const char **utf8, uint32_t *ucs4)
         uint32_t ucs_4; /* UCS-4 data */
 
         /* head */
-        head = *(*utf8)++;
+        head = (uint8_t)*(*utf8)++;
         if(head <= 0x7F) {
                 tc = 0;
                 ucs_4 = head; /* 0xxx xxxx */
@@ -363,10 +363,10 @@ static void utf16_to_ucs4(const uint16_t **utf16, uint32_t *ucs4, int endian)
         return;
 }
 
-static uint16_t half_search(uint16_t key, uint16_t dflt, int hi, const uint16_t *hash)
+static uint16_t half_search(uint16_t key, uint16_t dflt, size_t hi, const uint16_t *hash)
 {
-        int i;
-        int li = 0;
+        size_t i;
+        size_t li = 0;
         const uint16_t *p;
         uint16_t value;
         uint16_t rslt;

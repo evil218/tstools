@@ -35,9 +35,6 @@ static const char *b2t_table[256] = {
         "F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "FA", "FB", "FC", "FD", "FE", "FF"
 };
 
-/* for high-speed bin to txt convert */
-static const char b2t_string[] = "0123456789ABCDEF";
-
 /* for high speed txt to bin convert */
 static const uint8_t t2b_table_h[256] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -152,7 +149,9 @@ int next_nbyte_hex(uint8_t *byte, char **text, int max)
         int cnt;
 
         for(cnt = 0; cnt < max; cnt++) {
-                uint8_t s, h, l;
+                char s; /* white space */
+                char h; /* hi 4-bit */
+                char l; /* lo 4-bit */
 
                 /* white space */
                 s = *(*text);
@@ -180,7 +179,7 @@ int next_nbyte_hex(uint8_t *byte, char **text, int max)
                 }
                 (*text)++;
 
-                *byte++ = (t2b_table_h[h] | t2b_table_l[l]);
+                *byte++ = (t2b_table_h[(int)h] | t2b_table_l[(int)l]);
         }
 
         return cnt;
@@ -192,7 +191,8 @@ int next_nuint_hex(long long int *sint, char **text, int max)
         int cnt;
 
         for(cnt = 0; cnt < max; cnt++) {
-                uint8_t s, x;
+                char s;
+                char x;
                 unsigned long long int dat = 0;
 
                 /* white space */

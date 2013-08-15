@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
-#include <stdint.h> /* for uintN_t, etc */
+#include <inttypes.h> /* for uintN_t, PRIX64, etc */
 
 #include "tstool_config.h"
 #include "common.h"
@@ -29,14 +29,14 @@ static int npline = 16; /* data number per line */
 static int type = FILE_TS;
 static intmax_t aim_start = 0; /* first byte */
 static intmax_t aim_stop = 0; /* last byte */
-static intmax_t pkt_addr = 0;
-static intmax_t pkt_mts = 0;
+static int64_t pkt_addr = 0;
+static int32_t pkt_mts = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static int show_help();
 static int show_version();
 static int judge_type();
-static int mts_time(intmax_t *mts, uint8_t *bin);
+static int mts_time(int32_t *mts, uint8_t *bin);
 
 int main(int argc, char *argv[])
 {
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
                 switch(type) {
                         case FILE_TS:
                                 if(0x47 != bbuf[0]) {
-                                        pkt_addr -= ((pkt_addr >= (intmax_t)npline) ? npline : 0);
+                                        pkt_addr -= ((pkt_addr >= (int64_t)npline) ? npline : 0);
                                         judge_type();
                                         continue;
                                 }
@@ -68,11 +68,11 @@ int main(int argc, char *argv[])
                                 b2t(tbuf, bbuf, 188);
                                 fprintf(stdout, "%s", tbuf);
 
-                                fprintf(stdout, "*addr, %jX, \n", pkt_addr);
+                                fprintf(stdout, "*addr, %"PRIX64", \n", pkt_addr);
                                 break;
                         case FILE_MTS:
                                 if(0x47 != bbuf[4]) {
-                                        pkt_addr -= ((pkt_addr >= (intmax_t)npline) ? npline : 0);
+                                        pkt_addr -= ((pkt_addr >= (int64_t)npline) ? npline : 0);
                                         judge_type();
                                         continue;
                                 }
@@ -80,14 +80,14 @@ int main(int argc, char *argv[])
                                 b2t(tbuf, bbuf + 4, 188);
                                 fprintf(stdout, "%s", tbuf);
 
-                                fprintf(stdout, "*addr, %jX, ", pkt_addr);
+                                fprintf(stdout, "*addr, %"PRIX64", ", pkt_addr);
 
                                 mts_time(&pkt_mts, bbuf);
-                                fprintf(stdout, "*mts, %jX, \n", pkt_mts);
+                                fprintf(stdout, "*mts, %"PRIX32", \n", pkt_mts);
                                 break;
                         case FILE_TSRS:
                                 if(0x47 != bbuf[0]) {
-                                        pkt_addr -= ((pkt_addr >= (intmax_t)npline) ? npline : 0);
+                                        pkt_addr -= ((pkt_addr >= (int64_t)npline) ? npline : 0);
                                         judge_type();
                                         continue;
                                 }
@@ -99,19 +99,19 @@ int main(int argc, char *argv[])
                                 b2t(tbuf, bbuf + 188, 16);
                                 fprintf(stdout, "%s", tbuf);
 
-                                fprintf(stdout, "*addr, %jX, \n", pkt_addr);
+                                fprintf(stdout, "*addr, %"PRIX64", \n", pkt_addr);
                                 break;
                         default: /* FILE_BIN */
                                 fprintf(stdout, "*data, ");
                                 b2t(tbuf, bbuf, cnt);
                                 fprintf(stdout, "%s", tbuf);
 
-                                fprintf(stdout, "*addr, %jX, \n", pkt_addr);
+                                fprintf(stdout, "*addr, %"PRIX64", \n", pkt_addr);
                                 break;
                 }
                 pkt_addr += cnt;
 
-                if(0 != aim_stop && pkt_addr >= aim_stop) {
+                if(0 != aim_stop && pkt_addr >= (int64_t)aim_stop) {
                         break;
                 }
         }
@@ -281,9 +281,9 @@ static int judge_type()
         uint8_t dat;
         int sync_cnt = 0;
         int state = FILE_UNKNOWN;
-        intmax_t off = 0;
+        int64_t off = 0;
 
-        RPTINF("judge type from 0x%jX +%jd", pkt_addr, off);
+        RPTINF("judge type from 0x%"PRIX64" +%"PRId64, pkt_addr, off);
         type = FILE_UNKNOWN;
         while(FILE_UNKNOWN == type) {
                 switch(state) {
@@ -293,7 +293,7 @@ static int judge_type()
                                         return -1;
                                 }
                                 if(0x47 == dat) {
-                                        RPTINF("first 0x47 at +%jd, maybe TS", off);
+                                        RPTINF("first 0x47 at +%"PRId64", maybe TS", off);
                                         sync_cnt = 1;
                                         state = FILE_TS;
                                 }
@@ -373,7 +373,7 @@ static int judge_type()
                                         off++;
                                         type = FILE_UNKNOWN;
                                         state = FILE_UNKNOWN;
-                                        RPTINF("judge type from 0x%jX +%jd", pkt_addr, off);
+                                        RPTINF("judge type from 0x%"PRIX64" +%"PRId64, pkt_addr, off);
                                 }
                                 break;
                         default:
@@ -383,14 +383,14 @@ static int judge_type()
         }
 
         if(off != 0) {
-                RPTWRN("pass %jd-byte from 0x%jX (%jd)", off, pkt_addr, pkt_addr);
+                RPTWRN("pass %"PRId64"-byte from 0x%"PRIX64" (%"PRId64")", off, pkt_addr, pkt_addr);
         }
         pkt_addr += off;
         fseek(fd_i, (long)pkt_addr, SEEK_SET);
         return 0;
 }
 
-static int mts_time(intmax_t *mts, uint8_t *bin)
+static int mts_time(int32_t *mts, uint8_t *bin)
 {
         int i;
 

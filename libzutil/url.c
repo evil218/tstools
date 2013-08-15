@@ -198,7 +198,7 @@ static int parse_url(struct url *url, const char *str)
 
         /* get scheme */
         if(0 == memcmp(pattern, "*://", 4)) {
-                strtok(url->url, ":");
+                (void)strtok(url->url, ":");
 
                 /* lower case */
                 for(ps = url->url; *ps; ps++) {

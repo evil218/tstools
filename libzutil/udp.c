@@ -93,7 +93,7 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
                 int reuseaddr = 1; /* nonzero means enable */
 
                 setsockopt(udp->sock, SOL_SOCKET, SO_REUSEADDR,
-                           (char *)&reuseaddr, sizeof(int));
+                           (char *)&reuseaddr, (socklen_t)sizeof(int));
         }
 
         /* name the socket */
@@ -105,11 +105,11 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
                 local.sin_addr.s_addr = htonl(INADDR_ANY);
                 local.sin_port = ('r' == mode[0]) ? htons(port) : 0;
 
-                if(bind(udp->sock, (struct sockaddr *)&local, sizeof(struct sockaddr)) < 0) {
+                if(bind(udp->sock, (struct sockaddr *)&local, (socklen_t)sizeof(struct sockaddr)) < 0) {
                         report("bind failed");
                         fprintf(stderr, "addr: %s, port: %d\n",
                             inet_ntoa(local.sin_addr),
-                            ntohs(local.sin_port));
+                            (int)ntohs(local.sin_port));
                         return (intptr_t)NULL;
                 }
         }
@@ -131,7 +131,7 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                                      (char *)&imreq, sizeof(imreq)) != 0) {
+                                      (char *)&imreq, (socklen_t)sizeof(imreq)) != 0) {
                                 report("IP_ADD_MEMBERSHIP failed");
                         }
                 }
@@ -143,13 +143,13 @@ intptr_t udp_open(char *src_addr, char *addr, unsigned short port, char *mode)
                         mreqsrc.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         mreqsrc.imr_sourceaddr.s_addr = inet_addr(udp->src_addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
-                                      (char *)&mreqsrc, sizeof(mreqsrc)) != 0) {
+                                      (char *)&mreqsrc, (socklen_t)sizeof(mreqsrc)) != 0) {
                                 report("IP_ADD_SOURCE_MEMBERSHIP failed");
                         }
                 }
         }
 
-        udp->socklen = sizeof(struct sockaddr_in);
+        udp->socklen = (socklen_t)sizeof(struct sockaddr_in);
         return (intptr_t)udp;
 }
 
@@ -171,7 +171,7 @@ int udp_close(intptr_t id)
                         imreq.imr_interface.s_addr = htonl(INADDR_ANY);
                         imreq.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-                                      (char *)&imreq, sizeof(imreq)) != 0) {
+                                      (char *)&imreq, (socklen_t)sizeof(imreq)) != 0) {
                                 report("IP_DROP_MEMBERSHIP failed");
                         }
                 }
@@ -183,7 +183,7 @@ int udp_close(intptr_t id)
                         mreqsrc.imr_multiaddr.s_addr = inet_addr(udp->addr);
                         mreqsrc.imr_sourceaddr.s_addr = inet_addr(udp->src_addr);
                         if(setsockopt(udp->sock, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
-                                      (char *)&mreqsrc, sizeof(mreqsrc)) != 0) {
+                                      (char *)&mreqsrc, (socklen_t)sizeof(mreqsrc)) != 0) {
                                 report("IP_DROP_SOURCE_MEMBERSHIP failed");
                         }
                 }
@@ -201,17 +201,16 @@ int udp_close(intptr_t id)
         return 0;
 }
 
-size_t udp_read(intptr_t id, void *buf)
+ssize_t udp_read(intptr_t id, void *buf)
 {
         struct udp *udp = (struct udp *)id;
+        ssize_t rslt = 0;
+        fd_set fds;
 
         if(NULL == udp) {
                 RPTERR("bad id");
                 return -1;
         }
-
-        size_t rslt = 0;
-        fd_set fds;
 
         FD_ZERO(&fds);
         FD_SET(udp->sock, &fds);
@@ -229,16 +228,16 @@ size_t udp_read(intptr_t id, void *buf)
         return rslt;
 }
 
-size_t udp_write(intptr_t id, const void *buf, int len)
+ssize_t udp_write(intptr_t id, const void *buf, size_t len)
 {
         struct udp *udp = (struct udp *)id;
+        ssize_t rslt = 0;
 
         if(NULL == udp) {
                 RPTERR("bad id");
                 return -1;
         }
 
-        size_t rslt = 0;
         rslt = sendto(udp->sock, buf, len, 0,
                         (struct sockaddr *)&(udp->remote),
                         udp->socklen);
