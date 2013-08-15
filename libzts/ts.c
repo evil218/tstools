@@ -361,6 +361,7 @@ static void tidy(struct ts_obj *obj)
                         RPTINF("tidy elem: 0x%04X", (unsigned int)(elem->PID));
                         elem->PTS = STC_BASE_OVF;
                         elem->DTS = STC_BASE_OVF;
+                        elem->STC = STC_OVF;
                         elem->is_pes_align = 0;
 
                         /* add elem pid */
@@ -840,17 +841,17 @@ static int state_next_pkt(struct ts_obj *obj)
                                 obj->STC_ext = obj->STC % 300;
                         }
 
-                        /* PCR_interval (PCR packet arrive time interval) */
+                        /* PCR_repetition (PCR packet arrive time interval) */
                         if(STC_OVF != prog->PCRb) {
-                                obj->PCR_interval = ts_timestamp_diff(obj->STC, prog->PCRb, STC_OVF);
+                                obj->PCR_repetition = ts_timestamp_diff(obj->STC, prog->PCRb, STC_OVF);
                                 if((prog->is_STC_sync) &&
-                                   !(0 < obj->PCR_interval && obj->PCR_interval <= 40 * STC_MS)) {
+                                   !(0 < obj->PCR_repetition && obj->PCR_repetition <= 40 * STC_MS)) {
                                         /* !(0 < interval < +40ms) */
                                         err->PCR_repetition_error = 1;
                                 }
                         }
                         else {
-                                obj->PCR_interval = 0;
+                                obj->PCR_repetition = 0;
                         }
 
                         /* PCR_continuity (PCR value interval) */
@@ -987,11 +988,17 @@ static int state_next_pkt(struct ts_obj *obj)
 
                 if(obj->has_pts) {
                         /* PTS */
-                        if(STC_BASE_OVF != elem->PTS) {
-                                obj->PTS_interval = ts_timestamp_diff(obj->PTS, elem->PTS, STC_BASE_OVF);
+                        if(STC_OVF != elem->STC) {
+                                obj->PTS_repetition = ts_timestamp_diff(obj->STC, elem->STC, STC_OVF);
                         }
                         else {
-                                obj->PTS_interval = 0;
+                                obj->PTS_repetition = 0;
+                        }
+                        if(STC_BASE_OVF != elem->PTS) {
+                                obj->PTS_continuity = ts_timestamp_diff(obj->PTS, elem->PTS, STC_BASE_OVF);
+                        }
+                        else {
+                                obj->PTS_continuity = 0;
                         }
                         if(STC_BASE_OVF != obj->STC_base) {
                                 obj->PTS_minus_STC = ts_timestamp_diff(obj->PTS, obj->STC_base, STC_BASE_OVF);
@@ -999,14 +1006,21 @@ static int state_next_pkt(struct ts_obj *obj)
                         else {
                                 obj->PTS_minus_STC = 0;
                         }
-                        elem->PTS = obj->PTS; /* record last PTS in elem */
+                        elem->PTS = obj->PTS;
+                        elem->STC = obj->STC;
+
+                        /* PTS_error */
+                        if(!(0 <= obj->PTS_repetition && obj->PTS_repetition <= 700 * STC_MS)) {
+                                /* !(0 < interval <= +700ms) */
+                                err->PTS_error = 1;
+                        }
 
                         /* DTS, if no DTS, DTS = PTS */
                         if(STC_BASE_OVF != elem->DTS) {
-                                obj->DTS_interval = ts_timestamp_diff(obj->DTS, elem->DTS, STC_BASE_OVF);
+                                obj->DTS_continuity = ts_timestamp_diff(obj->DTS, elem->DTS, STC_BASE_OVF);
                         }
                         else {
-                                obj->DTS_interval = 0;
+                                obj->DTS_continuity = 0;
                         }
                         if(STC_BASE_OVF != obj->STC_base) {
                                 obj->DTS_minus_STC = ts_timestamp_diff(obj->DTS, obj->STC_base, STC_BASE_OVF);
@@ -1539,7 +1553,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
 
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != sect->table_id) {
-                err->PAT_error = ERR_1_3_1;
+                err->PAT_error |= ERR_1_3_1;
                 dump(obj->ipt.TS, TS_PKT_SIZE);
                 dump(sect->section, 8);
                 goto release_sect;
@@ -1598,11 +1612,11 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PAT_error */
-        if(obj->sect_interval > 500 * STC_MS) {
-                err->PAT_error = ERR_1_3_0;
+        if(!(0 <= obj->sect_interval && obj->sect_interval <= 500 * STC_MS)) {
+                err->PAT_error |= ERR_1_3_0;
         }
         if(0x00 != tsh->transport_scrambling_control) {
-                err->PAT_error = ERR_1_3_2;
+                err->PAT_error |= ERR_1_3_2;
         }
 
         /* to avoid stack overflow, FIXME */
@@ -1786,11 +1800,11 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PMT_error */
-        if(obj->sect_interval > 500 * STC_MS) {
-                err->PMT_error = ERR_1_5_0;
+        if(!(0 <= obj->sect_interval && obj->sect_interval <= 500 * STC_MS)) {
+                err->PMT_error |= ERR_1_5_0;
         }
         if(0x00 != tsh->transport_scrambling_control) {
-                err->PMT_error = ERR_1_5_1;
+                err->PMT_error |= ERR_1_5_1;
         }
 
         /* in PMT, table_id_extension is program_number */
@@ -1945,6 +1959,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                 }
                 elem->PTS = STC_BASE_OVF;
                 elem->DTS = STC_BASE_OVF;
+                elem->STC = STC_OVF;
 
                 elem->is_pes_align = 0;
 

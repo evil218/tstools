@@ -125,7 +125,7 @@ struct ts_err {
         int PCR_repetition_error; /* 2.3a */
         int PCR_discontinuity_indicator_error; /* 2.3b */
         int PCR_accuracy_error; /* 2.4 */
-        int PTS_error; /* 2.5 */
+        int PTS_error; /* 2.5 ---- repetition_error */
         int CAT_error; /* 2.6 */
 
         /* Third priority: application dependant monitoring */
@@ -279,6 +279,7 @@ struct ts_elem {
         /* for PTS/DTS mark */
         int64_t PTS; /* last PTS, for obj->PTS_interval */
         int64_t DTS; /* last DTS, for obj->DTS_interval */
+        int64_t STC; /* STC of last PTS, for err->PTS_error */
 
         int is_pes_align; /* met first PES head */
 };
@@ -417,7 +418,7 @@ struct ts_obj {
         int64_t PCR;
         int64_t PCR_base;
         int16_t PCR_ext;
-        int64_t PCR_interval; /* PCR packet arrive time interval */
+        int64_t PCR_repetition; /* PCR packet arrive time interval */
         int64_t PCR_continuity; /* PCR value interval */
         int64_t PCR_jitter; /* PCR - STC */
 
@@ -429,13 +430,14 @@ struct ts_obj {
         /* PTS */
         int has_pts;
         int64_t PTS;
-        int64_t PTS_interval;
+        int64_t PTS_repetition; /* PTS packet arrive time interval */
+        int64_t PTS_continuity; /* PTS value interval */
         int64_t PTS_minus_STC;
 
         /* DTS */
         int has_dts;
         int64_t DTS;
-        int64_t DTS_interval;
+        int64_t DTS_continuity;
         int64_t DTS_minus_STC;
 
         /* ES */

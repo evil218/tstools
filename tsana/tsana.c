@@ -1419,7 +1419,7 @@ static void show_pcr(struct tsana_obj *obj)
                 fprintf(stdout, "%s*pcr%s, %13"PRIu64", %10"PRIu64", %3d, %+7.3f, %+7.3f, %+4.0f, ",
                         obj->color_green, obj->color_off,
                         ts->PCR, ts->PCR_base, ts->PCR_ext,
-                        (double)(ts->PCR_interval) / STC_MS,
+                        (double)(ts->PCR_repetition) / STC_MS,
                         (double)(ts->PCR_continuity) / STC_MS,
                         (double)(ts->PCR_jitter) * 1e3 / STC_US);
         }
@@ -1438,13 +1438,13 @@ static void show_pts(struct tsana_obj *obj)
                 fprintf(stdout, "%s*pts%s, %10"PRIu64", %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
                         ts->PTS,
-                        (double)(ts->PTS_interval) / (90), /* ms */
+                        (double)(ts->PTS_continuity) / (90), /* ms */
                         (double)(ts->PTS_minus_STC) / (90)); /* ms */
 
                 fprintf(stdout, "%s*dts%s, %10"PRIu64", %+8.3f, %+8.3f, ",
                         obj->color_green, obj->color_off,
                         ts->DTS,
-                        (double)(ts->DTS_interval) / (90), /* ms */
+                        (double)(ts->DTS_continuity) / (90), /* ms */
                         (double)(ts->DTS_minus_STC) / (90)); /* ms */
         }
         else {
@@ -1804,7 +1804,8 @@ static int show_error(struct tsana_obj *obj)
         }
         if(err->PMT_error) {
                 if((1<<0) & err->PMT_error) {
-                        fprintf(stdout, "1.5a, PMT(section_interval > 0.5s), ");
+                        fprintf(stdout, "1.5a, PMT section_interval(%+7.3f ms): (0, 500)ms, ",
+                                (double)(ts->sect_interval) / STC_MS);
                 }
                 if((1<<1) & err->PMT_error) {
                         fprintf(stdout, "1.5b, PMT(transport_scrambling_field != 0x00), ");
@@ -1828,7 +1829,7 @@ static int show_error(struct tsana_obj *obj)
         }
         if(err->PCR_repetition_error) {
                 fprintf(stdout, "2.3a, PCR_repetition(%+7.3f ms), ",
-                        (double)(ts->PCR_interval) / STC_MS);
+                        (double)(ts->PCR_repetition) / STC_MS);
                 err->PCR_repetition_error = 0;
         }
         if(err->PCR_discontinuity_indicator_error) {
@@ -1842,7 +1843,8 @@ static int show_error(struct tsana_obj *obj)
                 err->PCR_accuracy_error = 0;
         }
         if(err->PTS_error) {
-                fprintf(stdout, "2.5 , PTS, ");
+                fprintf(stdout, "2.5 , PTS_repetition(%+7.3f ms > 700ms), ",
+                        (double)(ts->PTS_repetition) / STC_MS);
                 err->PTS_error = 0;
         }
         if(err->CAT_error) {
