@@ -296,6 +296,8 @@ static void init(/*@out@*/ struct ts_obj *obj)
         obj->CTS0 = (int64_t)0;
         obj->lCTS = (int64_t)0; /* for MTS file only, must init as 0L */
         obj->STC = STC_OVF;
+        obj->has_scrambling = 0;
+        obj->has_CAT = 0;
 
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
         memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
@@ -553,6 +555,10 @@ int ts_parse_tsh(struct ts_obj *obj)
         tsh->transport_scrambling_control = (dat & (BIT(7) | BIT(6))) >> 6;
         tsh->adaption_field_control = (dat & (BIT(5) | BIT(4))) >> 4;;
         tsh->continuity_counter = dat & 0x0F;
+
+        if(0 != tsh->transport_scrambling_control) {
+                obj->has_scrambling = 1;
+        }
 
         if(0x00 == tsh->adaption_field_control) {
                 RPTERR("Bad adaption_field_control field(00)!");
@@ -977,6 +983,12 @@ static int state_next_pkt(struct ts_obj *obj)
                         obj->has_rate = 1;
 
                         obj->is_psi_si_parsed = 1;
+
+                        /* CAT_error */
+                        if((obj->has_scrambling) && !(obj->has_CAT)) {
+                                obj->has_scrambling = 0;
+                                err->CAT_error |= ERR_2_6_0;
+                        }
                 }
         }
 
@@ -1577,6 +1589,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                                 RPTERR("CAT: PID is not 0x0001 but 0x%04X, ignore!", (unsigned int)(pid->PID));
                                 goto release_sect;
                         }
+                        obj->has_CAT = 1;
                         ts_parse_secb_cat(obj);
                         break;
                 case 0x02:

@@ -492,6 +492,10 @@ struct ts_obj {
         int64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
         int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
 
+        /* for CAT_error */
+        int has_scrambling; /* meet PID with scrambling */
+        int has_CAT; /* meet CAT */
+
         /* error */
         struct ts_err err;
 
