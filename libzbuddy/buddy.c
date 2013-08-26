@@ -20,7 +20,7 @@
 static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
-#define IS_POWER_OF_2(x) (0 == ((x) & ((x) - 1)))
+#define IS_POWER_OF_2(x) ((0 == ((x) & ((x) - 1))) && (0 != (x)))
 
 #define LSUBTREE(index) (((index) << 1) + 1)
 #define RSUBTREE(index) (((index) << 1) + 2)
@@ -124,9 +124,9 @@ int buddy_destroy(/*@only@*/ /*@null@*/ void *id)
 int buddy_init(void *id)
 {
         struct buddy_pool *p;
-        size_t tree_size;
-        size_t order;
-        size_t i;
+        uint8_t *tree;
+        int i;
+        int order;
 
         p= (struct buddy_pool *)id;
         if(NULL == p) {
@@ -138,12 +138,13 @@ int buddy_init(void *id)
                 return -1;
         }
 
-        tree_size = (1 << (p->omax - p->omin + 1)) - 1;
-        for(order = p->omax + 1, i = 0; i < tree_size; i++) {
-                if(IS_POWER_OF_2(i + 1)) {
-                        order--;
-                }
-                p->tree[i] = order;
+        /* init p->tree */
+        i = 0;
+        tree = p->tree;
+        for(order = p->omax; order >= p->omin; order--) {
+                memset(tree, order, ((size_t)1 << i));
+                tree += (1 << i);
+                i++;
         }
         return 0;
 }
@@ -185,8 +186,9 @@ int buddy_status(void *id, int enable, const char *hint)
                         cnt = 0;
                 }
                 if(0 == p->tree[i]) {
-                        if(LSUBTREE(i) >= tree_size || RSUBTREE(i) >= tree_size) {
-                                /* no subtree */
+                        if((LSUBTREE(i) >= tree_size) || /* no subtree */
+                           !(0 == p->tree[LSUBTREE(i)] || 0 == p->tree[RSUBTREE(i)])) { /* not subtree allocated */
+                                /* allocated */
                                 cnt++;
                                 acc += (1 << order);
 #if 0
@@ -200,24 +202,6 @@ int buddy_status(void *id, int enable, const char *hint)
                                 }
                                 fprintf(stderr, "\n");
 #endif
-                        }
-                        else {
-                                /* depend on subtree */
-                                if(0 != p->tree[LSUBTREE(i)] || 0 != p->tree[RSUBTREE(i)]) {
-                                        cnt++;
-                                        acc += (1 << order);
-#if 0
-                                        uint8_t *buf = (p->pool + (i + 1) * (1<<order) - (p->size));
-                                        for(size_t x = 0; x <(1 << order); x++) {
-                                                fprintf(stderr, "%c", *(buf + x));
-                                        }
-                                        fprintf(stderr, "\n");
-                                        for(size_t x = 0; x <(1 << order); x++) {
-                                                fprintf(stderr, "%02X ", *(buf + x));
-                                        }
-                                        fprintf(stderr, "\n");
-#endif
-                                }
                         }
                 }
                 if(IS_POWER_OF_2(i + 2) && (0 != cnt)) {

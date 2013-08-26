@@ -1,6 +1,16 @@
 /* vim: set tabstop=8 shiftwidth=8:
  * name: buddy.h
  * funx: buddy memory pool, to avoid malloc and free from OS frequently
+ *
+ * tree vs pool:
+ *
+ *         7          6             0
+ *       6   6      0   6         0   0
+ *      5 5 5 5    5 5 5 5       5 5 5 5
+ *
+ *       init     (2^6)-byte   2x(2^6)-byte
+ *      status     allocted      allocted
+ *
  * 2013-03-09, ZHOU Cheng, modularized
  * 2012-11-02, manuscola.bean@gmail.com, optimized from https://github.com/wuwenbin/buddy2
  */

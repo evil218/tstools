@@ -1287,15 +1287,19 @@ static int ts_ts2sect(struct ts_obj *obj)
 
                         if(section_syntax_indicator) {
                                 if(pid->section_length > NORMAL_SECTION_LENGTH_MAX) {
-                                        RPTERR("normal section_length(%d) > %d",
-                                            (int)(pid->section_length), NORMAL_SECTION_LENGTH_MAX);
+                                        RPTERR("normal table_id: 0x%02X, section_length(%d) > %d",
+                                            (unsigned int)(pid->table_id),
+                                            (int)(pid->section_length),
+                                            NORMAL_SECTION_LENGTH_MAX);
                                         goto ts2sect_free_pkt_list;
                                 }
                         }
                         else { /* !(section_syntax_indicator) */
                                 if(pid->section_length > PRIVATE_SECTION_LENGTH_MAX) {
-                                        RPTERR("private section_length(%d) > %d",
-                                            (int)(pid->section_length), PRIVATE_SECTION_LENGTH_MAX);
+                                        RPTERR("private table_id: 0x%02X, section_length(%d) > %d",
+                                            (unsigned int)(pid->table_id),
+                                            (int)(pid->section_length),
+                                            PRIVATE_SECTION_LENGTH_MAX);
                                         goto ts2sect_free_pkt_list;
                                 }
                         }

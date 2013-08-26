@@ -977,7 +977,7 @@ static void show_help()
                 " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
                 " -cts             \"*cts, CTS, BASE, \"\n"
                 " -stc             \"*stc, STC, BASE, \"\n"
-                " -pcr             \"*pcr, PCR, BASE, EXT, interval(ms), continuity(ms), jitter(ns), \"\n"
+                " -pcr             \"*pcr, PCR, BASE, EXT, dSTC(ms), dPCR(ms), PCR-STC(ns), \"\n"
                 " -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"\n"
                 " -tsh             \"*tsh, 47, xx, xx, xx, \"\n"
                 " -ts              \"*ts, 47, ..., xx, \"\n"
