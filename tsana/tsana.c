@@ -396,8 +396,6 @@ static void state_parse_psi(struct tsana_obj *obj)
 
 static int state_parse_each(struct tsana_obj *obj)
 {
-        int i;
-        int has_err;
         int has_report;
         struct ts_obj *ts = obj->ts;
         struct ts_pid *pid = ts->pid;
@@ -449,14 +447,6 @@ static int state_parse_each(struct tsana_obj *obj)
                 }
         }
 
-        /* error for this TS packet? */
-        has_err = 0;
-        for(i = 0; i < sizeof(struct ts_err); i++) {
-                if(*((uint8_t *)&(ts->err) + i)) {
-                        has_err = 1;
-                }
-        }
-
         /* report for this TS packet? */
         has_report = 0;
         if(obj->aim.pts && ts->has_pts) {
@@ -495,7 +485,7 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.ratp && ts->has_rate) {
                 has_report = 1;
         }
-        if(obj->aim.err && has_err) {
+        if(obj->aim.err && ts->has_err) {
                 has_report = 1;
         }
 
@@ -554,7 +544,7 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.ratp && ts->has_rate) {
                 show_ratp(obj);
         }
-        if(obj->aim.err && has_err) {
+        if(obj->aim.err && ts->has_err) {
                 if(0 != show_error(obj)) {
                         return -1;
                 }
@@ -1771,94 +1761,109 @@ static int show_error(struct tsana_obj *obj)
         struct ts_obj *ts = obj->ts;
         struct ts_err *err = &(ts->err);
 
+        ts->has_err = 0;
+
         fprintf(stdout, "%s*err%s, ",
                 obj->color_green, obj->color_off);
 
         /* First priority: necessary for de-codability (basic monitoring) */
-        if(err->TS_sync_loss) {
-                fprintf(stdout, "1.1, TS_sync_loss, ");
-                if(err->Sync_byte_error > 10) {
-                        fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
-                        return -1;
+        if(err->has_level1_error) {
+                err->has_level1_error = 0;
+
+                if(err->TS_sync_loss) {
+                        fprintf(stdout, "1.1, TS_sync_loss, ");
+                        if(err->Sync_byte_error > 10) {
+                                fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
+                                return -1;
+                        }
+                        /* do NOT clear TS_sync_loss here */
+                        return 0;
                 }
-                return 0;
-        }
-        if(err->Sync_byte_error == 1) {
-                fprintf(stdout, "1.2 , Sync_byte, ");
-        }
-        if(err->PAT_error) {
-                if((1<<0) & err->PAT_error) {
-                        fprintf(stdout, "1.3a, PAT(section_interval > 0.5s), ");
+                if(err->Sync_byte_error) {
+                        fprintf(stdout, "1.2 , Sync_byte_error, ");
+                        /* do NOT clear Sync_byte_error here */
                 }
-                if((1<<1) & err->PAT_error) {
-                        fprintf(stdout, "1.3b, PAT(table_id != 0x00), ");
+                if(err->PAT_error) {
+                        if(ERR_1_3_0 & err->PAT_error) {
+                                fprintf(stdout, "1.3a, PAT(section_interval > 0.5s), ");
+                        }
+                        if(ERR_1_3_1 & err->PAT_error) {
+                                fprintf(stdout, "1.3b, PAT(table_id != 0x00), ");
+                        }
+                        if(ERR_1_3_2 & err->PAT_error) {
+                                fprintf(stdout, "1.3c, PAT(transport_scrambling_field != 0x00), ");
+                        }
+                        err->PAT_error = 0;
                 }
-                if((1<<2) & err->PAT_error) {
-                        fprintf(stdout, "1.3c, PAT(transport_scrambling_field != 0x00), ");
+                if(err->Continuity_count_error) {
+                        fprintf(stdout, "1.4 , CC(%X-%X=%2u), ",
+                                ts->CC_find, ts->CC_wait, ts->CC_lost);
                 }
-                err->PAT_error = 0;
-        }
-        if(err->Continuity_count_error) {
-                fprintf(stdout, "1.4 , CC(%X-%X=%2u), ",
-                        ts->CC_find, ts->CC_wait, ts->CC_lost);
-        }
-        if(err->PMT_error) {
-                if((1<<0) & err->PMT_error) {
-                        fprintf(stdout, "1.5a, PMT section_interval(%+7.3f ms): (0, 500)ms, ",
-                                (double)(ts->sect_interval) / STC_MS);
+                if(err->PMT_error) {
+                        if(ERR_1_5_0 & err->PMT_error) {
+                                fprintf(stdout, "1.5a, PMT section_interval(%+7.3f ms): (0, 500)ms, ",
+                                        (double)(ts->sect_interval) / STC_MS);
+                        }
+                        if(ERR_1_5_1 & err->PMT_error) {
+                                fprintf(stdout, "1.5b, PMT(transport_scrambling_field != 0x00), ");
+                        }
+                        err->PMT_error = 0;
                 }
-                if((1<<1) & err->PMT_error) {
-                        fprintf(stdout, "1.5b, PMT(transport_scrambling_field != 0x00), ");
+                if(err->PID_error) {
+                        fprintf(stdout, "1.6 , PID_error, ");
+                        err->PID_error = 0;
                 }
-                err->PMT_error = 0;
-        }
-        if(err->PID_error) {
-                fprintf(stdout, "1.6 , PID, ");
-                err->PID_error = 0;
         }
 
         /* Second priority: recommended for continuous or periodic monitoring */
-        if(err->Transport_error) {
-                fprintf(stdout, "2.1 , Transport, ");
-                err->Transport_error = 0;
-        }
-        if(err->CRC_error) {
-                fprintf(stdout, "2.2 , CRC(0x%08X! 0x%08X?), ",
-                        ts->CRC_32_calc, ts->CRC_32);
-                err->CRC_error = 0;
-        }
-        if(err->PCR_repetition_error) {
-                fprintf(stdout, "2.3a, PCR_repetition(%+7.3f ms), ",
-                        (double)(ts->PCR_repetition) / STC_MS);
-                err->PCR_repetition_error = 0;
-        }
-        if(err->PCR_discontinuity_indicator_error) {
-                fprintf(stdout, "2.3b, PCR_discontinuity_indicator(%+7.3f ms), ",
-                        (double)(ts->PCR_continuity) / STC_MS);
-                err->PCR_discontinuity_indicator_error = 0;
-        }
-        if(err->PCR_accuracy_error) {
-                fprintf(stdout, "2.4 , PCR_accuracy(%+4.0f ns), ",
-                        (double)(ts->PCR_jitter) * 1e3 / STC_US);
-                err->PCR_accuracy_error = 0;
-        }
-        if(err->PTS_error) {
-                fprintf(stdout, "2.5 , PTS_repetition(%+7.3f ms > 700ms), ",
-                        (double)(ts->PTS_repetition) / STC_MS);
-                err->PTS_error = 0;
-        }
-        if(err->CAT_error) {
-                if((1<<0) & err->CAT_error) {
-                        fprintf(stdout, "2.6 , CAT(scrambling program without CAT), ");
+        if(err->has_level2_error) {
+                err->has_level2_error = 0;
+
+                if(err->Transport_error) {
+                        fprintf(stdout, "2.1 , Transport, ");
+                        err->Transport_error = 0;
                 }
-                if((1<<1) & err->CAT_error) {
-                        fprintf(stdout, "2.6 , CAT(table_id error in PID 0x0001), ");
+                if(err->CRC_error) {
+                        fprintf(stdout, "2.2 , CRC(0x%08X! 0x%08X?), ",
+                                ts->CRC_32_calc, ts->CRC_32);
+                        err->CRC_error = 0;
                 }
-                err->CAT_error = 0;
+                if(err->PCR_repetition_error) {
+                        fprintf(stdout, "2.3a, PCR_repetition(%+7.3f ms), ",
+                                (double)(ts->PCR_repetition) / STC_MS);
+                        err->PCR_repetition_error = 0;
+                }
+                if(err->PCR_discontinuity_indicator_error) {
+                        fprintf(stdout, "2.3b, PCR_discontinuity_indicator(%+7.3f ms), ",
+                                (double)(ts->PCR_continuity) / STC_MS);
+                        err->PCR_discontinuity_indicator_error = 0;
+                }
+                if(err->PCR_accuracy_error) {
+                        fprintf(stdout, "2.4 , PCR_accuracy(%+4.0f ns), ",
+                                (double)(ts->PCR_jitter) * 1e3 / STC_US);
+                        err->PCR_accuracy_error = 0;
+                }
+                if(err->PTS_error) {
+                        fprintf(stdout, "2.5 , PTS_repetition(%+7.3f ms > 700ms), ",
+                                (double)(ts->PTS_repetition) / STC_MS);
+                        err->PTS_error = 0;
+                }
+                if(err->CAT_error) {
+                        if(ERR_2_6_0 & err->CAT_error) {
+                                fprintf(stdout, "2.6 , CAT(scrambling program without CAT), ");
+                        }
+                        if(ERR_2_6_1 & err->CAT_error) {
+                                fprintf(stdout, "2.6 , CAT(table_id error in PID 0x0001), ");
+                        }
+                        err->CAT_error = 0;
+                }
         }
 
         /* Third priority: application dependant monitoring */
-        /* ... */
+        if(err->has_level3_error) {
+                err->has_level3_error = 0;
+                /* ... */
+        }
 
         return 0;
 }

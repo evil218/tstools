@@ -532,6 +532,8 @@ int ts_parse_tsh(struct ts_obj *obj)
                 if(err->Sync_byte_error > 1) {
                         err->TS_sync_loss++;
                 }
+                err->has_level1_error++;
+                obj->has_err++;
                 RPTERR("sync_byte(0x%02X) error!", (unsigned int)(tsh->sync_byte));
                 dump(ipt->TS, TS_PKT_SIZE);
         }
@@ -545,7 +547,11 @@ int ts_parse_tsh(struct ts_obj *obj)
         tsh->payload_unit_start_indicator = (dat & BIT(6)) >> 6;
         tsh->transport_priority = (dat & BIT(5)) >> 5;
         tsh->PID = dat & 0x1F;
-        err->Transport_error = (int)(tsh->transport_error_indicator);
+        if(tsh->transport_error_indicator) {
+                err->Transport_error = 1;
+                err->has_level2_error++;
+                obj->has_err++;
+        }
 
         dat = *(obj->cur)++;
         tsh->PID <<= 8;
@@ -802,6 +808,10 @@ static int state_next_pkt(struct ts_obj *obj)
                         else { /* 00 or 10 */
                                 dCC = 0;
                         }
+                        if(0x1FFF == tsh->PID) {
+                                /* adaption_field_control is 01, but: */
+                                dCC = 0;
+                        }
 
                         pid->CC += dCC;
                         pid->CC &= 0x0F; /* 4-bit */
@@ -823,7 +833,11 @@ static int state_next_pkt(struct ts_obj *obj)
                         obj->CC_lost = 0;
                 }
                 pid->CC = tsh->continuity_counter; /* update CC */
-                err->Continuity_count_error = (0x1FFF == tsh->PID) ? 0 : obj->CC_lost;
+                if(obj->CC_lost) {
+                        err->Continuity_count_error = 1;
+                        err->has_level1_error++;
+                        obj->has_err++;
+                }
         }
 
         /* PCR flush */
@@ -854,6 +868,8 @@ static int state_next_pkt(struct ts_obj *obj)
                                    !(0 < obj->PCR_repetition && obj->PCR_repetition <= 40 * STC_MS)) {
                                         /* !(0 < interval < +40ms) */
                                         err->PCR_repetition_error = 1;
+                                        err->has_level2_error++;
+                                        obj->has_err++;
                                 }
                         }
                         else {
@@ -867,6 +883,8 @@ static int state_next_pkt(struct ts_obj *obj)
                                    !(0 < obj->PCR_continuity && obj->PCR_continuity <= 100 * STC_MS)) {
                                         /* !(0 < continuity < +100ms) */
                                         err->PCR_discontinuity_indicator_error = 1;
+                                        err->has_level2_error++;
+                                        obj->has_err++;
                                 }
                         }
                         else {
@@ -879,6 +897,8 @@ static int state_next_pkt(struct ts_obj *obj)
                            !(-13 <= obj->PCR_jitter && obj->PCR_jitter <= +13)) {
                                 /* !(-500ns < jitter < +500ns) */
                                 err->PCR_accuracy_error = 1;
+                                err->has_level2_error++;
+                                obj->has_err++;
                         }
                 }
                 else {
@@ -988,6 +1008,8 @@ static int state_next_pkt(struct ts_obj *obj)
                         if((obj->has_scrambling) && !(obj->has_CAT)) {
                                 obj->has_scrambling = 0;
                                 err->CAT_error |= ERR_2_6_0;
+                                err->has_level2_error++;
+                                obj->has_err++;
                         }
                 }
         }
@@ -1025,6 +1047,8 @@ static int state_next_pkt(struct ts_obj *obj)
                         if(!(0 <= obj->PTS_repetition && obj->PTS_repetition <= 700 * STC_MS)) {
                                 /* !(0 < interval <= +700ms) */
                                 err->PTS_error = 1;
+                                err->has_level2_error++;
+                                obj->has_err++;
                         }
 
                         /* DTS, if no DTS, DTS = PTS */
@@ -1470,6 +1494,8 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 obj->CRC_32_calc = ts_crc(new_sect->section, 3 + new_sect->section_length - 4, 32);
                 if(obj->CRC_32_calc != obj->CRC_32) {
                         err->CRC_error = 1;
+                        err->has_level2_error++;
+                        obj->has_err++;
 #if 0
                         RPTERR("CRC error(0x%08X! 0x%08X?)",
                             obj->CRC_32_calc, obj->CRC_32);
@@ -1570,12 +1596,16 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         /* PAT_error(table_id error) */
         if(0x0000 == pid->PID && 0x00 != sect->table_id) {
                 err->PAT_error |= ERR_1_3_1;
+                err->has_level1_error++;
+                obj->has_err++;
                 goto release_sect;
         }
 
         /* CAT_error(table_id error) */
         if(0x0001 == pid->PID && 0x01 != sect->table_id) {
                 err->CAT_error |= ERR_2_6_1;
+                err->has_level2_error++;
+                obj->has_err++;
                 goto release_sect;
         }
 
@@ -1635,9 +1665,13 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         /* PAT_error */
         if(!(0 <= obj->sect_interval && obj->sect_interval <= 500 * STC_MS)) {
                 err->PAT_error |= ERR_1_3_0;
+                err->has_level1_error++;
+                obj->has_err++;
         }
         if(0x00 != tsh->transport_scrambling_control) {
                 err->PAT_error |= ERR_1_3_2;
+                err->has_level1_error++;
+                obj->has_err++;
         }
 
         /* to avoid stack overflow, FIXME */
@@ -1823,9 +1857,13 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         /* PMT_error */
         if(!(0 <= obj->sect_interval && obj->sect_interval <= 500 * STC_MS)) {
                 err->PMT_error |= ERR_1_5_0;
+                err->has_level1_error++;
+                obj->has_err++;
         }
         if(0x00 != tsh->transport_scrambling_control) {
                 err->PMT_error |= ERR_1_5_1;
+                err->has_level1_error++;
+                obj->has_err++;
         }
 
         /* in PMT, table_id_extension is program_number */

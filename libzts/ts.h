@@ -105,6 +105,10 @@ extern "C" {
 
 /* TR 101 290 V1.2.1 2001-05 */
 struct ts_err {
+        int has_level1_error; /* check veriables of "First priority" for detail information */
+        int has_level2_error; /* check veriables of "Second priority" for detail information */
+        int has_level3_error; /* check veriables of "Third priority" for detail information */
+
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
@@ -116,7 +120,7 @@ struct ts_err {
 #define ERR_1_5_0 (1<<0)
 #define ERR_1_5_1 (1<<1)
         int PMT_error; /* 1.5 ---- 1.5a of TR 101 290 V1.2.1 2001-05 */
-        int PID_error; /* 1.6 */
+        int PID_error; /* 1.6 FIXME: not supported */
 
         /* Second priority: recommended for continuous or periodic monitoring */
         int Transport_error; /* 2.1 */
@@ -497,6 +501,7 @@ struct ts_obj {
         int has_CAT; /* meet CAT */
 
         /* error */
+        int has_err; /* check err struct for detail information */
         struct ts_err err;
 
         /* special variables for ts object */
