@@ -186,7 +186,9 @@ static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(uint8_t stream_type);
+#if 0
 static int dump(uint8_t *buf, int len);
+#endif
 
 /*@only@*/
 /*@null@*/
@@ -534,8 +536,6 @@ int ts_parse_tsh(struct ts_obj *obj)
                 }
                 err->has_level1_error++;
                 obj->has_err++;
-                RPTERR("sync_byte(0x%02X) error!", (unsigned int)(tsh->sync_byte));
-                dump(ipt->TS, TS_PKT_SIZE);
         }
         else {
                 err->TS_sync_loss = 0;
@@ -567,7 +567,9 @@ int ts_parse_tsh(struct ts_obj *obj)
         }
 
         if(0x00 == tsh->adaption_field_control) {
-                RPTERR("Bad adaption_field_control field(00)!");
+                err->adaption_field_control_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
         }
 
         if((BIT(1) & tsh->adaption_field_control) && obj->cfg.need_af) {
@@ -902,7 +904,9 @@ static int state_next_pkt(struct ts_obj *obj)
                         }
                 }
                 else {
-                        RPTERR("No program use this PCR packet(0x%04X)!", (unsigned int)(tsh->PID));
+                        err->wild_pcr_packet = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
                 }
 
                 /* traverse prog_list: maybe some of them use this PCR PID */
@@ -1183,6 +1187,7 @@ static int ts_ts2sect(struct ts_obj *obj)
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_pid *pid = obj->pid;
         struct ts_pkt *pkt;
+        struct ts_err *err = &(obj->err);
 
         /* collect packet(make pkt list) */
         if(!(pid->pkt0)) {
@@ -1311,19 +1316,17 @@ static int ts_ts2sect(struct ts_obj *obj)
 
                         if(section_syntax_indicator) {
                                 if(pid->section_length > NORMAL_SECTION_LENGTH_MAX) {
-                                        RPTERR("normal table_id: 0x%02X, section_length(%d) > %d",
-                                            (unsigned int)(pid->table_id),
-                                            (int)(pid->section_length),
-                                            NORMAL_SECTION_LENGTH_MAX);
+                                        err->normal_section_length_error = 1;
+                                        err->has_other_error++;
+                                        obj->has_err++;
                                         goto ts2sect_free_pkt_list;
                                 }
                         }
                         else { /* !(section_syntax_indicator) */
                                 if(pid->section_length > PRIVATE_SECTION_LENGTH_MAX) {
-                                        RPTERR("private table_id: 0x%02X, section_length(%d) > %d",
-                                            (unsigned int)(pid->table_id),
-                                            (int)(pid->section_length),
-                                            PRIVATE_SECTION_LENGTH_MAX);
+                                        err->private_section_length_error = 1;
+                                        err->has_other_error++;
+                                        obj->has_err++;
                                         goto ts2sect_free_pkt_list;
                                 }
                         }
@@ -1386,7 +1389,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                                 obj->cur = obj->tail - pkt->payload_size;
 #ifdef DEBUG_SECTION_FRAGMENT
                                                 fprintf(stderr, "(%d-byte new section head)\n", pkt->payload_size);
-                                                dump(obj->cur, pkt->payload_size);
+                                                //dump(obj->cur, pkt->payload_size);
 #endif
                                                 pid->payload_total = pkt->payload_size;
                                                 pid->has_new_sech = 0;
@@ -1496,12 +1499,6 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         err->CRC_error = 1;
                         err->has_level2_error++;
                         obj->has_err++;
-#if 0
-                        RPTERR("CRC error(0x%08X! 0x%08X?)",
-                            obj->CRC_32_calc, obj->CRC_32);
-                        dump(obj->ipt.TS, TS_PKT_SIZE);
-                        dump(new_sect->section, 3 + new_sect->section_length);
-#endif
                         goto release_sect;
                 }
         }
@@ -1613,14 +1610,18 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         switch(sect->table_id) {
                 case 0x00:
                         if(0x0000 != pid->PID) {
-                                RPTERR("PAT: PID is not 0x0000 but 0x%04X, ignore!", (unsigned int)(pid->PID));
+                                err->pat_pid_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 goto release_sect;
                         }
                         ts_parse_secb_pat(obj);
                         break;
                 case 0x01:
                         if(0x0001 != pid->PID) {
-                                RPTERR("CAT: PID is not 0x0001 but 0x%04X, ignore!", (unsigned int)(pid->PID));
+                                err->cat_pid_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 goto release_sect;
                         }
                         obj->has_CAT = 1;
@@ -1628,14 +1629,18 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         break;
                 case 0x02:
                         if(!IS_TYPE(TS_TYPE_PMT, pid->type)) {
-                                RPTERR("PMT: PID is NOT PMT_PID but 0x%04X, ignore!", (unsigned int)(pid->PID));
+                                err->pmt_pid_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 goto release_sect;
                         }
                         ts_parse_secb_pmt(obj);
                         break;
                 case 0x42:
                         if(0x0011 != pid->PID) {
-                                RPTERR("SDT: PID is not 0x0011 but 0x%04X, ignore!", (unsigned int)(pid->PID));
+                                err->sdt_pid_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 goto release_sect;
                         }
                         ts_parse_secb_sdt(obj);
@@ -1719,9 +1724,9 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
                         new_pid->type = TS_TYPE_NIT;
 
                         if(0x0010 != new_pid->PID) {
-#if 1
-                                RPTERR("NIT_PID(0x%04X) is NOT 0x0010!", (unsigned int)(new_pid->PID));
-#endif
+                                err->nit_pid_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                         }
                         free_prog(obj->mp, prog);
                 }
@@ -1795,6 +1800,7 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
         uint8_t *cur = sect->section + 8;
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
+        struct ts_err *err = &(obj->err);
 
         while(cur < crc) {
                 uint8_t tag;
@@ -1805,7 +1811,9 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
                 len = *cur++;
                 pt = cur;
                 if((0xFF == tag) || (0 == len)) {
-                        RPTERR("wrong descriptor(tag: %d, len: %d)", (int)tag, (int)len);
+                        err->descriptor_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
                         return -1;
                 }
                 if(0x09 == tag) { /* CA_descriptor in CAT */
@@ -1905,8 +1913,9 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         /* record program_info */
         if(0 != prog->program_info_len && !(prog->program_info)) {
                 if(prog->program_info_len > INFO_LEN_MAX) {
-                        RPTERR("PID(0x%04X): program_info_length(%d) too big!",
-                            (unsigned int)(tsh->PID), prog->program_info_len);
+                        err->program_info_length_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
                         return -1;
                 }
                 else {
@@ -1953,8 +1962,9 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                 /* ES_info */
                 if(0 != elem->es_info_len && !(elem->es_info)) {
                         if(elem->es_info_len >= INFO_LEN_MAX) {
-                                RPTERR("PID(0x%04X): ES_info_length(%d) too big!",
-                                    (unsigned int)(elem->PID), elem->es_info_len);
+                                err->es_info_length_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
                         else {
@@ -1977,7 +1987,9 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                         len = *cur++;
                         pt = cur;
                         if((0xFF == tag) || (0 == len)) {
-                                RPTERR("wrong descriptor(tag: %d, len: %d)", (int)tag, (int)len);
+                                err->descriptor_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
                         if(0x09 == tag) { /* CA_descriptor in PMT */
@@ -2047,14 +2059,14 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
         uint8_t *cur = sect->section + 8;
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         uint16_t original_network_id;
+        struct ts_err *err = &(obj->err);
 
         /* in SDT, table_id_extension is transport_stream_id */
         if(obj->has_got_transport_stream_id &&
            sect->table_id_extension != obj->transport_stream_id) {
-                RPTERR("table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)",
-                    (unsigned int)(sect->table_id),
-                    (int)(sect->table_id_extension),
-                    (int)(obj->transport_stream_id));
+                err->table_id_extension_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1; /* bad SDT table, ignore */
         }
 
@@ -2066,11 +2078,10 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
         original_network_id |= dat;
         if(obj->has_got_transport_stream_id &&
            original_network_id != obj->transport_stream_id) {
+                err->original_network_id_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
 #if 0
-                RPTERR("table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)",
-                    sect->table_id,
-                    original_network_id,
-                    obj->transport_stream_id);
                 return -1; /* bad SDT table, ignore */
 #endif
         }
@@ -2126,7 +2137,9 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
                         len = *cur++;
                         pt = cur;
                         if((0xFF == tag) || (0 == len)) {
-                                RPTERR("wrong descriptor(tag: %d, len: %d)", (int)tag, (int)len);
+                                err->descriptor_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
                         if(0x48 == tag && prog) {
@@ -2176,15 +2189,20 @@ static int ts_parse_pesh(struct ts_obj *obj)
         struct ts_pesh *pesh = &(obj->pesh);
         struct ts_pid *pid = obj->pid;
         struct ts_elem *elem = pid->elem; /* may be NULL */
+        struct ts_err *err = &(obj->err);
         uint8_t dat;
 
         /* for some bad stream */
         if(tsh->PID < 0x0020) {
-                RPTERR("PES: bad PID(0x%04X)!", (unsigned int)(tsh->PID));
+                err->pes_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
         if(!elem) {
-                RPTERR("PES: not elem PID(0x%04X)!", (unsigned int)(tsh->PID));
+                err->pes_elem_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
 
@@ -2224,9 +2242,9 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 pesh->packet_start_code_prefix |= dat;
 
                 if(0x000001 != pesh->packet_start_code_prefix) {
-                        RPTERR("PES packet start code prefix(0x%06X) NOT 0x000001!",
-                            (unsigned int)(pesh->packet_start_code_prefix));
-                        dump(obj->ipt.TS, TS_PKT_SIZE);
+                        err->pes_start_code_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
 #if 0
                         return -1;
 #endif
@@ -2271,15 +2289,17 @@ static int ts_parse_pesh(struct ts_obj *obj)
 static int ts_parse_pesh_switch(struct ts_obj *obj)
 {
         struct ts_pesh *pesh = &(obj->pesh);
+        struct ts_err *err = &(obj->err);
 
         switch(pesh->stream_id) {
                 case 0xBE: /* padding_stream */
-                        /* subsequent pesh->PES_packet_length data is padding_byte, pass */
                         if((int)(pesh->PES_packet_length) > (obj->tail - obj->cur)) {
-                                RPTERR("PES_packet_length(%d) for padding_stream is too large!",
-                                    (int)(pesh->PES_packet_length));
+                                err->pes_packet_length_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
+                        /* subsequent pesh->PES_packet_length data is padding_byte, pass */
                         obj->cur += pesh->PES_packet_length;
                         break;
                 case 0xBC: /* program_stream_map */
@@ -2303,6 +2323,7 @@ static int ts_parse_pesh_switch(struct ts_obj *obj)
 static int ts_parse_pesh_detail(struct ts_obj *obj)
 {
         struct ts_pesh *pesh = &(obj->pesh);
+        struct ts_err *err = &(obj->err);
         uint8_t dat;
         uint8_t *es;
 
@@ -2325,8 +2346,9 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
         dat = *(obj->cur)++;
         pesh->PES_header_data_length = dat;
         if((int)(pesh->PES_header_data_length) > (obj->tail - obj->cur)) {
-                RPTERR("PES_header_data_length(%d) is too long!",
-                    (int)(pesh->PES_header_data_length));
+                err->pes_header_length_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
         es = obj->cur + pesh->PES_header_data_length;
@@ -2413,8 +2435,9 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
                 obj->DTS = pesh->DTS;
         }
         else if(0x01 == pesh->PTS_DTS_flags) { /* '01' */
-                RPTERR("PTS_DTS_flags error!");
-                dump(obj->ipt.TS, TS_PKT_SIZE);
+                err->pts_dts_flags_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
         else {
@@ -2678,6 +2701,7 @@ static const struct stream_type_table *elem_type(uint8_t stream_type)
         return p;
 }
 
+#if 0
 static int dump(uint8_t *buf, int len)
 {
         uint8_t *p = buf;
@@ -2690,6 +2714,7 @@ static int dump(uint8_t *buf, int len)
 
         return 0;
 }
+#endif
 
 uint32_t ts_crc(void *buf, size_t size, int mode)
 {

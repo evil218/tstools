@@ -1865,6 +1865,91 @@ static int show_error(struct tsana_obj *obj)
                 /* ... */
         }
 
+        /* other errors */
+        if(err->has_other_error) {
+                err->has_other_error = 0;
+                if(err->adaption_field_control_error) {
+                        fprintf(stdout, "4.x , adaption_field_control(00) illegal, ");
+                        err->adaption_field_control_error = 0;
+                }
+                if(err->wild_pcr_packet) {
+                        fprintf(stdout, "4.x , no program use this pcr packet, ");
+                        err->wild_pcr_packet = 0;
+                }
+                if(err->normal_section_length_error) {
+                        fprintf(stdout, "4.x , bad normal section length, ");
+                        err->normal_section_length_error = 0;
+                }
+                if(err->private_section_length_error) {
+                        fprintf(stdout, "4.x , bad private section length, ");
+                        err->private_section_length_error = 0;
+                }
+                if(err->pat_pid_error) {
+                        fprintf(stdout, "4.x , pat table not in 0x0000, ");
+                        err->pat_pid_error = 0;
+                }
+                if(err->cat_pid_error) {
+                        fprintf(stdout, "4.x , cat table not in 0x0001, ");
+                        err->cat_pid_error = 0;
+                }
+                if(err->pmt_pid_error) {
+                        fprintf(stdout, "4.x , pmt table not in pmt pid of pat, ");
+                        err->pmt_pid_error = 0;
+                }
+                if(err->nit_pid_error) {
+                        fprintf(stdout, "4.x , nit table not in 0x0010, ");
+                        err->nit_pid_error = 0;
+                }
+                if(err->sdt_pid_error) {
+                        fprintf(stdout, "4.x , sdt table not in 0x0011, ");
+                        err->sdt_pid_error = 0;
+                }
+                if(err->descriptor_error) {
+                        fprintf(stdout, "4.x , wrong descriptor, ");
+                        err->descriptor_error = 0;
+                }
+                if(err->program_info_length_error) {
+                        fprintf(stdout, "4.x , program_info_length too big, ");
+                        err->program_info_length_error = 0;
+                }
+                if(err->es_info_length_error) {
+                        fprintf(stdout, "4.x , es_info_length too big, ");
+                        err->es_info_length_error = 0;
+                }
+                if(err->table_id_extension_error) {
+                        fprintf(stdout, "4.x , table_id_extension != transport_stream_id, ");
+                        err->table_id_extension_error = 0;
+                }
+                if(err->original_network_id_error) {
+                        fprintf(stdout, "4.x , original_network_id != transport_stream_id, ");
+                        err->original_network_id_error = 0;
+                }
+                if(err->pes_pid_error) {
+                        fprintf(stdout, "4.x , pid of pes is psi/si, ");
+                        err->pes_pid_error = 0;
+                }
+                if(err->pes_elem_error) {
+                        fprintf(stdout, "4.x , pid of pes is not es in pmt, ");
+                        err->pes_elem_error = 0;
+                }
+                if(err->pes_start_code_error) {
+                        fprintf(stdout, "4.x , pes start code not 0x000001, ");
+                        err->pes_start_code_error = 0;
+                }
+                if(err->pes_packet_length_error) {
+                        fprintf(stdout, "4.x , pes_packet_length is too large, ");
+                        err->pes_packet_length_error = 0;
+                }
+                if(err->pes_header_length_error) {
+                        fprintf(stdout, "4.x , pes_header_length is too large, ");
+                        err->pes_header_length_error = 0;
+                }
+                if(err->pts_dts_flags_error) {
+                        fprintf(stdout, "4.x , pts_dts_flags is 01, ");
+                        err->pts_dts_flags_error = 0;
+                }
+        }
+
         return 0;
 }
 

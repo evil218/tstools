@@ -103,11 +103,12 @@ extern "C" {
 #define WITH_PCR(x)     (x & TS_TMSK_PCR)
 #define IS_TYPE(t, x)   (t == (x & TS_TMSK_BASE))
 
-/* TR 101 290 V1.2.1 2001-05 */
+/* TR 101 290 V1.2.1 2001-05 and other stream errors */
 struct ts_err {
         int has_level1_error; /* check veriables of "First priority" for detail information */
         int has_level2_error; /* check veriables of "Second priority" for detail information */
         int has_level3_error; /* check veriables of "Third priority" for detail information */
+        int has_other_error; /* other stream errors */
 
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
@@ -153,6 +154,28 @@ struct ts_err {
         int TDT_error; /* 3.8 */
         int Empty_buffer_error; /* 3.9 */
         int Data_delay_error; /* 3.10 */
+
+        /* other errors */
+        int adaption_field_control_error; /* 00 */
+        int wild_pcr_packet; /* no program use this pcr packet */
+        int normal_section_length_error; /* bad normal section length */
+        int private_section_length_error; /* bad private section length */
+        int pat_pid_error; /* pat table not in 0x0000 */
+        int cat_pid_error; /* cat table not in 0x0001 */
+        int pmt_pid_error; /* pmt table not in pmt pid of pat */
+        int nit_pid_error; /* nit table not in 0x0010 */
+        int sdt_pid_error; /* sdt table not in 0x0011 */
+        int descriptor_error; /* wrong descriptor */
+        int program_info_length_error; /* program_info_length too big */
+        int es_info_length_error; /* es_info_length too big */
+        int table_id_extension_error; /* table_id_extension != transport_stream_id */
+        int original_network_id_error; /* original_network_id != transport_stream_id */
+        int pes_pid_error; /* pid of pes is psi/si */
+        int pes_elem_error; /* pid of pes is not es in pmt */
+        int pes_start_code_error; /* pes start code not 0x000001 */
+        int pes_packet_length_error; /* pes_packet_length is too large */
+        int pes_header_length_error; /* pes_header_length is too large */
+        int pts_dts_flags_error; /* pts_dts_flags is 01 */
 };
 
 /* TS head */
