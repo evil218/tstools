@@ -419,6 +419,7 @@ static int state_parse_each(struct tsana_obj *obj)
 
                 /* filter: table_id */
                 if(ANY_TABLE != obj->aim_table &&
+                   sect &&
                    sect->table_id != obj->aim_table) {
                         return 0;
                 }
