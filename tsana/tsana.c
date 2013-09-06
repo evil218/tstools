@@ -287,7 +287,7 @@ static void table_info_CAT(struct ts_sect *sect, uint8_t *section);
 static void table_info_PMT(struct ts_sect *sect, uint8_t *section);
 static void table_info_TSDT(struct ts_sect *sect, uint8_t *section);
 static void table_info_NIT(struct ts_sect *sect, uint8_t *section);
-static void table_info_SDT(struct ts_sect *sect, uint8_t *section);
+static void table_info_SDT(struct ts_sect *sect);
 static void table_info_BAT(struct ts_sect *sect, uint8_t *section);
 static void table_info_EIT(struct ts_sect *sect, uint8_t *section);
 static void table_info_TDT(struct ts_sect *sect, uint8_t *section);
@@ -1591,14 +1591,14 @@ static void show_si(struct tsana_obj *obj)
                 table_info_NIT(sect, sect->section);
         }
         else if(0x42 == sect->table_id) { /* actual */
-                table_info_SDT(sect, sect->section);
+                table_info_SDT(sect);
         }
         else if(0x43 <= sect->table_id && sect->table_id <= 0x45) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
         else if(0x46 == sect->table_id) { /* other */
-                table_info_SDT(sect, sect->section);
+                table_info_SDT(sect);
         }
         else if(0x47 <= sect->table_id && sect->table_id <= 0x49) {
                 fprintf(stdout, "reserved table_id: ");
@@ -2195,66 +2195,63 @@ static void table_info_NIT(struct ts_sect *psi, uint8_t *section)
         return;
 }
 
-static void table_info_SDT(struct ts_sect *psi, uint8_t *section)
+static void table_info_SDT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
-        int section_length;
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         uint16_t transport_stream_id;
         uint16_t original_network_id;
 
         /* section head */
-        section_length = psi->section_length;
-        transport_stream_id = psi->table_id_extension;
+        transport_stream_id = sect->table_id_extension;
         fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
         /* SDT special */
-        p += 5; section_length -= 5;
-        original_network_id = *p++; section_length--;
+        original_network_id = *cur++;
         original_network_id <<= 8;
-        original_network_id |= *p++; section_length--;
+        original_network_id |= *cur++;
         fprintf(stdout, "original_network_id: %5d, ", original_network_id);
-        p += 1; section_length -= 1;
-        /* fprintf(stdout, "section_length(%d), ", section_length); */
 
-        while(section_length > 4) {
+        cur++; /* reserved_future_use */
+#if 0
+        fprintf(stdout, "section_length left: %d, ", crc - cur);
+#endif
+
+        while(cur < crc) {
                 uint8_t data;
                 uint16_t service_id;
                 uint8_t rstatus;
+                uint8_t *next; /* point to the data after descriptors */
                 uint16_t descriptors_loop_length;
 
                 fprintf(stdout, "\n    ");
 
-                service_id = *p++; section_length--;
+                service_id = *cur++;
                 service_id <<= 8;
-                service_id |= *p++; section_length--;
+                service_id |= *cur++;
                 fprintf(stdout, "service_id: %5d, ", service_id);
-                p += 1; section_length -= 1;
-                data = *p++; section_length--;
+                cur++; /* EIT_schedule_flag, EIT_present_following_flag */
+                data = *cur++;
                 rstatus = (data >> 5) & 0x07;
                 fprintf(stdout, "\"%s\", ", running_status(rstatus));
                 descriptors_loop_length = 0x0F & data;
                 descriptors_loop_length <<= 8;
-                descriptors_loop_length |= *p++; section_length--;
-                /* fprintf(stdout, "descriptors_loop_length(%d), ", descriptors_loop_length); */
+                descriptors_loop_length |= *cur++;
+#if 1
+                fprintf(stdout, "descriptors_loop_length(%d), ", descriptors_loop_length);
+#endif
 
-                if(descriptors_loop_length + 4 > section_length) {
+                next = cur + descriptors_loop_length;
+                if(next > crc) {
                         fprintf(stdout, "wrong section, ");
                         return;
                 }
-                while(descriptors_loop_length > 0) {
-                        uint8_t len;
-
-                        len = descriptor(&p);
-                        descriptors_loop_length -= len;
-                        section_length -= len;
-
-                        if(0 == len) {
+                while(cur < next) {
+                        if(0 == descriptor(&cur)) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
-                        /* fprintf(stdout, "descriptors_loop_length(%d), ", descriptors_loop_length); */
                 }
-                /* fprintf(stdout, "section_length(%d), ", section_length); */
         }
 
         return;
