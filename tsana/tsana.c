@@ -1921,10 +1921,6 @@ static int show_error(struct tsana_obj *obj)
                         fprintf(stdout, "4.x , table_id_extension != transport_stream_id, ");
                         err->table_id_extension_error = 0;
                 }
-                if(err->original_network_id_error) {
-                        fprintf(stdout, "4.x , original_network_id != transport_stream_id, ");
-                        err->original_network_id_error = 0;
-                }
                 if(err->pes_pid_error) {
                         fprintf(stdout, "4.x , pid of pes is psi/si, ");
                         err->pes_pid_error = 0;

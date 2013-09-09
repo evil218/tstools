@@ -169,7 +169,6 @@ struct ts_err {
         int program_info_length_error; /* program_info_length too big */
         int es_info_length_error; /* es_info_length too big */
         int table_id_extension_error; /* table_id_extension != transport_stream_id */
-        int original_network_id_error; /* original_network_id != transport_stream_id */
         int pes_pid_error; /* pid of pes is psi/si */
         int pes_elem_error; /* pid of pes is not es in pmt */
         int pes_start_code_error; /* pes start code not 0x000001 */

@@ -2063,6 +2063,7 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
 
         /* in SDT, table_id_extension is transport_stream_id */
         if(obj->has_got_transport_stream_id &&
+           0x42 == sect->table_id && /* actual transport stream */
            sect->table_id_extension != obj->transport_stream_id) {
                 err->table_id_extension_error = 1;
                 err->has_other_error++;
@@ -2076,15 +2077,6 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
         dat = *cur++;
         original_network_id <<= 8;
         original_network_id |= dat;
-        if(obj->has_got_transport_stream_id &&
-           original_network_id != obj->transport_stream_id) {
-                err->original_network_id_error = 1;
-                err->has_other_error++;
-                obj->has_err++;
-#if 0
-                return -1; /* bad SDT table, ignore */
-#endif
-        }
 
         dat = *cur++; /* reserved_future_use */
 
