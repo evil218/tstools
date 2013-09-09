@@ -282,23 +282,23 @@ static void show_rats(struct tsana_obj *obj);
 static void show_ratp(struct tsana_obj *obj);
 static int show_error(struct tsana_obj *obj);
 
-static void table_info_PAT(struct ts_sect *sect, uint8_t *section);
-static void table_info_CAT(struct ts_sect *sect, uint8_t *section);
-static void table_info_PMT(struct ts_sect *sect, uint8_t *section);
-static void table_info_TSDT(struct ts_sect *sect, uint8_t *section);
-static void table_info_NIT(struct ts_sect *sect, uint8_t *section);
+static void table_info_PAT(struct ts_sect *sect);
+static void table_info_CAT(struct ts_sect *sect);
+static void table_info_PMT(struct ts_sect *sect);
+static void table_info_TSDT(struct ts_sect *sect);
+static void table_info_NIT(struct ts_sect *sect);
 static void table_info_SDT(struct ts_sect *sect);
-static void table_info_BAT(struct ts_sect *sect, uint8_t *section);
-static void table_info_EIT(struct ts_sect *sect, uint8_t *section);
-static void table_info_TDT(struct ts_sect *sect, uint8_t *section);
-static void table_info_RST(struct ts_sect *sect, uint8_t *section);
-static void table_info_ST(struct ts_sect *sect, uint8_t *section);
-static void table_info_TOT(struct ts_sect *sect, uint8_t *section);
-static void table_info_DIT(struct ts_sect *sect, uint8_t *section);
-static void table_info_SIT(struct ts_sect *sect, uint8_t *section);
+static void table_info_BAT(struct ts_sect *sect);
+static void table_info_EIT(struct ts_sect *sect);
+static void table_info_TDT(struct ts_sect *sect);
+static void table_info_RST(struct ts_sect *sect);
+static void table_info_ST(struct ts_sect *sect);
+static void table_info_TOT(struct ts_sect *sect);
+static void table_info_DIT(struct ts_sect *sect);
+static void table_info_SIT(struct ts_sect *sect);
 
-static void MJD_UTC(uint8_t *buf);
-static void UTC(uint8_t *buf);
+static void MJD_UTC(uint8_t **buf);
+static void UTC(uint8_t **buf);
 static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
@@ -1569,26 +1569,26 @@ static void show_si(struct tsana_obj *obj)
 
         /* section_body */
         if(     0x00 == sect->table_id) {
-                table_info_PAT(sect, sect->section);
+                table_info_PAT(sect);
         }
         else if(0x01 == sect->table_id) {
-                table_info_CAT(sect, sect->section);
+                table_info_CAT(sect);
         }
         else if(0x02 == sect->table_id) {
-                table_info_PMT(sect, sect->section);
+                table_info_PMT(sect);
         }
         else if(0x03 == sect->table_id) {
-                table_info_TSDT(sect, sect->section);
+                table_info_TSDT(sect);
         }
         else if(0x04 <= sect->table_id && sect->table_id <= 0x3F) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
         else if(0x40 == sect->table_id) { /* actual */
-                table_info_NIT(sect, sect->section);
+                table_info_NIT(sect);
         }
         else if(0x41 == sect->table_id) { /* other */
-                table_info_NIT(sect, sect->section);
+                table_info_NIT(sect);
         }
         else if(0x42 == sect->table_id) { /* actual */
                 table_info_SDT(sect);
@@ -1605,45 +1605,45 @@ static void show_si(struct tsana_obj *obj)
                 is_unknown_table_id = 1;
         }
         else if(0x4A == sect->table_id) {
-                table_info_BAT(sect, sect->section);
+                table_info_BAT(sect);
         }
         else if(0x4B <= sect->table_id && sect->table_id <= 0x4D) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
         else if(0x4E == sect->table_id) { /* actual, P/F */
-                table_info_EIT(sect, sect->section);
+                table_info_EIT(sect);
         }
         else if(0x4F == sect->table_id) { /* other, P/F */
-                table_info_EIT(sect, sect->section);
+                table_info_EIT(sect);
         }
         else if(0x50 <= sect->table_id && sect->table_id <= 0x5F) { /* actual, schedule */
-                table_info_EIT(sect, sect->section);
+                table_info_EIT(sect);
         }
         else if(0x60 <= sect->table_id && sect->table_id <= 0x6F) { /* other, schedule */
-                table_info_EIT(sect, sect->section);
+                table_info_EIT(sect);
         }
         else if(0x70 == sect->table_id) {
-                table_info_TDT(sect, sect->section);
+                table_info_TDT(sect);
         }
         else if(0x71 == sect->table_id) {
-                table_info_RST(sect, sect->section);
+                table_info_RST(sect);
         }
         else if(0x72 == sect->table_id) {
-                table_info_ST(sect, sect->section);
+                table_info_ST(sect);
         }
         else if(0x73 == sect->table_id) {
-                table_info_TOT(sect, sect->section);
+                table_info_TOT(sect);
         }
         else if(0x74 <= sect->table_id && sect->table_id <= 0x7D) {
                 fprintf(stdout, "reserved table_id: ");
                 is_unknown_table_id = 1;
         }
         else if(0x7E == sect->table_id) {
-                table_info_DIT(sect, sect->section);
+                table_info_DIT(sect);
         }
         else if(0x7F == sect->table_id) {
-                table_info_SIT(sect, sect->section);
+                table_info_SIT(sect);
         }
         else if(0x80 <= sect->table_id && sect->table_id <= 0xFE) {
                 fprintf(stdout, "user table_id: ");
@@ -1954,39 +1954,30 @@ static int show_error(struct tsana_obj *obj)
         return 0;
 }
 
-static void table_info_PAT(struct ts_sect *psi, uint8_t *section)
+static void table_info_PAT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
-        int section_length;
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         uint16_t transport_stream_id;
 
         /* section head */
-        section_length = psi->section_length;
-        transport_stream_id = psi->table_id_extension;
+        transport_stream_id = sect->table_id_extension;
         fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
-        /* PAT special */
-        p += 5; section_length -= 5;
-
         /* each program */
-        while(section_length > 4) {
-                uint8_t data;
+        while(cur < crc) {
                 uint16_t program_number;
                 uint16_t PID;
 
                 fprintf(stdout, "\n    ");
 
-                data = *p++; section_length--;
-                program_number = data;
-                data = *p++; section_length--;
+                program_number = *cur++;
                 program_number <<= 8;
-                program_number |= data;
+                program_number |= *cur++;
 
-                data = *p++; section_length--;
-                PID = data & 0x1F;
-                data = *p++; section_length--;
+                PID = (*cur++) & 0x1F;
                 PID <<= 8;
-                PID |= data;
+                PID |= *cur++;
 
                 if(0 == program_number) {
                         fprintf(stdout, "PID 0x%04X, network", PID);
@@ -1999,25 +1990,15 @@ static void table_info_PAT(struct ts_sect *psi, uint8_t *section)
         return;
 }
 
-static void table_info_CAT(struct ts_sect *psi, uint8_t *section)
+static void table_info_CAT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
-        int section_length;
-        uint16_t descriptors_loop_length;
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
 
-        /* section head */
-        section_length = psi->section_length;
+        while(cur < crc) {
+                fprintf(stdout, "\n    ");
 
-        /* CAT special */
-        p += 5; section_length -= 5;
-        descriptors_loop_length = section_length - 4;
-        while(descriptors_loop_length > 0) {
-                uint8_t len;
-
-                len = descriptor(&p);
-                descriptors_loop_length -= len;
-
-                if(0 == len) {
+                if(0 == descriptor(&cur)) {
                         fprintf(stdout, "wrong descriptor, ");
                         return;
                 }
@@ -2026,42 +2007,35 @@ static void table_info_CAT(struct ts_sect *psi, uint8_t *section)
         return;
 }
 
-static void table_info_PMT(struct ts_sect *psi, uint8_t *section)
+static void table_info_PMT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
-        int section_length;
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+        uint8_t *mid; /* point to the data after program_info */
         uint16_t program_number;
         uint16_t PCR_PID;
         uint16_t program_info_length;
 
         /* section head */
-        section_length = psi->section_length;
-        program_number = psi->table_id_extension;
+        program_number = sect->table_id_extension;
         fprintf(stdout, "program_number: %5d, ", program_number);
 
-        /* PMT special */
-        p += 5; section_length -= 5;
-
         /* PCR_PID */
-        PCR_PID = (*p++) & 0x1F; section_length--;
+        PCR_PID = (*cur++) & 0x1F;
         PCR_PID <<= 8;
-        PCR_PID |= *p++; section_length--;
+        PCR_PID |= *cur++;
         fprintf(stdout, "PCR_PID: 0x%04X, ", PCR_PID);
 
         /* program_info */
-        program_info_length = (*p++) & 0x0F; section_length--;
+        program_info_length = (*cur++) & 0x0F;
         program_info_length <<= 8;
-        program_info_length |= *p++; section_length--;
-        if(program_info_length) {
+        program_info_length |= *cur++;
+
+        mid = cur + program_info_length;
+        if(program_info_length && (mid <= crc)) {
                 fprintf(stdout, "program_info(%4d): ", program_info_length);
-                while(program_info_length > 0) {
-                        uint8_t len;
-
-                        len = descriptor(&p);
-                        program_info_length -= len;
-                        section_length -= len;
-
-                        if(0 == len) {
+                while(cur < mid) {
+                        if(0 == descriptor(&cur)) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
@@ -2069,35 +2043,32 @@ static void table_info_PMT(struct ts_sect *psi, uint8_t *section)
         }
 
         /* each ES */
-        while(section_length > 4) {
+        while(cur < crc) {
                 uint8_t stream_type;
                 uint16_t elementary_PID;
                 uint16_t ES_info_length;
+                uint8_t *nxt; /* point to the data after descriptors */
 
                 fprintf(stdout, "\n    ");
 
-                stream_type = *p++; section_length--;
+                stream_type = *cur++;
                 fprintf(stdout, "stream_type: 0x%02X, ", stream_type);
 
-                elementary_PID = (*p++) & 0x1F; section_length--;
+                elementary_PID = (*cur++) & 0x1F;
                 elementary_PID <<= 8;
-                elementary_PID |= *p++; section_length--;
+                elementary_PID |= *cur++;
                 fprintf(stdout, "elementary_PID: 0x%04X, ", elementary_PID);
 
                 /* ES_info */
-                ES_info_length = (*p++) & 0x0F; section_length--;
+                ES_info_length = (*cur++) & 0x0F;
                 ES_info_length <<= 8;
-                ES_info_length |= *p++; section_length--;
-                if(ES_info_length) {
+                ES_info_length |= *cur++;
+
+                nxt = cur + ES_info_length;
+                if(ES_info_length && (nxt <= crc)) {
                         fprintf(stdout, "ES_info(%4d): ", ES_info_length);
-                        while(ES_info_length > 0) {
-                                uint8_t len;
-
-                                len = descriptor(&p);
-                                ES_info_length -= len;
-                                section_length -= len;
-
-                                if(0 == len) {
+                        while(cur < nxt) {
+                                if(0 == descriptor(&cur)) {
                                         fprintf(stdout, "wrong descriptor, ");
                                         return;
                                 }
@@ -2108,84 +2079,86 @@ static void table_info_PMT(struct ts_sect *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TSDT(struct ts_sect *psi, uint8_t *section)
+static void table_info_TSDT(struct ts_sect *sect)
 {
-        //uint8_t *p = section;
-        //int section_length;
+#if 0
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+#endif
 
         return;
 }
 
-static void table_info_NIT(struct ts_sect *psi, uint8_t *section)
+static void table_info_NIT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
-        int section_length;
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+        uint8_t *mid; /* point to the data after network_descriptors */
         uint16_t network_id;
         uint16_t network_descriptors_length;
         uint16_t transport_stream_loop_length;
 
         /* section head */
-        section_length = psi->section_length;
-        network_id = psi->table_id_extension;
+        network_id = sect->table_id_extension;
         fprintf(stdout, "network_id: %5d, ", network_id);
 
-        /* SDT special */
-        p += 5; section_length -= 5;
-
         /* network_descriptors */
-        network_descriptors_length = (*p++) & 0x0F; section_length--;
+        network_descriptors_length = (*cur++) & 0x0F;
         network_descriptors_length <<= 8;
-        network_descriptors_length |= *p++; section_length--;
-        while(network_descriptors_length > 0) {
-                uint8_t len;
+        network_descriptors_length |= *cur++;
 
-                len = descriptor(&p);
-                network_descriptors_length -= len;
-                section_length -= len;
-
-                if(0 == len) {
+        mid = cur + network_descriptors_length;
+        if(mid > crc) {
+                fprintf(stdout, "wrong section, ");
+                return;
+        }
+        while(cur < mid) {
+                if(0 == descriptor(&cur)) {
                         fprintf(stdout, "wrong descriptor, ");
                         return;
                 }
         }
 
-        /* transport_stream_loop */
-        transport_stream_loop_length = (*p++) & 0x0F; section_length--;
+        /* transport_stream_loop, look like duplicate with section_length? */
+        transport_stream_loop_length = (*cur++) & 0x0F;
         transport_stream_loop_length <<= 8;
-        transport_stream_loop_length |= *p++; section_length--;
-        while(transport_stream_loop_length > 0) {
+        transport_stream_loop_length |= *cur++;
+
+        if(cur + transport_stream_loop_length > crc) {
+                fprintf(stdout, "wrong section, ");
+                return;
+        }
+        crc = cur + transport_stream_loop_length;
+        while(cur < crc) {
                 uint16_t transport_stream_id;
                 uint16_t original_network_id;
                 uint16_t transport_descriptors_length;
+                uint8_t *nxt; /* point to the data after descriptors */
 
                 fprintf(stdout, "\n    ");
 
-                transport_stream_id = *p++; section_length--;
+                transport_stream_id = *cur++;
                 transport_stream_id <<= 8;
-                transport_stream_id |= *p++; section_length--;
+                transport_stream_id |= *cur++;
                 fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
-                original_network_id = *p++; section_length--;
+                original_network_id = *cur++;
                 original_network_id <<= 8;
-                original_network_id |= *p++; section_length--;
+                original_network_id |= *cur++;
                 fprintf(stdout, "original_network_id: %5d, ", original_network_id);
 
                 /* transport_descriptors */
-                transport_descriptors_length = (*p++) & 0x0F; section_length--;
+                transport_descriptors_length = (*cur++) & 0x0F;
                 transport_descriptors_length <<= 8;
-                transport_descriptors_length |= *p++; section_length--;
+                transport_descriptors_length |= *cur++;
 
-                transport_stream_loop_length -= 6;
-                transport_stream_loop_length -= transport_descriptors_length;
-
-                while(transport_descriptors_length > 0) {
-                        uint8_t len;
-
-                        len = descriptor(&p);
-                        transport_descriptors_length -= len;
-                        section_length -= len;
-
-                        if(0 == len) {
+                nxt = cur + transport_descriptors_length;
+                if(nxt > crc) {
+                        fprintf(stdout, "wrong section, ");
+                        return;
+                }
+                while(cur < nxt) {
+                        if(0 == descriptor(&cur)) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
@@ -2206,23 +2179,19 @@ static void table_info_SDT(struct ts_sect *sect)
         transport_stream_id = sect->table_id_extension;
         fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
 
-        /* SDT special */
         original_network_id = *cur++;
         original_network_id <<= 8;
         original_network_id |= *cur++;
         fprintf(stdout, "original_network_id: %5d, ", original_network_id);
 
         cur++; /* reserved_future_use */
-#if 0
-        fprintf(stdout, "section_length left: %d, ", crc - cur);
-#endif
 
         while(cur < crc) {
                 uint8_t data;
                 uint16_t service_id;
                 uint8_t rstatus;
-                uint8_t *next; /* point to the data after descriptors */
                 uint16_t descriptors_loop_length;
+                uint8_t *nxt; /* point to the data after descriptors */
 
                 fprintf(stdout, "\n    ");
 
@@ -2237,16 +2206,13 @@ static void table_info_SDT(struct ts_sect *sect)
                 descriptors_loop_length = 0x0F & data;
                 descriptors_loop_length <<= 8;
                 descriptors_loop_length |= *cur++;
-#if 1
-                fprintf(stdout, "descriptors_loop_length(%d), ", descriptors_loop_length);
-#endif
 
-                next = cur + descriptors_loop_length;
-                if(next > crc) {
+                nxt = cur + descriptors_loop_length;
+                if(nxt > crc) {
                         fprintf(stdout, "wrong section, ");
                         return;
                 }
-                while(cur < next) {
+                while(cur < nxt) {
                         if(0 == descriptor(&cur)) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
@@ -2257,18 +2223,20 @@ static void table_info_SDT(struct ts_sect *sect)
         return;
 }
 
-static void table_info_BAT(struct ts_sect *psi, uint8_t *section)
+static void table_info_BAT(struct ts_sect *sect)
 {
-        //uint8_t *p = section;
-        //int section_length;
+#if 0
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+#endif
 
         return;
 }
 
-static void table_info_EIT(struct ts_sect *psi, uint8_t *section)
+static void table_info_EIT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
-        int section_length;
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         uint16_t service_id;
         uint16_t transport_stream_id;
         uint16_t original_network_id;
@@ -2276,54 +2244,51 @@ static void table_info_EIT(struct ts_sect *psi, uint8_t *section)
         uint8_t last_table_id;
 
         /* section head */
-        section_length = psi->section_length;
-        service_id = psi->table_id_extension;
+        service_id = sect->table_id_extension;
         fprintf(stdout, "service_id: %5d, ", service_id);
 
-        /* EIT special */
-        p += 5; section_length -= 5;
-        transport_stream_id = *p++; section_length--;
+        transport_stream_id = *cur++;
         transport_stream_id <<= 8;
-        transport_stream_id |= *p++; section_length--;
+        transport_stream_id |= *cur++;
         fprintf(stdout, "transport_stream_id: %5d, ", transport_stream_id);
-        original_network_id = *p++; section_length--;
+        original_network_id = *cur++;
         original_network_id <<= 8;
-        original_network_id |= *p++; section_length--;
+        original_network_id |= *cur++;
         fprintf(stdout, "original_network_id: %5d, ", original_network_id);
-        segment_last_section_number = *p++; section_length--;
+        segment_last_section_number = *cur++;
         fprintf(stdout, "segment_last_section_number: %5d, ", segment_last_section_number);
-        last_table_id = *p++; section_length--;
+        last_table_id = *cur++;
         fprintf(stdout, "last_table_id: %5d, ", last_table_id);
 
-        while(section_length > 4) {
+        while(cur < crc) {
                 uint8_t data;
                 uint16_t event_id;
                 uint8_t rstatus;
                 uint16_t descriptors_loop_length;
+                uint8_t *nxt; /* point to the data after descriptors */
 
                 fprintf(stdout, "\n    ");
 
-                event_id = *p++; section_length--;
+                event_id = *cur++;
                 event_id <<= 8;
-                event_id |= *p++; section_length--;
+                event_id |= *cur++;
                 fprintf(stdout, "event_id: %5d, ", event_id);
-                MJD_UTC(p); p += 5; section_length -= 5;
-                UTC(p); p += 3; section_length -= 3;
-                data = *p++; section_length--;
+                MJD_UTC(&cur);
+                UTC(&cur);
+                data = *cur++;
                 rstatus = (data >> 5) & 0x07;
                 fprintf(stdout, "\"%s\", ", running_status(rstatus));
                 descriptors_loop_length = 0x0F & data;
                 descriptors_loop_length <<= 8;
-                descriptors_loop_length |= *p++; section_length--;
+                descriptors_loop_length |= *cur++;
 
-                while(descriptors_loop_length > 0) {
-                        uint8_t len;
-
-                        len = descriptor(&p);
-                        descriptors_loop_length -= len;
-                        section_length -= len;
-
-                        if(0 == len) {
+                nxt = cur + descriptors_loop_length;
+                if(nxt > crc) {
+                        fprintf(stdout, "wrong section, ");
+                        return;
+                }
+                while(cur < nxt) {
+                        if(0 == descriptor(&cur)) {
                                 fprintf(stdout, "wrong descriptor, ");
                                 return;
                         }
@@ -2333,68 +2298,76 @@ static void table_info_EIT(struct ts_sect *psi, uint8_t *section)
         return;
 }
 
-static void table_info_TDT(struct ts_sect *psi, uint8_t *section)
+static void table_info_TDT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
+        uint8_t *cur = sect->section + 3;
 
-        MJD_UTC(p); p += 5;
+        MJD_UTC(&cur);
 
         return;
 }
 
-static void table_info_RST(struct ts_sect *psi, uint8_t *section)
+static void table_info_RST(struct ts_sect *sect)
 {
-        //uint8_t *p = section;
-        //int section_length;
+#if 0
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+#endif
 
         return;
 }
 
-static void table_info_ST(struct ts_sect *psi, uint8_t *section)
+static void table_info_ST(struct ts_sect *sect)
 {
-        //uint8_t *p = section;
-        //int section_length;
+#if 0
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+#endif
 
         return;
 }
 
-static void table_info_TOT(struct ts_sect *psi, uint8_t *section)
+static void table_info_TOT(struct ts_sect *sect)
 {
-        uint8_t *p = section + 3;
+        uint8_t *cur = sect->section + 3;
         int descriptors_loop_length;
 
-        MJD_UTC(p); p += 5;
+        MJD_UTC(&cur);
 
-        descriptors_loop_length = (0x0F & *p++);
+        descriptors_loop_length = (0x0F & *cur++);
         descriptors_loop_length <<= 8;
-        descriptors_loop_length |= *p++;
+        descriptors_loop_length |= *cur++;
 
         while(descriptors_loop_length > 0) {
-                descriptors_loop_length -= descriptor(&p);
+                descriptors_loop_length -= descriptor(&cur);
         }
 
         return;
 }
 
-static void table_info_DIT(struct ts_sect *psi, uint8_t *section)
+static void table_info_DIT(struct ts_sect *sect)
 {
-        //uint8_t *p = section;
-        //int section_length;
+#if 0
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+#endif
 
         return;
 }
 
-static void table_info_SIT(struct ts_sect *psi, uint8_t *section)
+static void table_info_SIT(struct ts_sect *sect)
 {
-        //uint8_t *p = section;
-        //int section_length;
+#if 0
+        uint8_t *cur = sect->section + 8;
+        uint8_t *crc = sect->section + 3 + sect->section_length - 4;
+#endif
 
         return;
 }
 
-static void MJD_UTC(uint8_t *buf)
+static void MJD_UTC(uint8_t **buf)
 {
-        uint8_t *p = buf;
+        uint8_t *p = *buf;
         int mjd;
         int Y1, M1, K;
         int Y, M, D;
@@ -2402,6 +2375,7 @@ static void MJD_UTC(uint8_t *buf)
         mjd = *p++;
         mjd <<= 8;
         mjd |= *p++;
+        *buf += 2;
 
         Y1 = (int)((mjd - 15078.2) / 365.25);
         M1 = (int)((mjd - 14956.1 - (int)(Y1 * 365.25)) / 30.6001);
@@ -2412,19 +2386,20 @@ static void MJD_UTC(uint8_t *buf)
 
         fprintf(stdout, "%04d-%02d-%02d_", Y, M, D);
 
-        UTC(p);
+        UTC(buf);
 
         return;
 }
 
-static void UTC(uint8_t *buf)
+static void UTC(uint8_t **buf)
 {
-        uint8_t *p = buf;
+        uint8_t *p = *buf;
         int H, M, S;
 
         H = *p++; /* hour */
         M = *p++; /* minute */
         S = *p++; /* second */
+        *buf += 3;
 
         fprintf(stdout, "%02X-%02X-%02X, ", H, M, S);
 
