@@ -126,7 +126,7 @@ int buddy_init(void *id)
         struct buddy_pool *p;
         uint8_t *tree;
         int i;
-        int order;
+        size_t order;
 
         p= (struct buddy_pool *)id;
         if(NULL == p) {
@@ -142,7 +142,7 @@ int buddy_init(void *id)
         i = 0;
         tree = p->tree;
         for(order = p->omax; order >= p->omin; order--) {
-                memset(tree, order, ((size_t)1 << i));
+                memset(tree, (int)order, ((size_t)1 << i));
                 tree += (1 << i);
                 i++;
         }
