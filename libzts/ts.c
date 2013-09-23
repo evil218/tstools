@@ -267,19 +267,19 @@ static void init(/*@out@*/ struct ts_obj *obj)
         struct ts_tabl *tabl;
 
         /* clear the pid list */
-        while(NULL != (pid = (struct ts_pid *)zlst_pop(&(obj->pid0)))) {
+        while(NULL != (pid = (struct ts_pid *)zlst_pop((zhead_t *)&(obj->pid0)))) {
                 free_pid(obj->mp, pid);
         }
         obj->pid0 = NULL;
 
         /* clear the prog list */
-        while(NULL != (prog = (struct ts_prog *)zlst_pop(&(obj->prog0)))) {
+        while(NULL != (prog = (struct ts_prog *)zlst_pop((zhead_t *)&(obj->prog0)))) {
                 free_prog(obj->mp, prog);
         }
         obj->prog0 = NULL;
 
         /* clear the table list */
-        while(NULL != (tabl = (struct ts_tabl *)zlst_pop(&(obj->tabl0)))) {
+        while(NULL != (tabl = (struct ts_tabl *)zlst_pop((zhead_t *)&(obj->tabl0)))) {
                 free_tabl(obj->mp, tabl);
         }
         obj->tabl0 = NULL;
@@ -416,7 +416,7 @@ static void free_pid(void *mp, struct ts_pid *pid)
         struct ts_pkt *pkt;
 
         /* clear the pkt list */
-        while(NULL != (pkt = (struct ts_pkt *)zlst_pop(&(pid->pkt0)))) {
+        while(NULL != (pkt = (struct ts_pkt *)zlst_pop((zhead_t *)&(pid->pkt0)))) {
                 buddy_free(mp, pkt);
         }
 
@@ -439,7 +439,7 @@ static void free_tabl(void *mp, struct ts_tabl *tabl)
         struct ts_sect *sect;
 
         /* clear the sect list */
-        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(tabl->sect0)))) {
+        while(NULL != (sect = (struct ts_sect *)zlst_pop((zhead_t *)&(tabl->sect0)))) {
                 free_sect(mp, sect);
         }
 
@@ -453,7 +453,7 @@ static void free_prog(void *mp, struct ts_prog *prog)
         struct ts_sect *sect;
 
         /* clear the elem list */
-        while(NULL != (elem = (struct ts_elem *)zlst_pop(&(prog->elem0)))) {
+        while(NULL != (elem = (struct ts_elem *)zlst_pop((zhead_t *)&(prog->elem0)))) {
                 if(elem->es_info) {
                         buddy_free(mp, elem->es_info);
                         elem->es_info_len = 0;
@@ -462,7 +462,7 @@ static void free_prog(void *mp, struct ts_prog *prog)
         }
 
         /* clear the sect list */
-        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(prog->tabl.sect0)))) {
+        while(NULL != (sect = (struct ts_sect *)zlst_pop((zhead_t *)&(prog->tabl.sect0)))) {
                 free_sect(mp, sect);
         }
 
@@ -584,7 +584,7 @@ int ts_parse_tsh(struct ts_obj *obj)
 #if 0
         RPTDBG("search 0x%04X in pid_list", obj->PID);
 #endif
-        obj->pid = (struct ts_pid *)zlst_search(&(obj->pid0), (int)(obj->PID));
+        obj->pid = (struct ts_pid *)zlst_search((zhead_t *)&(obj->pid0), (int)(obj->PID));
         if(!(obj->pid)) {
                 struct ts_pid ts_pid, *new_pid = &ts_pid;
 
@@ -735,7 +735,7 @@ static int state_next_pat(struct ts_obj *obj)
 
         /* section parse has done in ts_parse_tsh()! */
         RPTDBG("search 0x00 in table_list");
-        tabl = (struct ts_tabl *)zlst_search(&(obj->tabl0), 0x00);
+        tabl = (struct ts_tabl *)zlst_search((zhead_t *)&(obj->tabl0), 0x00);
         if(!tabl) {
                 return -1;
         }
@@ -774,7 +774,7 @@ static int state_next_pmt(struct ts_obj *obj)
         struct ts_pid *pid;
 
         RPTDBG("search 0x%04X in pid_list", (unsigned int)(tsh->PID));
-        pid = (struct ts_pid *)zlst_search(&(obj->pid0), (int)(tsh->PID));
+        pid = (struct ts_pid *)zlst_search((zhead_t *)&(obj->pid0), (int)(tsh->PID));
         if((!pid) || !IS_TYPE(TS_TYPE_PMT, pid->type)) {
                 return -1; /* not PMT */
         }
@@ -1232,7 +1232,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                 memcpy(new_pkt->pkt, obj->ipt.TS, TS_PKT_SIZE);
                                 new_pkt->payload_unit_start_indicator = 1;
                                 new_pkt->payload_size = (obj->tail - obj->cur);
-                                zlst_push(&(pid->pkt0), new_pkt);
+                                zlst_push((zhead_t *)&(pid->pkt0), new_pkt);
                         }
                         else {
                                 /* single packet section, for efficienc: directly make section without pkt list */
@@ -1283,7 +1283,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                 }
                 new_pkt->payload_size = (obj->tail - obj->cur);
                 pid->payload_total += new_pkt->payload_size;
-                zlst_push(&(pid->pkt0), new_pkt);
+                zlst_push((zhead_t *)&(pid->pkt0), new_pkt);
 
                 /* sect head 3-byte */
                 p = obj->cur;
@@ -1357,7 +1357,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                         fprintf(stderr, "(%02X %4d) 3+%d ", pid->table_id, pid->payload_total, pid->section_length);
 #endif
                         RPTINF("pkt list -> ts_sect and parse, table: 0x%02X", (unsigned int)(pid->table_id));
-                        while(NULL != (pkt = (struct ts_pkt *)zlst_shift(&(pid->pkt0)))) {
+                        while(NULL != (pkt = (struct ts_pkt *)zlst_shift((zhead_t *)&(pid->pkt0)))) {
                                 if(pkt->payload_unit_start_indicator && p != new_sect->section) {
                                         /* use start_indicator instead of section_length to determine section end */
                                         left_length = (int)(pkt->pkt[4]); /* pointer_field is just left length */
@@ -1393,7 +1393,7 @@ static int ts_ts2sect(struct ts_obj *obj)
 #endif
                                                 pid->payload_total = pkt->payload_size;
                                                 pid->has_new_sech = 0;
-                                                zlst_push(&(pid->pkt0), pkt);
+                                                zlst_push((zhead_t *)&(pid->pkt0), pkt);
                                                 pid->section_length = PRIVATE_SECTION_LENGTH_MAX; /* suppose maximum length */
 
                                                 /* sect head 3-byte */
@@ -1422,7 +1422,7 @@ static int ts_ts2sect(struct ts_obj *obj)
         return 0;
 
 ts2sect_free_pkt_list:
-        while(NULL != (pkt = (struct ts_pkt *)zlst_pop(&(pid->pkt0)))) {
+        while(NULL != (pkt = (struct ts_pkt *)zlst_pop((zhead_t *)&(pid->pkt0)))) {
                 buddy_free(obj->mp, pkt);
         }
         return -1;
@@ -1515,7 +1515,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         else {
                 /* not PMT section */
                 RPTDBG("search 0x%02X in table_list", (unsigned int)(new_sect->table_id));
-                tabl = (struct ts_tabl *)zlst_search(&(obj->tabl0), (int)(new_sect->table_id));
+                tabl = (struct ts_tabl *)zlst_search((zhead_t *)&(obj->tabl0), (int)(new_sect->table_id));
                 if(!tabl) {
                         tabl = (struct ts_tabl *)buddy_malloc(obj->mp, sizeof(struct ts_tabl));
                         if(!tabl) {
@@ -1531,7 +1531,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
 
                         RPTDBG("insert 0x%02X in table_list", (unsigned int)(tabl->table_id));
                         zlst_set_key(tabl, (int)(tabl->table_id));
-                        if(0 != zlst_insert(&(obj->tabl0), tabl)) {
+                        if(0 != zlst_insert((zhead_t *)&(obj->tabl0), tabl)) {
                                 free_tabl(obj->mp, tabl);
                                 goto release_sect;
                         }
@@ -1551,7 +1551,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                     (int)(new_sect->version_number));
                 tabl->version_number = new_sect->version_number;
                 tabl->last_section_number = new_sect->last_section_number;
-                while(NULL != (sect_node = (struct ts_sect *)zlst_pop(psect0))) {
+                while(NULL != (sect_node = (struct ts_sect *)zlst_pop((zhead_t *)psect0))) {
                         free_sect(obj->mp, sect_node);
                 };
 #if 0
@@ -1561,12 +1561,12 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
 
         /* get "section" pointer */
         RPTDBG("search %d/%d in sect_list", (int)(new_sect->section_number), (int)(new_sect->last_section_number));
-        sect = (struct ts_sect *)zlst_search(psect0, (int)(new_sect->section_number));
+        sect = (struct ts_sect *)zlst_search((zhead_t *)psect0, (int)(new_sect->section_number));
         if(!sect) {
                 sect = new_sect;
                 RPTDBG("insert %d/%d in sect_list", (int)(sect->section_number), (int)(sect->last_section_number));
                 zlst_set_key(sect, (int)(sect->section_number));
-                if(0 != zlst_insert(psect0, sect)) {
+                if(0 != zlst_insert((zhead_t *)psect0, sect)) {
                         goto release_sect;
                 }
         }
@@ -1775,7 +1775,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
 
                         RPTDBG("insert 0x%04X in prog_list", (unsigned int)(prog->program_number));
                         zlst_set_key(prog, (int)(prog->program_number));
-                        if(0 != zlst_insert(&(obj->prog0), prog)) {
+                        if(0 != zlst_insert((zhead_t *)&(obj->prog0), prog)) {
                                 free_prog(obj->mp, prog);
                                 return -1;
                         }
@@ -1876,7 +1876,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
 
         /* in PMT, table_id_extension is program_number */
         RPTDBG("search 0x%04X in prog_list", (unsigned int)(sect->table_id_extension));
-        prog = (struct ts_prog *)zlst_search(&(obj->prog0), (int)(sect->table_id_extension));
+        prog = (struct ts_prog *)zlst_search((zhead_t *)&(obj->prog0), (int)(sect->table_id_extension));
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
@@ -2035,7 +2035,7 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                 elem->is_pes_align = 0;
 
                 RPTDBG("push 0x%04X in elem_list", (unsigned int)(elem->PID));
-                zlst_push(&(prog->elem0), elem);
+                zlst_push((zhead_t *)&(prog->elem0), elem);
 
                 /* add elementary PID */
                 new_pid->PID = elem->PID;
@@ -2100,7 +2100,7 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
                 service_id <<= 8;
                 service_id |= dat;
                 RPTDBG("search service_id(0x%04X) in prog_list", (unsigned int)service_id);
-                prog = (struct ts_prog *)zlst_search(&(obj->prog0), (int)service_id);
+                prog = (struct ts_prog *)zlst_search((zhead_t *)&(obj->prog0), (int)service_id);
 
                 dat = *cur++;
 #if 0
@@ -2586,7 +2586,7 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
 {
         struct ts_pid *pid;
 
-        pid = (struct ts_pid *)zlst_search(&(obj->pid0), (int)(new_pid->PID));
+        pid = (struct ts_pid *)zlst_search((zhead_t *)&(obj->pid0), (int)(new_pid->PID));
         if(pid) {
                 /* is in pid_list already, just update information */
                 pid->PID = new_pid->PID;
@@ -2617,7 +2617,7 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
 
                 RPTDBG("insert 0x%04X in pid_list", (unsigned int)(pid->PID));
                 zlst_set_key(pid, (int)(pid->PID));
-                if(0 != zlst_insert(&(obj->pid0), pid)) {
+                if(0 != zlst_insert((zhead_t *)&(obj->pid0), pid)) {
                         free_pid(obj->mp, pid);
                         return NULL;
                 }

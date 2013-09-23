@@ -1089,7 +1089,7 @@ static int xml2list(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         continue;
                 }
                 memset(list, 0, pdesc->size);
-                zlst_push(mem, list);
+                zlst_push((zhead_t *)mem, list);
                 xml2param(list, sub_xnode, pdesc->pdesc);
         }
 
@@ -1166,7 +1166,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
                 memset(list, 0, adesc->size);
                 zlst_set_name(list, adesc->name);
-                zlst_push(mem, list);
+                zlst_push((zhead_t *)mem, list);
                 xml2param(list, sub_xnode, adesc->pdesc);
         }
 

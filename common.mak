@@ -68,7 +68,19 @@ lib$(NAME).pc: ../config.mak
 
 lint: $(SRCS)
 	@echo -----------------------------------------------------------
+	-splint $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
+lintw: $(SRCS)
+	@echo -----------------------------------------------------------
 	-splint -weak $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
+lintc: $(SRCS)
+	@echo -----------------------------------------------------------
+	-splint -checks $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
+lints: $(SRCS)
+	@echo -----------------------------------------------------------
+	-splint -strict $(LINTFLAGS) $(INCDIRS) $(SRCS)
 
 install-lib-dev:
 	-install -d $(includedir)
