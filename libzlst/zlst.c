@@ -235,58 +235,64 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return NULL;
 }
 
-/*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+/*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@dependent@*/ void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
 
         if(NULL == ZNODE) {
                 RPTERR("delete: bad node");
-                return ZNODE;
+                return NULL;
         }
         znode = (struct znode *)ZNODE;
 
         if(NULL == PHEAD) {
                 RPTERR("delete: NOT a list");
-                return ZNODE;
+                return NULL;
         }
         head = *PHEAD;
 
         if(NULL == head) {
                 RPTERR("delete: empty list");
-                return ZNODE;
+                return NULL;
         }
 
         if(NULL == znode->prev) {
                 if(head != znode) {
                         RPTERR("delete: bad arg");
-                        return ZNODE;
+                        return NULL;
                 }
                 if(NULL == znode->next) {
                         RPTINF("delete: last node");
                         *PHEAD = NULL;
-                        return ZNODE;
+                        return head;
                 }
                 else {
                         RPTINF("delete: head node");
                         znode->next->tail = znode->tail;
                         znode->next->prev = NULL;
                         *PHEAD = znode->next;
-                        return ZNODE;
+                        return head;
                 }
         }
-        else {
+        else { /* (NULL != znode->prev) */
+                struct znode *rslt = znode->prev->next; /* node to be free */
+
                 if(NULL == znode->next) {
+                        if(head->tail != znode) {
+                                RPTERR("delete: bad arg");
+                                return NULL;
+                        }
                         RPTINF("delete: tail node");
                         head->tail = znode->prev;
                         znode->prev->next = NULL;
-                        return ZNODE;
+                        return rslt;
                 }
                 else {
                         RPTINF("delete: middle node");
                         znode->prev->next = znode->next;
                         znode->next->prev = znode->prev;
-                        return ZNODE;
+                        return rslt;
                 }
         }
 }

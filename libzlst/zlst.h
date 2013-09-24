@@ -52,7 +52,7 @@ typedef /*@null@*/ /*@owned@*/ struct znode *zhead_t; /* point to the head of a 
 /*@null@*/ /*@owned@*/ void *zlst_pop(/*@null@*/ zhead_t *PHEAD);
 /*@null@*/ /*@owned@*/ void *zlst_shift(/*@null@*/ zhead_t *PHEAD);
 /*@null@*/ /*@owned@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE); /* small key first */
-/*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
+/*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@dependent@*/ void *ZNODE);
 
 /*@null@*/ /*@dependent@*/ void *zlst_search(/*@null@*/ zhead_t *PHEAD, int key);
 void zlst_set_key(/*@null@*/ void *ZNODE, int key);
