@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdint.h> /* for uint?_t, etc */
 
-#include "version.h"
+#include "tstool_config.h"
 #include "common.h"
 #include "if.h"
 
@@ -31,7 +31,7 @@
 #define DTSDI_SDI_10B           (0x0080) /* Set if the file contains 10-bit samples */
 #define DTSDI_SDI_HUFFMAN       (0x0200) /* Set if the file contains compressed SDI samples */
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 /* header */
 struct dtsdi_header {
@@ -43,9 +43,14 @@ struct dtsdi_header {
     uint16_t flag;        /* Additional data-format flags */
 };
 
+struct dtsdi_header_ext {
+    uint8_t ext[8]; /* I do not known the meaning of these 8-byte */
+};
+
 static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static struct dtsdi_header hdr;
+static struct dtsdi_header_ext hdr_ext;
 static int output_mode = 8; /* 8(8-bit), 10(10-bit) */
 static int show_info = 0;
 static int show_vbi = 1;
@@ -71,7 +76,7 @@ int main(int argc, char *argv[])
 
         fd_i = fopen(file_i, "rb");
         if(NULL == fd_i) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_i);
+                RPTERR("open \"%s\" failed", file_i);
                 return -1;
         }
 
@@ -137,7 +142,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 }
                         }
                         else {
-                                RPT(RPT_ERR, "Wrong parameter: %s", argv[i]);
+                                RPTERR("Wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }
@@ -175,20 +180,18 @@ static int show_help()
 
 static int show_version()
 {
-        char str[100];
-
-        sprintf(str, "dtsdi of tools v%s.%s.%s", VER_MAJOR, VER_MINOR, VER_RELEA);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "dtsdi of tstools v%s (%s)\n"
+                "Build time: %s %s\n"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.\n",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return 0;
 }
 
@@ -198,15 +201,15 @@ static int parse_header()
 
         cnt = fread(&hdr, 1, 16, fd_i); /* file header has 16-byte */
         if(cnt != 16) {
-                RPT(RPT_ERR, "read header of \"%s\" failed, cnt == %d != 16", file_i, cnt);
+                RPTERR("read header of \"%s\" failed, cnt == %d != 16", file_i, cnt);
                 return -1;
         }
         if(DTSDI_MAGIC_CODE1 != hdr.magic_code1 ||
            DTSDI_MAGIC_CODE2 != hdr.magic_code2 ||
            DTSDI_MAGIC_CODE3 != hdr.magic_code3) {
-                RPT(RPT_ERR, "magic_code1(0x%08X) : 0x%08X", DTSDI_MAGIC_CODE1, hdr.magic_code1);
-                RPT(RPT_ERR, "magic_code2(0x%08X) : 0x%08X", DTSDI_MAGIC_CODE2, hdr.magic_code2);
-                RPT(RPT_ERR, "magic_code3(0x%08X) : 0x%08X", DTSDI_MAGIC_CODE3, hdr.magic_code3);
+                RPTERR("magic_code1(0x%08X) : 0x%08X", DTSDI_MAGIC_CODE1, hdr.magic_code1);
+                RPTERR("magic_code2(0x%08X) : 0x%08X", DTSDI_MAGIC_CODE2, hdr.magic_code2);
+                RPTERR("magic_code3(0x%08X) : 0x%08X", DTSDI_MAGIC_CODE3, hdr.magic_code3);
                 return -1;
         }
 
@@ -220,8 +223,8 @@ static int parse_header()
         }
 
         if(show_info) {
-                fprintf(stdout, "File(dtsdi) version: %d\r\n", hdr.version);
-                fprintf(stdout, "Frame: %u", total_line_cnt);
+                fprintf(stdout, "dtsdi: version: %d", hdr.version);
+                fprintf(stdout, ", Frame: %u", total_line_cnt);
                 if(DTSDI_SDI_FULL & hdr.flag) {
                         fprintf(stdout, ", full SDI data");
                 }
@@ -240,8 +243,26 @@ static int parse_header()
                 else {
                         fprintf(stdout, ", uncompressed");
                 }
-                fprintf(stdout, "\r\n");
         }
+
+        /* header_ext of version 1 */
+        if(DTSDI_FMT_VERSION != hdr.version) {
+                cnt = fread(&hdr_ext, 1, 8, fd_i); /* header of version 1 has additional 8-byte */
+                if(cnt != 8) {
+                        RPTERR("read header_ext of \"%s\" failed, cnt == %d != 8", file_i, cnt);
+                        return -1;
+                }
+                else {
+                        int i;
+
+                        fprintf(stdout, ", header_ext:");
+                        for(i = 0; i < sizeof(hdr_ext); i++) {
+                                fprintf(stdout, " %02X", hdr_ext.ext[i]);
+                        }
+                }
+        }
+
+        fprintf(stdout, "\r\n");
         return 0;
 }
 
@@ -274,7 +295,7 @@ static int parse_frame()
                      0x000 == sdi[1] &&
                      0x000 == sdi[2] &&
                      (0x040 & sdi[3]))) { /* H(bit6) == 1 */
-                        RPT(RPT_ERR, "bad EAV");
+                        RPTERR("bad EAV");
                         return -1;
                 }
                 output(sdi, 4);
@@ -301,7 +322,7 @@ static int parse_frame()
                      0x000 == sdi[1] &&
                      0x000 == sdi[2] &&
                      !(0x040 & sdi[3]))) { /* H(bit6) == 0 */
-                        RPT(RPT_ERR, "bad SAV");
+                        RPTERR("bad SAV");
                         return -1;
                 }
                 output(sdi, 4);
@@ -343,7 +364,7 @@ static int get_four(uint16_t *sdi)
 
         cnt = fread(packed, 1, 5, fd_i);
         if(5 != cnt) {
-                RPT(RPT_ERR, "data in \"%s\" not enough, got %d only", file_i, cnt);
+                RPTERR("data in \"%s\" not enough, got %d only", file_i, cnt);
                 return -1;
         }
 
