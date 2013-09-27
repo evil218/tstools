@@ -46,9 +46,10 @@ struct dtsdi_header_ext {
         uint8_t ext[8]; /* I do not known the meaning of these 8-byte */
 };
 
-#define DT_PASS (0) /* do not show these data */
-#define DT_DATA (1) /* show these data directly */
-#define DT_INFO (2) /* parse and show the info of these data */
+/* data mode */
+#define DAT_PASS (0) /* do not show these data */
+#define DAT_DATA (1) /* show these data directly */
+#define DAT_INFO (2) /* parse and show the info of these data */
 
 static FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
@@ -56,10 +57,15 @@ static struct dtsdi_header hdr;
 static struct dtsdi_header_ext hdr_ext;
 static uint8_t packed[1440 / 4 * 5]; /* support SD only */
 static uint16_t sdi[1440]; /* use low 10-bit only */
-static int output_mode = 10; /* 8-bit(8)!10-bit(10) */
-static int show_inf = DT_PASS; /* pass(0)!info(2) */
-static int show_vbi = DT_PASS; /* pass(0)!data(1)!info(2) */
-static int show_act = DT_PASS; /* pass(0)!data(1) */
+static int is_8_bit = 0; /* 8-bit or 10-bit mode */
+static int is_dec = 0; /* dec or hex mode */
+static int mode_inf = DAT_PASS; /* file info: pass(0)!info(2) */
+static int mode_lin = DAT_PASS; /* eav info: pass(0)!data(1) */
+static int mode_eav = DAT_PASS; /* eav info: pass(0)!data(1) */
+static int mode_sav = DAT_PASS; /* sav info: pass(0)!data(1) */
+static int mode_hbk = DAT_PASS; /* h-blank: pass(0)!data(1)!info(2) */
+static int mode_vbk = DAT_PASS; /* v-blank: pass(0)!data(1)!info(2) */
+static int mode_act = DAT_PASS; /* active data: pass(0)!data(1) */
 static int total_line_cnt; /* depend on 525 or 625 */
 static int hbi_cnt_per_line; /* depend on 525 or 625 */
 static int act_cnt_per_line = 1440;
@@ -71,8 +77,8 @@ static int show_version();
 static int parse_header();
 static int parse_frame();
 static int get_data(uint16_t *sdi, int CNT);
-static int show_msb(uint16_t *dat, int cnt);
-static int show_hbi(uint16_t *dat, int cnt);
+static int show_act(uint16_t *dat, int cnt);
+static int show_blk(uint16_t *dat, int cnt);
 static int show_anc(uint16_t *dat, int cnt);
 
 int main(int argc, char *argv[])
@@ -100,7 +106,6 @@ int main(int argc, char *argv[])
 static int deal_with_parameter(int argc, char *argv[])
 {
         int i;
-        int dat;
 
         if(1 == argc) {
                 /* no parameter */
@@ -123,34 +128,38 @@ static int deal_with_parameter(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-i") ||
                                 0 == strcmp(argv[i], "--inf")) {
-                                show_inf = DT_INFO;
+                                mode_inf = DAT_INFO;
+                        }
+                        else if(0 == strcmp(argv[i], "--lin")) {
+                                mode_lin = DAT_DATA;
+                        }
+                        else if(0 == strcmp(argv[i], "--eav")) {
+                                mode_eav = DAT_DATA;
+                        }
+                        else if(0 == strcmp(argv[i], "--sav")) {
+                                mode_sav = DAT_DATA;
                         }
                         else if(0 == strcmp(argv[i], "--hbd")) {
-                                show_vbi = DT_DATA;
+                                mode_hbk = DAT_DATA;
                         }
                         else if(0 == strcmp(argv[i], "--hbi")) {
-                                show_vbi = DT_INFO;
+                                mode_hbk = DAT_INFO;
+                        }
+                        else if(0 == strcmp(argv[i], "--vbd")) {
+                                mode_vbk = DAT_DATA;
+                        }
+                        else if(0 == strcmp(argv[i], "--vbi")) {
+                                mode_vbk = DAT_INFO;
                         }
                         else if(0 == strcmp(argv[i], "-a") ||
                                 0 == strcmp(argv[i], "--act")) {
-                                show_act = DT_DATA;
+                                mode_act = DAT_DATA;
                         }
-                        else if(0 == strcmp(argv[i], "-m") ||
-                                0 == strcmp(argv[i], "--mod")) {
-                                i++;
-                                if(i >= argc) {
-                                        fprintf(stderr, "no parameter for 'mod'!\n");
-                                        return -1;
-                                }
-                                sscanf(argv[i], "%i" , &dat);
-                                if(8 == dat || 10 == dat) {
-                                        output_mode = dat;
-                                }
-                                else {
-                                        fprintf(stderr,
-                                                "bad variable for 'mod': %u(8 or 10), use %u instead!\n",
-                                                dat, output_mode);
-                                }
+                        else if(0 == strcmp(argv[i], "-8")) {
+                                is_8_bit = 1;
+                        }
+                        else if(0 == strcmp(argv[i], "-d")) {
+                                is_dec = 1;
                         }
                         else {
                                 RPTERR("Wrong parameter: %s", argv[i]);
@@ -174,11 +183,17 @@ static int show_help()
                 "\n"
                 "Options:\n"
                 "\n"
-                "  -i, --inf                show dtsdi file information, default: do NOT show information\n"
-                "      --hbd                show hbi data, default: do NOT show hbi data\n"
-                "      --hbi                parse and show the info of  hbi data, default: do NOT show hbi data\n"
-                "  -a, --act                show active data, default: do NOT show active data\n"
-                "  -m, --mod <m>           output bit mode, 8 or 10, default: 10(-bit)\n"
+                "  -i, --inf                show dtsdi file information, default: do NOT show\n"
+                "      --lin                show frame and line number, default: do NOT show\n"
+                "      --eav                show eav data, default: do NOT show\n"
+                "      --sav                show sav data, default: do NOT show\n"
+                "      --hbd                show h-blank data, default: do NOT show\n"
+                "      --hbi                show h-blank info, default: do NOT show\n"
+                "      --vbd                show v-blank data, default: do NOT show\n"
+                "      --vbi                show v-blank info, default: do NOT show\n"
+                "  -a, --act                show active data, default: do NOT show\n"
+                "  -8                       output 8-bit mode, default: 10-bit\n"
+                "  -d                       output as dec mode, default: hex mode\n"
                 "\n"
                 "  -h, --help               display this information\n"
                 "  -v, --version            display my version\n"
@@ -244,7 +259,7 @@ static int parse_header()
                 }
         }
 
-        if(DT_INFO == show_inf) {
+        if(DAT_INFO == mode_inf) {
                 fprintf(stdout, "DTSDI: version %d", hdr.version);
                 fprintf(stdout, ", frame: %u", total_line_cnt);
                 fprintf(stdout, ", %s", (DTSDI_SDI_FULL & hdr.flag) ? "full SDI data" : "active video only");
@@ -268,6 +283,8 @@ static int parse_frame()
 {
         int line_num;
         int frame_num;
+        uint16_t EAV;
+        uint16_t SAV;
 
         frame_num = 1;
         line_num = 1;
@@ -280,7 +297,9 @@ static int parse_frame()
                         line += 3;
                         line -= ((line > 525) ? 525 : 0);
                 }
-                fprintf(stdout, "%4u, %4u, ", frame_num, line);
+                if(DAT_DATA == mode_lin) {
+                        fprintf(stdout, "%4u, %4u, ", frame_num, line);
+                }
 
                 /* EAV */
                 if(0 != get_data(sdi, 4)) {
@@ -289,20 +308,23 @@ static int parse_frame()
                 if(!((0x3FF == sdi[0]) &&
                      (0x000 == sdi[1]) &&
                      (0x000 == sdi[2]) &&
-                     (0x040 & sdi[3]))) { /* H(bit6) == 1 */
+                     ((1<<6) & sdi[3]))) { /* H == 1 */
                         RPTERR("bad EAV");
                         return -1;
                 }
-                show_msb(sdi, 4);
+                EAV = sdi[3];
+                if(DAT_DATA == mode_eav) {
+                        fprintf(stdout, "%03X(%02X), ", EAV, EAV >> 2);
+                }
 
                 /* h-blank data */
                 if(0 != get_data(sdi, hbi_cnt_per_line)) {
                         return -1;
                 }
-                if(DT_DATA == show_vbi) {
-                        show_hbi(sdi, hbi_cnt_per_line);
+                if(DAT_DATA == mode_hbk) {
+                        show_blk(sdi, hbi_cnt_per_line);
                 }
-                if(DT_INFO == show_vbi) {
+                if(DAT_INFO == mode_hbk) {
                         show_anc(sdi, hbi_cnt_per_line);
                 }
 
@@ -313,18 +335,33 @@ static int parse_frame()
                 if(!((0x3FF == sdi[0]) &&
                      (0x000 == sdi[1]) &&
                      (0x000 == sdi[2]) &&
-                     !(0x040 & sdi[3]))) { /* H(bit6) == 0 */
+                     !((1<<6) & sdi[3]))) { /* H == 0 */
                         RPTERR("bad SAV");
                         return -1;
                 }
-                show_msb(sdi, 4);
+                SAV = sdi[3];
+                if(DAT_DATA == mode_sav) {
+                        fprintf(stdout, "%03X(%02X), ", SAV, SAV >> 2);
+                }
 
-                /* active data */
                 if(0 != get_data(sdi, act_cnt_per_line)) {
                         return -1;
                 }
-                if(DT_DATA == show_act) {
-                        show_msb(sdi, act_cnt_per_line);
+
+                if(((1<<7) & SAV)) { /* V == 1 */
+                        /* v-blank data */
+                        if(DAT_DATA == mode_vbk) {
+                                show_blk(sdi, act_cnt_per_line);
+                        }
+                        if(DAT_INFO == mode_vbk) {
+                                show_anc(sdi, act_cnt_per_line);
+                        }
+                }
+                else { /* V == 0 */
+                        /* active data */
+                        if(DAT_DATA == mode_act) {
+                                show_act(sdi, act_cnt_per_line);
+                        }
                 }
 
                 /* line tail */
@@ -377,45 +414,29 @@ static int get_data(uint16_t *sdi, int CNT)
         return 0;
 }
 
-static int show_msb(uint16_t *dat, int cnt)
+static int show_act(uint16_t *dat, int cnt)
 {
         int i;
+        char *fmt = (is_dec) ? "%4d " : ((is_8_bit) ? "%02X " : "%03X ");
+        int shft = (is_8_bit) ? 2 : 0;
 
-        if(10 == output_mode) {
-                /* 10-bit output mode */
-                for(i = 0; i < cnt - 1; i++) {
-                        fprintf(stdout, "%03X ", *dat++);
-                }
-                fprintf(stdout, "%03X, ", *dat++);
+        for(i = 0; i < cnt - 1; i++, dat++) {
+                fprintf(stdout, fmt, *dat >> shft);
         }
-        else {
-                /* 8-bit output mode */
-                for(i = 0; i < cnt - 1; i++) {
-                        fprintf(stdout, "%02X ", *dat++ >> 2);
-                }
-                fprintf(stdout, "%02X, ", *dat++ >> 2);
-        }
+        fprintf(stdout, fmt, *dat >> shft);
         return 0;
 }
 
-static int show_hbi(uint16_t *dat, int cnt)
+static int show_blk(uint16_t *dat, int cnt)
 {
         int i;
+        char *fmt = (is_dec) ? "%4d " : ((is_8_bit) ? "%02X " : "%03X ");
+        int mask = (is_8_bit) ? 0x0FF : 0x3FF;
 
-        if(10 == output_mode) {
-                /* 10-bit output mode */
-                for(i = 0; i < cnt - 1; i++) {
-                        fprintf(stdout, "%03X ", *dat++);
-                }
-                fprintf(stdout, "%03X, ", *dat++);
+        for(i = 0; i < cnt - 1; i++, dat++) {
+                fprintf(stdout, fmt, *dat & mask);
         }
-        else {
-                /* 8-bit output mode */
-                for(i = 0; i < cnt - 1; i++) {
-                        fprintf(stdout, "%02X ", *dat++ && 0xFF);
-                }
-                fprintf(stdout, "%02X, ", *dat++ && 0xFF);
-        }
+        fprintf(stdout, fmt, *dat & mask);
         return 0;
 }
 
