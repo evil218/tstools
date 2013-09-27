@@ -23,7 +23,7 @@ enum FILE_TYPE
         FILE_UNKNOWN
 };
 
-static FILE *fd_i = NULL;
+static /*@null@*/ FILE *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 16; /* data number per line */
 static int type = FILE_TS;
@@ -41,7 +41,7 @@ static int mts_time(int32_t *mts, uint8_t *bin);
 int main(int argc, char *argv[])
 {
         int cnt;
-        unsigned char bbuf[LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
+        uint8_t bbuf[LINE_LENGTH_MAX / 3 + 10]; /* bin data buffer */
         char tbuf[LINE_LENGTH_MAX + 10]; /* txt data buffer */
 
         if(0 != deal_with_parameter(argc, argv)) {
@@ -55,17 +55,17 @@ int main(int argc, char *argv[])
         }
 
         pkt_addr = 0;
-        judge_type();
+        (void)judge_type();
         while(0 < (cnt = (int)fread(bbuf, 1, (size_t)npline, fd_i))) {
                 switch(type) {
                         case FILE_TS:
                                 if(0x47 != bbuf[0]) {
                                         pkt_addr -= ((pkt_addr >= (int64_t)npline) ? npline : 0);
-                                        judge_type();
+                                        (void)judge_type();
                                         continue;
                                 }
                                 fprintf(stdout, "*ts, ");
-                                b2t(tbuf, bbuf, 188);
+                                (void)b2t(tbuf, bbuf, 188);
                                 fprintf(stdout, "%s", tbuf);
 
                                 fprintf(stdout, "*addr, %"PRIX64", \n", pkt_addr);
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
                         case FILE_MTS:
                                 if(0x47 != bbuf[4]) {
                                         pkt_addr -= ((pkt_addr >= (int64_t)npline) ? npline : 0);
-                                        judge_type();
+                                        (void)judge_type();
                                         continue;
                                 }
                                 fprintf(stdout, "*ts, ");
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
                         case FILE_TSRS:
                                 if(0x47 != bbuf[0]) {
                                         pkt_addr -= ((pkt_addr >= (int64_t)npline) ? npline : 0);
-                                        judge_type();
+                                        (void)judge_type();
                                         continue;
                                 }
                                 fprintf(stdout, "*ts, ");
