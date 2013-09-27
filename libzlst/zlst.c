@@ -10,14 +10,21 @@
 #define RPT_INF (3) /* important information */
 #define RPT_DBG (4) /* debug information */
 
+#ifdef S_SPLINT_S /* FIXME */
 #define RPTERR(fmt...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
 #define RPTWRN(fmt...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
 #define RPTINF(fmt...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
 #define RPTDBG(fmt...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#else
+#define RPTERR(fmt, ...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTWRN(fmt, ...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTINF(fmt, ...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTDBG(fmt, ...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#endif
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-/*@null@*/ /*@owned@*/ void *zlst_push(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_push(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
 {
         struct znode *head;
         struct znode *tail; /* old tail */
@@ -58,7 +65,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return NULL;
 }
 
-/*@null@*/ /*@owned@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
 {
         struct znode *head; /* old head */
         struct znode *znode;
@@ -160,7 +167,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 }
 
 /* sort with key, small key first */
-/*@null@*/ /*@owned@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;

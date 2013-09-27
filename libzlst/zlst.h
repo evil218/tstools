@@ -47,11 +47,11 @@ typedef /*@null@*/ /*@owned@*/ struct znode *zhead_t; /* point to the head of a 
  *      ZNODE will be convert to (struct znode  *) type
  *      It's up to the caller to free the valid return node(zlst do NOT known your free function)
  */
-/*@null@*/ /*@owned@*/ void *zlst_push(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
-/*@null@*/ /*@owned@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_push(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
 /*@null@*/ /*@owned@*/ void *zlst_pop(/*@null@*/ zhead_t *PHEAD);
 /*@null@*/ /*@owned@*/ void *zlst_shift(/*@null@*/ zhead_t *PHEAD);
-/*@null@*/ /*@owned@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE); /* small key first */
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE); /* small key first */
 /*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@dependent@*/ void *ZNODE);
 
 /*@null@*/ /*@dependent@*/ void *zlst_search(/*@null@*/ zhead_t *PHEAD, int key);
