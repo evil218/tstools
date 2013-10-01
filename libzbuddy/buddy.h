@@ -15,32 +15,26 @@
  * 2012-11-02, manuscola.bean@gmail.com, optimized from https://github.com/wuwenbin/buddy2
  */
 
-#ifndef _BUDDY_H
-#define _BUDDY_H
+#ifndef BUDDY_H
+#define BUDDY_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define BUDDY_ORDER_MAX (8 * sizeof(size_t))
+#define BUDDY_ORDER_MAX (int)(8 * sizeof(size_t))
 
-/*@only@*/
-/*@null@*/
-void *buddy_create(size_t order_max, size_t order_min);
-int buddy_destroy(/*@only@*/ /*@null@*/ void *id);
+/*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min);
+int buddy_destroy(/*@null@*/ /*@only@*/ void *id);
 int buddy_init(void *id);
 int buddy_status(void *id, int enable, const char *hint); /* for debug */
 
-/*@dependent@*/
-/*@null@*/
-void *buddy_malloc(void *id, size_t size);
-/*@dependent@*/
-/*@null@*/
-void *buddy_realloc(void *id, void *ptr, size_t size); /* need to be test */
-void buddy_free(/*@null@*/ void *id, /*@dependent@*/ /*@null@*/ void *ptr);
+/*@null@*/ /*@dependent@*/ void *buddy_malloc(void *id, size_t size);
+/*@null@*/ /*@dependent@*/ void *buddy_realloc(void *id, void *ptr, size_t size); /* FIXME: need to be test */
+void buddy_free(/*@null@*/ void *id, /*@null@*/ /*@dependent@*/ void *ptr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _BUDDY_H */
+#endif /* BUDDY_H */

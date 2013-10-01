@@ -1,4 +1,5 @@
 /* vim: set tabstop=8 shiftwidth=8: */
+/* for portability, use "%l" instead of "%z" for size_t in this file */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for memcpy */
@@ -7,17 +8,24 @@
 #include "buddy.h"
 
 /* report level and macro */
-#define ERR_LVL (1) /* error, system error */
-#define WRN_LVL (2) /* warning, maybe wrong, maybe OK */
-#define INF_LVL (3) /* important information */
-#define DBG_LVL (4) /* debug information */
+#define RPT_ERR (1) /* error, system error */
+#define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
+#define RPT_INF (3) /* important information */
+#define RPT_DBG (4) /* debug information */
 
-#define RPTERR(fmt...) do {if(ERR_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
-#define RPTWRN(fmt...) do {if(WRN_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
-#define RPTINF(fmt...) do {if(INF_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
-#define RPTDBG(fmt...) do {if(DBG_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
+#ifdef S_SPLINT_S /* FIXME */
+#define RPTERR(fmt...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTWRN(fmt...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTINF(fmt...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTDBG(fmt...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#else
+#define RPTERR(fmt, ...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTWRN(fmt, ...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTINF(fmt, ...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTDBG(fmt, ...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#endif
 
-static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define IS_POWER_OF_2(x) ((0 == ((x) & ((x) - 1))) && (0 != (x)))
@@ -37,25 +45,23 @@ struct buddy_pool
 
 static size_t smallest_order(size_t size);
 
-/*@only@*/
-/*@null@*/
-void *buddy_create(size_t order_max, size_t order_min)
+/*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min)
 {
         struct buddy_pool *p;
         size_t tree_size;
 
         if(order_max > BUDDY_ORDER_MAX) {
-                RPTERR("create: bad order_max: %zd > %zd", order_max, BUDDY_ORDER_MAX);
+                RPTERR("create: bad order_max: %d > %d", order_max, BUDDY_ORDER_MAX);
                 return NULL; /* failed */
         }
 
         if(order_min >= order_max) {
-                RPTERR("create: bad order_min: %zd >= %zd", order_min, order_max);
+                RPTERR("create: bad order_min: %d >= %d", order_min, order_max);
                 return NULL; /* failed */
         }
 
         if(order_min < 1 || order_max < 1) {
-                RPTERR("create: bad order: %zd < 1 or %zd < 1", order_min, order_max);
+                RPTERR("create: bad order: %d < 1 or %d < 1", order_min, order_max);
                 return NULL; /* failed */
         }
 
@@ -65,56 +71,58 @@ void *buddy_create(size_t order_max, size_t order_min)
                 return NULL; /* failed */
         }
 
-        p->omax = order_max;
-        p->omin = order_min;
-        p->size = ((size_t)1 << order_max);
+        p->omax = (size_t)order_max;
+        p->omin = (size_t)order_min;
+        p->size = (size_t)1 << (size_t)order_max;
 
         tree_size = (1 << (p->omax - p->omin + 1)) - 1;
         p->tree = (uint8_t *)malloc(tree_size); /* FIXME: memalign? */
         if(NULL == p->tree) {
-                RPTERR("create: malloc tree(%zd-byte) failed", tree_size);
+                RPTERR("create: malloc tree(%lu-byte) failed", (unsigned long)tree_size);
                 free(p);
                 return NULL; /* failed */
         }
-        RPTDBG("create: tree: %8zX-byte @ %p", tree_size, p->tree);
+        RPTDBG("create: tree: %8lX-byte @ %p", (unsigned long)tree_size, p->tree);
 
         p->pool = (uint8_t *)malloc(p->size); /* FIXME: memalign? */
         if(NULL == p->pool) {
-                RPTERR("create: malloc pool(%zd-byte) failed", p->size);
+                RPTERR("create: malloc pool(%lu-byte) failed", (unsigned long)p->size);
                 free(p->tree);
                 free(p);
                 return NULL; /* failed */
         }
-        RPTDBG("create: pool: %8zX-byte @ %p, min space: %zX", p->size, p->pool, (size_t)1 << order_min);
+        RPTDBG("create: pool: %8lX-byte @ %p, min space: %lX", (unsigned long)p->size, p->pool, (unsigned long)1 << (size_t)order_min);
 
         p->tree[0] = 0; /* to avoid use malloc() before init() */
         return p;
 }
 
-int buddy_destroy(/*@only@*/ /*@null@*/ void *id)
+int buddy_destroy(/*@null@*/ /*@only@*/ void *id)
 {
         struct buddy_pool *p;
         int rslt = 0;
 
         p = (struct buddy_pool *)id;
-        if(!p) {
+        if(NULL == p) {
                 RPTERR("destroy: bad id");
                 rslt = -1;
                 return rslt;
         }
 
-        if(p->tree) {
-                free(p->tree);
-        } else {
+        if(NULL == p->tree) {
                 RPTERR("destroy: bad tree");
                 rslt = -2;
         }
+        else {
+                free(p->tree);
+        }
 
-        if(p->pool) {
-                free(p->pool);
-        } else {
+        if(NULL == p->pool) {
                 RPTERR("destroy: bad pool");
                 rslt = -3;
+        }
+        else {
+                free(p->pool);
         }
 
         free(p);
@@ -125,7 +133,7 @@ int buddy_init(void *id)
 {
         struct buddy_pool *p;
         uint8_t *tree;
-        int i;
+        size_t size;
         size_t order;
 
         p= (struct buddy_pool *)id;
@@ -139,12 +147,12 @@ int buddy_init(void *id)
         }
 
         /* init p->tree */
-        i = 0;
+        size = (size_t)1;
         tree = p->tree;
         for(order = p->omax; order >= p->omin; order--) {
-                memset(tree, (int)order, ((size_t)1 << i));
-                tree += (1 << i);
-                i++;
+                memset(tree, (int)order, size);
+                tree += size;
+                size <<= 1;
         }
         return 0;
 }
@@ -205,20 +213,18 @@ int buddy_status(void *id, int enable, const char *hint)
                         }
                 }
                 if(IS_POWER_OF_2(i + 2) && (0 != cnt)) {
-                        fprintf(stderr,"%3zd x 0x%zX, ", cnt, (size_t)1 << order);
+                        fprintf(stderr,"%3lu x 0x%lX, ", (unsigned long)cnt, (unsigned long)1 << order);
 #if 0
                         fprintf(stderr, "\n");
 #endif
                 }
         }
-        fprintf(stderr,"(%zu / %zu) used", acc, (size_t)1 << p->omax);
-        fprintf(stderr,": %s\n", ((hint) ? hint : ""));
+        fprintf(stderr,"(%lu / %lu) used", (unsigned long)acc, (unsigned long)1 << p->omax);
+        fprintf(stderr,": %s\n", ((NULL == hint) ? "" : hint));
         return 0;
 }
 
-/*@dependent@*/
-/*@null@*/
-void *buddy_malloc(void *id, size_t size)
+/*@null@*/ /*@dependent@*/ void *buddy_malloc(void *id, size_t size)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
         size_t order;
@@ -264,7 +270,7 @@ void *buddy_malloc(void *id, size_t size)
         p->tree[i] = 0; /* find the aim node */
 
         rslt = (p->pool + (i + 1) * (1<<order) - (p->size));
-        RPTDBG("malloc:  @ %p %zX %zX", rslt, (size_t)1 << order, size);
+        RPTDBG("malloc:  @ %p %lX %lX", rslt, (unsigned long)1 << order, (unsigned long)size);
 
         /* modify parent order */
         while(0 != i) {
@@ -275,15 +281,13 @@ void *buddy_malloc(void *id, size_t size)
         return rslt;
 }
 
-/*@dependent@*/
-/*@null@*/
-void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test */
+/*@null@*/ /*@dependent@*/ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test */
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
         size_t offset;
         size_t old_order;
         size_t oi; /* index of binary tree array */
-        size_t found;
+        int found;
         size_t new_order;
         size_t ni; /* index of binary tree array */
         size_t current_order;
@@ -314,12 +318,12 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
 
         /* determine offset, then search old node in the tree */
         if((uint8_t *)ptr < p->pool) {
-                RPTERR("realloc: bad ptr: %p(%p + %zd), before pool", ptr, p->pool, p->size);
+                RPTERR("realloc: bad ptr: %p(%p + %lu), before pool", ptr, p->pool, (unsigned long)p->size);
                 return NULL;
         }
         offset = (size_t)((uint8_t *)ptr - p->pool); /* FIXME */
         if(offset >= p->size) {
-                RPTERR("realloc: bad ptr: %p(%p + %zd), after pool", ptr, p->pool, p->size);
+                RPTERR("realloc: bad ptr: %p(%p + %lu), after pool", ptr, p->pool, (unsigned long)p->size);
                 return NULL;
         }
 
@@ -363,7 +367,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         }
 
         rslt = (p->pool + (ni + 1) * (1<<new_order) - (p->size));
-        RPTDBG("realloc: @ %p %zX %zX", rslt, (size_t)1 << new_order, size);
+        RPTDBG("realloc: @ %p %lX %lX", rslt, (unsigned long)1 << new_order, (unsigned long)size);
 
         /* modify tree for new */
         p->tree[ni] = 0;
@@ -376,7 +380,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         memmove(rslt, ptr, ((size_t)1 << old_order)); /* FIXME: splint prohibit using memcpy here */
 
         /* modify tree for old */
-        RPTDBG("realloc: @ %p %zX", ptr, (size_t)1 << old_order);
+        RPTDBG("realloc: @ %p %lX", ptr, (unsigned long)1 << old_order);
         p->tree[oi] = old_order;
         while(0 != oi) {
                 oi = PARENT(oi) ;
@@ -396,7 +400,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         return rslt;
 }
 
-void buddy_free(/*@null@*/ void *id, /*@dependent@*/ /*@null@*/ void *ptr)
+void buddy_free(/*@null@*/ void *id, /*@null@*/ /*@dependent@*/ void *ptr)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
         size_t offset;
@@ -425,12 +429,12 @@ void buddy_free(/*@null@*/ void *id, /*@dependent@*/ /*@null@*/ void *ptr)
 
         /* determine offset, then search aim node in the tree */
         if((uint8_t *)ptr < p->pool) {
-                RPTERR("realloc: bad ptr: %p(%p + %zd), before pool", ptr, p->pool, p->size);
+                RPTERR("realloc: bad ptr: %p(%p + %lu), before pool", ptr, p->pool, (unsigned long)p->size);
                 return;
         }
         offset = (size_t)((uint8_t *)ptr - p->pool); /* FIXME */
         if(offset >= p->size) {
-                RPTERR("realloc: bad ptr: %p(%p + %zd), after pool", ptr, p->pool, p->size);
+                RPTERR("realloc: bad ptr: %p(%p + %lu), after pool", ptr, p->pool, (unsigned long)p->size);
                 return;
         }
 
@@ -451,7 +455,7 @@ void buddy_free(/*@null@*/ void *id, /*@dependent@*/ /*@null@*/ void *ptr)
         }
 
         /* modify tree */
-        RPTDBG("free:    @ %p %zX", ptr, (size_t)1 << order);
+        RPTDBG("free:    @ %p %lX", ptr, (unsigned long)1 << order);
         p->tree[i] = order;
         while(0 != i) {
                 i = PARENT(i) ;
@@ -477,6 +481,6 @@ static size_t smallest_order(size_t size)
         size_t order;
         size_t mask;
 
-        for(order = 0, mask = 1; mask < size; order++, mask <<= 1) {};
+        for(order = 0, mask = (size_t)1; mask < size; order++, mask <<= 1) {};
         return order;
 }
