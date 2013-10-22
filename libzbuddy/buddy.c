@@ -45,7 +45,7 @@ struct buddy_pool
 
 static size_t smallest_order(size_t size);
 
-/*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min)
+void *buddy_create(int order_max, int order_min)
 {
         struct buddy_pool *p;
         size_t tree_size;
@@ -97,7 +97,7 @@ static size_t smallest_order(size_t size);
         return p;
 }
 
-int buddy_destroy(/*@null@*/ /*@only@*/ void *id)
+int buddy_destroy(void *id)
 {
         struct buddy_pool *p;
         int rslt = 0;
@@ -224,7 +224,7 @@ int buddy_status(void *id, int enable, const char *hint)
         return 0;
 }
 
-/*@null@*/ /*@dependent@*/ void *buddy_malloc(void *id, size_t size)
+void *buddy_malloc(void *id, size_t size)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
         size_t order;
@@ -281,7 +281,7 @@ int buddy_status(void *id, int enable, const char *hint)
         return rslt;
 }
 
-/*@null@*/ /*@dependent@*/ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test */
+void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test */
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
         size_t offset;
@@ -400,7 +400,7 @@ int buddy_status(void *id, int enable, const char *hint)
         return rslt;
 }
 
-void buddy_free(/*@null@*/ void *id, /*@null@*/ /*@dependent@*/ void *ptr)
+void buddy_free(void *id, void *ptr)
 {
         struct buddy_pool *p = (struct buddy_pool *)id;
         size_t offset;
