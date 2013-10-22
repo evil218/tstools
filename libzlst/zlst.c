@@ -24,7 +24,7 @@
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_push(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+void *zlst_push(zhead_t *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *tail; /* old tail */
@@ -65,7 +65,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return NULL;
 }
 
-/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+void *zlst_unshift(zhead_t *PHEAD, void *ZNODE)
 {
         struct znode *head; /* old head */
         struct znode *znode;
@@ -100,7 +100,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return NULL;
 }
 
-/*@null@*/ /*@owned@*/ void *zlst_pop(/*@null@*/ zhead_t *PHEAD)
+void *zlst_pop(zhead_t *PHEAD)
 {
         struct znode *head;
         struct znode *tail; /* old tail */
@@ -136,7 +136,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return rslt;
 }
 
-/*@null@*/ /*@owned@*/ void *zlst_shift(/*@null@*/ zhead_t *PHEAD)
+void *zlst_shift(zhead_t *PHEAD)
 {
         struct znode *head;
         struct znode *scnd; /* second node */
@@ -167,7 +167,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 }
 
 /* sort with key, small key first */
-/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE)
+void *zlst_insert(zhead_t *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
@@ -242,7 +242,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return NULL;
 }
 
-/*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@dependent@*/ void *ZNODE)
+void *zlst_delete(zhead_t *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
@@ -304,7 +304,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         }
 }
 
-/*@null@*/ /*@dependent@*/ void *zlst_search(/*@null@*/ zhead_t *PHEAD, int key)
+void *zlst_search(zhead_t *PHEAD, int key)
 {
         struct znode *head;
         struct znode *znode;
@@ -331,7 +331,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
         return NULL;
 }
 
-void zlst_set_key(/*@null@*/ void *ZNODE, int key)
+void zlst_set_key(void *ZNODE, int key)
 {
         struct znode *znode;
 
@@ -346,7 +346,7 @@ void zlst_set_key(/*@null@*/ void *ZNODE, int key)
         return;
 }
 
-void zlst_set_name(/*@null@*/ void *ZNODE, const /*@null@*/ /*@dependent@*/ char *name)
+void zlst_set_name(void *ZNODE, const char *name)
 {
         struct znode *znode;
 
