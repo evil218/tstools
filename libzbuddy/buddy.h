@@ -26,11 +26,11 @@ extern "C" {
 
 /*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min);
 int buddy_destroy(/*@null@*/ /*@only@*/ void *id);
-int buddy_init(void *id);
-int buddy_status(void *id, int enable, const char *hint); /* for debug */
+int buddy_init(/*@null@*/ void *id);
+int buddy_status(/*@null@*/ void *id, int enable, const char *hint); /* for debug */
 
-/*@null@*/ /*@dependent@*/ void *buddy_malloc(void *id, size_t size);
-/*@null@*/ /*@dependent@*/ void *buddy_realloc(void *id, void *ptr, size_t size); /* FIXME: need to be test */
+/*@null@*/ /*@dependent@*/ void *buddy_malloc(/*@null@*/ void *id, size_t size);
+/*@null@*/ /*@dependent@*/ void *buddy_realloc(/*@null@*/ void *id, void *ptr, size_t size); /* FIXME: need to be test */
 void buddy_free(/*@null@*/ void *id, /*@null@*/ /*@dependent@*/ void *ptr);
 
 #ifdef __cplusplus

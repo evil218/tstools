@@ -93,7 +93,8 @@ ifeq ($(TYPE),lib)
 clean:
 	-rm -f lib$(NAME)* $(obj-y) .depend
 
-install: $(aim) lib$(NAME).pc install-lib-dev
+#install: $(aim) lib$(NAME).pc install-lib-dev
+install: $(aim)
 ifneq ($(IMPLIBNAME),)
 	-install -m 755 $(aim) $(bindir)
 	-install -m 644 $(IMPLIBNAME) $(libdir)

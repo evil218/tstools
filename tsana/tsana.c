@@ -52,7 +52,7 @@ static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
-#define MP_ORDER_DEFAULT ((size_t)20) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
+#define MP_ORDER_DEFAULT (20) /* default memory pool size: (1 << MP_ORDER_DEFAULT) */
 
 struct pid_type_table {
         int   type; /* TS_TYPE_xxx */
@@ -561,7 +561,7 @@ static struct tsana_obj *create(int argc, char *argv[])
 {
         int i;
         int dat;
-        size_t mp_order;
+        int mp_order;
         struct tsana_obj *obj;
         struct ts_cfg cfg;
 
@@ -829,7 +829,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-mp': %u, use %zd instead!\n",
+                                                "bad variable for '-mp': %u, use %d instead!\n",
                                                 dat, MP_ORDER_DEFAULT);
                                 }
                         }
@@ -992,7 +992,7 @@ static void show_help()
                 " -prog <prog>     set cared prog, default: any program(0x0000)\n"
                 " -type <type>     set cared PID type, default: any type(0)\n"
                 " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
-                " -mp <mp>         set memory pool size order(16-%zd), default: %zd, means 2^%zd bytes\n"
+                " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
                 "\n"
                 " -h, --help       display this information\n"
                 " -v, --version    display my version\n"
