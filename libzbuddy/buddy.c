@@ -33,21 +33,21 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #define RSUBTREE(index) (((index) << 1) + 2)
 #define PARENT(index)   ((((index) + 1) >> 1) - 1)
 
-struct buddy_pool
+struct buddy_obj
 {
         uint8_t omax; /* max order */
         uint8_t omin; /* min order */
         size_t tree_size; /* tree size */
-        uint8_t *tree; /* binary tree, the array to describe the status of pool */
+        /*@null@*/ uint8_t *tree; /* binary tree, the array to describe the status of pool */
         size_t pool_size; /* pool size */
-        uint8_t *pool; /* pool buffer */
+        /*@null@*/ uint8_t *pool; /* pool buffer */
 };
 
 static size_t smallest_order(size_t size);
 
 void *buddy_create(int order_max, int order_min)
 {
-        struct buddy_pool *p;
+        struct buddy_obj *p;
 
         if(order_max > BUDDY_ORDER_MAX) {
                 RPTERR("create: bad order_max: %d > %d", order_max, BUDDY_ORDER_MAX);
@@ -64,7 +64,7 @@ void *buddy_create(int order_max, int order_min)
                 return NULL; /* failed */
         }
 
-        p = (struct buddy_pool *)malloc(sizeof(struct buddy_pool));
+        p = (struct buddy_obj *)malloc(sizeof(struct buddy_obj));
         if(NULL == p) {
                 RPTERR("create: create buddy pool object failed");
                 return NULL; /* failed */
@@ -98,10 +98,10 @@ void *buddy_create(int order_max, int order_min)
 
 int buddy_destroy(void *id)
 {
-        struct buddy_pool *p;
+        struct buddy_obj *p;
         int rslt = 0;
 
-        p = (struct buddy_pool *)id;
+        p = (struct buddy_obj *)id;
         if(NULL == p) {
                 RPTERR("destroy: bad id");
                 rslt = -1;
@@ -130,12 +130,12 @@ int buddy_destroy(void *id)
 
 int buddy_init(void *id)
 {
-        struct buddy_pool *p;
+        struct buddy_obj *p;
         uint8_t *tree;
         size_t size;
         size_t order;
 
-        p= (struct buddy_pool *)id;
+        p= (struct buddy_obj *)id;
         if(NULL == p) {
                 RPTERR("init: bad id");
                 return -1;
@@ -158,13 +158,13 @@ int buddy_init(void *id)
 
 int buddy_status(void *id, int enable, const char *hint)
 {
-        struct buddy_pool *p;
+        struct buddy_obj *p;
         size_t order;
         size_t cnt;
         size_t acc;
         size_t i;
 
-        p = (struct buddy_pool *)id;
+        p = (struct buddy_obj *)id;
         if(NULL == p) {
                 RPTERR("status: bad id");
                 return -1;
@@ -223,7 +223,7 @@ int buddy_status(void *id, int enable, const char *hint)
 
 void *buddy_malloc(void *id, size_t size)
 {
-        struct buddy_pool *p = (struct buddy_pool *)id;
+        struct buddy_obj *p = (struct buddy_obj *)id;
         size_t order;
         size_t i;
         size_t current_order;
@@ -280,7 +280,7 @@ void *buddy_malloc(void *id, size_t size)
 
 void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test */
 {
-        struct buddy_pool *p = (struct buddy_pool *)id;
+        struct buddy_obj *p = (struct buddy_obj *)id;
         size_t offset;
         size_t old_order;
         size_t oi; /* index of binary tree array */
@@ -399,7 +399,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
 
 void buddy_free(void *id, void *ptr)
 {
-        struct buddy_pool *p = (struct buddy_pool *)id;
+        struct buddy_obj *p = (struct buddy_obj *)id;
         size_t offset;
         size_t order;
         size_t i; /* index of binary tree array */
