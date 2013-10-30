@@ -175,6 +175,7 @@ struct ts_err {
         int pes_packet_length_error; /* pes_packet_length is too large */
         int pes_header_length_error; /* pes_header_length is too large */
         int pts_dts_flags_error; /* pts_dts_flags is 01 */
+        int pmt_section_number_error; /* pmt section_number|last_section_number not 0x00 */
 };
 
 /* TS head */

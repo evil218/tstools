@@ -1945,6 +1945,10 @@ static int show_error(struct tsana_obj *obj)
                         fprintf(stdout, "4.x , pts_dts_flags is 01, ");
                         err->pts_dts_flags_error = 0;
                 }
+                if(err->pmt_section_number_error) {
+                        fprintf(stdout, "4.x , pmt section_number|last_section_number not 0x00, ");
+                        err->pmt_section_number_error = 0;
+                }
         }
 
         return 0;

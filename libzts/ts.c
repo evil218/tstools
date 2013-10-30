@@ -1517,6 +1517,13 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         RPTWRN("PMT without corresponding program, ignore");
                         goto release_sect;
                 }
+                if(0x00 != new_sect->section_number ||
+                   0x00 != new_sect->last_section_number) {
+                        err->pmt_section_number_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
+                        goto release_sect;
+                }
                 tabl = &(pid->prog->tabl);
         }
         else {
@@ -2634,30 +2641,22 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
 
 static int is_all_prog_parsed(struct ts_obj *obj)
 {
-        uint8_t section_number;
         struct znode *znode_p; /* znode of program list */
 
         for(znode_p = (struct znode *)(obj->prog0); znode_p; znode_p = znode_p->next) {
                 struct ts_prog *prog = (struct ts_prog *)znode_p;
                 struct ts_tabl *tabl = &(prog->tabl);
-                struct znode *znode_s; /* znode of section list */
 
                 if(0xFF == tabl->version_number) {
+                        /* did not parse this PMT, wait it */
                         return 0;
                 }
 
-                section_number = 0;
-                for(znode_s = (struct znode *)(tabl->sect0); znode_s; znode_s = znode_s->next) {
-                        struct ts_sect *sect = (struct ts_sect *)znode_s;
-
-                        if(section_number > tabl->last_section_number) {
-                                return 0;
-                        }
-                        if(section_number != sect->section_number) {
-                                return 0;
-                        }
-                        section_number++;
-                }
+                /* note:
+                 *      each PMT PID has only one section,
+                 *      (0xFF != version_number) means we parsed the only section,
+                 *      so we do not need 'for' loop here.
+                 */
         }
         return 1;
 }
