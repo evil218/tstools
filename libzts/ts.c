@@ -154,6 +154,8 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2" */
         {0xEA, TS_TYPE_VID}, /* "VC1", "VC1" */
         {0xEA, TS_TYPE_AUD}, /* "WMA", "WMA" */
+        {0xF0, TS_TYPE_EMM}, /* "EMM" */
+        {0xF1, TS_TYPE_ECM}, /* "ECM" */
         {0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream" loop stop condition! */
 };
 
@@ -1888,43 +1890,30 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                 obj->has_err++;
         }
 
-        /* in PMT, table_id_extension is program_number */
+        /* search prog(table_id_extension in pmt is program_number) */
         RPTDBG("search 0x%04X in prog_list", (unsigned int)(sect->table_id_extension));
         prog = (struct ts_prog *)zlst_search((zhead_t *)&(obj->prog0), (int)(sect->table_id_extension));
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
 
-        obj->is_psi_si = 1;
+        /* init prog here */
         prog->is_parsed = 1;
+        obj->is_psi_si = 1;
 
+        /* parse each parameter about prog */
         dat = *cur++;
         prog->PCR_PID = dat & 0x1F;
-
         dat = *cur++;
         prog->PCR_PID <<= 8;
         prog->PCR_PID |= dat;
 
-        /* add PCR PID */
-        new_pid->PID = prog->PCR_PID;
-        new_pid->cnt = 0;
-        new_pid->lcnt = 0;
-        new_pid->prog = prog;
-        new_pid->elem = NULL;
-        new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
-        new_pid->CC = 0;
-        new_pid->is_CC_sync = 1;
-        (void)update_pid_list(obj, new_pid); /* PCR_PID */
-
-        /* program_info_length */
         dat = *cur++;
         prog->program_info_len = (int)(dat & 0x0F);
-
         dat = *cur++;
         prog->program_info_len <<= 8;
         prog->program_info_len |= dat;
 
-        /* record program_info */
         if(0 != prog->program_info_len && !(prog->program_info)) {
                 if(prog->program_info_len > INFO_LEN_MAX) {
                         err->program_info_length_error = 1;
@@ -1939,42 +1928,58 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                                 return -1;
                         }
                         memcpy(prog->program_info, cur, (size_t)(prog->program_info_len));
+                        cur += prog->program_info_len;
                 }
         }
-        cur += prog->program_info_len;
+
+        /* add PCR PID */
+        new_pid->PID = prog->PCR_PID;
+        new_pid->cnt = 0;
+        new_pid->lcnt = 0;
+        new_pid->prog = prog;
+        new_pid->elem = NULL;
+        new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
+        new_pid->CC = 0;
+        new_pid->is_CC_sync = 1;
+        (void)update_pid_list(obj, new_pid); /* PCR_PID */
 
         while(cur < crc) {
                 struct ts_elem *elem;
                 uint8_t *next; /* point to the data after descriptors */
 
-                /* add elementary stream */
                 elem = (struct ts_elem *)buddy_malloc(obj->mp, sizeof(struct ts_elem));
                 if(!elem) {
                         RPTERR("malloc elem node failed");
                         return -1;
                 }
-                elem->es_info = NULL;
 
+                /* init elem here */
+                elem->es_info = NULL;
+                elem->es_info_len = 0;
+                elem->PTS = STC_BASE_OVF;
+                elem->DTS = STC_BASE_OVF;
+                elem->STC = STC_OVF;
+                elem->is_pes_align = 0;
+
+                /* parse each parameter */
                 dat = *cur++;
                 elem->stream_type = dat;
+                elem->type = elem_type(dat)->type;
 
                 dat = *cur++;
                 elem->PID = dat & 0x1F;
-
                 dat = *cur++;
                 elem->PID <<= 8;
                 elem->PID |= dat;
+                elem->type |= ((elem->PID == prog->PCR_PID) ? TS_TMSK_PCR : 0);
 
-                /* ES_info_length */
                 dat = *cur++;
                 elem->es_info_len = (int)(dat & 0x0F);
-
                 dat = *cur++;
                 elem->es_info_len <<= 8;
                 elem->es_info_len |= dat;
 
-                /* ES_info */
-                if(0 != elem->es_info_len && !(elem->es_info)) {
+                if(0 != elem->es_info_len) {
                         if(elem->es_info_len >= INFO_LEN_MAX) {
                                 err->es_info_length_error = 1;
                                 err->has_other_error++;
@@ -1988,8 +1993,24 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                                         return -1;
                                 }
                                 memcpy(elem->es_info, cur, (size_t)(elem->es_info_len));
+                                /* do not move cur here, es_info will be parse */
                         }
                 }
+
+                /* push elem */
+                RPTDBG("push 0x%04X in elem_list", (unsigned int)(elem->PID));
+                zlst_push((zhead_t *)&(prog->elem0), elem);
+
+                /* add elementary PID */
+                new_pid->PID = elem->PID;
+                new_pid->cnt = 0;
+                new_pid->lcnt = 0;
+                new_pid->prog = prog;
+                new_pid->elem = elem;
+                new_pid->type = elem->type;
+                new_pid->CC = 0;
+                new_pid->is_CC_sync = 0;
+                (void)update_pid_list(obj, new_pid); /* elementary_PID */
 
                 next = cur + elem->es_info_len;
                 while(cur < next) {
@@ -2012,14 +2033,12 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
 
                                 dat = *pt++;
                                 CA_system_ID = dat;
-
                                 dat = *pt++;
                                 CA_system_ID <<= 8;
                                 CA_system_ID |= dat;
 
                                 dat = *pt++;
                                 CA_PID = dat & 0x1F;
-
                                 dat = *pt++;
                                 CA_PID <<= 8;
                                 CA_PID |= dat;
@@ -2034,33 +2053,32 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                                 new_pid->is_CC_sync = 0;
                                 RPTINF("add ECM_PID(0x%04X)", (unsigned int)(CA_PID));
                                 (void)update_pid_list(obj, new_pid);
+#if 0
+                                /* ECM is a kind of elem */
+                                elem = (struct ts_elem *)buddy_malloc(obj->mp, sizeof(struct ts_elem));
+                                if(!elem) {
+                                        RPTERR("malloc elem node failed");
+                                        return -1;
+                                }
+
+                                /* init elem here */
+                                elem->es_info = NULL;
+                                elem->es_info_len = 0;
+                                elem->PTS = STC_BASE_OVF;
+                                elem->DTS = STC_BASE_OVF;
+                                elem->STC = STC_OVF;
+                                elem->is_pes_align = 0;
+                                elem->stream_type = 0xF1; /* FIXME */
+                                elem->type = TS_TYPE_ECM;
+                                elem->PID = CA_PID;
+
+                                /* push elem */
+                                RPTDBG("push 0x%04X in elem_list", (unsigned int)(elem->PID));
+                                zlst_push((zhead_t *)&(prog->elem0), elem);
+#endif
                         }
                         cur += len;
                 }
-
-                elem->type = elem_type(elem->stream_type)->type;
-                if(elem->PID == prog->PCR_PID) {
-                        elem->type |= TS_TMSK_PCR;
-                }
-                elem->PTS = STC_BASE_OVF;
-                elem->DTS = STC_BASE_OVF;
-                elem->STC = STC_OVF;
-
-                elem->is_pes_align = 0;
-
-                RPTDBG("push 0x%04X in elem_list", (unsigned int)(elem->PID));
-                zlst_push((zhead_t *)&(prog->elem0), elem);
-
-                /* add elementary PID */
-                new_pid->PID = elem->PID;
-                new_pid->cnt = 0;
-                new_pid->lcnt = 0;
-                new_pid->prog = prog;
-                new_pid->elem = elem;
-                new_pid->type = elem->type;
-                new_pid->CC = 0;
-                new_pid->is_CC_sync = 0;
-                (void)update_pid_list(obj, new_pid); /* elementary_PID */
         }
 
         return 0;

@@ -151,6 +151,8 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0xA2, TS_TYPE_AUD, "DTSHD_2", "DTSHD_2"},
         {0xEA, TS_TYPE_VID, "VC1", "VC1"},
         {0xEA, TS_TYPE_AUD, "WMA", "WMA"},
+        {0xF0, TS_TYPE_EMM, "EMM", "EMM"},
+        {0xF1, TS_TYPE_ECM, "ECM", "ECM"},
         {0xFF, TS_TYPE_UNO, "UNKNOWN", "Unknown stream"} /* 0xFF is loop stop condition! */
 };
 
@@ -1744,12 +1746,12 @@ static void show_ratp(struct tsana_obj *obj)
         for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
                 struct ts_pid *pid_item = (struct ts_pid *)znode;
 
-                if(pid_item->PID >= 0x0020 && pid_item->PID != pid_item->prog->PMT_PID) {
+                if(pid_item->PID >= 0x0020 && pid_item->type != TS_TYPE_PMT) {
                         /* not psi/si PID */
                         continue;
                 }
 
-                /* without PMT */
+                /* psi/si with PMT */
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
                         obj->color_yellow, pid_item->PID, obj->color_off,
                         pid_item->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
