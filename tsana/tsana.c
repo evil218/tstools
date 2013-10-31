@@ -981,7 +981,7 @@ static void show_help()
                 " -es              \"*es, xx, ..., xx, \"\n"
                 " -sec             \"*sec, interval(ms), head, body, \"\n"
                 " -si              \"*si, interval(ms), head, information of body, \"\n"
-                " -rate            \"*rate, interval(ms), PID, rate, ..., PID, rate, \"\n"
+                " -rate            \"*rate, interval(ms), PID, rate, es_rate, ..., PID, rate, es_rate, \"\n"
                 " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
                 " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
                 " -err             \"*err, TR-101-290, datail, \"\n"
@@ -1711,9 +1711,10 @@ static void show_rate(struct tsana_obj *obj)
                         }
                 }
 
-                fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                fprintf(stdout, "%s0x%04X%s, %9.6f, %9.6f, ",
                         obj->color_yellow, pid->PID, obj->color_off,
-                        pid->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
+                        pid->lcnt * 188 * 8 * 27.0 / (ts->last_interval),
+                        pid->lcnt_es * 8 * 27.0 / (ts->last_interval));
         }
         return;
 }
@@ -1726,9 +1727,9 @@ static void show_rats(struct tsana_obj *obj)
                 obj->color_green, obj->color_off,
                 ts->last_interval / 27000.0);
         fprintf(stdout, "%ssys%s, %9.6f, %spsi-si%s, %9.6f, %s0x1FFF%s, %9.6f, ",
-                obj->color_yellow, obj->color_off, ts->last_sys_cnt * 188.0 * 8 * 27 / (ts->last_interval),
-                obj->color_yellow, obj->color_off, ts->last_psi_cnt * 188.0 * 8 * 27 / (ts->last_interval),
-                obj->color_yellow, obj->color_off, ts->last_nul_cnt * 188.0 * 8 * 27 / (ts->last_interval));
+                obj->color_yellow, obj->color_off, ts->last_sys_cnt * 188 * 8 * 27.0 / (ts->last_interval),
+                obj->color_yellow, obj->color_off, ts->last_psi_cnt * 188 * 8 * 27.0 / (ts->last_interval),
+                obj->color_yellow, obj->color_off, ts->last_nul_cnt * 188 * 8 * 27.0 / (ts->last_interval));
         return;
 }
 
@@ -1741,20 +1742,20 @@ static void show_ratp(struct tsana_obj *obj)
                 obj->color_green, obj->color_off,
                 ts->last_interval / 27000.0);
         fprintf(stdout, "%spsi-si%s, %9.6f, ",
-                obj->color_yellow, obj->color_off, ts->last_psi_cnt * 188.0 * 8 * 27 / (ts->last_interval));
+                obj->color_yellow, obj->color_off, ts->last_psi_cnt * 188 * 8 * 27.0 / (ts->last_interval));
 
         for(znode = (struct znode *)(ts->pid0); znode; znode = znode->next) {
-                struct ts_pid *pid_item = (struct ts_pid *)znode;
+                struct ts_pid *pid = (struct ts_pid *)znode;
 
-                if(pid_item->PID >= 0x0020 && pid_item->type != TS_TYPE_PMT) {
+                if(pid->PID >= 0x0020 && !IS_TYPE(TS_TYPE_PMT, pid->type)) {
                         /* not psi/si PID */
                         continue;
                 }
 
                 /* psi/si with PMT */
                 fprintf(stdout, "%s0x%04X%s, %9.6f, ",
-                        obj->color_yellow, pid_item->PID, obj->color_off,
-                        pid_item->lcnt * 188.0 * 8 * 27 / (ts->last_interval));
+                        obj->color_yellow, pid->PID, obj->color_off,
+                        pid->lcnt * 188 * 8 * 27.0 / (ts->last_interval));
         }
         return;
 }

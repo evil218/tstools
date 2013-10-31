@@ -94,7 +94,9 @@ static const struct table_id_table TABLE_ID_TABLE[] = {
         {0x74, 0x7D, 0, TS_TYPE_RSV},
         {0x7E, 0x7E, 0, TS_TYPE_DIT},
         {0x7F, 0x7F, 0, TS_TYPE_SIT},
-        {0x80, 0xFE, 0, TS_TYPE_USR},
+        {0x80, 0x81, 0, TS_TYPE_ECM},
+        {0x82, 0x8F, 0, TS_TYPE_EMM},
+        {0x90, 0xFE, 0, TS_TYPE_USR},
         {0xFF, 0xFF, 0, TS_TYPE_RSV} /* loop stop condition! */
 };
 
@@ -331,6 +333,8 @@ static void tidy(struct ts_obj *obj)
                 new_pid.elem = NULL;
                 new_pid.cnt = 0;
                 new_pid.lcnt = 0;
+                new_pid.cnt_es = 0;
+                new_pid.lcnt_es = 0;
                 new_pid.is_CC_sync = 0;
                 (void)update_pid_list(obj, &new_pid);
                 RPTINF("add pat pid: 0x%04X", (unsigned int)(new_pid.PID));
@@ -354,6 +358,8 @@ static void tidy(struct ts_obj *obj)
                 new_pid.elem = NULL;
                 new_pid.cnt = 0;
                 new_pid.lcnt = 0;
+                new_pid.cnt_es = 0;
+                new_pid.lcnt_es = 0;
                 new_pid.is_CC_sync = 0;
                 (void)update_pid_list(obj, &new_pid);
                 RPTINF("add pmt pid: 0x%04X", (unsigned int)(new_pid.PID));
@@ -365,6 +371,8 @@ static void tidy(struct ts_obj *obj)
                 new_pid.elem = NULL;
                 new_pid.cnt = 0;
                 new_pid.lcnt = 0;
+                new_pid.cnt_es = 0;
+                new_pid.lcnt_es = 0;
                 new_pid.is_CC_sync = 0;
                 (void)update_pid_list(obj, &new_pid);
                 RPTINF("add pcr pid: 0x%04X", (unsigned int)(new_pid.PID));
@@ -384,6 +392,8 @@ static void tidy(struct ts_obj *obj)
                         new_pid.elem = elem;
                         new_pid.cnt = 0;
                         new_pid.lcnt = 0;
+                        new_pid.cnt_es = 0;
+                        new_pid.lcnt_es = 0;
                         new_pid.is_CC_sync = 0;
                         (void)update_pid_list(obj, &new_pid);
                         RPTINF("add elem pid: 0x%04X", (unsigned int)(new_pid.PID));
@@ -409,6 +419,8 @@ static void tidy(struct ts_obj *obj)
                 /* pid->elem is NULL(by xml2list) or set by front code */
                 pid->cnt = 0;
                 pid->lcnt = 0;
+                pid->cnt_es = 0;
+                pid->lcnt_es = 0;
                 pid->is_CC_sync = 0;
         }
 
@@ -610,6 +622,8 @@ int ts_parse_tsh(struct ts_obj *obj)
                 new_pid->elem = NULL;
                 new_pid->cnt = 1;
                 new_pid->lcnt = 0;
+                new_pid->cnt_es = 0;
+                new_pid->lcnt_es = 0;
                 new_pid->is_CC_sync = 0;
 
                 obj->pid = update_pid_list(obj, new_pid);
@@ -966,6 +980,8 @@ static int state_next_pkt(struct ts_obj *obj)
                                                 if(pid_item->prog == prog) {
                                                         pid_item->lcnt = 0;
                                                         pid_item->cnt = 0;
+                                                        pid_item->lcnt_es = 0;
+                                                        pid_item->cnt_es = 0;
                                                 }
                                         }
 
@@ -998,6 +1014,8 @@ static int state_next_pkt(struct ts_obj *obj)
                                 struct ts_pid *pid_item = (struct ts_pid *)znode;
                                 pid_item->lcnt = pid_item->cnt;
                                 pid_item->cnt = 0;
+                                pid_item->lcnt_es = pid_item->cnt_es;
+                                pid_item->cnt_es = 0;
                         }
 
                         obj->last_sys_cnt = obj->sys_cnt;
@@ -1799,6 +1817,8 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
 
                 new_pid->cnt = 0;
                 new_pid->lcnt = 0;
+                new_pid->cnt_es = 0;
+                new_pid->lcnt_es = 0;
                 new_pid->prog = prog;
                 new_pid->elem = NULL;
                 new_pid->CC = 0;
@@ -1853,6 +1873,8 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
                         new_pid->PID = CA_PID;
                         new_pid->cnt = 0;
                         new_pid->lcnt = 0;
+                        new_pid->cnt_es = 0;
+                        new_pid->lcnt_es = 0;
                         new_pid->prog = NULL;
                         new_pid->elem = NULL;
                         new_pid->type = TS_TYPE_EMM;
@@ -1936,6 +1958,8 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         new_pid->PID = prog->PCR_PID;
         new_pid->cnt = 0;
         new_pid->lcnt = 0;
+        new_pid->cnt_es = 0;
+        new_pid->lcnt_es = 0;
         new_pid->prog = prog;
         new_pid->elem = NULL;
         new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
@@ -2005,6 +2029,8 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                 new_pid->PID = elem->PID;
                 new_pid->cnt = 0;
                 new_pid->lcnt = 0;
+                new_pid->cnt_es = 0;
+                new_pid->lcnt_es = 0;
                 new_pid->prog = prog;
                 new_pid->elem = elem;
                 new_pid->type = elem->type;
@@ -2046,6 +2072,8 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                                 new_pid->PID = CA_PID;
                                 new_pid->cnt = 0;
                                 new_pid->lcnt = 0;
+                                new_pid->cnt_es = 0;
+                                new_pid->lcnt_es = 0;
                                 new_pid->prog = prog;
                                 new_pid->elem = elem;
                                 new_pid->type = TS_TYPE_ECM;
@@ -2297,6 +2325,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 if(elem->is_pes_align) {
                         obj->ES_len = obj->tail - obj->cur;
                         obj->ES = obj->cur;
+                        pid->cnt_es += obj->ES_len;
                 }
                 else {
                         /* ignore these ES data */
@@ -2305,6 +2334,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
         else {
                 obj->ES_len = obj->tail - obj->cur;
                 obj->ES = obj->cur;
+                pid->cnt_es += obj->ES_len;
         }
 
         return 0;
@@ -2627,6 +2657,8 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->type = new_pid->type;
                 pid->cnt = new_pid->cnt;
                 pid->lcnt = new_pid->lcnt;
+                pid->cnt_es = new_pid->cnt_es;
+                pid->lcnt_es = new_pid->lcnt_es;
                 pid->CC = new_pid->CC;
                 pid->is_CC_sync = new_pid->is_CC_sync;
         }
@@ -2646,6 +2678,8 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->CC = new_pid->CC;
                 pid->cnt = new_pid->cnt;
                 pid->lcnt = new_pid->lcnt;
+                pid->cnt_es = new_pid->cnt_es;
+                pid->lcnt_es = new_pid->lcnt_es;
 
                 RPTDBG("insert 0x%04X in pid_list", (unsigned int)(pid->PID));
                 zlst_set_key(pid, (int)(pid->PID));

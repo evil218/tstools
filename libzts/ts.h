@@ -21,10 +21,10 @@
  *       +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
  *            |     |         |     |               |     |
  *           elem  sect      elem  sect            elem  sect
- *            |     |         |     |               |     |
- *           elem  sect      elem  sect            elem  sect
- *            ..    ..        ..    ..              ..    ..
- *           elem  sect      elem  sect            elem  sect
+ *            |               |                     |
+ *           elem            elem                  elem
+ *            ..              ..                    ..
+ *           elem            elem                  elem
  *
  * pid  list: sorted by PID
  * tabl list: sorted by table_id
@@ -100,8 +100,8 @@ extern "C" {
 #define TS_TYPE_AUDP    (TS_TYPE_AUD | TS_TMSK_PCR)
 #define TS_TYPE_NULP    (TS_TYPE_NUL | TS_TMSK_PCR)
 
-#define WITH_PCR(x)     (x & TS_TMSK_PCR)
-#define IS_TYPE(t, x)   (t == (x & TS_TMSK_BASE))
+#define WITH_PCR(x)     (((x) & TS_TMSK_PCR ) == TS_TMSK_PCR)
+#define IS_TYPE(t, x)   (((x) & TS_TMSK_BASE) == (t))
 
 /* TR 101 290 V1.2.1 2001-05 and other stream errors */
 struct ts_err {
@@ -375,6 +375,8 @@ struct ts_pid {
         /* for statistic */
         uint32_t cnt; /* packet received from last PCR */
         uint32_t lcnt; /* packet received from PCRa to PCRb */
+        uint32_t cnt_es; /* es byte received from last PCR */
+        uint32_t lcnt_es; /* es byte received from PCRa to PCRb */
 
         /* only for PID with PSI/SI */
         /*@temp@*/
