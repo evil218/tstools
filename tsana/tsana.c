@@ -256,6 +256,7 @@ static const struct stream_type_table *elem_type(int stream_type);
 
 static void output_prog(struct tsana_obj *obj);
 static void output_elem(void *PELEM, uint16_t pcr_pid);
+static void output_ca(void *PCA);
 
 static void show_lst(struct tsana_obj *obj);
 static void show_psi(struct tsana_obj *obj);
@@ -1159,6 +1160,9 @@ static void output_prog(struct tsana_obj *obj)
                         fprintf(stdout, "%s, ", obj->color_off);
                 }
                 fprintf(stdout, "\n");
+                if(prog->ca0) {
+                        output_ca(&(prog->ca0));
+                }
 
                 /* elementary stream */
                 output_elem(&(prog->elem0), prog->PCR_PID);
@@ -1198,8 +1202,27 @@ static void output_elem(void *PELEM, uint16_t pcr_pid)
                         fprintf(stdout, "%s, ", obj->color_off);
                 }
                 fprintf(stdout, "\n");
+                if(elem->ca0) {
+                        output_ca(&(elem->ca0));
+                }
         }
         return;
+}
+
+static void output_ca(void *PCA)
+{
+        struct znode **pca = (struct znode **)PCA;
+        struct znode *znode;
+        struct ts_ca *ca;
+
+        fprintf(stdout, "CA_information(%sCA_system_ID%s, CA_PID), ",
+                obj->color_yellow, obj->color_off);
+        for(znode = *pca; znode; znode = znode->next) {
+                ca = (struct ts_ca *)znode;
+                fprintf(stdout, "%s0x%04X%s, 0x%04X, ",
+                        obj->color_yellow, ca->CA_system_ID, obj->color_off, ca->CA_PID);
+        }
+        fprintf(stdout, "\n");
 }
 
 static void show_pkt(struct tsana_obj *obj)

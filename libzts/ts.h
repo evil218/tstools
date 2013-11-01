@@ -257,6 +257,14 @@ struct ts_pesh {
         uint8_t PES_extension_field_length; /* 7-bit */
 };
 
+/* node of CA descriptor list */
+struct ts_ca {
+        struct znode cvfl; /* common variable for list */
+
+        uint16_t CA_system_ID;
+        uint16_t CA_PID;
+};
+
 /* node of section list */
 struct ts_sect {
         struct znode cvfl; /* common variable for list */
@@ -304,6 +312,7 @@ struct ts_elem {
         int es_info_len;
         /*@temp@*/
         uint8_t *es_info; /* point to NULL if len is 0 */
+        struct ts_ca *ca0; /* CA descriptor list */
 
         /* for PTS/DTS mark */
         int64_t PTS; /* last PTS, for obj->PTS_interval */
@@ -323,6 +332,7 @@ struct ts_prog {
         int program_info_len;
         /*@temp@*/
         uint8_t *program_info; /* point to NULL if len is 0 */
+        struct ts_ca *ca0; /* CA descriptor list */
         int service_name_len;
         /*@temp@*/
         uint8_t *service_name; /* point to NULL if len is 0 */
