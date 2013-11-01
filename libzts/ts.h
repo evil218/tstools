@@ -342,7 +342,7 @@ struct ts_prog {
 
         /* elementary stream list */
         /*@temp@*/
-        struct ts_elem *elem0;
+        struct ts_elem *elem0; /* PMT: elem list of this prog */
 
         /* PMT table */
         int is_parsed;
@@ -390,7 +390,7 @@ struct ts_pid {
 
         /* only for PID with PSI/SI */
         /*@temp@*/
-        struct ts_pkt *pkt0;
+        struct ts_pkt *pkt0; /* packets of a section */
         int payload_total; /* accumulate size_of_payload packet by packet */
         int has_new_sech; /* true, if second section head in pkt list */
         int sech3_idx; /* 0~3, 3 means sech3 is OK */
@@ -514,9 +514,10 @@ struct ts_obj {
         int is_psi_si_parsed;
         int is_psi_si;
         /*@temp@*/
-        struct ts_prog *prog0; /* program list of this stream */
+        struct ts_prog *prog0; /* PAT: program list of this stream */
         /*@temp@*/
         struct ts_tabl *tabl0; /* PSI/SI table except PMT */
+        struct ts_ca *ca0; /* CAT: CA descriptor list of this stream */
 
         /* for bit-rate statistic */
         int64_t aim_interval; /* appointed interval */

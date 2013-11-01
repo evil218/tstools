@@ -224,6 +224,7 @@ struct ts_obj *ts_create(/*@null@*/ void *mp)
         obj->pid0 = NULL; /* no pid list now */
         obj->prog0 = NULL; /* no prog list now */
         obj->tabl0 = NULL; /* no tabl list now */
+        obj->ca0 = NULL; /* no ca list now */
         init(obj);
 
         return obj;
@@ -276,6 +277,7 @@ static void init(/*@out@*/ struct ts_obj *obj)
         struct ts_pid *pid;
         struct ts_prog *prog;
         struct ts_tabl *tabl;
+        struct ts_ca *ca;
 
         /* clear the pid list */
         while(NULL != (pid = (struct ts_pid *)zlst_pop((zhead_t *)&(obj->pid0)))) {
@@ -294,6 +296,12 @@ static void init(/*@out@*/ struct ts_obj *obj)
                 free_tabl(obj->mp, tabl);
         }
         obj->tabl0 = NULL;
+
+        /* clear the ca list */
+        while(NULL != (ca = (struct ts_ca *)zlst_pop((zhead_t *)&(obj->ca0)))) {
+                buddy_free(obj->mp, ca);
+        }
+        obj->ca0 = NULL;
 
         obj->state = STATE_NEXT_PAT;
         obj->ADDR = -TS_PKT_SIZE; /* count from 0 */
@@ -1583,7 +1591,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         /* get "psect0" */
         psect0 = (struct znode **)&(tabl->sect0);
 
-        /* new table version? */
+        /* new table version? FIXME: PAT or PMT version changed is dangerous! */
         if(tabl->version_number != new_sect->version_number) {
                 struct ts_sect *sect_node;
 
@@ -1605,6 +1613,10 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         RPTDBG("search %d/%d in sect_list", (int)(new_sect->section_number), (int)(new_sect->last_section_number));
         sect = (struct ts_sect *)zlst_search((zhead_t *)psect0, (int)(new_sect->section_number));
         if(!sect) {
+                if(0x42 == new_sect->table_id && !(obj->is_pat_pmt_parsed)) {
+                        /* got SDT before PMT will lost service info, so ignore this SDT */
+                        goto release_sect;
+                }
                 sect = new_sect;
                 RPTDBG("insert %d/%d in sect_list", (int)(sect->section_number), (int)(sect->last_section_number));
                 zlst_set_key(sect, (int)(sect->section_number));
@@ -1617,8 +1629,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                     (unsigned int)(sect->section_number),
                     (unsigned int)(sect->last_section_number),
                     (unsigned int)(sect->table_id));
-                free_sect(obj->mp, new_sect);
-                //return -1; FIXME: got SDT before PMT will lost service info, so parse again and again now
+                goto release_sect;
         }
         obj->sect = sect; /* has section */
 
@@ -1847,6 +1858,7 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
         struct ts_err *err = &(obj->err);
+        struct ts_ca *ca;
 
         while(cur < crc) {
                 uint8_t tag;
@@ -1892,6 +1904,21 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
                         new_pid->is_CC_sync = 0;
                         RPTINF("add EMM_PID(0x%04X)", (unsigned int)CA_PID);
                         (void)update_pid_list(obj, new_pid);
+
+                        /* ca node */
+                        ca = (struct ts_ca *)buddy_malloc(obj->mp, sizeof(struct ts_ca));
+                        if(!ca) {
+                                RPTERR("malloc ca node failed");
+                                return -1;
+                        }
+
+                        /* init ca here */
+                        ca->CA_system_ID = CA_system_ID;
+                        ca->CA_PID = CA_PID;
+
+                        /* push ca */
+                        RPTINF("push 0x%04X in ca_list", (unsigned int)(ca->CA_PID));
+                        zlst_push((zhead_t *)&(obj->ca0), ca);
                 }
                 cur += len;
         }
