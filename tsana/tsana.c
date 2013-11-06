@@ -1219,12 +1219,13 @@ static void output_ca_ecm(void *PCA)
         struct znode *znode;
         struct ts_ca *ca;
 
-        fprintf(stdout, "ca_ecm_info(%sCA_system_ID%s, CA_PID), ",
-                obj->color_yellow, obj->color_off);
+        fprintf(stdout, "%sca_ecm_info(CA_system_ID, CA_PID), %s",
+                obj->color_cyan, obj->color_off);
         for(znode = *pca; znode; znode = znode->next) {
                 ca = (struct ts_ca *)znode;
-                fprintf(stdout, "%s0x%04X%s, 0x%04X, ",
-                        obj->color_yellow, ca->CA_system_ID, obj->color_off, ca->CA_PID);
+                fprintf(stdout, "%s0x%04X%s%s, 0x%04X, %s",
+                        obj->color_yellow, ca->CA_system_ID, obj->color_off,
+                        obj->color_cyan, ca->CA_PID, obj->color_off);
         }
         fprintf(stdout, "\n");
 }
@@ -1235,12 +1236,13 @@ static void output_ca_emm(void *PCA)
         struct znode *znode;
         struct ts_ca *ca;
 
-        fprintf(stdout, "ca_emm_info(%sCA_system_ID%s, CA_PID), ",
-                obj->color_yellow, obj->color_off);
+        fprintf(stdout, "%sca_emm_info(CA_system_ID, CA_PID), %s",
+                obj->color_cyan, obj->color_off);
         for(znode = *pca; znode; znode = znode->next) {
                 ca = (struct ts_ca *)znode;
-                fprintf(stdout, "%s0x%04X%s, 0x%04X, ",
-                        obj->color_yellow, ca->CA_system_ID, obj->color_off, ca->CA_PID);
+                fprintf(stdout, "%s0x%04X%s%s, 0x%04X, %s",
+                        obj->color_yellow, ca->CA_system_ID, obj->color_off,
+                        obj->color_cyan, ca->CA_PID, obj->color_off);
         }
         fprintf(stdout, "\n");
 }
