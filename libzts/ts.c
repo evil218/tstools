@@ -1478,7 +1478,6 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         struct ts_pid *pid = obj->pid;
         struct ts_err *err = &(obj->err);
         struct znode **psect0;
-        struct ts_sect *sect;
 
 #if 0
         int is_new_version = 0;
@@ -1526,7 +1525,45 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
             (int)(new_sect->section_number),
             (int)(new_sect->last_section_number));
 
-        /* CRC check */
+        /* check errors */
+        if(0x0000 == pid->PID && 0x00 != new_sect->table_id) {
+                err->PAT_error |= ERR_1_3_1; /* PAT_error(table_id error) */
+                err->has_level1_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x0001 == pid->PID && 0x01 != new_sect->table_id) {
+                err->CAT_error |= ERR_2_6_1; /* CAT_error(table_id error) */
+                err->has_level2_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x00 == new_sect->table_id && 0x0000 != pid->PID) {
+                err->pat_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x01 == new_sect->table_id && 0x0001 != pid->PID) {
+                err->cat_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x02 == new_sect->table_id && !IS_TYPE(TS_TYPE_PMT, pid->type)) {
+                err->pmt_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x42 == new_sect->table_id && 0x0011 != pid->PID) {
+                err->sdt_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+
+        /* check CRC */
         if(new_sect->check_CRC) {
                 p = new_sect->section + 3 + new_sect->section_length - 4;
                 obj->CRC_32   = *p++;
@@ -1546,7 +1583,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 }
         }
 
-        /* get "tabl" */
+        /* locate "tabl" and "psect0" */
         if(0x02 == new_sect->table_id) {
                 /* is PMT section */
                 if(!(pid->prog)) {
@@ -1565,7 +1602,8 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         else {
                 /* not PMT section */
                 RPTDBG("search 0x%02X in table_list", (unsigned int)(new_sect->table_id));
-                tabl = (struct ts_tabl *)zlst_search((zhead_t *)&(obj->tabl0), (int)(new_sect->table_id));
+                tabl = (struct ts_tabl *)zlst_search((zhead_t *)&(obj->tabl0),
+                                                     (int)(new_sect->table_id));
                 if(!tabl) {
                         tabl = (struct ts_tabl *)buddy_malloc(obj->mp, sizeof(struct ts_tabl));
                         if(!tabl) {
@@ -1580,58 +1618,14 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         tabl->STC = STC_OVF;
 
                         RPTDBG("insert 0x%02X in table_list", (unsigned int)(tabl->table_id));
-                        zlst_set_key(tabl, (int)(tabl->table_id));
-                        if(0 != zlst_insert((zhead_t *)&(obj->tabl0), tabl)) {
+                        if(0 != zlst_insert((zhead_t *)&(obj->tabl0), tabl,
+                                            (int)(tabl->table_id))) {
                                 free_tabl(obj->mp, tabl);
                                 goto release_sect;
                         }
                 }
         }
-
-        /* get "psect0" */
         psect0 = (struct znode **)&(tabl->sect0);
-
-        /* new table version? FIXME: PAT or PMT version changed is dangerous! */
-        if(tabl->version_number != new_sect->version_number) {
-                struct ts_sect *sect_node;
-
-                /* clear psect0 and update table parameter */
-                RPTDBG("version_number(%d -> %d), free old sections",
-                    (int)(tabl->version_number),
-                    (int)(new_sect->version_number));
-                tabl->version_number = new_sect->version_number;
-                tabl->last_section_number = new_sect->last_section_number;
-                while(NULL != (sect_node = (struct ts_sect *)zlst_pop((zhead_t *)psect0))) {
-                        free_sect(obj->mp, sect_node);
-                };
-#if 0
-                is_new_version = 1;
-#endif
-        }
-
-        /* get "section" pointer */
-        RPTDBG("search %d/%d in sect_list", (int)(new_sect->section_number), (int)(new_sect->last_section_number));
-        sect = (struct ts_sect *)zlst_search((zhead_t *)psect0, (int)(new_sect->section_number));
-        if(!sect) {
-                if(0x42 == new_sect->table_id && !(obj->is_pat_pmt_parsed)) {
-                        /* got SDT before PMT will lost service info, so ignore this SDT */
-                        goto release_sect;
-                }
-                sect = new_sect;
-                RPTDBG("insert %d/%d in sect_list", (int)(sect->section_number), (int)(sect->last_section_number));
-                zlst_set_key(sect, (int)(sect->section_number));
-                if(0 != zlst_insert((zhead_t *)psect0, sect)) {
-                        goto release_sect;
-                }
-        }
-        else {
-                RPTINF("has section %02X/%02X(table %02X) already",
-                    (unsigned int)(sect->section_number),
-                    (unsigned int)(sect->last_section_number),
-                    (unsigned int)(sect->table_id));
-                goto release_sect;
-        }
-        obj->sect = sect; /* has section */
 
         /* sect_interval */
         if(STC_OVF != tabl->STC &&
@@ -1643,63 +1637,66 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         }
         tabl->STC = obj->STC;
 
-        /* PAT_error(table_id error) */
-        if(0x0000 == pid->PID && 0x00 != sect->table_id) {
-                err->PAT_error |= ERR_1_3_1;
-                err->has_level1_error++;
-                obj->has_err++;
-                goto release_sect;
+        /* new table version? FIXME: PAT or PMT version changed is dangerous! */
+        if(tabl->version_number != new_sect->version_number) {
+                struct ts_sect *sect_node;
+
+                /* clear psect0 and update table parameter */
+                RPTDBG("version_number(%d -> %d), free old sections",
+                    (int)(tabl->version_number), (int)(new_sect->version_number));
+                tabl->version_number = new_sect->version_number;
+                tabl->last_section_number = new_sect->last_section_number;
+                while(NULL != (sect_node = (struct ts_sect *)zlst_pop((zhead_t *)psect0))) {
+                        free_sect(obj->mp, sect_node);
+                };
+#if 0
+                is_new_version = 1;
+#endif
         }
 
-        /* CAT_error(table_id error) */
-        if(0x0001 == pid->PID && 0x01 != sect->table_id) {
-                err->CAT_error |= ERR_2_6_1;
-                err->has_level2_error++;
-                obj->has_err++;
+        /* locate sect pointer */
+        RPTDBG("search %d/%d in sect_list",
+               (int)(new_sect->section_number), (int)(new_sect->last_section_number));
+        obj->sect = (struct ts_sect *)zlst_search((zhead_t *)psect0,
+                                                  (int)(new_sect->section_number));
+        if(NULL == obj->sect) {
+                if(0x42 == new_sect->table_id && !(obj->is_pat_pmt_parsed)) {
+                        /* got SDT before PMT will lost service info, so ignore this SDT */
+                        goto release_sect;
+                }
+                RPTDBG("insert %d/%d in sect_list",
+                       (int)(new_sect->section_number), (int)(new_sect->last_section_number));
+                if(0 != zlst_insert((zhead_t *)psect0, new_sect,
+                                    (int)(new_sect->section_number))) {
+                        goto release_sect;
+                }
+                obj->sect = new_sect; /* has section */
+        }
+        else {
+                RPTINF("has section %02X/%02X(table %02X) already",
+                    (unsigned int)(obj->sect->section_number),
+                    (unsigned int)(obj->sect->last_section_number),
+                    (unsigned int)(obj->sect->table_id));
                 goto release_sect;
         }
+        /* new_sect is in list now, do not free new_sect from here to "return 0"! */
 
         /* parse */
-        switch(sect->table_id) {
+        switch(new_sect->table_id) {
                 case 0x00:
-                        if(0x0000 != pid->PID) {
-                                err->pat_pid_error = 1;
-                                err->has_other_error++;
-                                obj->has_err++;
-                                goto release_sect;
-                        }
                         ts_parse_secb_pat(obj);
                         break;
                 case 0x01:
-                        if(0x0001 != pid->PID) {
-                                err->cat_pid_error = 1;
-                                err->has_other_error++;
-                                obj->has_err++;
-                                goto release_sect;
-                        }
-                        obj->has_CAT = 1;
                         ts_parse_secb_cat(obj);
                         break;
                 case 0x02:
-                        if(!IS_TYPE(TS_TYPE_PMT, pid->type)) {
-                                err->pmt_pid_error = 1;
-                                err->has_other_error++;
-                                obj->has_err++;
-                                goto release_sect;
-                        }
                         ts_parse_secb_pmt(obj);
                         break;
                 case 0x42:
-                        if(0x0011 != pid->PID) {
-                                err->sdt_pid_error = 1;
-                                err->has_other_error++;
-                                obj->has_err++;
-                                goto release_sect;
-                        }
                         ts_parse_secb_sdt(obj);
                         break;
                 default:
-                        RPTDBG("meet table(0x%02X), ignore", (unsigned int)(sect->table_id));
+                        RPTDBG("meet table(0x%02X), ignore", (unsigned int)(new_sect->table_id));
                         break;
         }
         return 0;
@@ -1829,8 +1826,8 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
                         prog->is_STC_sync = 0;
 
                         RPTDBG("insert 0x%04X in prog_list", (unsigned int)(prog->program_number));
-                        zlst_set_key(prog, (int)(prog->program_number));
-                        if(0 != zlst_insert((zhead_t *)&(obj->prog0), prog)) {
+                        if(0 != zlst_insert((zhead_t *)&(obj->prog0), prog,
+                                            (int)(prog->program_number))) {
                                 free_prog(obj->mp, prog);
                                 return -1;
                         }
@@ -1880,14 +1877,12 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
 
                         dat = *pt++;
                         CA_system_ID = dat;
-
                         dat = *pt++;
                         CA_system_ID <<= 8;
                         CA_system_ID |= dat;
 
                         dat = *pt++;
                         CA_PID = dat & 0x1F;
-
                         dat = *pt++;
                         CA_PID <<= 8;
                         CA_PID |= dat;
@@ -1919,6 +1914,9 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
                         /* push ca */
                         RPTINF("push 0x%04X in ca_list", (unsigned int)(ca->CA_PID));
                         zlst_push((zhead_t *)&(obj->ca0), ca);
+
+                        /* for CAT error(ERR_2_6_0) */
+                        obj->has_CAT = 1;
                 }
                 cur += len;
         }
@@ -2778,8 +2776,8 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->lcnt_es = new_pid->lcnt_es;
 
                 RPTDBG("insert 0x%04X in pid_list", (unsigned int)(pid->PID));
-                zlst_set_key(pid, (int)(pid->PID));
-                if(0 != zlst_insert((zhead_t *)&(obj->pid0), pid)) {
+                if(0 != zlst_insert((zhead_t *)&(obj->pid0), pid,
+                                    (int)(pid->PID))) {
                         free_pid(obj->mp, pid);
                         return NULL;
                 }

@@ -167,7 +167,7 @@ void *zlst_shift(zhead_t *PHEAD)
 }
 
 /* sort with key, small key first */
-void *zlst_insert(zhead_t *PHEAD, void *ZNODE)
+void *zlst_insert(zhead_t *PHEAD, void *ZNODE, int key)
 {
         struct znode *head;
         struct znode *znode;
@@ -180,6 +180,7 @@ void *zlst_insert(zhead_t *PHEAD, void *ZNODE)
                 return ZNODE;
         }
         znode = (struct znode *)ZNODE;
+        znode->key = key;
 
         if(NULL == PHEAD) {
                 RPTERR("insert: NOT a list");

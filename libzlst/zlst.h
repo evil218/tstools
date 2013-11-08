@@ -37,7 +37,7 @@ extern "C" {
         /*@null@*/ /*@dependent@*/ struct znode *prev;
         /*@null@*/ /*@dependent@*/ struct znode *tail; /* only head->tail is valid! */
         /*@null@*/ /*@dependent@*/ const char *name; /* for variable type list: use zlst_set_name() to assign */
-        int key; /* for sort list: use zlst_set_key() to assign before zlst_insert()! */
+        int key; /* for sort list: use zlst_insert()! */
 };
 
 typedef /*@null@*/ /*@owned@*/ struct znode *zhead_t; /* point to the head of a list */
@@ -51,7 +51,7 @@ typedef /*@null@*/ /*@owned@*/ struct znode *zhead_t; /* point to the head of a 
 /*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
 /*@null@*/ /*@owned@*/ void *zlst_pop(/*@null@*/ zhead_t *PHEAD);
 /*@null@*/ /*@owned@*/ void *zlst_shift(/*@null@*/ zhead_t *PHEAD);
-/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE); /* small key first */
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE, int key); /* small key first */
 /*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@dependent@*/ void *ZNODE);
 
 /*@null@*/ /*@dependent@*/ void *zlst_search(/*@null@*/ zhead_t *PHEAD, int key);
