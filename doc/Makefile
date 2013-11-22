@@ -1,4 +1,4 @@
-all: catts.html catip.html tsana.html tobin.html toip.html tstools
+all: catts.html catip.html tsana.html tobin.html toip.html tstools buddy
 
 catts.1:
 	-help2man -o $@ catts
@@ -20,4 +20,7 @@ toip.1:
 	rm $<
 
 tstools: tstools.txt
+	asciidoc -n -a toc $<
+
+buddy: buddy.txt
 	asciidoc -n -a toc $<

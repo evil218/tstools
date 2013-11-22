@@ -3,13 +3,13 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: March 2013<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: November 2013<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-tsana - manual page for tsana of tstools v1.0.260m 0af9a674
+tsana - manual page for tsana of tstools v1.0.0 (354 81b96b4c)
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
@@ -28,16 +28,24 @@ tsana - manual page for tsana of tstools v1.0.260m 0af9a674
 show PID list information, default option
 <DT><B>-psi</B><DD>
 show PSI tree information
+<DT><B>-expsi</B><DD>
+export PSI information into psi.xml
+<DT><B>-impsi</B><DD>
+import PSI information from psi.xml before analyse
 <DT><B>-dump</B><DD>
 dump cared packet
-<DT><B>-bg</B><DD>
-output background information
+<DT><B>-mem</B><DD>
+show memory status
+<DT><B>-time</B><DD>
+&quot;*time, YYYY-mm-dd HH:MM:SS, second, usecond, delta_time(ms), &quot;
+<DT><B>-addr</B><DD>
+&quot;*addr, address(hex), address(dec), PID, &quot;
 <DT><B>-cts</B><DD>
 &quot;*cts, CTS, BASE, &quot;
 <DT><B>-stc</B><DD>
 &quot;*stc, STC, BASE, &quot;
 <DT><B>-pcr</B><DD>
-&quot;*pcr, PCR, BASE, EXT, interval(ms), jitter(ns), &quot;
+&quot;*pcr, PCR, BASE, EXT, dSTC(ms), dPCR(ms), PCR-STC(ns), &quot;
 <DT><B>-pts</B><DD>
 &quot;*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), &quot;
 <DT><B>-tsh</B><DD>
@@ -56,16 +64,16 @@ output background information
 &quot;*es, xx, ..., xx, &quot;
 <DT><B>-sec</B><DD>
 &quot;*sec, interval(ms), head, body, &quot;
+<DT><B>-si</B><DD>
+&quot;*si, interval(ms), head, information of body, &quot;
 <DT><B>-rate</B><DD>
-&quot;*rate, interval(ms), PID, rate, ..., PID, rate, &quot;
+&quot;*rate, interval(ms), PID, rate, es_rate, ..., PID, rate, es_rate, &quot;
 <DT><B>-rats</B><DD>
 &quot;*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, &quot;
 <DT><B>-ratp</B><DD>
 &quot;*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, &quot;
 <DT><B>-err</B><DD>
 &quot;*err, TR-101-290, datail, &quot;
-<DT><B>-tcp</B><DD>
-show TCP(ATSC MH) field information
 <DT><B>-c</B> <B>-color</B><DD>
 enable colour effect to help read, default: mono
 <DT><B>-start</B> &lt;x&gt;<DD>
@@ -84,10 +92,6 @@ set cared PID type, default: any type(0)
 set cared interval(1ms-70,000ms), default: 1000ms
 <DT><B>-mp</B> &lt;mp&gt;<DD>
 set memory pool size order(16-32), default: 20, means 2^20 bytes
-<DT><B>-allpes</B><DD>
-write PES data into different file by PID
-<DT><B>-alles</B><DD>
-write ES data into different file by PID
 <DT><B>-h</B>, <B>--help</B><DD>
 display this information
 <DT><B>-v</B>, <B>--version</B><DD>
@@ -98,7 +102,7 @@ display my version
 
 <DL COMPACT>
 <DT><DD>
-&quot;catts xxx.ts | tsana -c -bg -pcr -pts&quot; -- report all PCR/PTS/DTS information
+&quot;catts xxx.ts | tsana -c -time -addr -pcr -pts&quot; -- report all PCR/PTS/DTS information
 </DL>
 <A NAME="lbAG">&nbsp;</A>
 <H2>AUTHOR</H2>
@@ -112,7 +116,7 @@ Report bugs to &lt;<A HREF="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua
 
 <BR>
 
-Build time: Mar 27 2013 12:06:20
+Build time: Nov  8 2013 20:15:10
 <A NAME="lbAI">&nbsp;</A>
 <H2>COPYRIGHT</H2>
 
@@ -163,6 +167,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 04:10:37 GMT, March 27, 2013
+Time: 03:28:11 GMT, November 22, 2013
 </BODY>
 </HTML>
