@@ -24,10 +24,17 @@ extern "C" {
 
 #define BUDDY_ORDER_MAX (int)(8 * sizeof(size_t))
 
+/* for level parameter of buddy_report() */
+enum buddy_report {
+        BUDDY_REPORT_NONE = 0,
+        BUDDY_REPORT_TOTAL,
+        BUDDY_REPORT_DETAIL
+};
+
 /*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min);
 int buddy_destroy(/*@null@*/ /*@only@*/ void *id);
-int buddy_init(/*@null@*/ void *id);
-int buddy_status(/*@null@*/ void *id, int enable, const char *hint); /* for debug */
+int buddy_init(/*@null@*/ void *id); /* buddy_create() call buddy_init() internally */
+int buddy_report(/*@null@*/ void *id, int level, const char *hint); /* for debug */
 
 /*@null@*/ /*@dependent@*/ void *buddy_malloc(/*@null@*/ void *id, size_t size);
 /*@null@*/ /*@dependent@*/ void *buddy_realloc(/*@null@*/ void *id, void *ptr, size_t size); /* FIXME: need to be test */

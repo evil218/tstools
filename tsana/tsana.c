@@ -187,7 +187,7 @@ struct tsana_obj {
 
         int is_impsi; /* import PSI/SI from psi.xml */
         int is_dump; /* output packet directly */
-        int is_mem; /* show memory info */
+        int mp_level; /* memory pool status report level */
         uint64_t aim_start; /* ignore some packets fisrt, default: 0(no ignore) */
         uint64_t aim_count; /* stop after analyse some packets, default: 0(no stop) */
         uint16_t aim_pid;
@@ -583,7 +583,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         memset(&cfg, 1, sizeof(struct ts_cfg));
         obj->is_impsi = 0;
         obj->is_dump = 0;
-        obj->is_mem = 0;
+        obj->mp_level = BUDDY_REPORT_NONE;
         obj->cnt = 0;
         obj->aim_start = 0;
         obj->aim_count = 0;
@@ -623,7 +623,20 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-mem")) {
-                                obj->is_mem = 1;
+                                i++;
+                                if(i >= argc) {
+                                        fprintf(stderr, "no parameter for '-mem'!\n");
+                                        goto create_failed_with_obj;
+                                }
+                                if(0 == strcmp(argv[i], "total")) {
+                                        obj->mp_level = BUDDY_REPORT_TOTAL;
+                                }
+                                else if(0 == strcmp(argv[i], "detail")) {
+                                        obj->mp_level = BUDDY_REPORT_DETAIL;
+                                }
+                                else {
+                                        obj->mp_level = BUDDY_REPORT_NONE;
+                                }
                         }
                         else if(0 == strcmp(argv[i], "-time")) {
                                 obj->aim.time = 1;
@@ -868,8 +881,7 @@ static struct tsana_obj *create(int argc, char *argv[])
                 RPTERR("malloc memory pool failed");
                 goto create_failed_with_obj;
         }
-        buddy_init(mp); /* now, we can use xx_malloc() */
-        buddy_status(mp, obj->is_mem, "after buddy init");
+        buddy_report(mp, obj->mp_level, "after buddy init");
 
         /* init memory of libxml2 */
         RPTINF("xmlFree: %p, xmlMalloc: %p, xmlRealloc: %p, xmlMemStrdup: %p",
@@ -904,9 +916,9 @@ static int destroy(struct tsana_obj *obj)
                 return 0;
         }
 
-        buddy_status(mp, obj->is_mem, "before ts destroy");
+        buddy_report(mp, obj->mp_level, "before ts destroy");
         ts_destroy(obj->ts);
-        buddy_status(mp, obj->is_mem, "after ts destroy");
+        buddy_report(mp, obj->mp_level, "after ts destroy");
 
         buddy_destroy(mp); /* return the memory to OS */
 
@@ -966,7 +978,7 @@ static void show_help()
                 " -impsi           import PSI information from psi.xml before analyse\n"
 #endif
                 " -dump            dump cared packet\n"
-                " -mem             show memory status\n"
+                " -mem             memory pool status show level(none!total!detail), default: none\n"
                 "\n"
                 " -time            \"*time, YYYY-mm-dd HH:MM:SS, second, usecond, delta_time(ms), \"\n"
                 " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
@@ -1314,18 +1326,18 @@ static int export_psi(struct tsana_obj *obj)
                 RPTERR("  xfree: %p,   xmalloc: %p,   xrealloc: %p,      xstrdup: %p",
                     xfree, xmalloc, xrealloc, xstrdup);
         }
-        buddy_status(mp, obj->is_mem, "before xml init");
+        buddy_report(mp, obj->mp_level, "before xml init");
         doc = xmlNewDoc((xmlChar *)"1.0");
         root = xmlNewDocNode(doc, NULL, (const xmlChar*)"ts", NULL);
         param2xml(ts, root, pd_ts);
         xmlDocSetRootElement(doc, root);
-        buddy_status(mp, obj->is_mem, "after param2xml");
+        buddy_report(mp, obj->mp_level, "after param2xml");
         xmlSaveFormatFileEnc("psi.xml", doc, "utf-8", 1);
-        buddy_status(mp, obj->is_mem, "after xml save");
+        buddy_report(mp, obj->mp_level, "after xml save");
         xmlFreeDoc(doc);
-        buddy_status(mp, obj->is_mem, "after xmlFreeDoc");
+        buddy_report(mp, obj->mp_level, "after xmlFreeDoc");
         xmlCleanupParser();
-        buddy_status(mp, obj->is_mem, "after xmlCleanupParser");
+        buddy_report(mp, obj->mp_level, "after xmlCleanupParser");
 
         output_prog(obj);
         return 0;
@@ -1337,7 +1349,7 @@ static int import_psi(struct tsana_obj *obj)
         xmlDocPtr doc;
         xmlNodePtr root;
 
-        buddy_status(mp, obj->is_mem, "before xml init");
+        buddy_report(mp, obj->mp_level, "before xml init");
         doc = xmlParseFile("psi.xml");
         if(!xmlFree) {
                 /* FIXME: libxml2@mingw problem */
@@ -1370,10 +1382,10 @@ static int import_psi(struct tsana_obj *obj)
                 return -1;
         }
         xml2param(ts, root, pd_ts);
-        buddy_status(mp, obj->is_mem, "after xml2param");
+        buddy_report(mp, obj->mp_level, "after xml2param");
         xmlFreeDoc(doc);
         xmlCleanupParser();
-        buddy_status(mp, obj->is_mem, "after xml clean");
+        buddy_report(mp, obj->mp_level, "after xml clean");
 
         ts_ioctl(ts, TS_TIDY, 0);
         return 0;
