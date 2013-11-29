@@ -72,9 +72,9 @@ void *buddy_create(int order_max, int order_min)
 
         p->omax = (uint8_t)order_max;
         p->omin = (uint8_t)order_min;
-        p->pool_size = (size_t)1 << p->omax;
-
+        p->pool_size = ((size_t)1 << (p->omax));
         p->tree_size = ((size_t)1 << (p->omax - p->omin + 1)) - 1;
+
         p->tree = (uint8_t *)malloc(p->tree_size); /* FIXME: memalign? */
         if(NULL == p->tree) {
                 RPTERR("create: malloc tree(%zu-byte) failed", p->tree_size);
@@ -178,11 +178,10 @@ int buddy_report(void *id, int level, const char *hint)
         }
 
         acc = 0;
-        report(p, 0, p->omax, &acc, level);
-        if(BUDDY_REPORT_TOTAL == level && 0 != acc) {
-                fprintf(stderr,"\n");
-        }
-        fprintf(stderr,"buddy: (%zu / %zu) used: %s\n",
+        report(p, 0, p->omax, &acc, level); /* note: report do NOT check the 2ed parameter */
+
+        fprintf(stderr, "%s", (BUDDY_REPORT_TOTAL == level && 0 != acc) ? "\n" : "");
+        fprintf(stderr, "buddy: (%zu / %zu) used: %s\n",
                 acc, (size_t)1 << p->omax, ((NULL == hint) ? "" : hint));
         return 0;
 }
@@ -440,9 +439,6 @@ void buddy_free(void *id, void *ptr)
 
 static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int level)
 {
-        if(i >= p->tree_size) {
-                return;
-        }
         if(0 == p->tree[i] && /* order is zero */
            ((FBTL(i) >= p->tree_size) || /* no subtree */
             !(0 == p->tree[FBTL(i)] || 0 == p->tree[FBTR(i)]))) { /* not subtree allocated */
@@ -456,7 +452,7 @@ static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int
                         size_t x;
 
                         buf = (p->pool + (i + 1) * (1<<order) - (p->pool_size));
-                        fprintf(stderr, "%zu: %p: ", order, buf);
+                        fprintf(stderr, "%2zu: %p: ", order, buf);
                         for(x = 0; x <((size_t)1 << order); x++) {
                                 fprintf(stderr, "%02X ", *buf++);
                         }
@@ -464,8 +460,10 @@ static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int
                 }
         }
         else {
-                report(p, FBTL(i), order - 1, acc, level);
-                report(p, FBTR(i), order - 1, acc, level);
+                if(FBTL(i) < p->tree_size) { /* to reduce recursion times observably */
+                        report(p, FBTL(i), order - 1, acc, level);
+                        report(p, FBTR(i), order - 1, acc, level);
+                }
         }
         return;
 }
