@@ -278,7 +278,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
                 return NULL;
         }
 
-        /* determine offset, then search old node in the tree */
+        /* determine offset */
         if((uint8_t *)ptr < p->pool) {
                 RPTERR("realloc: bad ptr: %p(%p + %zu), before pool", ptr, p->pool, p->pool_size);
                 return NULL;
@@ -289,9 +289,14 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
                 return NULL;
         }
 
-        old_order = p->omin;
-        oi = 0;
+        /*      9
+         *      8       8
+         *      7   7   7   7
+         *      6 6 6 6 6 6 6 6
+         */
+        /* search aim node in the tree */
         found = 0;
+        old_order = p->omin;
         while(offset % (1<<old_order) == 0) {
                 oi = (1<<(p->omax - old_order)) - 1 + offset / (1<<old_order);
                 if(0 == p->tree[oi]) {
@@ -389,7 +394,7 @@ void buddy_free(void *id, void *ptr)
                 return;
         }
 
-        /* determine offset, then search aim node in the tree */
+        /* determine offset */
         if((uint8_t *)ptr < p->pool) {
                 RPTERR("free: bad ptr: %p(%p + %zu), before pool", ptr, p->pool, p->pool_size);
                 return;
@@ -400,16 +405,21 @@ void buddy_free(void *id, void *ptr)
                 return;
         }
 
-        order = p->omin;
-        i = 0;
+        /*      9
+         *      8       8
+         *      7   7   7   7
+         *      6 6 6 6 6 6 6 6
+         */
+        /* search aim node in the tree */
         found = 0;
-        while(offset % (1<<order) == 0) {
-                i = (1<<(p->omax - order)) - 1 + offset / (1<<order);
+        order = p->omin;
+        while(offset % (1<<order) == 0) { /* possible order */
+                i = (1<<(p->omax - order)) - 1 + offset / (1<<order); /* corresponding index */
                 if(0 == p->tree[i]) {
                         found = 1;
                         break;
                 }
-                order++;
+                order++; /* maybe bigger space */
         }
         if(0 == found) {
                 RPTERR("free: bad ptr: %p, illegal node or module bug", ptr);
