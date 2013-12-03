@@ -414,14 +414,14 @@ inline static void after_free(struct buddy_obj *p, size_t i, size_t order)
         size_t rorder;
 
         while(0 != i) {
-                i = FBTP(i) ;
+                i = FBTP(i);
                 order++;
 
                 lorder = p->tree[FBTL(i)];
                 rorder = p->tree[FBTR(i)];
                 if(lorder == (order - 1) &&
                    rorder == (order - 1)) {
-                        p->tree[i] = order;
+                        p->tree[i] = order; /* merge */
                 }
                 else {
                         p->tree[i] = MAX(lorder, rorder);
