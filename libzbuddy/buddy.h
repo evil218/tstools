@@ -24,12 +24,10 @@ extern "C" {
 
 #define BUDDY_ORDER_MAX (int)(8 * sizeof(size_t))
 
-/* for level parameter of buddy_report() */
-enum buddy_report {
-        BUDDY_REPORT_NONE = 0,
-        BUDDY_REPORT_TOTAL,
-        BUDDY_REPORT_DETAIL
-};
+/* for 'level' parameter of buddy_report() */
+#define BUDDY_REPORT_NONE       (0)
+#define BUDDY_REPORT_TOTAL      (1)
+#define BUDDY_REPORT_DETAIL     (2)
 
 /*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min);
 int buddy_destroy(/*@null@*/ /*@only@*/ void *id);
