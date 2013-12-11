@@ -44,13 +44,12 @@ struct buddy_obj
 };
 
 static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int level);
-
-inline static void init_tree(struct buddy_obj *p);
-inline static size_t smallest_order(size_t size);
-inline static size_t order2index(struct buddy_obj *p, size_t aim_order, /*@out@*/ size_t *offset);
-inline static void after_allocate(struct buddy_obj *p, size_t i);
-inline static size_t offset2index(struct buddy_obj *p, size_t offset, /*@out@*/ size_t *the_order);
-inline static void after_free(struct buddy_obj *p, size_t i, size_t order);
+static void init_tree(struct buddy_obj *p);
+static size_t smallest_order(size_t size);
+static size_t order2index(struct buddy_obj *p, size_t aim_order, /*@out@*/ size_t *offset);
+static void after_allocate(struct buddy_obj *p, size_t i);
+static size_t offset2index(struct buddy_obj *p, size_t offset, /*@out@*/ size_t *the_order);
+static void after_free(struct buddy_obj *p, size_t i, size_t order);
 
 void *buddy_create(int order_max, int order_min)
 {
@@ -336,7 +335,7 @@ static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int
         return;
 }
 
-inline static void init_tree(struct buddy_obj *p)
+static void init_tree(struct buddy_obj *p)
 {
         uint8_t *tree = p->tree;
         size_t size;
@@ -351,7 +350,7 @@ inline static void init_tree(struct buddy_obj *p)
         return;
 }
 
-inline static size_t smallest_order(size_t size)
+static size_t smallest_order(size_t size)
 {
         size_t order;
         size_t mask;
@@ -360,7 +359,7 @@ inline static size_t smallest_order(size_t size)
         return order; /* the smallest order to cover the size */
 }
 
-inline static size_t order2index(struct buddy_obj *p, size_t aim_order, size_t *offset)
+static size_t order2index(struct buddy_obj *p, size_t aim_order, size_t *offset)
 {
         size_t i = 0; /* index of binary tree array */
         size_t order;
@@ -377,7 +376,7 @@ inline static size_t order2index(struct buddy_obj *p, size_t aim_order, size_t *
         return i;
 }
 
-inline static void after_allocate(struct buddy_obj *p, size_t i)
+static void after_allocate(struct buddy_obj *p, size_t i)
 {
         while(0 != i) {
                 i = FBTP(i);
@@ -385,7 +384,7 @@ inline static void after_allocate(struct buddy_obj *p, size_t i)
         }
 }
 
-inline static size_t offset2index(struct buddy_obj *p, size_t offset, size_t *the_order)
+static size_t offset2index(struct buddy_obj *p, size_t offset, size_t *the_order)
 {
         size_t i;
         size_t order = p->omin;
@@ -408,7 +407,7 @@ inline static size_t offset2index(struct buddy_obj *p, size_t offset, size_t *th
         return p->tree_size; /* offset2index failed */
 }
 
-inline static void after_free(struct buddy_obj *p, size_t i, size_t order)
+static void after_free(struct buddy_obj *p, size_t i, size_t order)
 {
         size_t lorder;
         size_t rorder;
