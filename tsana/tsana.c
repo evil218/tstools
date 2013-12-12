@@ -1074,7 +1074,7 @@ static int get_one_pkt(struct tsana_obj *obj)
                 }
                 else if(0 == strcmp(tag, "*mts")) {
                         next_nuint_hex(&data, &pt, 1);
-                        ipt->MTS = (int64_t)data;
+                        ipt->MTS = (int64_t)data & ((int64_t)MTS_OVF - 1);
                         ipt->has_mts = 1;
                 }
                 else if(0 == strcmp(tag, "*cts")) {

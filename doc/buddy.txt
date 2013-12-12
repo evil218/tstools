@@ -86,9 +86,9 @@ image:pic_buddy_pool.jpg[buddy_pool]
 至于二叉树的遍历，根本不需要左子树、右子树这种指针。
 
 ----
-#define LSUBTREE(index) (((index) << 1) + 1)
-#define RSUBTREE(index) (((index) << 1) + 2)
-#define PARENT(index)   ((((index) + 1) >> 1) - 1)
+#define FBTL(idx) (((idx) << 1) + 1)        /* full binary tree left subnode index */
+#define FBTR(idx) (((idx) << 1) + 2)        /* full binary tree right subnode index */
+#define FBTP(idx) ((((idx) + 1) >> 1) - 1)  /* full binary tree parent node index */
 ----
 
 通过上面这3个宏，可以高效地计算索引，从而在二叉树中移动。
@@ -200,7 +200,12 @@ void *buddy_malloc(void *id, size_t size);
 void *buddy_realloc(void *id, void *ptr, size_t size); /* FIXME: need to be test */
 ----
 这个接口尽量仿照了Linux的realloc，唯一的不同是参数中多了一个id来确定具体的buddy对象。
-由于从未使用过，本接口可能存在缺陷。
+后面那个FIXME注释想说：由于这个接口从未用过，其正确性有待验证。
+
+关于本模块实现realloc接口的渊源：
+param_xml模块是基于libxml2实现的，libxml2则频繁进行超小内存块的分配与释放操作。
+libxml2的文档中提到其内存操作可能会影响嵌入式操作系统的稳定性，因此它提供了接口供用户替换自己的内存管理算法。
+libxml2中用来替换内存分配算法的接口需要realloc接口，因此我实现了它，但是我发现libxml2自己也没用过这个接口。
 
 === buddy_free ===
 
