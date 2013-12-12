@@ -1,8 +1,7 @@
 = 伙伴内存分配模块 =
-周骋
+周骋 <zhoucheng@tsinghua.org.cn>
 v1.0, 2013年11月21日
 :doctype: book
-
 
 [dedication]
 == 致谢 ==
@@ -76,6 +75,8 @@ image:pic_buddy_pool.jpg[buddy_pool]
 
 == 本模块实现方案 ==
 
+=== 当前方案 ===
+
 伙伴算法需要维护一棵满二叉树，用来记录内存池的分配情况。
 有些伙伴算法代码用链表来实现这颗二叉树，这带来了遍历时的低效，并导致高昂的内存开销。
 鄙人2001年写的buddy.exe就是这样做的，当时维护链表二叉树很费力。
@@ -102,6 +103,14 @@ image:pic_buddy_tree.jpg[buddy_tree]
 - d：定位被释放空间对应的二叉树节点，恢复其幂次后，递推调整父节点；
 - e：定位被释放空间对应的二叉树节点，恢复其幂次后，递推调整父节点，二叉树恰好复原成a状态。
 
+=== 可能的方案 ===
+
+如果上面的满二叉树缩减成只有叶节点，对内存池的描述将可以节省一半空间。
+
+image:pic_buddy_bitmap.jpg[buddy_bitmap]
+
+这个思路的可行性和效率待深入研究。
+
 == 使用本模块 ==
 本模块仅由buddy.h和buddy.c两个文件组成。
 其中buddy.h是模块的接口，提供了1个宏和7个接口函数：
@@ -109,7 +118,7 @@ image:pic_buddy_tree.jpg[buddy_tree]
 - BUDDY_ORDER_MAX：系统允许的理论最大内存池的幂次（主要针对32位与64位系统的差异，实际达不到）；
 - buddy_create()：创建1个buddy对象，用来管理一个独立的伙伴内存池，应用层可以创建多个对象；
 - buddy_destroy()：销毁指定buddy对象，该内存池还给操作系统；
-- buddy_status()：通过打印报告指定buddy对象内存池的具体使用情况（仅用于调试）；
+- buddy_report()：通过打印报告指定buddy对象内存池的具体使用情况（仅用于调试）；
 - buddy_malloc()：在指定buddy对象内存池中分配一块空间，类似系统的malloc()；
 - buddy_realloc()：在指定buddy对象内存池中调整一块空间（未经测试），类似系统的realloc()；
 - buddy_free()：在指定buddy对象内存池中释放一块空间，类似系统的free()。
@@ -126,12 +135,16 @@ buddy_create有2个参数，分别指明内存池的总大小和最小分配大�
 buddy_create首先申请一小片空间作为buddy对象，
 然后申请(1 << order_max)-byte空间作为待分配的内存池，
 最后申请( (1 << (order_max - order_min + 1)) - 1 )-byte空间作为二叉树描述内存池状态。
-显然，当order_min为1时，用于描述内存池的二叉树只比内存池少1-byte，还没使用空间效率就剩50%了。
-根据应用程序动态申请空间的大小特点，建议适当调高order_min的值，以满足最主要的中大型内存需求。
-对于码流分析系统，设置order_min为6比较合适，此时二叉树仅为内存池大小的1.6%（1/64）。
 
-二叉树需要初始化才能正常使用，这要通过应用层主动调用buddy_init接口实现。
-如果应用层忘了调用这个接口，它的任何分配申请都会因“空间不够”错误而失败。
+- 当order_min为0时，用于描述内存池的二叉树几乎是内存池空间的2倍，还没使用空间效率就剩33%了。
+- 当order_min为1时，用于描述内存池的二叉树只比内存池少1-byte，还没使用空间效率就剩50%了。
+
+由于0用来表示空间被分配，order_min为0在本模块中是不允许的。
+建议根据应用程序动态申请空间的大小特点，适当调高order_min的值，以满足最主要的中大型内存需求。
+对于码流分析系统，设置order_min为6比较合适，此时二叉树仅为内存池大小的3%（1/32）。
+
+二叉树需要初始化才能正常使用，buddy_create()内部会调用init_tree()。
+应用层也可以通过buddy_init()接口随时初始化该对象，其内部也是靠init_tree()实现的。
 
 buddy_create的返回值其实是这个buddy对象的指针，为了隐藏对象的细节，采用void *类型。
 如果返回NULL，说明出现了错误。
@@ -152,15 +165,27 @@ buddy_init可以快速初始化描述内存池的二叉树。
 无论内存池处于任何状态，它都以同样的速度使内存池进入未分配状态。
 当然应用层不可以再使用早先分配过的空间了，否则会与后面的分配情况出现冲突。
 
-=== buddy_status ===
+=== buddy_report ===
 
 ----
-int buddy_status(void *id, int enable, const char *hint); /* for debug */
+int buddy_report(void *id, int level, const char *hint); /* for debug */
 ----
 这个接口仅仅用于调试目的，它可以在开发阶段增加内存池使用情况的透明度。
-buddy_status扫描二叉树，通过stderr报告每种幂次内存块的使用数量，最后会报告整个内存池的使用比例。
-enable为0时，这个接口直接返回0。
+buddy_report()调用递归函数report()，以前序遍历（先根遍历）方式扫描二叉树。
+与常规前序遍历二叉树不同的是，report()遇到已分配节点时，不再处理其子节点。
+buddy_report()通过stderr报告每个已分配内存块的幂次（甚至按字节打印具体数据），
+最后会报告整个内存池的使用比例。
+
+- level为BUDDY_REPORT_NONE时，这个接口直接返回0；
+- level为BUDDY_REPORT_TOTAL时，遍历时只打印已分配空间的幂次；
+- level为BUDDY_REPORT_DETAIL时，遍历时不仅打印已分配空间的幂次，还包括其地址及具体数据。
+
 如果hint非NULL，会在行尾打印这个字符串，以提示应用层运行的上下文。
+
+本模块这种特殊的单字节二叉树无法通过递推形式遍历，因此选择了递归算法（靠系统栈记录遍历状态）。
+递归时，不处理无用子树的思路可以提高遍历速度——对分配大空间的情况可以避免很多无效遍历。
+但是递归对系统栈的大小提出了要求，访问叶节点时需要函数递归深度为order_max - order_min，约数十次。
+在系统受限的嵌入式系统中调用本接口要小心系统崩溃，因此建议仅在调试时使用这个接口。
 
 === buddy_malloc ===
 
@@ -175,6 +200,7 @@ void *buddy_malloc(void *id, size_t size);
 void *buddy_realloc(void *id, void *ptr, size_t size); /* FIXME: need to be test */
 ----
 这个接口尽量仿照了Linux的realloc，唯一的不同是参数中多了一个id来确定具体的buddy对象。
+由于从未使用过，本接口可能存在缺陷。
 
 === buddy_free ===
 
@@ -184,4 +210,4 @@ void buddy_free(void *id, void *ptr);
 这个接口尽量仿照了Linux的free，唯一的不同是参数中多了一个id来确定具体的buddy对象。
 
 先写这些吧！
-朋友们要是发现了BUG，或者有好的意见和建议，可以通过mailto:zhoucheng@tsinghua.org.cn[周骋]联系我。
+小伙伴们要是发现了BUG，或者有好的意见和建议，可以通过mailto:zhoucheng@tsinghua.org.cn[周骋]联系我。
