@@ -41,9 +41,15 @@ struct buddy_obj
         uint8_t *tree; /* binary tree, the array to describe the status of pool */
         size_t pool_size; /* pool size */
         uint8_t *pool; /* pool buffer */
+
+        /* for efficiency of report() */
+        int level;
+        size_t offset;
+        uint8_t *buf;
+        size_t x;
 };
 
-static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int level);
+static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc);
 static void init_tree(struct buddy_obj *p);
 static size_t smallest_order(size_t size);
 static size_t order2index(struct buddy_obj *p, size_t aim_order, /*@out@*/ size_t *offset);
@@ -79,7 +85,7 @@ void *buddy_create(int order_max, int order_min)
         p->omax = (uint8_t)order_max;
         p->omin = (uint8_t)order_min;
         p->pool_size = ((size_t)1 << (p->omax));
-        p->tree_size = ((size_t)1 << (p->omax - p->omin + 1)) - 1;
+        p->tree_size = ((size_t)1 << (p->omax - p->omin + 1)) - 1; /* minus 1 is important */
 
         p->tree = (uint8_t *)malloc(p->tree_size); /* FIXME: memalign? */
         if(NULL == p->tree) {
@@ -147,9 +153,10 @@ int buddy_report(void *id, int level, const char *hint)
                 RPTERR("status: bad id");
                 return -1;
         }
+        p->level = level;
 
         acc = 0;
-        report(p, 0, p->omax, &acc, level); /* note: do NOT check the 2ed parameter */
+        report(p, 0, p->omax, &acc);
 
         fprintf(stderr, "%s", (BUDDY_REPORT_TOTAL == level && 0 != acc) ? "\n" : "");
         fprintf(stderr, "buddy: (%zu / %zu) used: %s\n",
@@ -304,32 +311,46 @@ void buddy_free(void *id, void *ptr)
  *      :-) speed: auto ignore subtree if current node is allocated
  *      :-( space: need many stack space if (omax - omin) is big
  */
-static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc, int level)
+static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc)
 {
-        if(0 == p->tree[i] && /* order is zero */
-           ((FBTL(i) >= p->tree_size) || /* no subtree */
-            !(0 == p->tree[FBTL(i)] || 0 == p->tree[FBTR(i)]))) { /* not subtree allocated */
-                /* allocated */
+        /* for efficiency:
+         *      move local variables into buddy_obj;
+         *      do NOT check parameter 'i';
+         *      do NOT check wrong tree;
+         *
+         * cases:
+         *      P L R | action     | memo
+         *      ------+------------+-----------------
+         *      0 - - | accumulate | allocated leaf
+         *      0 0 0 | recursion  | branch
+         *      0 l 0 | -          | wrong tree
+         *      0 0 r | -          | wrong tree
+         *      0 l r | accumulate | allocated branch
+         *      p - - | return     | free leaf
+         *      p ? ? | recursion  | branch
+         */
+        if((0 == p->tree[i]) &&
+           ((FBTL(i) >= p->tree_size) || (0 != p->tree[FBTL(i)] && 0 != p->tree[FBTR(i)]))) {
                 *acc += ((size_t)1 << order);
-                if(BUDDY_REPORT_TOTAL == level) {
+
+                if(BUDDY_REPORT_TOTAL == p->level) {
                         fprintf(stderr, "%zu ", order);
                 }
-                else if(BUDDY_REPORT_DETAIL == level) {
-                        uint8_t *buf;
-                        size_t x;
+                else if(BUDDY_REPORT_DETAIL == p->level) {
+                        p->offset = (i + 1) * (1<<order) - p->pool_size;
+                        fprintf(stderr, "%3zu: 0x%zX: ", order, p->offset);
 
-                        buf = (p->pool + (i + 1) * (1<<order) - (p->pool_size));
-                        fprintf(stderr, "%2zu: %p: ", order, buf);
-                        for(x = 0; x <((size_t)1 << order); x++) {
-                                fprintf(stderr, "%02X ", (unsigned int)*buf++);
+                        p->buf = p->pool + p->offset;
+                        for(p->x = 0; p->x <((size_t)1 << order); p->x++) {
+                                fprintf(stderr, "%02X ", (unsigned int)*(p->buf)++);
                         }
                         fprintf(stderr, "\n");
                 }
         }
-        else {
-                if(FBTL(i) < p->tree_size) { /* to reduce recursion times observably */
-                        report(p, FBTL(i), order - 1, acc, level);
-                        report(p, FBTR(i), order - 1, acc, level);
+        else { /* 0 != p->tree[i] */
+                if(FBTL(i) < p->tree_size) {
+                        report(p, FBTL(i), order - 1, acc);
+                        report(p, FBTR(i), order - 1, acc);
                 }
         }
         return;
