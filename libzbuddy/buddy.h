@@ -4,12 +4,13 @@
  *
  * tree vs pool:
  *
- *      7          6             0
- *      6   6      0   6         0   0
- *      5 5 5 5    5 5 5 5       5 5 5 5
+ *      6             5             5             5             6
+ *      5   5         4   5         3   5         4   5         5   5
+ *      4 4 4 4       3 4 4 4       3 0 4 4       4 0 4 4       4 4 4 4
+ *      33333333      03333333      03333333      33333333      33333333
  *
- *       init     (2^6)-byte   2x(2^6)-byte
- *      status     allocted      allocted
+ *       init        (2^3)-byte    (2^4)-byte    (2^3)-byte    (2^4)-byte
+ *      status        allocted      allocted      free          free
  *
  * 2013-03-09, ZHOU Cheng, modularized
  * 2012-11-02, manuscola.bean@gmail.com, optimized from https://github.com/wuwenbin/buddy2

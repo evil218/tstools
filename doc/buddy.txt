@@ -95,7 +95,10 @@ image:pic_buddy_pool.jpg[buddy_pool]
 
 image:pic_buddy_tree.jpg[buddy_tree]
 
-上图演示了上一节的buddy系统运作时二叉树的变化情况：
+在图示二叉树中，每个节点仅用一个byte来描述pool中对应区域的情况。
+0表示该区域被分配出去了——其子节点不用置零；其它数字表示该区域最大还能分配的空间幂次。
+
+a、b、c、d、e依次演示了上一节的buddy系统运作时二叉树的变化情况：
 
 - a：空间为64的空闲内存池：二叉树各节点记录对应的幂次，表明对应空闲块的大小；
 - b：自树根向下，左优先为空间7寻找幂次为3的空闲块，其幂次清0表示被分配，递推调整父节点；
@@ -105,11 +108,33 @@ image:pic_buddy_tree.jpg[buddy_tree]
 
 === 可能的改进 ===
 
-如果上面的满二叉树缩减成只有叶节点，对内存池的描述将可以节省一半空间。
+如果上面的满二叉树坍塌成只有叶节点就退化成位图，对内存池的描述将可以节省一半空间。
 
 image:pic_buddy_bitmap.jpg[buddy_bitmap]
 
-这个思路的可行性和效率待深入研究。
+在这个位图中，每个节点仅用一个byte来描述pool中对应区域的情况，描述方法需要稍作调整：
+
+- 0表示该区域被合并成更大的空间了；
+- 负数表示其绝对值幂次的空间被分配；
+- 正数表示该幂次的空间闲置。
+
+----
+/* FBTL: full binary tree left subnode index
+ * FBTR: full binary tree right subnode index
+ * FBTP: full binary tree parent node index
+ *
+ *  idx: index of bitmap array
+ * ocur: current order
+ * omin: minimum order of this buddy object
+ */
+#define FBTL(idx)               (idx)
+#define FBTR(idx, ocur, omin)   ((idx) | ((size_t)1 << ((ocur) - (omin) - 1)))
+#define FBTP(idx, ocur, omin)   ((idx) & ((size_t)1 << ((ocur) - (omin) - 1)))
+----
+
+在这个压扁了的二叉树中，遍历所需的索引计算也发生了变化。
+节点的左子树的索引与自身相同，右子树的索引仅需把1个bit置1。
+节点的父节点的索引就是左树的节点，无论当前是左树还是右树仅需把1个bit置0即可。
 
 == 使用本模块 ==
 本模块仅由buddy.h和buddy.c两个文件组成。

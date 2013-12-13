@@ -686,7 +686,9 @@ e：大小为9的空间释放了，递推合并出整个大小为64的空闲空�
 <div class="paragraph"><p><span class="image">
 <img src="pic_buddy_tree.jpg" alt="buddy_tree" />
 </span></p></div>
-<div class="paragraph"><p>上图演示了上一节的buddy系统运作时二叉树的变化情况：</p></div>
+<div class="paragraph"><p>在图示二叉树中，每个节点仅用一个byte来描述pool中对应区域的情况。
+0表示该区域被分配出去了——其子节点不用置零；其它数字表示该区域最大还能分配的空间幂次。</p></div>
+<div class="paragraph"><p>a、b、c、d、e依次演示了上一节的buddy系统运作时二叉树的变化情况：</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
@@ -717,11 +719,45 @@ e：定位被释放空间对应的二叉树节点，恢复其幂次后，递推�
 </div>
 <div class="sect2">
 <h3 id="__6">4.2. 可能的改进</h3>
-<div class="paragraph"><p>如果上面的满二叉树缩减成只有叶节点，对内存池的描述将可以节省一半空间。</p></div>
+<div class="paragraph"><p>如果上面的满二叉树坍塌成只有叶节点就退化成位图，对内存池的描述将可以节省一半空间。</p></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_buddy_bitmap.jpg" alt="buddy_bitmap" />
 </span></p></div>
-<div class="paragraph"><p>这个思路的可行性和效率待深入研究。</p></div>
+<div class="paragraph"><p>在这个位图中，每个节点仅用一个byte来描述pool中对应区域的情况，描述方法需要稍作调整：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+0表示该区域被合并成更大的空间了；
+</p>
+</li>
+<li>
+<p>
+负数表示其绝对值幂次的空间被分配；
+</p>
+</li>
+<li>
+<p>
+正数表示该幂次的空间闲置。
+</p>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>/* FBTL: full binary tree left subnode index
+ * FBTR: full binary tree right subnode index
+ * FBTP: full binary tree parent node index
+ *
+ *  idx: index of bitmap array
+ * ocur: current order
+ * omin: minimum order of this buddy object
+ */
+#define FBTL(idx)               (idx)
+#define FBTR(idx, ocur, omin)   ((idx) | ((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))
+#define FBTP(idx, ocur, omin)   ((idx) &amp; ((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))</tt></pre>
+</div></div>
+<div class="paragraph"><p>在这个压扁了的二叉树中，遍历所需的索引计算也发生了变化。
+节点的左子树的索引与自身相同，右子树的索引仅需把1个bit置1。
+节点的父节点的索引就是左树的节点，无论当前是左树还是右树仅需把1个bit置0即可。</p></div>
 </div>
 </div>
 </div>
@@ -889,7 +925,7 @@ libxml2中用来替换内存分配算法的接口需要realloc接口，因此我
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2013-12-12 㐱㈺㨱㠲䌠呓
+Last updated 2013-12-13 㠱㔺㨸〱䌠呓
 </div>
 </div>
 </body>
