@@ -35,8 +35,8 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 /* note: if buddy_obj is OK, we trust tree and pool pointer below, and do not check them */
 struct buddy_obj
 {
-        uint8_t omax; /* max order */
-        uint8_t omin; /* min order */
+        uint8_t maxo; /* maximum order */
+        uint8_t mino; /* minimum order */
         size_t tree_size; /* tree size */
         uint8_t *tree; /* binary tree, the array to describe the status of pool */
         size_t pool_size; /* pool size */
@@ -49,30 +49,20 @@ struct buddy_obj
         size_t x;
 };
 
-static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc);
+static void report(struct buddy_obj *p, size_t i, size_t curo, size_t *acc);
 static void init_tree(struct buddy_obj *p);
 static size_t smallest_order(size_t size);
-static size_t order2index(struct buddy_obj *p, size_t aim_order, /*@out@*/ size_t *offset);
-static void after_allocate(struct buddy_obj *p, size_t i);
+static size_t order2index(struct buddy_obj *p, size_t aimo, /*@out@*/ size_t *offset);
+static void allocate_node(struct buddy_obj *p, size_t i);
 static size_t offset2index(struct buddy_obj *p, size_t offset, /*@out@*/ size_t *the_order);
-static void after_free(struct buddy_obj *p, size_t i, size_t order);
+static void free_node(struct buddy_obj *p, size_t i, size_t curo);
 
-void *buddy_create(int order_max, int order_min)
+void *buddy_create(int maxo, int mino)
 {
         struct buddy_obj *p;
 
-        if(order_max > BUDDY_ORDER_MAX) {
-                RPTERR("create: bad order_max: %d > %d", order_max, BUDDY_ORDER_MAX);
-                return NULL; /* failed */
-        }
-
-        if(order_min >= order_max) {
-                RPTERR("create: bad order_min: %d >= %d", order_min, order_max);
-                return NULL; /* failed */
-        }
-
-        if(order_min < 1) {
-                RPTERR("create: bad order: %d < 1", order_min);
+        if(!((1 <= mino) && (mino < maxo) && (maxo <= BUDDY_ORDER_MAX))) {
+                RPTERR("create: !(1 <= %d < %d <= %d)", mino, maxo, BUDDY_ORDER_MAX);
                 return NULL; /* failed */
         }
 
@@ -82,10 +72,10 @@ void *buddy_create(int order_max, int order_min)
                 return NULL; /* failed */
         }
 
-        p->omax = (uint8_t)order_max;
-        p->omin = (uint8_t)order_min;
-        p->pool_size = ((size_t)1 << (p->omax));
-        p->tree_size = ((size_t)1 << (p->omax - p->omin + 1)) - 1; /* minus 1 is important */
+        p->maxo = (uint8_t)maxo;
+        p->mino = (uint8_t)mino;
+        p->pool_size = ((size_t)1 << (p->maxo));
+        p->tree_size = ((size_t)1 << (p->maxo - p->mino + 1)) - 1; /* minus 1 is important */
 
         p->tree = (uint8_t *)malloc(p->tree_size); /* FIXME: memalign? */
         if(NULL == p->tree) {
@@ -103,7 +93,7 @@ void *buddy_create(int order_max, int order_min)
                 return NULL; /* failed */
         }
         RPTDBG("create: pool: 0x%zX-byte @ %p, min space: 0x%zX",
-               p->pool_size, p->pool, (size_t)1 << p->omin);
+               p->pool_size, p->pool, (size_t)1 << p->mino);
 
         init_tree(p); /* to splint: tree and pool is OK now, why warning me here? */
         return p;
@@ -111,9 +101,8 @@ void *buddy_create(int order_max, int order_min)
 
 int buddy_destroy(void *id)
 {
-        struct buddy_obj *p;
+        struct buddy_obj *p = (struct buddy_obj *)id;
 
-        p = (struct buddy_obj *)id;
         if(NULL == p) {
                 RPTERR("destroy: bad id");
                 return -1;
@@ -127,9 +116,8 @@ int buddy_destroy(void *id)
 
 int buddy_init(void *id)
 {
-        struct buddy_obj *p;
+        struct buddy_obj *p = (struct buddy_obj *)id;
 
-        p= (struct buddy_obj *)id;
         if(NULL == p) {
                 RPTERR("init: bad id");
                 return -1;
@@ -141,33 +129,32 @@ int buddy_init(void *id)
 
 int buddy_report(void *id, int level, const char *hint)
 {
-        struct buddy_obj *p;
+        struct buddy_obj *p = (struct buddy_obj *)id;
         size_t acc;
 
         if(BUDDY_REPORT_NONE == level) {
                 return 0; /* do nothing */
         }
 
-        p = (struct buddy_obj *)id;
         if(NULL == p) {
-                RPTERR("status: bad id");
+                RPTERR("report: bad id");
                 return -1;
         }
         p->level = level;
 
         acc = 0;
-        report(p, 0, p->omax, &acc);
+        report(p, 0, p->maxo, &acc);
 
         fprintf(stderr, "%s", (BUDDY_REPORT_TOTAL == level && 0 != acc) ? "\n" : "");
         fprintf(stderr, "buddy: (%zu / %zu) used: %s\n",
-                acc, (size_t)1 << p->omax, ((NULL == hint) ? "" : hint));
+                acc, (size_t)1 << p->maxo, ((NULL == hint) ? "" : hint));
         return 0;
 }
 
 void *buddy_malloc(void *id, size_t size)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
-        size_t order;
+        size_t aimo; /* aim order */
         size_t i;
         size_t offset;
 
@@ -182,16 +169,15 @@ void *buddy_malloc(void *id, size_t size)
         }
 
         /* determine aim order in tree */
-        order = MAX(smallest_order(size), p->omin);
-        if((size_t)(p->tree[0]) < order) {
+        aimo = MAX(smallest_order(size), p->mino);
+        if((size_t)(p->tree[0]) < aimo) {
                 RPTERR("malloc: not enough space in pool");
                 return NULL;
         }
 
-        i = order2index(p, order, &offset);
-        p->tree[i] = 0; /* allocate this space */
-        after_allocate(p, i); /* modify parent node */
-        RPTDBG("malloc:  @ 0x%zX, space: 0x%zX, size: 0x%zX", offset, (size_t)1 << order, size);
+        i = order2index(p, aimo, &offset);
+        allocate_node(p, i); /* modify parent node */
+        RPTDBG("malloc:  @ 0x%zX, space: 0x%zX, size: 0x%zX", offset, (size_t)1 << aimo, size);
 
         return (p->pool + offset);
 }
@@ -238,7 +224,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         }
 
         /* determine new_order in tree */
-        new_order = MAX(smallest_order(size), p->omin);
+        new_order = MAX(smallest_order(size), p->mino);
         if((size_t)(p->tree[0]) < new_order) {
                 RPTERR("realloc: not enough space in pool");
                 return NULL;
@@ -250,12 +236,10 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         }
 
         /* free old space */
-        p->tree[oi] = old_order; /* free this space */
-        after_free(p, oi, old_order); /* modify parent node */
+        free_node(p, oi, old_order); /* modify parent node */
 
         ni = order2index(p, new_order, &new_offset);
-        p->tree[ni] = 0; /* allocate this space */
-        after_allocate(p, ni); /* modify parent node */
+        allocate_node(p, ni); /* modify parent node */
         RPTDBG("realloc: @ 0x%zX, space: 0x%zX -> @ 0x%zX, space: 0x%zX, size: 0x%zX",
                old_offset, (size_t)1 << old_order,
                new_offset, (size_t)1 << new_order, size);
@@ -271,7 +255,7 @@ void buddy_free(void *id, void *ptr)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
         size_t offset;
-        size_t order;
+        size_t curo; /* current order */
         size_t i; /* index of binary tree array */
 
         if(NULL == p) {
@@ -294,24 +278,23 @@ void buddy_free(void *id, void *ptr)
                 return;
         }
 
-        i = offset2index(p, offset, &order);
+        i = offset2index(p, offset, &curo);
         if(i == p->tree_size) {
                 RPTERR("free: bad ptr: %p, illegal node or module bug", ptr);
                 return;
         }
 
-        RPTDBG("free:    @ 0x%zX, space: 0x%zX", offset, (size_t)1 << order);
-        p->tree[i] = order; /* free this space */
-        after_free(p, i, order); /* modify parent node */
+        RPTDBG("free:    @ 0x%zX, space: 0x%zX", offset, (size_t)1 << curo);
+        free_node(p, i, curo); /* modify parent node */
 
         return;
 }
 
 /* recursion function:
  *      :-) speed: auto ignore subtree if current node is allocated
- *      :-( space: need many stack space if (omax - omin) is big
+ *      :-( space: need many stack space if (maxo - mino) is big
  */
-static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc)
+static void report(struct buddy_obj *p, size_t i, size_t curo, size_t *acc)
 {
         /* for efficiency:
          *      move local variables into buddy_obj;
@@ -331,17 +314,17 @@ static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc)
          */
         if((0 == p->tree[i]) &&
            ((FBTL(i) >= p->tree_size) || (0 != p->tree[FBTL(i)] && 0 != p->tree[FBTR(i)]))) {
-                *acc += ((size_t)1 << order);
+                *acc += ((size_t)1 << curo);
 
                 if(BUDDY_REPORT_TOTAL == p->level) {
-                        fprintf(stderr, "%zu ", order);
+                        fprintf(stderr, "%zu ", curo);
                 }
                 else if(BUDDY_REPORT_DETAIL == p->level) {
-                        p->offset = (i + 1) * (1<<order) - p->pool_size;
-                        fprintf(stderr, "%3zu: 0x%zX: ", order, p->offset);
+                        p->offset = (i + 1) * (1<<curo) - p->pool_size;
+                        fprintf(stderr, "%3zu: 0x%zX: ", curo, p->offset);
 
                         p->buf = p->pool + p->offset;
-                        for(p->x = 0; p->x <((size_t)1 << order); p->x++) {
+                        for(p->x = 0; p->x <((size_t)1 << curo); p->x++) {
                                 fprintf(stderr, "%02X ", (unsigned int)*(p->buf)++);
                         }
                         fprintf(stderr, "\n");
@@ -349,8 +332,8 @@ static void report(struct buddy_obj *p, size_t i, size_t order, size_t *acc)
         }
         else { /* 0 != p->tree[i] */
                 if(FBTL(i) < p->tree_size) {
-                        report(p, FBTL(i), order - 1, acc);
-                        report(p, FBTR(i), order - 1, acc);
+                        report(p, FBTL(i), curo - 1, acc);
+                        report(p, FBTR(i), curo - 1, acc);
                 }
         }
         return;
@@ -360,11 +343,11 @@ static void init_tree(struct buddy_obj *p)
 {
         uint8_t *tree = p->tree;
         size_t size;
-        size_t order;
+        size_t curo; /* current order */
 
         size = (size_t)1;
-        for(order = p->omax; order >= p->omin; order--) {
-                memset(tree, (int)order, size);
+        for(curo = p->maxo; curo >= p->mino; curo--) {
+                memset(tree, (int)curo, size);
                 tree += size;
                 size <<= 1;
         }
@@ -373,32 +356,34 @@ static void init_tree(struct buddy_obj *p)
 
 static size_t smallest_order(size_t size)
 {
-        size_t order;
+        size_t curo; /* current order */
         size_t mask;
 
-        for(order = 0, mask = (size_t)1; mask < size; order++, mask <<= 1) {};
-        return order; /* the smallest order to cover the size */
+        for(curo = 0, mask = (size_t)1; mask < size; curo++, mask <<= 1) {};
+        return curo; /* the smallest order to cover the size */
 }
 
-static size_t order2index(struct buddy_obj *p, size_t aim_order, size_t *offset)
+static size_t order2index(struct buddy_obj *p, size_t aimo, size_t *offset)
 {
-        size_t i = 0; /* index of binary tree array */
-        size_t order;
+        size_t i; /* index of binary tree array */
+        size_t curo; /* current order */
 
-        for(order = p->omax; order > aim_order; order--) {
-                if(p->tree[FBTL(i)] >= aim_order) {
+        i = 0; /* from root */
+        for(curo = p->maxo; curo > aimo; curo--) {
+                if(p->tree[FBTL(i)] >= aimo) {
                         i = FBTL(i);
                 }
                 else {
                         i = FBTR(i);
                 }
         }
-        *offset = (i + 1) * (1<<aim_order) - p->pool_size;
+        *offset = (i + 1) * (1<<aimo) - p->pool_size;
         return i;
 }
 
-static void after_allocate(struct buddy_obj *p, size_t i)
+static void allocate_node(struct buddy_obj *p, size_t i)
 {
+        p->tree[i] = 0; /* 0 means it is allocated */
         while(0 != i) {
                 i = FBTP(i);
                 p->tree[i] = MAX(p->tree[FBTL(i)], p->tree[FBTR(i)]) ;
@@ -408,40 +393,41 @@ static void after_allocate(struct buddy_obj *p, size_t i)
 static size_t offset2index(struct buddy_obj *p, size_t offset, size_t *the_order)
 {
         size_t i;
-        size_t order = p->omin;
+        size_t curo = p->mino;
 
         /*      9
          *      8       8
          *      7   7   7   7
          *      6 6 6 6 6 6 6 6
          */
-        while(offset % (1<<order) == 0) { /* possible order */
-                i = (1<<(p->omax - order)) - 1 + offset / (1<<order); /* corresponding index */
+        while(offset % (1<<curo) == 0) { /* possible order */
+                i = (1<<(p->maxo - curo)) - 1 + offset / (1<<curo); /* corresponding index */
                 if(0 == p->tree[i]) {
-                        *the_order = order;
+                        *the_order = curo;
                         return i; /* find the node */
                 }
-                order++; /* maybe bigger space */
+                curo++; /* maybe bigger space */
         }
 
         *the_order = 0; /* for splint */
         return p->tree_size; /* offset2index failed */
 }
 
-static void after_free(struct buddy_obj *p, size_t i, size_t order)
+static void free_node(struct buddy_obj *p, size_t i, size_t curo)
 {
         size_t lorder;
         size_t rorder;
 
+        p->tree[i] = curo; /* current order means it is free */
         while(0 != i) {
                 i = FBTP(i);
-                order++;
+                curo++;
 
                 lorder = p->tree[FBTL(i)];
                 rorder = p->tree[FBTR(i)];
-                if(lorder == (order - 1) &&
-                   rorder == (order - 1)) {
-                        p->tree[i] = order; /* merge */
+                if(lorder == (curo - 1) &&
+                   rorder == (curo - 1)) {
+                        p->tree[i] = curo; /* merge */
                 }
                 else {
                         p->tree[i] = MAX(lorder, rorder);

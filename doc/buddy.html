@@ -718,7 +718,7 @@ e：定位被释放空间对应的二叉树节点，恢复其幂次后，递推�
 </ul></div>
 </div>
 <div class="sect2">
-<h3 id="__6">4.2. 可能的改进</h3>
+<h3 id="__6">4.2. 失败的改进尝试</h3>
 <div class="paragraph"><p>如果上面的满二叉树坍塌成只有叶节点就退化成位图，对内存池的描述将可以节省一半空间。</p></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_buddy_bitmap.jpg" alt="buddy_bitmap" />
@@ -752,12 +752,17 @@ e：定位被释放空间对应的二叉树节点，恢复其幂次后，递推�
  * omin: minimum order of this buddy object
  */
 #define FBTL(idx)               (idx)
-#define FBTR(idx, ocur, omin)   ((idx) | ((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))
-#define FBTP(idx, ocur, omin)   ((idx) &amp; ((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))</tt></pre>
+#define FBTR(idx, ocur, omin)   ((idx) |  ((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))
+#define FBTP(idx, ocur, omin)   ((idx) &amp; ~((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))</tt></pre>
 </div></div>
 <div class="paragraph"><p>在这个压扁了的二叉树中，遍历所需的索引计算也发生了变化。
 节点的左子树的索引与自身相同，右子树的索引仅需把1个bit置1。
 节点的父节点的索引就是左树的节点，无论当前是左树还是右树仅需把1个bit置0即可。</p></div>
+<div class="paragraph"><p>我尝试基于这个思路调整代码，结果发现释放节点很容易，但分配节点则不可能高效实现。
+由于位图直接记录了每个偏移位置的容量和分配状态，初始化位图和释放空间的效率比现有代码高。
+由于位图描述缺少父节点的高级信息，分配时不能用二分法迅速找到目标节点。
+如果采用从左向右扫描的方式，不仅执行效率低，而且放弃了伙伴算法的精华，将来无法正常合并空间。
+综合考虑，这种改进思路不可取！</p></div>
 </div>
 </div>
 </div>
@@ -925,7 +930,7 @@ libxml2中用来替换内存分配算法的接口需要realloc接口，因此我
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2013-12-13 㠱㔺㨸〱䌠呓
+Last updated 2013-12-15 16:45:53 CST
 </div>
 </div>
 </body>
