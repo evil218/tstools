@@ -995,7 +995,7 @@ static void show_help()
                 " -es              \"*es, xx, ..., xx, \"\n"
                 " -sec             \"*sec, interval(ms), head, body, \"\n"
                 " -si              \"*si, interval(ms), head, information of body, \"\n"
-                " -rate            \"*rate, interval(ms), PID, rate, es_rate, ..., PID, rate, es_rate, \"\n"
+                " -rate            \"*rate, interval(ms), PID, rate, [es_rate, ]..., PID, rate, [es_rate, ]\"\n"
                 " -rats            \"*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, \"\n"
                 " -ratp            \"*ratp, interval(ms), PSI-SI, rate, PID, rate, ..., PID, rate, \"\n"
                 " -err             \"*err, TR-101-290, datail, \"\n"
@@ -1768,10 +1768,17 @@ static void show_rate(struct tsana_obj *obj)
                         }
                 }
 
-                fprintf(stdout, "%s0x%04X%s, %9.6f, %9.6f, ",
-                        obj->color_yellow, pid->PID, obj->color_off,
-                        pid->lcnt * 188 * 8 * 27.0 / (ts->last_interval),
-                        pid->lcnt_es * 8 * 27.0 / (ts->last_interval));
+                if(0 == pid->lcnt_es) {
+                        fprintf(stdout, "%s0x%04X%s, %9.6f, ",
+                                obj->color_yellow, pid->PID, obj->color_off,
+                                pid->lcnt * 188 * 8 * 27.0 / (ts->last_interval));
+                }
+                else {
+                        fprintf(stdout, "%s0x%04X%s, %9.6f, %9.6f, ",
+                                obj->color_yellow, pid->PID, obj->color_off,
+                                pid->lcnt * 188 * 8 * 27.0 / (ts->last_interval),
+                                pid->lcnt_es * 8 * 27.0 / (ts->last_interval));
+                }
         }
         return;
 }
