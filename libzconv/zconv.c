@@ -66,7 +66,7 @@ static void ucs4_to_utf8(uint32_t ucs4, char **utf8);
 static void ucs4_to_utf16(uint32_t ucs4, uint16_t **utf16, int endian);
 static void utf16_to_ucs4(const uint16_t **utf16, uint32_t *ucs4, int endian);
 
-static uint16_t half_search(uint16_t dat, uint16_t dflt, size_t hi, const uint16_t *p);
+static uint16_t half_search(uint16_t dat, uint16_t dflt, ssize_t hi, const uint16_t *p);
 
 int latin_utf8(const uint8_t *latin, char *utf8, size_t cnt, int coding)
 {
@@ -448,10 +448,10 @@ static void utf16_to_ucs4(const uint16_t **utf16, uint32_t *ucs4, int endian)
         return;
 }
 
-static uint16_t half_search(uint16_t key, uint16_t dflt, size_t hi, const uint16_t *hash)
+static uint16_t half_search(uint16_t key, uint16_t dflt, ssize_t hi, const uint16_t *hash)
 {
-        size_t i;
-        size_t li = 0;
+        ssize_t i;
+        ssize_t li = 0;
         const uint16_t *p;
         uint16_t value;
         uint16_t rslt;
