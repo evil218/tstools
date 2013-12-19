@@ -6,17 +6,15 @@ ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
-obj-y := if.o
-obj-y += udp.o
-obj-y += url.o
+obj-y := zconv.o
 
 VMAJOR = 1
 VMINOR = 0
 VRELEA = 0
-NAME = zutil
+NAME = zconv
 TYPE = lib
-DESC = common functions
-HEADERS = common.h if.h udp.h url.h
+DESC = DVB charsets convert
+HEADERS = zconv.h
 INCDIRS := -I. -I..
 
 CFLAGS += $(INCDIRS)

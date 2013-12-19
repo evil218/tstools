@@ -19,7 +19,7 @@
 #include "if.h"
 #include "buddy.h" /* for BUDDY_ORDER_MAX */
 #include "ts.h" /* has "list.h" already */
-#include "UTF_GB.h"
+#include "zconv.h"
 
 #include "param_xml.h"
 #include "ts_desc.h"
@@ -306,7 +306,7 @@ static void UTC(uint8_t **buf);
 static char *running_status(uint8_t status);
 
 static int descriptor(uint8_t **buf);
-static int coding_string(uint8_t *p, int len);
+static int show_dvb_string(uint8_t *p, int len);
 
 int main(int argc, char *argv[])
 {
@@ -1141,7 +1141,7 @@ static void output_prog(struct tsana_obj *obj)
                 if(prog->service_provider_len) {
                         fprintf(stdout, "service_provider, %s\"",
                                 obj->color_yellow);
-                        coding_string(prog->service_provider, prog->service_provider_len);
+                        show_dvb_string(prog->service_provider, prog->service_provider_len);
                         fprintf(stdout, "\"%s(%02X",
                                 obj->color_off,
                                 prog->service_provider[0]);
@@ -1155,7 +1155,7 @@ static void output_prog(struct tsana_obj *obj)
                 if(prog->service_name_len) {
                         fprintf(stdout, "service_name, %s\"",
                                 obj->color_yellow);
-                        coding_string(prog->service_name, prog->service_name_len);
+                        show_dvb_string(prog->service_name, prog->service_name_len);
                         fprintf(stdout, "\"%s(%02X",
                                 obj->color_off,
                                 prog->service_name[0]);
@@ -2567,7 +2567,7 @@ static int descriptor(uint8_t **buf)
         }
         else if(0x40 == tag) { /* network_name_descriptor */
                 fprintf(stdout, "\"");
-                coding_string(p, len);
+                show_dvb_string(p, len);
                 fprintf(stdout, "\"");
         }
         else if(0x48 == tag) { /* service_descriptor */
@@ -2578,13 +2578,13 @@ static int descriptor(uint8_t **buf)
 
                 fprintf(stdout, "\"");
                 service_provider_name_length = *p++;
-                coding_string(p, service_provider_name_length);
+                show_dvb_string(p, service_provider_name_length);
                 p += service_provider_name_length;
                 fprintf(stdout, "\", ");
 
                 fprintf(stdout, "\"");
                 service_name_length = *p++;
-                coding_string(p, service_name_length);
+                show_dvb_string(p, service_name_length);
                 p += service_name_length;
                 fprintf(stdout, "\"");
         }
@@ -2605,40 +2605,14 @@ static int descriptor(uint8_t **buf)
         return len;
 }
 
-enum CODING {
-        CODING_ISO6937_S, /* A.1, Latin alphabet(Super ASCII) + Euro symbol(U+20AC) */
-        CODING_ISO8859_1, /* West European */
-        CODING_ISO8859_2, /* East European */
-        CODING_ISO8859_3, /* South European */
-        CODING_ISO8859_4, /* North and North-East European */
-        CODING_ISO8859_5, /* A.2, Latin/Cyrillic */
-        CODING_ISO8859_6, /* A.3, Latin/Arabic */
-        CODING_ISO8859_7, /* A.4, Latin/Greek */
-        CODING_ISO8859_8, /* A.5, Latin/Hebrew */
-        CODING_ISO8859_9, /* A.6, West European & Turkish */
-        CODING_ISO8859_10, /* A.7, North European */
-        CODING_ISO8859_11, /* A.8, Thai */
-        CODING_ISO8859_13, /* A.9, Baltic */
-        CODING_ISO8859_14, /* A.10, Celtic */
-        CODING_ISO8859_15, /* A.11, West European */
-        CODING_UTF16BE, /* UTF16, big endian */
-        CODING_KSX1001, /* Korean Character Set */
-        CODING_GB2312, /* GB-2312-1980 */
-        CODING_BIG5, /* BIG5 subset of ISO10646 */
-        CODING_UTF8, /* UTF8 */
-        CODING_BBC, /* encoding_type_ID: BBC */
-        CODING_MTFSB, /* encoding_type_ID: Malaysian Technical Standard Forum Bhd */
-        CODING_RESERVED /* reserved */
-};
-
-static int coding_string(uint8_t *p, int len)
+static int show_dvb_string(uint8_t *p, int len)
 {
         uint8_t *n = p + len; /* next byte follow this string */
         int coding;
         char str[256] = "\0";
 
         if(0x20 <= *p && *p <= 0xFF) {
-                coding = CODING_ISO6937_S;
+                coding = CODING_DVB6937_P;
         }
         else if(0x1F == *p) {
                 p++;
@@ -2659,21 +2633,21 @@ static int coding_string(uint8_t *p, int len)
                 if(0x00 == *p) {
                         p++;
                         switch(*p) {
-                                case 0x01: coding = CODING_ISO8859_1; break;
-                                case 0x02: coding = CODING_ISO8859_2; break;
-                                case 0x03: coding = CODING_ISO8859_3; break;
-                                case 0x04: coding = CODING_ISO8859_4; break;
-                                case 0x05: coding = CODING_ISO8859_5; break;
-                                case 0x06: coding = CODING_ISO8859_6; break;
-                                case 0x07: coding = CODING_ISO8859_7; break;
-                                case 0x08: coding = CODING_ISO8859_8; break;
-                                case 0x09: coding = CODING_ISO8859_9; break;
-                                case 0x0A: coding = CODING_ISO8859_10; break;
-                                case 0x0B: coding = CODING_ISO8859_11; break;
+                                case 0x01: coding = CODING_DVB8859_1; break;
+                                case 0x02: coding = CODING_DVB8859_2; break;
+                                case 0x03: coding = CODING_DVB8859_3; break;
+                                case 0x04: coding = CODING_DVB8859_4; break;
+                                case 0x05: coding = CODING_DVB8859_5; break;
+                                case 0x06: coding = CODING_DVB8859_6; break;
+                                case 0x07: coding = CODING_DVB8859_7; break;
+                                case 0x08: coding = CODING_DVB8859_8; break;
+                                case 0x09: coding = CODING_DVB8859_9; break;
+                                case 0x0A: coding = CODING_DVB8859_10; break;
+                                case 0x0B: coding = CODING_DVB8859_11; break;
                                 case 0x0C: coding = CODING_RESERVED; break;
-                                case 0x0D: coding = CODING_ISO8859_13; break;
-                                case 0x0E: coding = CODING_ISO8859_14; break;
-                                case 0x0F: coding = CODING_ISO8859_15; break;
+                                case 0x0D: coding = CODING_DVB8859_13; break;
+                                case 0x0E: coding = CODING_DVB8859_14; break;
+                                case 0x0F: coding = CODING_DVB8859_15; break;
                                 default:   coding = CODING_RESERVED; break;
                         }
                         p++;
@@ -2686,17 +2660,17 @@ static int coding_string(uint8_t *p, int len)
         }
         else {
                 switch(*p) {
-                        case 0x01: coding = CODING_ISO8859_5; break;
-                        case 0x02: coding = CODING_ISO8859_6; break;
-                        case 0x03: coding = CODING_ISO8859_7; break;
-                        case 0x04: coding = CODING_ISO8859_8; break;
-                        case 0x05: coding = CODING_ISO8859_9; break;
-                        case 0x06: coding = CODING_ISO8859_10; break;
-                        case 0x07: coding = CODING_ISO8859_11; break;
+                        case 0x01: coding = CODING_DVB8859_5; break;
+                        case 0x02: coding = CODING_DVB8859_6; break;
+                        case 0x03: coding = CODING_DVB8859_7; break;
+                        case 0x04: coding = CODING_DVB8859_8; break;
+                        case 0x05: coding = CODING_DVB8859_9; break;
+                        case 0x06: coding = CODING_DVB8859_10; break;
+                        case 0x07: coding = CODING_DVB8859_11; break;
                         case 0x08: coding = CODING_UTF16BE; break;
-                        case 0x09: coding = CODING_ISO8859_13; break;
-                        case 0x0A: coding = CODING_ISO8859_14; break;
-                        case 0x0B: coding = CODING_ISO8859_15; break;
+                        case 0x09: coding = CODING_DVB8859_13; break;
+                        case 0x0A: coding = CODING_DVB8859_14; break;
+                        case 0x0B: coding = CODING_DVB8859_15; break;
                         case 0x11: coding = CODING_UTF16BE; break;
                         case 0x12: coding = CODING_KSX1001; break;
                         case 0x13: coding = CODING_GB2312; break;
@@ -2717,10 +2691,26 @@ static int coding_string(uint8_t *p, int len)
                 case CODING_GB2312:
                         gb_utf8((const char *)p, str, len);
                         break;
+                case CODING_DVB6937_P: /* include ASCII */
+                case CODING_DVB8859_1:
+                case CODING_DVB8859_2:
+                case CODING_DVB8859_3:
+                case CODING_DVB8859_4:
+                case CODING_DVB8859_5:
+                case CODING_DVB8859_6:
+                case CODING_DVB8859_7:
+                case CODING_DVB8859_8:
+                case CODING_DVB8859_9:
+                case CODING_DVB8859_10:
+                case CODING_DVB8859_11:
+                case CODING_DVB8859_13:
+                case CODING_DVB8859_14:
+                case CODING_DVB8859_15:
+                        latin_utf8((const uint8_t *)p, str, len, coding);
+                        break;
                 case CODING_UTF16BE:
                         utf16_utf8((const uint16_t *)p, str, len, BIG_ENDIAN);
                         break;
-                case CODING_ISO6937_S: /* include ASCII */
                 case CODING_UTF8: /* include ASCII */
                 default:
                         memcpy(str, p, len);

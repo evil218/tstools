@@ -3,17 +3,61 @@
 #include <stdio.h>
 #include <stdint.h> /* for uint?_t, etc */
 
-#include "UTF_GB.h"
+#include "zconv.h"
 
 #define DFLT_UCS                        (0x00D7) /* look like 'X' */
 #define DFLT_GB                         (0xA1C1) /* look like 'X' */
 
-static const uint16_t GB2UCS[] = {
-#include "G2U.h" /* big file, only be included here */
+static const uint16_t DVB6937_P_UCS[] = {
+#include "DVB6937-P_UCS.h" /* big file, only be included here */
 };
 
-static const uint16_t UCS2GB[] = {
-#include "U2G.h" /* big file, only be included here */
+static const uint16_t DVB8859_5_UCS[] = {
+#include "DVB8859-5_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_6_UCS[] = {
+#include "DVB8859-6_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_7_UCS[] = {
+#include "DVB8859-7_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_8_UCS[] = {
+#include "DVB8859-8_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_9_UCS[] = {
+#include "DVB8859-9_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_10_UCS[] = {
+#include "DVB8859-10_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_11_UCS[] = {
+#include "DVB8859-11_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_13_UCS[] = {
+#include "DVB8859-13_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_14_UCS[] = {
+#include "DVB8859-14_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t DVB8859_15_UCS[] = {
+#include "DVB8859-15_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t GB_UCS[] = {
+#include "GB_UCS.h" /* big file, only be included here */
+};
+
+static const uint16_t UCS_GB[] = {
+#include "UCS_GB.h" /* big file, only be included here */
 };
 
 static int utf8_to_ucs4(const char **utf8, uint32_t *ucs4);
@@ -24,6 +68,47 @@ static void utf16_to_ucs4(const uint16_t **utf16, uint32_t *ucs4, int endian);
 
 static uint16_t half_search(uint16_t dat, uint16_t dflt, size_t hi, const uint16_t *p);
 
+int latin_utf8(const uint8_t *latin, char *utf8, size_t cnt, int coding)
+{
+        int wc = 0; /* word count */
+        const uint8_t *platin = latin;
+        char *putf8 = utf8;
+        uint32_t ucs4; /* UCS-4 data */
+        const uint16_t *tab; /* DVB coding table */
+
+        switch(coding) {
+                case CODING_DVB6937_P : tab = DVB6937_P_UCS;  break;
+                case CODING_DVB8859_1 : tab = DVB8859_5_UCS;  break;
+                case CODING_DVB8859_2 : tab = DVB8859_5_UCS;  break;
+                case CODING_DVB8859_3 : tab = DVB8859_5_UCS;  break;
+                case CODING_DVB8859_4 : tab = DVB8859_5_UCS;  break;
+                case CODING_DVB8859_5 : tab = DVB8859_5_UCS;  break;
+                case CODING_DVB8859_6 : tab = DVB8859_6_UCS;  break;
+                case CODING_DVB8859_7 : tab = DVB8859_7_UCS;  break;
+                case CODING_DVB8859_8 : tab = DVB8859_8_UCS;  break;
+                case CODING_DVB8859_9 : tab = DVB8859_9_UCS;  break;
+                case CODING_DVB8859_10: tab = DVB8859_10_UCS; break;
+                case CODING_DVB8859_11: tab = DVB8859_11_UCS; break;
+                case CODING_DVB8859_13: tab = DVB8859_13_UCS; break;
+                case CODING_DVB8859_14: tab = DVB8859_14_UCS; break;
+                case CODING_DVB8859_15: tab = DVB8859_15_UCS; break;
+                default:                tab = DVB6937_P_UCS; break;
+        }
+
+        while(cnt > 0) {
+                ucs4 = *(tab + (*platin++));
+                if(0x00000000 == ucs4) {
+                        break;
+                }
+                ucs4_to_utf8(ucs4, &putf8);
+                cnt--;
+                wc++;
+        }
+        *putf8 = 0x00;
+
+        return wc;
+}
+
 int utf8_gb(const char *utf8, char *gb, size_t cnt)
 {
         int wc = 0; /* word count */
@@ -31,7 +116,7 @@ int utf8_gb(const char *utf8, char *gb, size_t cnt)
         uint32_t ucs4; /* UCS-4 data */
         uint16_t utf16; /* UTF-16 data */
         uint16_t gb2; /*  GB 2-byte data */
-        size_t max = sizeof(GB2UCS) / 4 - 1; /* high index */
+        size_t max = sizeof(GB_UCS) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 cnt -= utf8_to_ucs4(&putf, &ucs4);
@@ -48,7 +133,7 @@ int utf8_gb(const char *utf8, char *gb, size_t cnt)
                         *gb++ = (char)utf16;
                 }
                 else {
-                        gb2 = half_search(utf16, DFLT_GB, max, UCS2GB);
+                        gb2 = half_search(utf16, DFLT_GB, max, UCS_GB);
                         *gb++ = (char)(gb2 >> 8);
                         *gb++ = (char)(gb2 >> 0);
                 }
@@ -66,7 +151,7 @@ int gb_utf8(const char *gb, char *utf8, size_t cnt)
         uint32_t ucs4; /* UCS-4 data */
         uint16_t ucs2; /* UCS-2 data */
         uint16_t gb2; /*  GB 2-byte data */
-        size_t max = sizeof(GB2UCS) / 4 - 1; /* high index */
+        size_t max = sizeof(GB_UCS) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 gb2 = (uint16_t)*gb++;
@@ -80,7 +165,7 @@ int gb_utf8(const char *gb, char *utf8, size_t cnt)
                 else {
                         gb2 <<= 8;
                         gb2 |= (uint16_t)(uint8_t)(*gb++);
-                        ucs2 = half_search(gb2, DFLT_UCS, max, GB2UCS);
+                        ucs2 = half_search(gb2, DFLT_UCS, max, GB_UCS);
                         ucs4 = (uint32_t)ucs2;
                         ucs4_to_utf8(ucs4, &putf);
                         cnt -= 2;
@@ -97,7 +182,7 @@ int utf16_gb(const uint16_t *utf16, char *gb, size_t cnt, int endian)
         int wc = 0; /* word count */
         uint16_t utf_16; /* UTF-16 data */
         uint16_t gb2; /* GB 2-byte data */
-        size_t max = sizeof(UCS2GB) / 4 - 1; /* high index */
+        size_t max = sizeof(UCS_GB) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 utf_16 = *utf16++;
@@ -116,7 +201,7 @@ int utf16_gb(const uint16_t *utf16, char *gb, size_t cnt, int endian)
                         cnt -= 2;
                 }
                 else {
-                        gb2 = half_search(utf_16, DFLT_GB, max, UCS2GB);
+                        gb2 = half_search(utf_16, DFLT_GB, max, UCS_GB);
                         *gb++ = (char)(gb2 >> 8);
                         *gb++ = (char)(gb2 >> 0);
                         cnt -= 2;
@@ -133,7 +218,7 @@ int gb_utf16(const char *gb, uint16_t *utf16, size_t cnt, int endian)
         int wc = 0; /* word count */
         uint16_t gb2; /*  GB 2-byte data */
         uint16_t utf_16; /* UTF-16 data */
-        size_t max = sizeof(GB2UCS) / 4 - 1; /* high index */
+        size_t max = sizeof(GB_UCS) / 4 - 1; /* high index */
 
         while(cnt > 0) {
                 gb2 = (uint16_t)*gb++;
@@ -148,7 +233,7 @@ int gb_utf16(const char *gb, uint16_t *utf16, size_t cnt, int endian)
                 else {
                         gb2 <<= 8;
                         gb2 |= (uint16_t)(uint8_t)(*gb++);
-                        utf_16 = half_search(gb2, DFLT_UCS, max, GB2UCS);
+                        utf_16 = half_search(gb2, DFLT_UCS, max, GB_UCS);
                         *utf16++ = (BIG_ENDIAN == endian) ? htobe16(utf_16) : htole16(utf_16);
                         cnt -= 2;
                 }

@@ -14,6 +14,7 @@ VRELEA = 0
 NAME = tsana
 TYPE = exe
 INCDIRS := -I. -I..
+INCDIRS += -I../libzconv
 INCDIRS += -I../libzutil
 INCDIRS += -I../libzbuddy
 INCDIRS += -I../libzts
@@ -22,6 +23,7 @@ INCDIRS += -I../libparam_xml
 INCDIRS += -I/usr/include/libxml2
 CFLAGS += $(INCDIRS)
 
+LDFLAGS += -L../libzconv -lzconv
 LDFLAGS += -L../libzutil -lzutil
 LDFLAGS += -L../libzbuddy -lzbuddy
 LDFLAGS += -L../libzlst -lzlst

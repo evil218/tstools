@@ -10,6 +10,7 @@ LIB_DIRS := libzlst
 LIB_DIRS += libzbuddy
 LIB_DIRS += libzts
 LIB_DIRS += libparam_xml
+LIB_DIRS += libzconv
 LIB_DIRS += libzutil
 
 EXE_DIRS := catts
