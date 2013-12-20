@@ -284,7 +284,7 @@ static void show_si(struct tsana_obj *obj);
 static void show_rate(struct tsana_obj *obj);
 static void show_rats(struct tsana_obj *obj);
 static void show_ratp(struct tsana_obj *obj);
-static int show_error(struct tsana_obj *obj);
+static int digest_ts_err(struct tsana_obj *obj, int print);
 
 static void table_info_PAT(struct ts_sect *sect);
 static void table_info_CAT(struct ts_sect *sect);
@@ -549,10 +549,8 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.ratp && ts->has_rate) {
                 show_ratp(obj);
         }
-        if(obj->aim.err && ts->has_err) {
-                if(0 != show_error(obj)) {
-                        return -1;
-                }
+        if(0 != digest_ts_err(obj, (obj->aim.err && ts->has_err))) {
+                return -1;
         }
 
         if(has_report) {
@@ -1823,103 +1821,110 @@ static void show_ratp(struct tsana_obj *obj)
         return;
 }
 
-static int show_error(struct tsana_obj *obj)
+static int digest_ts_err(struct tsana_obj *obj, int print)
 {
         struct ts_obj *ts = obj->ts;
         struct ts_err *err = &(ts->err);
 
         ts->has_err = 0;
 
-        fprintf(stdout, "%s*err%s, ",
-                obj->color_green, obj->color_off);
+        if(print) {
+                fprintf(stdout, "%s*err%s, ", obj->color_green, obj->color_off);
+        }
 
         /* First priority: necessary for de-codability (basic monitoring) */
         if(err->has_level1_error) {
                 err->has_level1_error = 0;
 
                 if(err->TS_sync_loss) {
-                        fprintf(stdout, "1.1, TS_sync_loss, ");
+                        if(print) {
+                                fprintf(stdout, "1.1, TS_sync_loss, ");
+                        }
                         if(err->Sync_byte_error > 10) {
-                                fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
+                                if(print) {
+                                        fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
+                                }
                                 return -1;
                         }
                         /* do NOT clear TS_sync_loss here */
                         return 0;
                 }
                 if(err->Sync_byte_error) {
-                        fprintf(stdout, "1.2 , Sync_byte_error, ");
+                        if(print) {
+                                fprintf(stdout, "1.2 , Sync_byte_error, ");
+                        }
                         /* do NOT clear Sync_byte_error here */
                 }
                 if(err->PAT_error) {
-                        if(ERR_1_3_0 & err->PAT_error) {
+                        if(ERR_1_3_0 & err->PAT_error && print) {
                                 fprintf(stdout, "1.3a, PAT(section_interval > 0.5s), ");
                         }
-                        if(ERR_1_3_1 & err->PAT_error) {
+                        if(ERR_1_3_1 & err->PAT_error && print) {
                                 fprintf(stdout, "1.3b, PAT(table_id != 0x00), ");
                         }
-                        if(ERR_1_3_2 & err->PAT_error) {
+                        if(ERR_1_3_2 & err->PAT_error && print) {
                                 fprintf(stdout, "1.3c, PAT(transport_scrambling_field != 0x00), ");
                         }
                         err->PAT_error = 0;
                 }
-                if(err->Continuity_count_error) {
+                if(err->Continuity_count_error && print) {
                         fprintf(stdout, "1.4 , CC(%X-%X=%2u), ",
                                 ts->CC_find, ts->CC_wait, ts->CC_lost);
                 }
                 if(err->PMT_error) {
-                        if(ERR_1_5_0 & err->PMT_error) {
+                        if(ERR_1_5_0 & err->PMT_error && print) {
                                 fprintf(stdout, "1.5a, PMT section_interval(%+7.3f ms): (0, 500)ms, ",
                                         (double)(ts->sect_interval) / STC_MS);
                         }
-                        if(ERR_1_5_1 & err->PMT_error) {
+                        if(ERR_1_5_1 & err->PMT_error && print) {
                                 fprintf(stdout, "1.5b, PMT(transport_scrambling_field != 0x00), ");
                         }
                         err->PMT_error = 0;
                 }
-                if(err->PID_error) {
+                if(err->PID_error && print) {
                         fprintf(stdout, "1.6 , PID_error, ");
-                        err->PID_error = 0;
                 }
+                err->PID_error = 0;
         }
 
         /* Second priority: recommended for continuous or periodic monitoring */
         if(err->has_level2_error) {
                 err->has_level2_error = 0;
 
-                if(err->Transport_error) {
+                if(err->Transport_error && print) {
                         fprintf(stdout, "2.1 , Transport, ");
-                        err->Transport_error = 0;
                 }
-                if(err->CRC_error) {
+                err->Transport_error = 0;
+                if(err->CRC_error && print) {
                         fprintf(stdout, "2.2 , CRC(0x%08X! 0x%08X?), ",
                                 ts->CRC_32_calc, ts->CRC_32);
-                        err->CRC_error = 0;
                 }
-                if(err->PCR_repetition_error) {
+                err->CRC_error = 0;
+                if(err->PCR_repetition_error && print) {
                         fprintf(stdout, "2.3a, PCR_repetition(%+7.3f ms), ",
                                 (double)(ts->PCR_repetition) / STC_MS);
-                        err->PCR_repetition_error = 0;
                 }
-                if(err->PCR_discontinuity_indicator_error) {
+                err->PCR_repetition_error = 0;
+                if(err->PCR_discontinuity_indicator_error && print) {
                         fprintf(stdout, "2.3b, PCR_discontinuity_indicator(%+7.3f ms), ",
                                 (double)(ts->PCR_continuity) / STC_MS);
-                        err->PCR_discontinuity_indicator_error = 0;
                 }
-                if(err->PCR_accuracy_error) {
+                err->PCR_discontinuity_indicator_error = 0;
+                if(err->PCR_accuracy_error && print) {
                         fprintf(stdout, "2.4 , PCR_accuracy(%+4.0f ns), ",
                                 (double)(ts->PCR_jitter) * 1e3 / STC_US);
-                        err->PCR_accuracy_error = 0;
                 }
-                if(err->PTS_error) {
+                err->PCR_accuracy_error = 0;
+                if(err->PTS_error && print) {
                         fprintf(stdout, "2.5 , PTS_repetition(%+7.3f ms > 700ms), ",
                                 (double)(ts->PTS_repetition) / STC_MS);
-                        err->PTS_error = 0;
                 }
+                err->PTS_error = 0;
                 if(err->CAT_error) {
-                        if(ERR_2_6_0 & err->CAT_error) {
+                        if(ERR_2_6_0 & err->CAT_error && print) {
                                 fprintf(stdout, "2.6 , CAT(scrambling program without CAT), ");
                         }
-                        if(ERR_2_6_1 & err->CAT_error) {
+                        if(ERR_2_6_1 & err->CAT_error && print) {
                                 fprintf(stdout, "2.6 , CAT(table_id error in PID 0x0001), ");
                         }
                         err->CAT_error = 0;
@@ -1935,86 +1940,86 @@ static int show_error(struct tsana_obj *obj)
         /* other errors */
         if(err->has_other_error) {
                 err->has_other_error = 0;
-                if(err->adaption_field_control_error) {
+                if(err->adaption_field_control_error && print) {
                         fprintf(stdout, "4.x , adaption_field_control(00) illegal, ");
-                        err->adaption_field_control_error = 0;
                 }
-                if(err->wild_pcr_packet) {
+                err->adaption_field_control_error = 0;
+                if(err->wild_pcr_packet && print) {
                         fprintf(stdout, "4.x , no program use this pcr packet, ");
-                        err->wild_pcr_packet = 0;
                 }
-                if(err->normal_section_length_error) {
+                err->wild_pcr_packet = 0;
+                if(err->normal_section_length_error && print) {
                         fprintf(stdout, "4.x , bad normal section length, ");
-                        err->normal_section_length_error = 0;
                 }
-                if(err->private_section_length_error) {
+                err->normal_section_length_error = 0;
+                if(err->private_section_length_error && print) {
                         fprintf(stdout, "4.x , bad private section length, ");
-                        err->private_section_length_error = 0;
                 }
-                if(err->pat_pid_error) {
+                err->private_section_length_error = 0;
+                if(err->pat_pid_error && print) {
                         fprintf(stdout, "4.x , pat table not in 0x0000, ");
-                        err->pat_pid_error = 0;
                 }
-                if(err->cat_pid_error) {
+                err->pat_pid_error = 0;
+                if(err->cat_pid_error && print) {
                         fprintf(stdout, "4.x , cat table not in 0x0001, ");
-                        err->cat_pid_error = 0;
                 }
-                if(err->pmt_pid_error) {
+                err->cat_pid_error = 0;
+                if(err->pmt_pid_error && print) {
                         fprintf(stdout, "4.x , pmt table not in pmt pid of pat, ");
-                        err->pmt_pid_error = 0;
                 }
-                if(err->nit_pid_error) {
+                err->pmt_pid_error = 0;
+                if(err->nit_pid_error && print) {
                         fprintf(stdout, "4.x , nit table not in 0x0010, ");
-                        err->nit_pid_error = 0;
                 }
-                if(err->sdt_pid_error) {
+                err->nit_pid_error = 0;
+                if(err->sdt_pid_error && print) {
                         fprintf(stdout, "4.x , sdt table not in 0x0011, ");
-                        err->sdt_pid_error = 0;
                 }
-                if(err->descriptor_error) {
+                err->sdt_pid_error = 0;
+                if(err->descriptor_error && print) {
                         fprintf(stdout, "4.x , wrong descriptor, ");
-                        err->descriptor_error = 0;
                 }
-                if(err->program_info_length_error) {
+                err->descriptor_error = 0;
+                if(err->program_info_length_error && print) {
                         fprintf(stdout, "4.x , program_info_length too big, ");
-                        err->program_info_length_error = 0;
                 }
-                if(err->es_info_length_error) {
+                err->program_info_length_error = 0;
+                if(err->es_info_length_error && print) {
                         fprintf(stdout, "4.x , es_info_length too big, ");
-                        err->es_info_length_error = 0;
                 }
-                if(err->table_id_extension_error) {
+                err->es_info_length_error = 0;
+                if(err->table_id_extension_error && print) {
                         fprintf(stdout, "4.x , table_id_extension != transport_stream_id, ");
-                        err->table_id_extension_error = 0;
                 }
-                if(err->pes_pid_error) {
+                err->table_id_extension_error = 0;
+                if(err->pes_pid_error && print) {
                         fprintf(stdout, "4.x , pid of pes is psi/si, ");
-                        err->pes_pid_error = 0;
                 }
-                if(err->pes_elem_error) {
+                err->pes_pid_error = 0;
+                if(err->pes_elem_error && print) {
                         fprintf(stdout, "4.x , pid of pes is not es in pmt, ");
-                        err->pes_elem_error = 0;
                 }
-                if(err->pes_start_code_error) {
+                err->pes_elem_error = 0;
+                if(err->pes_start_code_error && print) {
                         fprintf(stdout, "4.x , pes start code not 0x000001, ");
-                        err->pes_start_code_error = 0;
                 }
-                if(err->pes_packet_length_error) {
+                err->pes_start_code_error = 0;
+                if(err->pes_packet_length_error && print) {
                         fprintf(stdout, "4.x , pes_packet_length is too large, ");
-                        err->pes_packet_length_error = 0;
                 }
-                if(err->pes_header_length_error) {
+                err->pes_packet_length_error = 0;
+                if(err->pes_header_length_error && print) {
                         fprintf(stdout, "4.x , pes_header_length is too large, ");
-                        err->pes_header_length_error = 0;
                 }
-                if(err->pts_dts_flags_error) {
+                err->pes_header_length_error = 0;
+                if(err->pts_dts_flags_error && print) {
                         fprintf(stdout, "4.x , pts_dts_flags is 01, ");
-                        err->pts_dts_flags_error = 0;
                 }
-                if(err->pmt_section_number_error) {
+                err->pts_dts_flags_error = 0;
+                if(err->pmt_section_number_error && print) {
                         fprintf(stdout, "4.x , pmt section_number|last_section_number not 0x00, ");
-                        err->pmt_section_number_error = 0;
                 }
+                err->pmt_section_number_error = 0;
         }
 
         return 0;

@@ -965,12 +965,11 @@ static int state_next_pkt(struct ts_obj *obj)
                         prog->ADDb = obj->ADDR;
 
                         /* for bad PCR value */
-                        if(STC_OVF != prog->PCRa) {
-                                if(0 >= ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF)) {
-                                        /* maybe stream repeated */
-                                        prog->PCRa = STC_OVF;
-                                        prog->is_STC_sync = 0;
-                                }
+                        if(1 == af->discontinuity_indicator ||
+                           1 == err->PCR_discontinuity_indicator_error) {
+                                /* maybe stream repeated */
+                                prog->PCRa = STC_OVF;
+                                prog->is_STC_sync = 0;
                         }
 
                         /* is_STC_sync */
