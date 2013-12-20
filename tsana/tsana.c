@@ -899,7 +899,6 @@ static struct tsana_obj *create(int argc, char *argv[])
                 RPTERR("malloc ts object failed");
                 goto create_failed_with_mp;
         }
-        ts_ioctl(obj->ts, TS_INIT, 0);
         ts_ioctl(obj->ts, TS_SCFG, &cfg);
         return obj;
 

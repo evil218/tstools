@@ -30,7 +30,7 @@ all clean install uninstall lint:
 	$(make_lib_dirs)
 	$(make_exe_dirs)
 
-pc:
+test pc:
 	$(make_lib_dirs)
 
 distclean: clean

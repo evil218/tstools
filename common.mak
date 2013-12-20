@@ -41,6 +41,9 @@ endif
 $(NAME)$(EXE): .depend $(obj-y)
 	$(LD)$@ $(obj-y) $(LDFLAGS)
 
+test_$(NAME)$(EXE): test_$(NAME).c $(LIB_SHARED)
+	gcc -o $@ $< -L. -l$(NAME)
+
 .depend:
 	@rm -f .depend
 	@$(foreach SRC, $(SRCS), $(CC) $(CFLAGS) $(SRC) $(DEPMM) 1>> .depend;)
@@ -90,8 +93,10 @@ install-lib-dev:
 	-install -m 644 lib$(NAME).pc $(libdir)/pkgconfig
 
 ifeq ($(TYPE),lib)
+test: test_$(NAME)$(EXE)
+
 clean:
-	-rm -f lib$(NAME)* $(obj-y) .depend
+	-rm -f lib$(NAME)* $(obj-y) .depend test_$(NAME)$(EXE)
 
 #install: $(aim) lib$(NAME).pc install-lib-dev
 install: $(aim)
