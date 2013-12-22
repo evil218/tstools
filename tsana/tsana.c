@@ -45,10 +45,6 @@ static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 #define ANY_TABLE                       (0xFF) /* any table_id of [0x00,0xFE] */
 #define ANY_PROG                        (0x0000) /* any prog of [0x0001,0xFFFF] */
 
-#define TYPE_ANY                        (0) /* any PID type */
-#define TYPE_VIDEO                      (1) /* video PID */
-#define TYPE_AUDIO                      (2) /* audio PID */
-
 #define STC_US                          (27) /* 27 clk means 1(us) */
 #define STC_MS                          (27 * 1000) /* uint: do NOT use 1e3  */
 
@@ -588,7 +584,7 @@ static struct tsana_obj *create(int argc, char *argv[])
         obj->aim_pid = ANY_PID;
         obj->aim_table = ANY_TABLE;
         obj->aim_prog = ANY_PROG;
-        obj->aim_type = TYPE_ANY;
+        obj->aim_type = TS_TYPE_ANY;
         obj->aim_interval = 1000 * STC_MS;
         obj->color_off = "";
         obj->color_gray = "";
@@ -632,8 +628,14 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 else if(0 == strcmp(argv[i], "detail")) {
                                         obj->mp_level = BUDDY_REPORT_DETAIL;
                                 }
-                                else {
+                                else if(0 == strcmp(argv[i], "none")) {
                                         obj->mp_level = BUDDY_REPORT_NONE;
+                                }
+                                else {
+                                        fprintf(stderr,
+                                                "bad variable for '-mem': \"%s\", "
+                                                "use \"none\" instead!\n",
+                                                argv[i]);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-time")) {
@@ -764,7 +766,8 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-pid': 0x%04X, ignore!\n",
+                                                "bad variable for '-pid': 0x%04X, "
+                                                "use 0x2000(any pid) instead!\n",
                                                 dat);
                                 }
                         }
@@ -780,7 +783,8 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-table': 0x%02X, ignore!\n",
+                                                "bad variable for '-table': 0x%02X, "
+                                                "use 0xFF(any table) instead!\n",
                                                 dat);
                                 }
                         }
@@ -796,7 +800,8 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-prog': %u, ignore!\n",
+                                                "bad variable for '-prog': %u, "
+                                                "use 0x0000(any program) instead!\n",
                                                 dat);
                                 }
                         }
@@ -806,14 +811,26 @@ static struct tsana_obj *create(int argc, char *argv[])
                                         fprintf(stderr, "no parameter for '-type'!\n");
                                         goto create_failed_with_obj;
                                 }
-                                sscanf(argv[i], "%i" , &dat);
-                                if(0 <= dat && dat <= 2) {
-                                        obj->aim_type = dat;
+                                if(0 == strcmp(argv[i], "vid")) {
+                                        obj->aim_type = TS_TYPE_VID;
+                                }
+                                else if(0 == strcmp(argv[i], "aud")) {
+                                        obj->aim_type = TS_TYPE_AUD;
+                                }
+                                else if(0 == strcmp(argv[i], "emm")) {
+                                        obj->aim_type = TS_TYPE_EMM;
+                                }
+                                else if(0 == strcmp(argv[i], "ecm")) {
+                                        obj->aim_type = TS_TYPE_ECM;
+                                }
+                                else if(0 == strcmp(argv[i], "any")) {
+                                        obj->aim_type = TS_TYPE_ANY;
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-type': %u, ignore!\n",
-                                                dat);
+                                                "bad variable for '-type': \"%s\", "
+                                                "use \"any\" instead!\n",
+                                                argv[i]);
                                 }
                         }
                         else if(0 == strcmp(argv[i], "-iv")) {
@@ -828,7 +845,8 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-iv': %u, use 1000ms instead!\n",
+                                                "bad variable for '-iv': %u, "
+                                                "use 1000(ms) instead!\n",
                                                 dat);
                                 }
                         }
@@ -844,7 +862,8 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 }
                                 else {
                                         fprintf(stderr,
-                                                "bad variable for '-mp': %u, use %d instead!\n",
+                                                "bad variable for '-mp': %u, "
+                                                "use %d instead!\n",
                                                 dat, MP_ORDER_DEFAULT);
                                 }
                         }
@@ -975,7 +994,7 @@ static void show_help()
                 " -impsi           import PSI information from psi.xml before analyse\n"
 #endif
                 " -dump            dump cared packet\n"
-                " -mem             memory pool status show level(none!total!detail), default: none\n"
+                " -mem             memory pool status show level[none|total|detail], default: none\n"
                 "\n"
                 " -time            \"*time, YYYY-mm-dd HH:MM:SS, second, usecond, delta_time(ms), \"\n"
                 " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
@@ -998,13 +1017,13 @@ static void show_help()
                 " -err             \"*err, TR-101-290, datail, \"\n"
                 "\n"
                 " -c -color        enable colour effect to help read, default: mono\n"
-                " -start <x>       analyse from packet(x), default: 0, first packet\n"
-                " -count <n>       analyse n-packet then stop, default: 0, no stop\n"
-                " -pid <pid>       set cared PID, default: any PID(0x2000)\n"
-                " -table <id>      set cared table, default: any table(0xFF)\n"
-                " -prog <prog>     set cared prog, default: any program(0x0000)\n"
-                " -type <type>     set cared PID type, default: any type(0)\n"
-                " -iv <iv>         set cared interval(1ms-70,000ms), default: 1000ms\n"
+                " -start <x>       analyse from packet(x), default: 0(first packet)\n"
+                " -count <n>       analyse n-packet then stop, default: 0(no stop)\n"
+                " -pid <pid>       set cared PID[0x0000,0x2000], default: 0x2000(any PID)\n"
+                " -table <id>      set cared table[0x00,0xFF], default: 0xFF(any table)\n"
+                " -prog <prog>     set cared prog[0x0000,0xFFFF], default: 0x0000(any program)\n"
+                " -type <type>     set cared PID type[any|vid|aud|emm|ecm], default: any\n"
+                " -iv <iv>         set cared interval(1-70000)ms, default: 1000(1000 ms)\n"
                 " -mp <mp>         set memory pool size order(16-%d), default: %d, means 2^%d bytes\n"
                 "\n"
                 " -h, --help       display this information\n"
@@ -1754,13 +1773,21 @@ static void show_rate(struct tsana_obj *obj)
                 }
 
                 /* filter: type: video or audio */
-                if(TYPE_ANY != obj->aim_type) {
-                        if(TYPE_VIDEO == obj->aim_type && !IS_TYPE(TS_TYPE_VID, pid->type)) {
+                if(TS_TYPE_ANY != obj->aim_type) {
+                        if(TS_TYPE_VID == obj->aim_type && !IS_TYPE(TS_TYPE_VID, pid->type)) {
                                 /* not video PID */
                                 continue;
                         }
-                        if(TYPE_AUDIO == obj->aim_type && !IS_TYPE(TS_TYPE_AUD, pid->type)) {
+                        if(TS_TYPE_AUD == obj->aim_type && !IS_TYPE(TS_TYPE_AUD, pid->type)) {
                                 /* not audio PID */
+                                continue;
+                        }
+                        if(TS_TYPE_EMM == obj->aim_type && !IS_TYPE(TS_TYPE_EMM, pid->type)) {
+                                /* not EMM PID */
+                                continue;
+                        }
+                        if(TS_TYPE_ECM == obj->aim_type && !IS_TYPE(TS_TYPE_ECM, pid->type)) {
+                                /* not ECM PID */
                                 continue;
                         }
                 }

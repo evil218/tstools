@@ -66,6 +66,7 @@ extern "C" {
 #define TS_TMSK_BASE    (0x00FF) /* BIT[7:0]: base type mask */
 #define TS_TMSK_PCR     (0x0100) /* BIT[8:8]: 0(without PCR), 1(with PCR) */
 
+#define TS_TYPE_ANY     (0x0000)
 #define TS_TYPE_UNO     (0x0000)
 #define TS_TYPE_NUL     (0x0001)
 #define TS_TYPE_RSV     (0x0002)
