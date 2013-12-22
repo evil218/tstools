@@ -42,31 +42,47 @@ extern "C" {
 
 #endif
 
-#define CODING_DVB6937_P  (0)  /* Latin alphabet(Super ASCII) + Euro symbol(U+20AC) */
-#define CODING_DVB8859_1  (1)  /* West European */
-#define CODING_DVB8859_2  (2)  /* East European */
-#define CODING_DVB8859_3  (3)  /* South European */
-#define CODING_DVB8859_4  (4)  /* North and North-East European */
-#define CODING_DVB8859_5  (5)  /* Latin/Cyrillic */
-#define CODING_DVB8859_6  (6)  /* Latin/Arabic */
-#define CODING_DVB8859_7  (7)  /* Latin/Greek */
-#define CODING_DVB8859_8  (8)  /* Latin/Hebrew */
-#define CODING_DVB8859_9  (9)  /* West European & Turkish */
-#define CODING_DVB8859_10 (10) /* North European */
-#define CODING_DVB8859_11 (11) /* Thai */
-#define CODING_DVB8859_13 (13) /* Baltic */
-#define CODING_DVB8859_14 (14) /* Celtic */
-#define CODING_DVB8859_15 (15) /* West European */
+#define CODING_ISO6937    (0x0000) /* Latin alphabet(Super ASCII) */
+#define CODING_ISO8859_1  (0x0001) /* West European */
+#define CODING_ISO8859_2  (0x0002) /* East European */
+#define CODING_ISO8859_3  (0x0003) /* South European */
+#define CODING_ISO8859_4  (0x0004) /* North and North-East European */
+#define CODING_ISO8859_5  (0x0005) /* Latin/Cyrillic */
+#define CODING_ISO8859_6  (0x0006) /* Latin/Arabic */
+#define CODING_ISO8859_7  (0x0007) /* Latin/Greek */
+#define CODING_ISO8859_8  (0x0008) /* Latin/Hebrew */
+#define CODING_ISO8859_9  (0x0009) /* West European & Turkish */
+#define CODING_ISO8859_10 (0x000A) /* North European */
+#define CODING_ISO8859_11 (0x000B) /* Thai */
+#define CODING_ISO8859_13 (0x000D) /* Baltic */
+#define CODING_ISO8859_14 (0x000E) /* Celtic */
+#define CODING_ISO8859_15 (0x000F) /* West European */
 
-#define CODING_UTF8     (20) /* UTF8 */
-#define CODING_UTF16BE  (21) /* UTF16, big endian */
-#define CODING_KSX1001  (22) /* Korean Character Set */
-#define CODING_GB2312   (23) /* GB-2312-1980 */
-#define CODING_BIG5     (24) /* BIG5 subset of ISO10646 */
-#define CODING_BBC      (25) /* encoding_type_ID: BBC */
-#define CODING_MTFSB    (26) /* encoding_type_ID: Malaysian Technical Standard Forum Bhd */
+#define CODING_DVB6937    (0x1000) /* ISO6937: add 0xA4(U+20AC) */
+#define CODING_DVB8859_1  (0x1001) /* FIXME */
+#define CODING_DVB8859_2  (0x1002) /* FIXME */
+#define CODING_DVB8859_3  (0x1003) /* FIXME */
+#define CODING_DVB8859_4  (0x1004) /* FIXME */
+#define CODING_DVB8859_5  (0x1005) /* ISO8859_5: 0xB9(U+0419 -> U+04E4), 0xD9(U+0439 -> U+04E5) */
+#define CODING_DVB8859_6  (0x1006) /* ISO8859_6 */
+#define CODING_DVB8859_7  (0x1007) /* ISO8859_7: omit 0xA4, 0xA5, 0xAA */
+#define CODING_DVB8859_8  (0x1008) /* ISO8859_8: omit 0xFD, 0xFE */
+#define CODING_DVB8859_9  (0x1009) /* ISO8859_9 */
+#define CODING_DVB8859_10 (0x100A) /* ISO8859_10 */
+#define CODING_DVB8859_11 (0x100B) /* ISO8859_11 */
+#define CODING_DVB8859_13 (0x100D) /* ISO8859_13 */
+#define CODING_DVB8859_14 (0x100E) /* ISO8859_14 */
+#define CODING_DVB8859_15 (0x100F) /* ISO8859_15: 0xA4(U+20AC -> U+00A4), 0xB1(U+00B1 -> U+20AC) */
 
-#define CODING_RESERVED (99) /* reserved */
+#define CODING_UTF8     (0x0020) /* UTF8 */
+#define CODING_UTF16BE  (0x0021) /* UTF16, big endian */
+#define CODING_KSX1001  (0x0022) /* Korean Character Set */
+#define CODING_GB2312   (0x0023) /* GB-2312-1980 */
+#define CODING_BIG5     (0x0024) /* BIG5 subset of ISO10646 */
+#define CODING_BBC      (0x0025) /* encoding_type_ID: BBC */
+#define CODING_MTFSB    (0x0026) /* encoding_type_ID: Malaysian Technical Standard Forum Bhd */
+
+#define CODING_RESERVED (0x0099) /* reserved */
 
 /* brief        convert string between latin, utf8, utf16, utf16be and gb
  * param        cnt     max byte count of source if no '\0'

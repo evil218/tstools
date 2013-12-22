@@ -2643,7 +2643,7 @@ static int show_dvb_string(uint8_t *p, int len)
         char str[256] = "\0";
 
         if(0x20 <= *p && *p <= 0xFF) {
-                coding = CODING_DVB6937_P;
+                coding = CODING_DVB6937;
         }
         else if(0x1F == *p) {
                 p++;
@@ -2722,7 +2722,7 @@ static int show_dvb_string(uint8_t *p, int len)
                 case CODING_GB2312:
                         gb_utf8((const char *)p, str, len);
                         break;
-                case CODING_DVB6937_P: /* include ASCII */
+                case CODING_DVB6937: /* include ASCII */
                 case CODING_DVB8859_1:
                 case CODING_DVB8859_2:
                 case CODING_DVB8859_3:

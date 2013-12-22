@@ -8,44 +8,62 @@
 
 #include "zconv.h"
 
+static uint8_t latin[256] = {
+};
+
 void show_latin(int coding, const char *hint);
 void show_gb(int X0, int X1, int Y0, int Y1, const char *hint);
 
 void main(void)
 {
-        show_latin(CODING_DVB6937_P, "6937-P");
-        show_latin(CODING_DVB8859_5, "8859-5");
-        show_latin(CODING_DVB8859_6, "8859-6");
-        show_latin(CODING_DVB8859_7, "8859-7");
-        show_latin(CODING_DVB8859_8, "8859-8");
-        show_latin(CODING_DVB8859_9, "8859-9");
-        show_latin(CODING_DVB8859_10, "8859-10");
-        show_latin(CODING_DVB8859_11, "8859-11");
-        show_latin(CODING_DVB8859_13, "8859-13");
-        show_latin(CODING_DVB8859_14, "8859-14");
-        show_latin(CODING_DVB8859_15, "8859-15");
+        int i;
+        uint8_t *p;
+
+        p = latin;
+#if 1
+        for(i = 0x20; i <= 0x7F; i++) {
+                *p++ = i;
+        }
+#endif
+        for(i = 0xA0; i <= 0xFF; i++) {
+                *p++ = i;
+        }
+        *p++ = '\0';
 
         show_gb(0xA1, 0xA1, 0xA9, 0xFE, "GB_B2-CC-1");
         show_gb(0xB0, 0xA1, 0xF7, 0xFE, "GB_B2-CC-2");
         show_gb(0x81, 0x40, 0xA0, 0xFE, "GB_B2-CC-3(do NOT support now)");
         show_gb(0xAA, 0x40, 0xFE, 0xA0, "GB_B2-CC-4(do NOT support now)");
         show_gb(0xA8, 0x40, 0xA9, 0xA0, "GB_B2-CC-5(do NOT support now)");
+
+        show_latin(CODING_ISO6937   , "ISO6937---");
+        show_latin(CODING_DVB6937   , "DVB6937---");
+        show_latin(CODING_ISO8859_1 , "ISO8859--1");
+        show_latin(CODING_ISO8859_2 , "ISO8859--2");
+        show_latin(CODING_ISO8859_3 , "ISO8859--3");
+        show_latin(CODING_ISO8859_4 , "ISO8859--4");
+        show_latin(CODING_ISO8859_5 , "ISO8859--5");
+        show_latin(CODING_DVB8859_5 , "DVB8859--5");
+        show_latin(CODING_ISO8859_6 , "ISO8859--6");
+        show_latin(CODING_ISO8859_7 , "ISO8859--7");
+        show_latin(CODING_ISO8859_8 , "ISO8859--8");
+        show_latin(CODING_ISO8859_9 , "ISO8859--9");
+        show_latin(CODING_ISO8859_10, "ISO8859-10");
+        show_latin(CODING_ISO8859_11, "ISO8859-11");
+        show_latin(CODING_ISO8859_13, "ISO8859-13");
+        show_latin(CODING_ISO8859_14, "ISO8859-14");
+        show_latin(CODING_ISO8859_15, "ISO8859-15");
+        show_latin(CODING_DVB8859_15, "DVB8859-15");
+
         return;
 }
 
 void show_latin(int coding, const char *hint)
 {
-        int i;
-        uint8_t dat[256 * 1];
-        uint8_t *p;
         uint8_t str[256 * 3 + 10];
 
         fprintf(stdout, "%8s: ", hint);
-        p = dat;
-        for(i = 0x20; i < 0xFF; i++) {
-                *p++ = i;
-        }
-        latin_utf8(dat, str, 256, coding);
+        latin_utf8(latin, str, 256, coding);
         fprintf(stdout, "%s\n", str);
 }
 
