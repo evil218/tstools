@@ -177,6 +177,10 @@ struct ts_err {
         int pes_header_length_error; /* pes_header_length is too large */
         int pts_dts_flags_error; /* pts_dts_flags is 01 */
         int pmt_section_number_error; /* pmt section_number|last_section_number not 0x00 */
+#define ERR_4_0_0 (1<<0) /* PAT changed */
+#define ERR_4_0_1 (1<<1) /* CAT changed */
+#define ERR_4_0_2 (1<<2) /* PMT changed */
+        int section_crc32_error; /* sect->CRC_32 changed */
 };
 
 /* TS head */
@@ -286,6 +290,7 @@ struct ts_sect {
         uint8_t current_next_indicator; /* 1-bit */
         uint8_t section_number;
         uint8_t last_section_number;
+        uint32_t CRC_32; /* for check section modification */
 
         int check_CRC; /* bool, some table do not need to check CRC_32 */
         int type; /* TS_TYPE_xxx */

@@ -1853,11 +1853,10 @@ static int digest_ts_err(struct tsana_obj *obj, int print)
         struct ts_obj *ts = obj->ts;
         struct ts_err *err = &(ts->err);
 
-        ts->has_err = 0;
-
-        if(print) {
+        if(ts->has_err && print) {
                 fprintf(stdout, "%s*err%s, ", obj->color_green, obj->color_off);
         }
+        ts->has_err = 0;
 
         /* First priority: necessary for de-codability (basic monitoring) */
         if(err->has_level1_error) {
@@ -2047,6 +2046,23 @@ static int digest_ts_err(struct tsana_obj *obj, int print)
                         fprintf(stdout, "4.x , pmt section_number|last_section_number not 0x00, ");
                 }
                 err->pmt_section_number_error = 0;
+                if(err->section_crc32_error) {
+                        if(ERR_4_0_0 & err->section_crc32_error && print) {
+                                fprintf(stdout, "4.0 , PAT CRC_32 changed, ");
+                        }
+                        if(ERR_4_0_1 & err->section_crc32_error && print) {
+                                fprintf(stdout, "4.0 , CAT CRC_32 changed, ");
+                        }
+                        if(ERR_4_0_2 & err->section_crc32_error && print) {
+                                fprintf(stdout, "4.0 , PMT CRC_32 changed, ");
+                        }
+                        if((ERR_4_0_0 | ERR_4_0_2) & err->section_crc32_error) {
+                                /* PAT or PMT changed */
+                                ts_ioctl(ts, TS_INIT, 0);
+                                obj->state = STATE_PARSE_PSI;
+                        }
+                }
+                err->section_crc32_error = 0;
         }
 
         return 0;

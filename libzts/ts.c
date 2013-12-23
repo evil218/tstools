@@ -219,6 +219,7 @@ struct ts_obj *ts_create(/*@null@*/ void *mp)
         }
 
         obj->mp = mp;
+        memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
 
         /* prepare for ts_init() */
         obj->pid0 = NULL; /* no pid list now */
@@ -321,7 +322,6 @@ static void init(/*@out@*/ struct ts_obj *obj)
         obj->has_CAT = 0;
 
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
-        memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
         return;
 }
 
@@ -1589,6 +1589,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         obj->has_err++;
                         goto release_sect;
                 }
+                new_sect->CRC_32 = obj->CRC_32;
         }
 
         /* locate "tabl" and "psect0" */
@@ -1685,6 +1686,14 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                     (unsigned int)(obj->sect->section_number),
                     (unsigned int)(obj->sect->last_section_number),
                     (unsigned int)(obj->sect->table_id));
+                if(obj->sect->CRC_32 != new_sect->CRC_32) {
+                        RPTINF("section CRC_32 changed");
+                        err->section_crc32_error |= ((0x00 == new_sect->table_id) ? ERR_4_0_0 : 0);
+                        err->section_crc32_error |= ((0x01 == new_sect->table_id) ? ERR_4_0_1 : 0);
+                        err->section_crc32_error |= ((0x02 == new_sect->table_id) ? ERR_4_0_2 : 0);
+                        err->has_other_error++;
+                        obj->has_err++;
+                }
                 goto release_sect;
         }
         /* new_sect is in list now, do not free new_sect from here to "return 0"! */
