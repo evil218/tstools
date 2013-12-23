@@ -43,26 +43,27 @@ extern "C" {
 #endif
 
 #define CODING_ISO6937    (0x0000) /* Latin alphabet(Super ASCII) */
-#define CODING_ISO8859_1  (0x0001) /* West European */
-#define CODING_ISO8859_2  (0x0002) /* East European */
-#define CODING_ISO8859_3  (0x0003) /* South European */
-#define CODING_ISO8859_4  (0x0004) /* North and North-East European */
-#define CODING_ISO8859_5  (0x0005) /* Latin/Cyrillic */
-#define CODING_ISO8859_6  (0x0006) /* Latin/Arabic */
-#define CODING_ISO8859_7  (0x0007) /* Latin/Greek */
-#define CODING_ISO8859_8  (0x0008) /* Latin/Hebrew */
-#define CODING_ISO8859_9  (0x0009) /* West European & Turkish */
-#define CODING_ISO8859_10 (0x000A) /* North European */
+#define CODING_ISO8859_1  (0x0001) /* Latin1, West European */
+#define CODING_ISO8859_2  (0x0002) /* Latin2, East European */
+#define CODING_ISO8859_3  (0x0003) /* Latin3, South European */
+#define CODING_ISO8859_4  (0x0004) /* Latin4, North and North-East European */
+#define CODING_ISO8859_5  (0x0005) /* Cyrillic */
+#define CODING_ISO8859_6  (0x0006) /* Arabic */
+#define CODING_ISO8859_7  (0x0007) /* Greek */
+#define CODING_ISO8859_8  (0x0008) /* Hebrew */
+#define CODING_ISO8859_9  (0x0009) /* Latin5, Turkish */
+#define CODING_ISO8859_10 (0x000A) /* Latin6, Nordic, North European */
 #define CODING_ISO8859_11 (0x000B) /* Thai */
-#define CODING_ISO8859_13 (0x000D) /* Baltic */
-#define CODING_ISO8859_14 (0x000E) /* Celtic */
-#define CODING_ISO8859_15 (0x000F) /* West European */
+#define CODING_ISO8859_13 (0x000D) /* Latin7, Baltic */
+#define CODING_ISO8859_14 (0x000E) /* Latin8, Celtic */
+#define CODING_ISO8859_15 (0x000F) /* Latin9, "Latin0" -- improvement of Latin1 */
+#define CODING_ISO8859_16 (0x0010) /* Latin10, South and South-East European */
 
 #define CODING_DVB6937    (0x1000) /* ISO6937: add 0xA4(U+20AC) */
-#define CODING_DVB8859_1  (0x1001) /* FIXME */
-#define CODING_DVB8859_2  (0x1002) /* FIXME */
-#define CODING_DVB8859_3  (0x1003) /* FIXME */
-#define CODING_DVB8859_4  (0x1004) /* FIXME */
+#define CODING_DVB8859_1  (0x1001) /* ISO8859_1 FIXME */
+#define CODING_DVB8859_2  (0x1002) /* ISO8859_2 FIXME */
+#define CODING_DVB8859_3  (0x1003) /* ISO8859_3 FIXME */
+#define CODING_DVB8859_4  (0x1004) /* ISO8859_4 FIXME */
 #define CODING_DVB8859_5  (0x1005) /* ISO8859_5: 0xB9(U+0419 -> U+04E4), 0xD9(U+0439 -> U+04E5) */
 #define CODING_DVB8859_6  (0x1006) /* ISO8859_6 */
 #define CODING_DVB8859_7  (0x1007) /* ISO8859_7: omit 0xA4, 0xA5, 0xAA */

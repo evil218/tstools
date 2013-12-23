@@ -54,6 +54,7 @@ void main(void)
         show_latin(CODING_ISO8859_14, "ISO8859-14");
         show_latin(CODING_ISO8859_15, "ISO8859-15");
         show_latin(CODING_DVB8859_15, "DVB8859-15");
+        show_latin(CODING_ISO8859_16, "ISO8859-16");
 
         return;
 }
