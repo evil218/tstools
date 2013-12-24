@@ -1848,14 +1848,17 @@ static void show_ratp(struct tsana_obj *obj)
         return;
 }
 
+#define EPRINTF(enable, fmt, ...) do {if(enable) {fprintf(stdout, fmt, ##__VA_ARGS__);}} while(0 == 1)
 static int digest_ts_err(struct tsana_obj *obj, int print)
 {
         struct ts_obj *ts = obj->ts;
         struct ts_err *err = &(ts->err);
 
-        if(ts->has_err && print) {
-                fprintf(stdout, "%s*err%s, ", obj->color_green, obj->color_off);
+        if(0 == ts->has_err) {
+                return 0;
         }
+
+        EPRINTF(print, "%s*err%s, ", obj->color_green, obj->color_off);
         ts->has_err = 0;
 
         /* First priority: necessary for de-codability (basic monitoring) */
@@ -1863,95 +1866,90 @@ static int digest_ts_err(struct tsana_obj *obj, int print)
                 err->has_level1_error = 0;
 
                 if(err->TS_sync_loss) {
-                        if(print) {
-                                fprintf(stdout, "1.1, TS_sync_loss, ");
-                        }
+                        EPRINTF(print, "1.1, TS_sync_loss, ");
                         if(err->Sync_byte_error > 10) {
-                                if(print) {
-                                        fprintf(stdout, "\nToo many continual Sync_byte_error packet, EXIT!\n");
-                                }
+                                EPRINTF(print, "\nToo many continual Sync_byte_error packet, EXIT!\n");
                                 return -1;
                         }
-                        /* do NOT clear TS_sync_loss here */
+                        /* do NOT clear this error */
                         return 0;
                 }
                 if(err->Sync_byte_error) {
-                        if(print) {
-                                fprintf(stdout, "1.2 , Sync_byte_error, ");
-                        }
-                        /* do NOT clear Sync_byte_error here */
+                        EPRINTF(print, "1.2 , Sync_byte_error, ");
+                        /* do NOT clear this error */
                 }
                 if(err->PAT_error) {
-                        if(ERR_1_3_0 & err->PAT_error && print) {
-                                fprintf(stdout, "1.3a, PAT(section_interval > 0.5s), ");
+                        if(ERR_1_3_0 & err->PAT_error) {
+                                EPRINTF(print, "1.3a, PAT(section_interval > 0.5s), ");
                         }
-                        if(ERR_1_3_1 & err->PAT_error && print) {
-                                fprintf(stdout, "1.3b, PAT(table_id != 0x00), ");
+                        if(ERR_1_3_1 & err->PAT_error) {
+                                EPRINTF(print, "1.3b, PAT(table_id != 0x00), ");
                         }
-                        if(ERR_1_3_2 & err->PAT_error && print) {
-                                fprintf(stdout, "1.3c, PAT(transport_scrambling_field != 0x00), ");
+                        if(ERR_1_3_2 & err->PAT_error) {
+                                EPRINTF(print, "1.3c, PAT(transport_scrambling_field != 0x00), ");
                         }
                         err->PAT_error = 0;
                 }
-                if(err->Continuity_count_error && print) {
-                        fprintf(stdout, "1.4 , CC(%X-%X=%2u), ",
+                if(err->Continuity_count_error) {
+                        EPRINTF(print, "1.4 , CC(%X-%X=%2u), ",
                                 ts->CC_find, ts->CC_wait, ts->CC_lost);
+                        /* do NOT need to clear this error */
                 }
                 if(err->PMT_error) {
-                        if(ERR_1_5_0 & err->PMT_error && print) {
-                                fprintf(stdout, "1.5a, PMT section_interval(%+7.3f ms): (0, 500)ms, ",
+                        if(ERR_1_5_0 & err->PMT_error) {
+                                EPRINTF(print, "1.5a, PMT section_interval(%+7.3f ms): (0, 500)ms, ",
                                         (double)(ts->sect_interval) / STC_MS);
                         }
-                        if(ERR_1_5_1 & err->PMT_error && print) {
-                                fprintf(stdout, "1.5b, PMT(transport_scrambling_field != 0x00), ");
+                        if(ERR_1_5_1 & err->PMT_error) {
+                                EPRINTF(print, "1.5b, PMT(transport_scrambling_field != 0x00), ");
                         }
                         err->PMT_error = 0;
                 }
-                if(err->PID_error && print) {
-                        fprintf(stdout, "1.6 , PID_error, ");
+                if(err->PID_error) {
+                        EPRINTF(print, "1.6 , PID_error, ");
+                        err->PID_error = 0;
                 }
-                err->PID_error = 0;
         }
 
         /* Second priority: recommended for continuous or periodic monitoring */
         if(err->has_level2_error) {
                 err->has_level2_error = 0;
 
-                if(err->Transport_error && print) {
-                        fprintf(stdout, "2.1 , Transport, ");
+                if(err->Transport_error) {
+                        EPRINTF(print, "2.1 , Transport, ");
+                        err->Transport_error = 0;
                 }
-                err->Transport_error = 0;
-                if(err->CRC_error && print) {
-                        fprintf(stdout, "2.2 , CRC(0x%08X! 0x%08X?), ",
+                if(err->CRC_error) {
+                        EPRINTF(print, "2.2 , CRC(0x%08X! 0x%08X?), ",
                                 ts->CRC_32_calc, ts->CRC_32);
+                        err->CRC_error = 0;
                 }
-                err->CRC_error = 0;
-                if(err->PCR_repetition_error && print) {
-                        fprintf(stdout, "2.3a, PCR_repetition(%+7.3f ms), ",
+                if(err->PCR_repetition_error) {
+                        EPRINTF(print, "2.3a, PCR_repetition(%+7.3f ms), ",
                                 (double)(ts->PCR_repetition) / STC_MS);
+                        err->PCR_repetition_error = 0;
                 }
-                err->PCR_repetition_error = 0;
-                if(err->PCR_discontinuity_indicator_error && print) {
-                        fprintf(stdout, "2.3b, PCR_discontinuity_indicator(%+7.3f ms), ",
+                if(err->PCR_discontinuity_indicator_error) {
+                        EPRINTF(print, "2.3b, PCR_discontinuity_indicator(%+7.3f ms), ",
                                 (double)(ts->PCR_continuity) / STC_MS);
+                        err->PCR_discontinuity_indicator_error = 0;
                 }
-                err->PCR_discontinuity_indicator_error = 0;
-                if(err->PCR_accuracy_error && print) {
-                        fprintf(stdout, "2.4 , PCR_accuracy(%+4.0f ns), ",
+                if(err->PCR_accuracy_error) {
+                        EPRINTF(print, "2.4 , PCR_accuracy(%+4.0f ns), ",
                                 (double)(ts->PCR_jitter) * 1e3 / STC_US);
+                        err->PCR_accuracy_error = 0;
                 }
-                err->PCR_accuracy_error = 0;
-                if(err->PTS_error && print) {
-                        fprintf(stdout, "2.5 , PTS_repetition(%+7.3f ms > 700ms), ",
+                if(err->PTS_error) {
+                        EPRINTF(print, "2.5 , PTS_repetition(%+7.3f ms > 700ms), ",
                                 (double)(ts->PTS_repetition) / STC_MS);
+                        err->PTS_error = 0;
                 }
-                err->PTS_error = 0;
                 if(err->CAT_error) {
-                        if(ERR_2_6_0 & err->CAT_error && print) {
-                                fprintf(stdout, "2.6 , CAT(scrambling program without CAT), ");
+                        if(ERR_2_6_0 & err->CAT_error) {
+                                EPRINTF(print, "2.6 , CAT(scrambling program without CAT), ");
                         }
-                        if(ERR_2_6_1 & err->CAT_error && print) {
-                                fprintf(stdout, "2.6 , CAT(table_id error in PID 0x0001), ");
+                        if(ERR_2_6_1 & err->CAT_error) {
+                                EPRINTF(print, "2.6 , CAT(table_id error in PID 0x0001), ");
                         }
                         err->CAT_error = 0;
                 }
@@ -1966,103 +1964,104 @@ static int digest_ts_err(struct tsana_obj *obj, int print)
         /* other errors */
         if(err->has_other_error) {
                 err->has_other_error = 0;
-                if(err->adaption_field_control_error && print) {
-                        fprintf(stdout, "4.x , adaption_field_control(00) illegal, ");
+
+                if(err->adaption_field_control_error) {
+                        EPRINTF(print, "4.x , adaption_field_control(00) illegal, ");
+                        err->adaption_field_control_error = 0;
                 }
-                err->adaption_field_control_error = 0;
-                if(err->wild_pcr_packet && print) {
-                        fprintf(stdout, "4.x , no program use this pcr packet, ");
+                if(err->wild_pcr_packet) {
+                        EPRINTF(print, "4.x , no program use this pcr packet, ");
+                        err->wild_pcr_packet = 0;
                 }
-                err->wild_pcr_packet = 0;
-                if(err->normal_section_length_error && print) {
-                        fprintf(stdout, "4.x , bad normal section length, ");
+                if(err->normal_section_length_error) {
+                        EPRINTF(print, "4.x , bad normal section length, ");
+                        err->normal_section_length_error = 0;
                 }
-                err->normal_section_length_error = 0;
-                if(err->private_section_length_error && print) {
-                        fprintf(stdout, "4.x , bad private section length, ");
+                if(err->private_section_length_error) {
+                        EPRINTF(print, "4.x , bad private section length, ");
+                        err->private_section_length_error = 0;
                 }
-                err->private_section_length_error = 0;
-                if(err->pat_pid_error && print) {
-                        fprintf(stdout, "4.x , pat table not in 0x0000, ");
+                if(err->pat_pid_error) {
+                        EPRINTF(print, "4.x , pat table not in 0x0000, ");
+                        err->pat_pid_error = 0;
                 }
-                err->pat_pid_error = 0;
-                if(err->cat_pid_error && print) {
-                        fprintf(stdout, "4.x , cat table not in 0x0001, ");
+                if(err->cat_pid_error) {
+                        EPRINTF(print, "4.x , cat table not in 0x0001, ");
+                        err->cat_pid_error = 0;
                 }
-                err->cat_pid_error = 0;
-                if(err->pmt_pid_error && print) {
-                        fprintf(stdout, "4.x , pmt table not in pmt pid of pat, ");
+                if(err->pmt_pid_error) {
+                        EPRINTF(print, "4.x , pmt table not in pmt pid of pat, ");
+                        err->pmt_pid_error = 0;
                 }
-                err->pmt_pid_error = 0;
-                if(err->nit_pid_error && print) {
-                        fprintf(stdout, "4.x , nit table not in 0x0010, ");
+                if(err->nit_pid_error) {
+                        EPRINTF(print, "4.x , nit table not in 0x0010, ");
+                        err->nit_pid_error = 0;
                 }
-                err->nit_pid_error = 0;
-                if(err->sdt_pid_error && print) {
-                        fprintf(stdout, "4.x , sdt table not in 0x0011, ");
+                if(err->sdt_pid_error) {
+                        EPRINTF(print, "4.x , sdt table not in 0x0011, ");
+                        err->sdt_pid_error = 0;
                 }
-                err->sdt_pid_error = 0;
-                if(err->descriptor_error && print) {
-                        fprintf(stdout, "4.x , wrong descriptor, ");
+                if(err->descriptor_error) {
+                        EPRINTF(print, "4.x , wrong descriptor, ");
+                        err->descriptor_error = 0;
                 }
-                err->descriptor_error = 0;
-                if(err->program_info_length_error && print) {
-                        fprintf(stdout, "4.x , program_info_length too big, ");
+                if(err->program_info_length_error) {
+                        EPRINTF(print, "4.x , program_info_length too big, ");
+                        err->program_info_length_error = 0;
                 }
-                err->program_info_length_error = 0;
-                if(err->es_info_length_error && print) {
-                        fprintf(stdout, "4.x , es_info_length too big, ");
+                if(err->es_info_length_error) {
+                        EPRINTF(print, "4.x , es_info_length too big, ");
+                        err->es_info_length_error = 0;
                 }
-                err->es_info_length_error = 0;
-                if(err->table_id_extension_error && print) {
-                        fprintf(stdout, "4.x , table_id_extension != transport_stream_id, ");
+                if(err->table_id_extension_error) {
+                        EPRINTF(print, "4.x , table_id_extension != transport_stream_id, ");
+                        err->table_id_extension_error = 0;
                 }
-                err->table_id_extension_error = 0;
-                if(err->pes_pid_error && print) {
-                        fprintf(stdout, "4.x , pid of pes is psi/si, ");
+                if(err->pes_pid_error) {
+                        EPRINTF(print, "4.x , pid of pes is psi/si, ");
+                        err->pes_pid_error = 0;
                 }
-                err->pes_pid_error = 0;
-                if(err->pes_elem_error && print) {
-                        fprintf(stdout, "4.x , pid of pes is not es in pmt, ");
+                if(err->pes_elem_error) {
+                        EPRINTF(print, "4.x , pid of pes is not es in pmt, ");
+                        err->pes_elem_error = 0;
                 }
-                err->pes_elem_error = 0;
-                if(err->pes_start_code_error && print) {
-                        fprintf(stdout, "4.x , pes start code not 0x000001, ");
+                if(err->pes_start_code_error) {
+                        EPRINTF(print, "4.x , pes start code not 0x000001, ");
+                        err->pes_start_code_error = 0;
                 }
-                err->pes_start_code_error = 0;
-                if(err->pes_packet_length_error && print) {
-                        fprintf(stdout, "4.x , pes_packet_length is too large, ");
+                if(err->pes_packet_length_error) {
+                        EPRINTF(print, "4.x , pes_packet_length is too large, ");
+                        err->pes_packet_length_error = 0;
                 }
-                err->pes_packet_length_error = 0;
-                if(err->pes_header_length_error && print) {
-                        fprintf(stdout, "4.x , pes_header_length is too large, ");
+                if(err->pes_header_length_error) {
+                        EPRINTF(print, "4.x , pes_header_length is too large, ");
+                        err->pes_header_length_error = 0;
                 }
-                err->pes_header_length_error = 0;
-                if(err->pts_dts_flags_error && print) {
-                        fprintf(stdout, "4.x , pts_dts_flags is 01, ");
+                if(err->pts_dts_flags_error) {
+                        EPRINTF(print, "4.x , pts_dts_flags is 01, ");
+                        err->pts_dts_flags_error = 0;
                 }
-                err->pts_dts_flags_error = 0;
-                if(err->pmt_section_number_error && print) {
-                        fprintf(stdout, "4.x , pmt section_number|last_section_number not 0x00, ");
+                if(err->pmt_section_number_error) {
+                        EPRINTF(print, "4.x , pmt section_number|last_section_number not 0x00, ");
+                        err->pmt_section_number_error = 0;
                 }
-                err->pmt_section_number_error = 0;
                 if(err->section_crc32_error) {
-                        if(ERR_4_0_0 & err->section_crc32_error && print) {
-                                fprintf(stdout, "4.0 , PAT CRC_32 changed, ");
+                        if(ERR_4_0_0 & err->section_crc32_error) {
+                                EPRINTF(print, "4.0 , PAT CRC_32 changed, ");
                         }
-                        if(ERR_4_0_1 & err->section_crc32_error && print) {
-                                fprintf(stdout, "4.0 , CAT CRC_32 changed, ");
+                        if(ERR_4_0_1 & err->section_crc32_error) {
+                                EPRINTF(print, "4.0 , CAT CRC_32 changed, ");
                         }
-                        if(ERR_4_0_2 & err->section_crc32_error && print) {
-                                fprintf(stdout, "4.0 , PMT CRC_32 changed, ");
+                        if(ERR_4_0_2 & err->section_crc32_error) {
+                                EPRINTF(print, "4.0 , PMT CRC_32 changed, ");
                         }
                         if((ERR_4_0_0 | ERR_4_0_2) & err->section_crc32_error) {
                                 /* PAT or PMT changed */
                                 ts_ioctl(ts, TS_INIT, 0);
                                 obj->state = STATE_PARSE_PSI;
                         }
+                        err->section_crc32_error = 0;
                 }
-                err->section_crc32_error = 0;
         }
 
         return 0;

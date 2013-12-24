@@ -1687,12 +1687,17 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                     (unsigned int)(obj->sect->last_section_number),
                     (unsigned int)(obj->sect->table_id));
                 if(obj->sect->CRC_32 != new_sect->CRC_32) {
-                        RPTINF("section CRC_32 changed");
-                        err->section_crc32_error |= ((0x00 == new_sect->table_id) ? ERR_4_0_0 : 0);
-                        err->section_crc32_error |= ((0x01 == new_sect->table_id) ? ERR_4_0_1 : 0);
-                        err->section_crc32_error |= ((0x02 == new_sect->table_id) ? ERR_4_0_2 : 0);
-                        err->has_other_error++;
-                        obj->has_err++;
+                        int mask;
+
+                        switch(new_sect->table_id) {
+                                case 0x00: mask = ERR_4_0_0; break;
+                                case 0x01: mask = ERR_4_0_1; break;
+                                case 0x02: mask = ERR_4_0_2; break;
+                                default:   mask = 0; break;
+                        }
+                        err->section_crc32_error |= mask;
+                        err->has_other_error += ((mask) ? 1 : 0);
+                        obj->has_err += ((mask) ? 1 : 0);
                 }
                 goto release_sect;
         }
