@@ -5,8 +5,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
+#include <inttypes.h> /* for uint?_t, PRId64, etc */
 
 #include "buddy.h"
 #include "ts.h"
@@ -2932,14 +2932,24 @@ uint32_t ts_crc(void *buf, size_t size, int mode)
         return crc;
 }
 
+#ifdef S_SPLINT_S /* FIXME */
 #define timestamp_assert(expr, fmt...) do { \
         if(!(expr)) { \
-                fprintf(stderr, "%s: %d: assert (%s) failed: ", __FILE__, __LINE__, #expr); \
+                fprintf(stderr, "%s: %d: !(%s): ", __FILE__, __LINE__, #expr); \
                 fprintf(stderr, fmt); \
                 fprintf(stderr, "\n"); \
                 return -1; \
         } \
 } while(0)
+#else
+#define timestamp_assert(expr, fmt, ...) do { \
+        if(!(expr)) { \
+                fprintf(stderr, "%s: %d: !(%s): " fmt "\n", \
+                        __FILE__, __LINE__, #expr, ##__VA_ARGS__); \
+                return -1; \
+        } \
+} while(0)
+#endif
 
 int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
@@ -2947,11 +2957,10 @@ int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 #if 1
         int64_t hovf = ovf >> 1; /* half overflow */
 
-        timestamp_assert(0 < ovf, "0 < %lld", (long long int)ovf);
-        timestamp_assert((hovf << 1) == ovf, "%lld is not even", (long long int)ovf);
-        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", (long long int)t0, (long long int)ovf);
-        timestamp_assert(-hovf <= td && td < +hovf, "%lld <= %lld < %lld",
-                         (long long int)-hovf, (long long int)td, (long long int)+hovf);
+        timestamp_assert(0 < ovf, "0 < %" PRId64, ovf);
+        timestamp_assert((hovf << 1) == ovf, "%" PRId64 " is not even", ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %" PRId64 " < %" PRId64, t0, ovf);
+        timestamp_assert(-hovf <= td && td < +hovf, "%" PRId64 " <= %" PRId64 " < %" PRId64, -hovf, td, +hovf);
 #endif
 
         t1 = t0 + td; /* add */
@@ -2967,10 +2976,10 @@ int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
         int64_t hovf = ovf >> 1; /* half overflow */
 
 #if 1
-        timestamp_assert(0 < ovf, "0 < %lld", (long long int)ovf);
-        timestamp_assert((hovf << 1) == ovf, "%lld is not even", (long long int)ovf);
-        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", (long long int)t0, (long long int)ovf);
-        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %lld < %lld", (long long int)t1, (long long int)ovf);
+        timestamp_assert(0 < ovf, "0 < %" PRId64, ovf);
+        timestamp_assert((hovf << 1) == ovf, "%" PRId64 " is not even", ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %" PRId64 " < %" PRId64, t0, ovf);
+        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %" PRId64 " < %" PRId64, t1, ovf);
 #endif
 
         td = t1 - t0; /* minus */
