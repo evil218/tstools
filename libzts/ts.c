@@ -6,7 +6,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for memset, memcpy, etc */
-#include <inttypes.h> /* for uint?_t, PRId64, etc */
+#ifdef _MSC_VER
+        #ifdef _M_X64
+                #define __PRI64 "l"
+                typedef long intptr_t;
+        #else
+                #define __PRI64 "ll"
+                typedef int intptr_t;
+        #endif
+
+        #define PRId8  "d"
+        #define PRId16 "d"
+        #define PRId32 "d"
+        #define PRId64 __PRI64"d"
+
+        #define PRIX8  "X"
+        #define PRIX16 "X"
+        #define PRIX32 "X"
+        #define PRIX64 __PRI64"X"
+#else /* unix-like */
+        #include <inttypes.h> /* for intptr_t, int?_t, PRId64, etc */
+#endif
 
 #include "buddy.h"
 #include "ts.h"
@@ -1487,10 +1507,6 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         struct ts_err *err = &(obj->err);
         struct znode **psect0;
 
-#if 0
-        int is_new_version = 0;
-#endif
-
         /* get section head info */
         p = new_sect->section;
         new_sect->table_id = *p++;
@@ -1607,6 +1623,12 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         goto release_sect;
                 }
                 tabl = &(pid->prog->tabl);
+
+                if(0xFF == tabl->version_number) {
+                        /* first PMT of this prog */
+                        tabl->version_number = new_sect->version_number;
+                        tabl->last_section_number = new_sect->last_section_number;
+                }
         }
         else {
                 /* not PMT section */
@@ -1646,8 +1668,13 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         }
         tabl->STC = obj->STC;
 
-        /* new table version? FIXME: PAT or PMT version changed is dangerous! */
-        if(tabl->version_number != new_sect->version_number) {
+#if 0
+        /* FIXME:
+         *      PAT or PMT version changed is dangerous!
+         *      use section_crc32_error to inform application than be INITed now.
+         */
+        /* new table version? */
+        if(new_sect->version_number != tabl->version_number) {
                 struct ts_sect *sect_node;
 
                 /* clear psect0 and update table parameter */
@@ -1658,10 +1685,8 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 while(NULL != (sect_node = (struct ts_sect *)zlst_pop((zhead_t *)psect0))) {
                         free_sect(obj->mp, sect_node);
                 };
-#if 0
-                is_new_version = 1;
-#endif
         }
+#endif
 
         /* locate sect pointer */
         RPTDBG("search %d/%d in sect_list",
@@ -1834,10 +1859,10 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
 
                         /* PMT table */
                         prog->is_parsed = 0;
+                        prog->tabl.sect0 = NULL;
                         prog->tabl.table_id = 0x02;
                         prog->tabl.version_number = 0xFF; /* never reached version */
                         prog->tabl.last_section_number = 0; /* no use */
-                        prog->tabl.sect0 = NULL;
                         prog->tabl.STC = STC_OVF;
 
                         /* for STC calc */
