@@ -9,8 +9,8 @@ endif
 obj-y := param_xml.o
 
 VMAJOR = 1
-VMINOR = 0
-VRELEA = 0
+VMINOR = 1
+VPATCH = 0
 NAME = param_xml
 TYPE = lib
 DESC = parameter xml convertor

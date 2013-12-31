@@ -9,8 +9,8 @@ endif
 obj-y := zlst.o
 
 VMAJOR = 1
-VMINOR = 0
-VRELEA = 0
+VMINOR = 1
+VPATCH = 0
 NAME = zlst
 TYPE = lib
 DESC = common bidirection list

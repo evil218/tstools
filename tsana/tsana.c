@@ -1043,7 +1043,7 @@ static void show_version()
                 "tsana of tstools v%s (%s)\n"
                 "Build time: %s %s\n"
                 "\n"
-                "Copyright (C) 2009,2010,2011,2012,2013 ZHOU Cheng.\n"
+                "Copyright (C) 2009,2010,2011,2012,2013,2014 ZHOU Cheng.\n"
                 "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
                 "This is free software; contact author for additional information.\n"
                 "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"

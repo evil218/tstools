@@ -3,13 +3,13 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TSANA</TITLE>
 </HEAD><BODY>
 <H1>TSANA</H1>
-Section: User Commands (1)<BR>Updated: November 2013<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: December 2013<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-tsana - manual page for tsana of tstools v1.0.0 (354 81b96b4c)
+tsana - manual page for tsana of tstools v1.1.384 (384m 63a7d3a8)
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
@@ -35,7 +35,7 @@ import PSI information from psi.xml before analyse
 <DT><B>-dump</B><DD>
 dump cared packet
 <DT><B>-mem</B><DD>
-show memory status
+memory pool status show level[none|total|detail], default: none
 <DT><B>-time</B><DD>
 &quot;*time, YYYY-mm-dd HH:MM:SS, second, usecond, delta_time(ms), &quot;
 <DT><B>-addr</B><DD>
@@ -67,7 +67,7 @@ show memory status
 <DT><B>-si</B><DD>
 &quot;*si, interval(ms), head, information of body, &quot;
 <DT><B>-rate</B><DD>
-&quot;*rate, interval(ms), PID, rate, es_rate, ..., PID, rate, es_rate, &quot;
+&quot;*rate, interval(ms), PID, rate, [es_rate, ]..., PID, rate, [es_rate, ]&quot;
 <DT><B>-rats</B><DD>
 &quot;*rats, interval(ms), SYS, rate, PSI-SI, rate, 0x1FFF, rate, &quot;
 <DT><B>-ratp</B><DD>
@@ -77,19 +77,19 @@ show memory status
 <DT><B>-c</B> <B>-color</B><DD>
 enable colour effect to help read, default: mono
 <DT><B>-start</B> &lt;x&gt;<DD>
-analyse from packet(x), default: 0, first packet
+analyse from packet(x), default: 0(first packet)
 <DT><B>-count</B> &lt;n&gt;<DD>
-analyse n-packet then stop, default: 0, no stop
+analyse n-packet then stop, default: 0(no stop)
 <DT><B>-pid</B> &lt;pid&gt;<DD>
-set cared PID, default: any PID(0x2000)
+set cared PID[0x0000,0x2000], default: 0x2000(any PID)
 <DT><B>-table</B> &lt;id&gt;<DD>
-set cared table, default: any table(0xFF)
+set cared table[0x00,0xFF], default: 0xFF(any table)
 <DT><B>-prog</B> &lt;prog&gt;<DD>
-set cared prog, default: any program(0x0000)
+set cared prog[0x0000,0xFFFF], default: 0x0000(any program)
 <DT><B>-type</B> &lt;type&gt;<DD>
-set cared PID type, default: any type(0)
+set cared PID type[any|vid|aud|emm|ecm], default: any
 <DT><B>-iv</B> &lt;iv&gt;<DD>
-set cared interval(1ms-70,000ms), default: 1000ms
+set cared interval(1-70000)ms, default: 1000(1000 ms)
 <DT><B>-mp</B> &lt;mp&gt;<DD>
 set memory pool size order(16-32), default: 20, means 2^20 bytes
 <DT><B>-h</B>, <B>--help</B><DD>
@@ -116,11 +116,11 @@ Report bugs to &lt;<A HREF="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua
 
 <BR>
 
-Build time: Nov  8 2013 20:15:10
+Build time: Dec 31 2013 14:04:31
 <A NAME="lbAI">&nbsp;</A>
 <H2>COPYRIGHT</H2>
 
-Copyright &#169; 2009,2010,2011,2012,2013 ZHOU Cheng.
+Copyright &#169; 2009,2010,2011,2012,2013,2014 ZHOU Cheng.
 License GPLv3+: GNU GPL version 3 or later &lt;<A HREF="http://gnu.org/licenses/gpl.html">http://gnu.org/licenses/gpl.html</A>&gt;
 <BR>
 
@@ -167,6 +167,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 03:28:11 GMT, November 22, 2013
+Time: 06:07:03 GMT, December 31, 2013
 </BODY>
 </HTML>

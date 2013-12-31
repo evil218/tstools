@@ -5,11 +5,11 @@
 SRCS := $(obj-y:%.o=%.c)
 
 ifeq ($(SYS),LINUX)
-LIB_SHARED = lib$(NAME).so.$(VMAJOR).$(VMINOR).$(VRELEA)
+LIB_SHARED = lib$(NAME).so.$(VMAJOR).$(VMINOR).$(VPATCH)
 SONAME = lib$(NAME).so.$(VMAJOR)
-LIB_STATIC = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VRELEA).a
+LIB_STATIC = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VPATCH).a
 else # CYGWIN or WINDOWS
-LIB_SHARED = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VRELEA).dll
+LIB_SHARED = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VPATCH).dll
 IMPLIBNAME = lib$(NAME).dll.a
 LIB_STATIC = lib$(NAME).a
 endif

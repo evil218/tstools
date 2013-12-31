@@ -11,8 +11,8 @@ obj-y += udp.o
 obj-y += url.o
 
 VMAJOR = 1
-VMINOR = 0
-VRELEA = 0
+VMINOR = 1
+VPATCH = 0
 NAME = zutil
 TYPE = lib
 DESC = common functions

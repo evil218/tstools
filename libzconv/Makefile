@@ -9,8 +9,8 @@ endif
 obj-y := zconv.o
 
 VMAJOR = 1
-VMINOR = 0
-VRELEA = 0
+VMINOR = 1
+VPATCH = 0
 NAME = zconv
 TYPE = lib
 DESC = DVB charsets convert

@@ -9,8 +9,8 @@ endif
 obj-y := buddy.o
 
 VMAJOR = 1
-VMINOR = 0
-VRELEA = 0
+VMINOR = 1
+VPATCH = 0
 NAME = zbuddy
 TYPE = lib
 DESC = buddy memory pool, to avoid malloc and free from OS frequently
