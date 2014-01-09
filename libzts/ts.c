@@ -9,23 +9,16 @@
 #ifdef _MSC_VER
         #ifdef _M_X64
                 #define __PRI64 "l"
-                typedef long intptr_t;
         #else
                 #define __PRI64 "ll"
-                typedef int intptr_t;
         #endif
 
         #define PRId8  "d"
         #define PRId16 "d"
         #define PRId32 "d"
         #define PRId64 __PRI64"d"
-
-        #define PRIX8  "X"
-        #define PRIX16 "X"
-        #define PRIX32 "X"
-        #define PRIX64 __PRI64"X"
 #else /* unix-like */
-        #include <inttypes.h> /* for intptr_t, int?_t, PRId64, etc */
+        #include <inttypes.h> /* for int?_t, PRId64, etc */
 #endif
 
 #include "buddy.h"
