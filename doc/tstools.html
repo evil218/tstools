@@ -789,11 +789,18 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">包头距第1包头的字节数</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">mts</p></td>
-<td align="left" valign="top"><p class="table">MTS时间戳</p></td>
+<td align="left" valign="top"><p class="table">tpeh</p></td>
+<td align="left" valign="top"><p class="table">CPI与ATS</p></td>
+<td align="left" valign="top"><p class="table">无符号整数</p></td>
+<td align="left" valign="top"><p class="table"></p></td>
+<td align="left" valign="top"><p class="table">4-byte，拷贝许可与到达时间戳(BlurayDisc)</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table">ats</p></td>
+<td align="left" valign="top"><p class="table">ATS计数值</p></td>
 <td align="left" valign="top"><p class="table">无符号整数</p></td>
 <td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
-<td align="left" valign="top"><p class="table">发送时间戳，满0x40000000溢出回0</p></td>
+<td align="left" valign="top"><p class="table">到达时间戳，满0x40000000溢出回0</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">cts</p></td>
@@ -829,13 +836,6 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">字节序列</p></td>
 <td align="left" valign="top"><p class="table"></p></td>
 <td align="left" valign="top"><p class="table">段间隔,段头,段体</p></td>
-</tr>
-<tr>
-<td align="left" valign="top"><p class="table">bg</p></td>
-<td align="left" valign="top"><p class="table">背景信息</p></td>
-<td align="left" valign="top"><p class="table">逗号分隔</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">时间,地址,STC,PID</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">rate</p></td>
@@ -973,19 +973,19 @@ toip
 <pre><tt>语法：
     catts xxx.ts | tsana [-lst] [-iv 5000]
 例子：
-    $ catts c111_sd_1min.ts | tsana
-      PID , abbr, detail
-    0x0000,  PAT, program association section
-    0x0050,  PMT, program map section
-    0x0051,  PCR, program counter reference
-    0x0052,  VID, video packet
-    0x0053,  AUD, audio packet
-    0x1FFF, NULL, empty packet</tt></pre>
+    $ catts ~/Videos/stream/1.ts | tsana -c
+    0x0000, PAT , program association section
+    0x0010, NIT , network information section
+    0x0011, SDT , service description section
+    0x0030, PMT , program map section
+    0x0031, PCR , program counter reference
+    0x0032, VID , video packet
+    0x0033, AUD , audio packet
+    0x0034, AUD , audio packet
+    0x1FFF, NUL , empty packet</tt></pre>
 </div></div>
 <div class="paragraph"><p>参数“-lst”并不是必须的，因为这是tsana的缺省操作。
-输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）：
-- “abbr”：该PID类型简介；
-- “detail”：该PID的详细解释。</p></div>
+输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）。</p></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_PID_list.jpg" alt="PID表" />
 </span></p></div>
@@ -1014,23 +1014,44 @@ tsana有一个“-iv”参数可以设定interval（间隔时间），
     catts xxx.ts | tsana -psi [-iv 5000]
 
 例子：
-    $ catts /cygdrive/d/c111_sd_1min.ts | tsana -psi
-    transport_stream: 1(0x0001)
-        program 3(0x0003), PMT_PID = 0x0050, PCR_PID = 0x0051
-            service_provider: DVT( 44 56 54 )
-            service_name    : ENC3( 45 4E 43 33 )
-            program_info:
-            track 0x0052, stream_type = 0x1B
-                type: H.264, ITU-T Rec.H.264|ISO/IEC 14496-10 Video
-                ES_info:
-            track 0x0053, stream_type = 0x03
-                type: MPEG-1, ISO/IEC 11172-3 Audio
-                ES_info:</tt></pre>
+    $ catts ~/Videos/stream/1.ts | tsana -c -psi
+    transport_stream_id,     1(0x0001)
+    program_number,     1(0x0001), PMT_PID, 0x0030, PCR_PID, 0x0031, service_provider, "DVT"(44 56 54), service_name, "ENC1"(45 4E 43 31),
+    elementary_PID, 0x0032, stream_type, 0x1B, type, H.264, detail, ITU-T Rec.H.264|ISO/IEC 14496-10 Video,
+    elementary_PID, 0x0033, stream_type, 0x03, type, MPEG-1, detail, ISO/IEC 11172-3 Audio,
+    elementary_PID, 0x0034, stream_type, 0x03, type, MPEG-1, detail, ISO/IEC 11172-3 Audio,</tt></pre>
 </div></div>
-<div class="paragraph"><p>参数“-psi”告诉tsana在完成PSI/SI分析后，把所有节目信息以树的形式打印出来。
-节目树按照节目号从小到大的顺序依次打印每个节目的信息：
-节目号、PMT_PID、PCR_PID、service info、program_info和该节目的多个track。
-每个track包含stream_type，PID和ES_info。</p></div>
+<div class="paragraph"><p>参数“-psi”告诉tsana在完成PSI/SI分析后，把所有节目信息打印出来：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+码流层信息在第1行，只有一个id；
+</p>
+</li>
+<li>
+<p>
+后面每个节目层信息占1行；
+</p>
+</li>
+<li>
+<p>
+节目层信息下面每个基本流的信息占1行。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>这种每层信息仅占1行的方式有力与用户通过grep筛选自己需要的信息。</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+如果只关心节目级信息，可以用“ | grep "prog"”；
+</p>
+</li>
+<li>
+<p>
+如果只关心基本流信息，可以用“ | grep "elem"”；
+</p>
+</li>
+</ul></div>
 <div class="paragraph"><p><span class="image">
 <img src="pic_PSI_tree.jpg" alt="PSI树" />
 </span></p></div>
@@ -1067,34 +1088,21 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。</p></div>
 <h4 id="__10">4.2.6. 码率分析</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catts xxx.ts | tsana -sys-rate
-语法：catts xxx.ts | tsana -psi-rate
-语法：catts xxx.ts | tsana -prog-rate [-prog 27]</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -rats
+语法：catts xxx.ts | tsana -ratp
+语法：catts xxx.ts | tsana -rate [-type vid]</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
-<h4 id="_pes">4.2.7. 导出PES数据</h4>
+<h4 id="_pes_es">4.2.7. 导出PES、ES数据</h4>
 <div class="listingblock">
 <div class="content">
-<pre><tt>语法：catts xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes</tt></pre>
+<pre><tt>语法：catts xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes
+语法：catts xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es</tt></pre>
 </div></div>
 </div>
 <div class="sect3">
-<h4 id="_es">4.2.8. 导出ES数据</h4>
-<div class="listingblock">
-<div class="content">
-<pre><tt>语法：catts xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es</tt></pre>
-</div></div>
-</div>
-<div class="sect3">
-<h4 id="_es_2">4.2.9. 导出ES数据到对应的二进制文件</h4>
-<div class="listingblock">
-<div class="content">
-<pre><tt>语法：catts xxx.ts | tsana -alles</tt></pre>
-</div></div>
-</div>
-<div class="sect3">
-<h4 id="__11">4.2.10. 实时流录制</h4>
+<h4 id="__11">4.2.8. 实时流录制</h4>
 <div class="listingblock">
 <div class="content">
 <pre><tt>语法：catip udp://@:1234 | tobin xxx.ts
@@ -1146,44 +1154,128 @@ FILE_TSRS：若间隔为204的连续3个包头匹配成功就认为是TSRS文件
 </div>
 <div class="sect2">
 <h3 id="__12">5.2. 时钟恢复</h3>
-<div class="paragraph"><p>在分析码流的PCR指标时，需要精确的知道码流的到达时间。
-对于TS over IP，因为多个TS包被打成1个UDP包发送，每个包的到达时间已经无法准确获取了；
-而ts文件中只有每个TS包的数据，也没有到达时间的信息。</p></div>
-<div class="paragraph"><p>由于系统码率稳定，可以认为每个包是等间隔到达的。
-只要知道所在节目前面2个PCR值，就能根据间隔包数计算当前包的到达时间。
-本项目的核心模块正是基于这样的原理计算第3个PCR包前每个包的到达时间：</p></div>
-<div class="paragraph"><p><span class="image">
-<img src="pic_STC.jpg" alt="STC恢复" />
-</span></p></div>
+<div class="paragraph"><p>码流的各种时钟：</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
-假设ADDa包和ADDb包的PCR抖动为0，其到达时间就是各自的PCR值，根据包间距离可以线性推导后面ADDx包的到达时间STCx。
+STC：节目时钟：TS的每个节目的视音频所参考的时钟（可能多个节目共享同一个STC）。
 </p>
 </li>
 <li>
 <p>
-当携带第3个PCR的ADDc包出现时，根据推导出的到达时间STCc和该包的PCR值可以计算该包的PCR抖动。
-</p>
-</li>
-<li>
-<p>
-丢弃ADDa的信息，假设ADDc的PCR抖动为0，ADDc后面的包根据ADDb和ADDc计算。
-</p>
-</li>
-<li>
-<p>
-对于多节目流，不同节目的TS包的到达时间是基于它们各自的PCR计算的。
-</p>
-</li>
-<li>
-<p>
-由于除PMT之外的PSI/SI包和空包不属于任何节目，其到达时间基于PAT中的第1个节目的PCR计算。
+MTC：复用时钟：TS的所有包发收复用时所参考的时钟（与所有STC速度成正比，可能与某个STC一致）。
 </p>
 </li>
 </ul></div>
-<div class="paragraph"><p>注意，这里先假设PCRa和PCRb准确而计算PCRc的抖动，然后假设PCRb和PCRc准确去计算PCRd的抖动。
-这是因为无法判断哪个PCR不准确，总是假设前2个PCR准确去计算当前PCR的抖动可以将误差限定在局部范围。</p></div>
+<div class="paragraph"><p>码流的各种时间戳：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+PCR：节目时间戳（参考STC）：TS的每个节目供接收端恢复STC的数据（解析可获得，可能有抖动偏差）。
+</p>
+</li>
+<li>
+<p>
+DTS：解码时间戳（参考STC）：理想解码器对视音频帧的解码时刻（与PTS相等时仅传输PTS）。
+</p>
+</li>
+<li>
+<p>
+PTS：回放时间戳（参考STC）：理想解码器对视音频帧的回放时刻（解析可获得，无偏差，可能不合理）。
+</p>
+</li>
+<li>
+<p>
+ITS：理想时间戳（参考MTC）：没有任何误差的理想复用时间戳（鄙人的定义和命名）。
+</p>
+</li>
+<li>
+<p>
+STS：发送时间戳（参考MTC）：理想复用器的STS可作为ITS使用（码流中不含此信息）。
+</p>
+</li>
+<li>
+<p>
+ATS：到达时间戳（参考MTC）：这是BD标准中为每个包定义的的时间戳，可作为ITS使用。
+</p>
+</li>
+<li>
+<p>
+CTS：捕捉时间戳（参考MTC）：如果信道指标完美，CTS与STS速度成正比（注意收发时钟速度有偏差）。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>在分析码流的PCR指标（或进行复用/解复用）时，每个包的时间戳信息情况：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+ts文件没有与MTC相关的时间戳；
+</p>
+</li>
+<li>
+<p>
+mts/m2ts文件在每个TS包前用4个字节标识ATS，可作为ITS使用；
+</p>
+</li>
+<li>
+<p>
+ASI/RF传输时，信道延迟恒定，接收端可以得到每个包的CTS，可作为ITS使用；
+</p>
+</li>
+<li>
+<p>
+TSoverIP把多个TS包打成1个UDP包，且信道延迟不定，因此每个包的CTS非常不准确；
+</p>
+</li>
+<li>
+<p>
+MTSoverIP在每个包前携带ATS，可作为ITS使用；
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_STC.jpg" alt="STC恢复" />
+</span></p></div>
+<div class="paragraph"><p>如上图，只要知道x包所在节目前面的2个PCR包（a和b），就能根据ITS比例计算x包的STC时刻。
+这里，ITS的具体数值不重要，重要的是ITS比例。</p></div>
+<div class="paragraph"><p>对于ts文件和TSoverIP：
+如果系统码率稳定，可以认为拉匀后每个包是恒定间隔到达的，则每个包的ADD（地址）比例等于ITS比例；
+如果系统码率变化，就没有好办法获得ITS比例了。</p></div>
+<div class="paragraph"><p>对于mts/m2ts文件和MTSoverIP：ATS比例等于ITS比例。</p></div>
+<div class="paragraph"><p>对于ASI/RF：CTS比例等于ITS比例。</p></div>
+<div class="paragraph"><p>本项目的核心模块正是基于这样的原理计算b包与c包间每个包的STC：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+假设a包和b包的PCR抖动为0，根据ITS比例可以推导x包的STCx。
+</p>
+</li>
+<li>
+<p>
+若增加a包与b包的距离（跨过n个PCR包），可利用平均作用减弱a包与b包的实际PCR抖动引起的误差。
+</p>
+</li>
+<li>
+<p>
+当携带第3个PCR的c包出现时，根据推导出的STCc和该包的PCR值可以计算该包的PCR抖动。
+</p>
+</li>
+<li>
+<p>
+丢弃a包的信息，假设c包的PCR抖动为0，c包后面的包根据b包和c包计算。
+</p>
+</li>
+<li>
+<p>
+对于多节目流，不同节目的TS包的STC是基于它们各自的PCR计算的。
+</p>
+</li>
+<li>
+<p>
+由于除PMT之外的PSI/SI包和空包不属于任何节目，其STC基于某个节目的PCR计算（缺省为PAT中第1个节目）。
+</p>
+</li>
+</ul></div>
 <div class="paragraph"><p>先写这些吧！
 朋友们要是发现了BUG，或者有什么好的意见和建议，可以通过<a href="mailto:zhoucheng@tsinghua.org.cn">周骋</a>联系我。</p></div>
 </div>
@@ -1242,7 +1334,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2013-03-27 12:10:32 CST
+Last updated 2014-01-11 17:57:33 CST
 </div>
 </div>
 </body>

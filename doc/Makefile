@@ -1,4 +1,4 @@
-all: catts.html catip.html tsana.html tobin.html toip.html tstools buddy
+all: catts.html catip.html tsana.html tobin.html tstools buddy
 
 catts.1:
 	-help2man -o $@ catts
