@@ -18,6 +18,7 @@ EXE_DIRS := catts
 EXE_DIRS += catip
 EXE_DIRS += tsana
 EXE_DIRS += tobin
+EXE_DIRS += toip
 
 define make_lib_dirs
 	@for dir in $(LIB_DIRS); do $(MAKE) -C $$dir $@; done

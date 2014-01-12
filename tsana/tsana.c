@@ -161,7 +161,7 @@ struct aim {
         int pts;
         int tsh;
         int ts;
-        int mts;
+        int ats;
         int af;
         int pesh;
         int pes;
@@ -270,7 +270,7 @@ static void show_pcr(struct tsana_obj *obj);
 static void show_pts(struct tsana_obj *obj);
 static void show_tsh(struct tsana_obj *obj);
 static void show_ts(struct tsana_obj *obj);
-static void show_mts(struct tsana_obj *obj);
+static void show_ats(struct tsana_obj *obj);
 static void show_af(struct tsana_obj *obj);
 static void show_pesh(struct tsana_obj *obj);
 static void show_pes(struct tsana_obj *obj);
@@ -515,8 +515,8 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.ts && has_report) {
                 show_ts(obj);
         }
-        if(obj->aim.mts && has_report) {
-                show_mts(obj);
+        if(obj->aim.ats && has_report) {
+                show_ats(obj);
         }
         if(obj->aim.af && ts->AF_len) {
                 show_af(obj);
@@ -670,8 +670,8 @@ static struct tsana_obj *create(int argc, char *argv[])
                                 obj->aim.ts = 1;
                                 obj->mode = MODE_ALL;
                         }
-                        else if(0 == strcmp(argv[i], "-mts")) {
-                                obj->aim.mts = 1;
+                        else if(0 == strcmp(argv[i], "-ats")) {
+                                obj->aim.ats = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-af")) {
@@ -998,13 +998,13 @@ static void show_help()
                 "\n"
                 " -time            \"*time, YYYY-mm-dd HH:MM:SS, second, usecond, delta_time(ms), \"\n"
                 " -addr            \"*addr, address(hex), address(dec), PID, \"\n"
+                " -ats             \"*ats, 3F4BD, \"\n"
                 " -cts             \"*cts, CTS, BASE, \"\n"
                 " -stc             \"*stc, STC, BASE, \"\n"
                 " -pcr             \"*pcr, PCR, BASE, EXT, dSTC(ms), dPCR(ms), PCR-STC(ns), \"\n"
                 " -pts             \"*pts, PTS, dPTS(ms), PTS-PCR(ms), DTS, dDTS(ms), DTS-PCR(ms), \"\n"
                 " -tsh             \"*tsh, 47, xx, xx, xx, \"\n"
                 " -ts              \"*ts, 47, ..., xx, \"\n"
-                " -mts             \"*mts, 3F4BD, \"\n"
                 " -af              \"*af, xx, ..., xx, \"\n"
                 " -pesh            \"*pesh, xx, ..., xx, \"\n"
                 " -pes             \"*pes, xx, ..., xx, \"\n"
@@ -1071,7 +1071,7 @@ static int get_one_pkt(struct tsana_obj *obj)
         ipt->has_ts = 0;
         ipt->has_rs = 0;
         ipt->has_addr = 0;
-        ipt->has_mts = 0;
+        ipt->has_ats = 0;
         ipt->has_cts = 0;
 
         while(0 == next_tag(&tag, &pt)) {
@@ -1088,10 +1088,10 @@ static int get_one_pkt(struct tsana_obj *obj)
                         ipt->ADDR = data;
                         ipt->has_addr = 1;
                 }
-                else if(0 == strcmp(tag, "*mts")) {
+                else if(0 == strcmp(tag, "*ats")) {
                         next_nuint_hex(&data, &pt, 1);
-                        ipt->MTS = (int64_t)data & ((int64_t)MTS_OVF - 1);
-                        ipt->has_mts = 1;
+                        ipt->ATS = (int64_t)data & ((int64_t)ATS_OVF - 1);
+                        ipt->has_ats = 1;
                 }
                 else if(0 == strcmp(tag, "*cts")) {
                         next_nuint_hex(&data, &pt, 1);
@@ -1546,11 +1546,11 @@ static void show_ts(struct tsana_obj *obj)
         return;
 }
 
-static void show_mts(struct tsana_obj *obj)
+static void show_ats(struct tsana_obj *obj)
 {
         struct ts_obj *ts = obj->ts;
 
-        fprintf(stdout, "%s*mts%s, %" PRIX64 ", ",
+        fprintf(stdout, "%s*ats%s, %" PRIX64 ", ",
                 obj->color_green, obj->color_off,
                 ts->CTS & 0x3FFFFFFF);
         return;

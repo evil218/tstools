@@ -104,9 +104,9 @@ static void show_help()
                 " -v, --version    print my version only\n"
                 "\n"
                 "Examples:\n"
-                "  catip udp://:1234\n"
-                "  catip udp://224.165.54.31:1234\n"
-                "  catip udp://192.165.54.36@224.165.54.31:1234\n"
+                "  catip udp://:1234\n\n"
+                "  catip udp://224.165.54.31:1234\n\n"
+                "  catip udp://192.165.54.36@224.165.54.31:1234\n\n"
                 "\n"
                 "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return;

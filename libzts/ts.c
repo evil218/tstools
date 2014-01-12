@@ -327,9 +327,9 @@ static void init(/*@out@*/ struct ts_obj *obj)
         obj->is_psi_si_parsed = 0;
         obj->concerned_pid = 0x0000; /* PAT_PID */
         obj->interval = 0;
-        obj->CTS = (int64_t)0;
+        obj->CTS = STC_OVF;
         obj->CTS0 = (int64_t)0;
-        obj->lCTS = (int64_t)0; /* for MTS file only, must init as 0L */
+        obj->lATS = (int64_t)0; /* for ATS input only, must init as 0L */
         obj->STC = STC_OVF;
         obj->has_scrambling = 0;
         obj->has_CAT = 0;
@@ -663,10 +663,20 @@ int ts_parse_tsh(struct ts_obj *obj)
 
         pid = obj->pid; /* maybe NULL */
 
-        /* calc STC and CTS, should be as early as possible */
+        /* calc CTS and STC, should be as early as possible */
         if(obj->cfg.need_timestamp) {
-                if(ipt->has_mts) {
-                        int64_t dCTS = ts_timestamp_diff(ipt->MTS, obj->lCTS, (int64_t)MTS_OVF);
+                /* calc CTS */
+                if(ipt->has_ats) {
+                        int64_t dCTS;
+
+                        dCTS = ts_timestamp_diff(ipt->ATS, obj->lATS, (int64_t)ATS_OVF);
+
+                        if(STC_OVF != obj->CTS) {
+                                obj->CTS = ts_timestamp_add(obj->CTS, dCTS, STC_OVF);
+                        }
+                        else {
+                                obj->CTS = ts_timestamp_add(0L, dCTS, STC_OVF);
+                        }
 
                         if(STC_OVF != obj->STC) {
                                 obj->STC = ts_timestamp_add(obj->STC, dCTS, STC_OVF);
@@ -674,61 +684,50 @@ int ts_parse_tsh(struct ts_obj *obj)
                         else {
                                 obj->STC = ts_timestamp_add(0L, dCTS, STC_OVF);
                         }
-                        obj->lCTS = ipt->MTS; /* record last CTS */
 
-                        if(ipt->has_cts) {
-                                obj->CTS = ipt->CTS;
-                        }
-                        else {
-                                obj->CTS = obj->STC;
+                        obj->lATS = ipt->ATS; /* record as last ATS for calc next dCTS */
+                }
+                else if(ipt->has_cts) {
+                        obj->CTS = ipt->CTS;
+                }
+                else { /* according to obj->prog0 */
+                        struct ts_prog *prog = obj->prog0; /* may be NULL */
+
+                        if(prog && (prog->is_STC_sync) && (prog->PCRa != prog->PCRb)) {
+                                long double delta;
+
+                                /* CTSx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (obj->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                obj->CTS = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
                 }
-                else {
-                        struct ts_prog *prog; /* may be NULL */
+                obj->CTS_base = obj->CTS / 300;
+                obj->CTS_ext = obj->CTS % 300;
 
-                        /* STC: according to pid->prog */
-                        if(pid && pid->prog) {
-                                prog = pid->prog;
-                                if((prog->is_STC_sync) &&
-                                   (prog->PCRa != prog->PCRb)) {
-                                        long double delta;
+                /* calc STC */
+                if(ipt->has_ats) {
+                }
+                else if(pid) { /* according to pid->prog */
+                        struct ts_prog *prog = pid->prog; /* may be NULL */
 
-                                        /* STCx - PCRb   ADDx - ADDb */
-                                        /* ----------- = ----------- */
-                                        /* PCRb - PCRa   ADDb - ADDa */
-                                        delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                        delta *= (obj->ADDR - prog->ADDb);
-                                        delta /= (prog->ADDb - prog->ADDa);
-                                        obj->STC = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
-                                }
-                        }
+                        if(prog && (prog->is_STC_sync) && (prog->PCRa != prog->PCRb)) {
+                                long double delta;
 
-                        /* CTS: according to prog0 */
-                        if(ipt->has_cts) {
-                                obj->CTS = ipt->CTS;
-                        }
-                        else {
-                                if(obj->prog0) {
-                                        prog = obj->prog0;
-                                        if((prog->is_STC_sync) &&
-                                           (prog->PCRa != prog->PCRb)) {
-                                                long double delta;
-
-                                                /* CTSx - PCRb   ADDx - ADDb */
-                                                /* ----------- = ----------- */
-                                                /* PCRb - PCRa   ADDb - ADDa */
-                                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                                delta *= (obj->ADDR - prog->ADDb);
-                                                delta /= (prog->ADDb - prog->ADDa);
-                                                obj->CTS = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
-                                        }
-                                }
+                                /* STCx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (obj->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                obj->STC = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
                 }
                 obj->STC_base = obj->STC / 300;
                 obj->STC_ext = obj->STC % 300;
-                obj->CTS_base = obj->CTS / 300;
-                obj->CTS_ext = obj->CTS % 300;
         }
 
         /* statistic */
@@ -989,7 +988,7 @@ static int state_next_pkt(struct ts_obj *obj)
                         if(!prog->is_STC_sync) {
                                 int is_first_count_clear = 0;
 
-                                if(obj->ipt.has_mts) {
+                                if(obj->ipt.has_ats) {
                                         /* clear count after 1st PCR */
                                         is_first_count_clear = 1;
 
@@ -1033,7 +1032,8 @@ static int state_next_pkt(struct ts_obj *obj)
 
                                         obj->last_interval = 0;
                                         obj->interval = 0;
-                                        obj->CTS = obj->PCR;
+
+                                        obj->CTS = obj->STC;
                                         obj->CTS0 = obj->CTS;
                                 }
                         }
@@ -1066,6 +1066,7 @@ static int state_next_pkt(struct ts_obj *obj)
 
                         obj->last_interval = obj->interval;
                         obj->interval = 0;
+
                         obj->CTS0 = obj->CTS;
 
                         obj->has_rate = 1;

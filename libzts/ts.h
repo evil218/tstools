@@ -53,10 +53,10 @@ extern "C" {
 #define STC_1S  (27 * 1000 * 1000)   /* do NOT use 1e3  */
 #define STC_OVF (STC_BASE_OVF * 300) /* 2576980377600 */
 
-#define MTS_US  (27)               /* 27 clk == 1(us) */
-#define MTS_MS  (27 * 1000)        /* do NOT use 1e3  */
-#define MTS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
-#define MTS_OVF (1<<30)            /* 0x40000000 */
+#define ATS_US  (27)               /* 27 clk == 1(us) */
+#define ATS_MS  (27 * 1000)        /* do NOT use 1e3  */
+#define ATS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
+#define ATS_OVF (1<<30)            /* 0x40000000 */
 
 #define TS_PKT_SIZE (188)
 #define INFO_LEN_MAX (1<<10) /* uint10_t, max length of es_info or program_info */
@@ -410,14 +410,14 @@ struct ts_ipt {
         uint8_t TS[TS_PKT_SIZE]; /* TS data */
         uint8_t RS[16]; /* RS data */
         int64_t ADDR; /* address of sync-byte(unit: byte) */
-        int64_t MTS; /* MTS Time Stamp */
-        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
+        int64_t ATS; /* arrive timestamp, SONY style */
+        int64_t CTS; /* receive timestamp */
 
         /* 0 means corresponding data can not be used */
         int has_ts; /* data in TS[] is OK */
         int has_rs; /* data in RS[] is OK */
         int has_addr; /* data of ADDR is OK */
-        int has_mts; /* data of MTS is OK */
+        int has_ats; /* data of ATS is OK */
         int has_cts; /* data of CTS is OK */
 };
 
@@ -439,14 +439,14 @@ struct ts_obj {
         struct ts_cfg cfg; /* config */
 
         /* CTS */
-        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
+        int64_t CTS; /* according to clock of real time, MUX or prog0->PCR */
         int64_t CTS_base;
         int64_t CTS_ext;
-        int64_t lCTS; /* for calc dCTS in MTS mode */
+        int64_t lATS; /* last ATS: for calc dCTS(for CTS) in ATS mode */
         int64_t CTS0; /* start time of each statistic interval */
 
         /* STC */
-        int64_t STC; /* timestamp according to its PCR or the PCR of prog0 */
+        int64_t STC; /* timestamp according to prog->PCR(or prog0->PCR if pkt has no prog) */
         int64_t STC_base;
         int16_t STC_ext;
 

@@ -3,13 +3,13 @@ Content-type: text/html
 <HTML><HEAD><TITLE>Manpage of TOIP</TITLE>
 </HEAD><BODY>
 <H1>TOIP</H1>
-Section: User Commands (1)<BR>Updated: March 2013<BR><A HREF="#index">Index</A>
+Section: User Commands (1)<BR>Updated: January 2014<BR><A HREF="#index">Index</A>
 <A HREF="http://localhost/cgi-bin/man/man2html">Return to Main Contents</A><HR>
 
 <A NAME="lbAB">&nbsp;</A>
 <H2>NAME</H2>
 
-toip - manual page for toip of tstools v1.0.260m 0af9a674
+toip - manual page for toip of tstools v1.1.387 (387m 0fe0e32d)
 <A NAME="lbAC">&nbsp;</A>
 <H2>SYNOPSIS</H2>
 
@@ -19,7 +19,7 @@ toip - manual page for toip of tstools v1.0.260m 0af9a674
 <A NAME="lbAD">&nbsp;</A>
 <H2>DESCRIPTION</H2>
 
-'toip' read from stdin, convert to UDP, send to IP according to MTS.
+'toip' read from stdin, convert to UDP, send to IP according to ATS.
 <A NAME="lbAE">&nbsp;</A>
 <H2>OPTIONS</H2>
 
@@ -36,8 +36,10 @@ print my version only
 <DL COMPACT>
 <DT><DD>
 catts *.mts | toip <A HREF="udp://@:1234">udp://@:1234</A>
+<DT><DD>
 catts *.mts | toip <A HREF="udp://@224.165.54.210:1234">udp://@224.165.54.210:1234</A>
-catts *.ts | tsana -ts -mts | toip <A HREF="udp://@:1234">udp://@:1234</A>
+<DT><DD>
+catts *.ts | tsana -ts -ats | toip <A HREF="udp://@:1234">udp://@:1234</A>
 </DL>
 <A NAME="lbAG">&nbsp;</A>
 <H2>AUTHOR</H2>
@@ -51,7 +53,7 @@ Report bugs to &lt;<A HREF="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua
 
 <BR>
 
-Build time: Mar 27 2013 11:43:32
+Build time: Jan 12 2014 19:11:09
 <A NAME="lbAI">&nbsp;</A>
 <H2>COPYRIGHT</H2>
 
@@ -102,6 +104,6 @@ should give you access to the complete manual.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 04:10:38 GMT, March 27, 2013
+Time: 11:13:38 GMT, January 12, 2014
 </BODY>
 </HTML>

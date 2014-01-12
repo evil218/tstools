@@ -30,13 +30,13 @@ static int type = FILE_TS;
 static intmax_t aim_start = 0; /* first byte */
 static intmax_t aim_stop = 0; /* last byte */
 static int64_t pkt_addr = 0;
-static int32_t pkt_mts = 0;
+static int32_t pkt_ats = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static int show_help();
 static int show_version();
 static int judge_type();
-static int mts_time(int32_t *mts, uint8_t *bin);
+static int ats_time(int32_t *ats, uint8_t *bin);
 
 int main(int argc, char *argv[])
 {
@@ -82,8 +82,8 @@ int main(int argc, char *argv[])
 
                                 fprintf(stdout, "*addr, %"PRIX64", ", pkt_addr);
 
-                                mts_time(&pkt_mts, bbuf);
-                                fprintf(stdout, "*mts, %"PRIX32", \n", pkt_mts);
+                                ats_time(&pkt_ats, bbuf);
+                                fprintf(stdout, "*ats, %"PRIX32", \n", pkt_ats);
                                 break;
                         case FILE_TSRS:
                                 if(0x47 != bbuf[0]) {
@@ -390,14 +390,14 @@ static int judge_type()
         return 0;
 }
 
-static int mts_time(int32_t *mts, uint8_t *bin)
+static int ats_time(int32_t *ats, uint8_t *bin)
 {
         int i;
 
-        *mts = 0;
+        *ats = 0;
         for(i = 0; i < 4; i++) {
-                *mts <<= 8;
-                *mts |= *bin++;
+                *ats <<= 8;
+                *ats |= *bin++;
         }
 
         return 0;

@@ -680,12 +680,12 @@ Unix的小工具思想太强大了！</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
-对于TS文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
+对于ts文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
 </p>
 </li>
 <li>
 <p>
-对于MTS文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
+对于mts/m2ts文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
 </p>
 </li>
 <li>
@@ -789,18 +789,11 @@ cellspacing="0" cellpadding="4">
 <td align="left" valign="top"><p class="table">包头距第1包头的字节数</p></td>
 </tr>
 <tr>
-<td align="left" valign="top"><p class="table">tpeh</p></td>
-<td align="left" valign="top"><p class="table">CPI与ATS</p></td>
-<td align="left" valign="top"><p class="table">无符号整数</p></td>
-<td align="left" valign="top"><p class="table"></p></td>
-<td align="left" valign="top"><p class="table">4-byte，拷贝许可与到达时间戳(BlurayDisc)</p></td>
-</tr>
-<tr>
 <td align="left" valign="top"><p class="table">ats</p></td>
 <td align="left" valign="top"><p class="table">ATS计数值</p></td>
 <td align="left" valign="top"><p class="table">无符号整数</p></td>
 <td align="left" valign="top"><p class="table">(1/27M)秒</p></td>
-<td align="left" valign="top"><p class="table">到达时间戳，满0x40000000溢出回0</p></td>
+<td align="left" valign="top"><p class="table">到达时间戳，满0x40000000溢出回0(BlurayDisc)</p></td>
 </tr>
 <tr>
 <td align="left" valign="top"><p class="table">cts</p></td>
@@ -904,10 +897,10 @@ cellspacing="0" cellpadding="4">
 对于文件，通过地址可以定位数据，找到错误发生的位置；
 对于网络等实时流，地址反映了已分析的数据总量。
 在传输pes、es片段的场合可以没有地址信息。</p></div>
-<div class="paragraph"><p>时间戳（mts, stc）反映了包的到达（或发送）时间。
-对于MTS文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
+<div class="paragraph"><p>时间戳（ats, stc）反映了包的到达（或发送）时间。
+对于mts/m2ts文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
 对于其它没有时间戳的源，分析模块内部会基于码率恒定的假设计算出每个包的STC。
-mts时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
+ats时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
 接收模块内部根据PCR信息和这个时间戳恢复出STC，所有与时间相关的计算都是基于STC进行的。</p></div>
 </div>
 </div>
@@ -959,7 +952,7 @@ toip
 </dt>
 <dd>
 <p>
-<a href="toip.html">从stdin接收TXT格式的数据(需要MTS信息)，转换成二进制，打成UDP包，按照正确的码率发送出去</a>
+<a href="toip.html">从stdin接收TXT格式的数据(需要ATS信息)，转换成二进制，打成UDP包，按照正确的码率发送出去</a>
 </p>
 </dd>
 </dl></div>
@@ -1334,7 +1327,7 @@ PCR
 <div id="footer">
 <div id="footer-text">
 Version 1.0<br />
-Last updated 2014-01-11 17:57:33 CST
+Last updated 2014-01-12 15:45:16 CST
 </div>
 </div>
 </body>
