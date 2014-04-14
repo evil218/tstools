@@ -128,6 +128,7 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0x1C, TS_TYPE_AUD, "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS"},
         {0x1D, TS_TYPE_USR, "MPEG-4", "ISO/IEC 14496-17 Text"},
         {0x1E, TS_TYPE_VID, "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3"},
+        {0x24, TS_TYPE_VID, "H.265", "HEVC(High Efficiency Video Coding)"},
         {0x42, TS_TYPE_VID, "AVS", "Advanced Video Standard"},
         {0x7F, TS_TYPE_USR, "IPMP", "IPMP stream"},
         {0x80, TS_TYPE_VID, "SVAC|LPCM", "SVAC, LPCM of ATSC"},
