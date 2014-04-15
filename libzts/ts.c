@@ -349,15 +349,10 @@ static void tidy(struct ts_obj *obj)
 
         /* add PAT pid */
         if(obj->prog0) {
+                memset(&new_pid, 0, sizeof(struct ts_pid));
                 new_pid.PID = 0x0000;
                 new_pid.type = TS_TYPE_PAT;
                 new_pid.prog = obj->prog0;
-                new_pid.elem = NULL;
-                new_pid.cnt = 0;
-                new_pid.lcnt = 0;
-                new_pid.cnt_es = 0;
-                new_pid.lcnt_es = 0;
-                new_pid.is_CC_sync = 0;
                 (void)update_pid_list(obj, &new_pid);
                 RPTINF("add pat pid: 0x%04X", (unsigned int)(new_pid.PID));
         }
@@ -374,28 +369,18 @@ static void tidy(struct ts_obj *obj)
                 prog->is_STC_sync = 0;
 
                 /* add PMT pid */
+                memset(&new_pid, 0, sizeof(struct ts_pid));
                 new_pid.PID = prog->PMT_PID;
                 new_pid.type = TS_TYPE_PMT;
                 new_pid.prog = prog;
-                new_pid.elem = NULL;
-                new_pid.cnt = 0;
-                new_pid.lcnt = 0;
-                new_pid.cnt_es = 0;
-                new_pid.lcnt_es = 0;
-                new_pid.is_CC_sync = 0;
                 (void)update_pid_list(obj, &new_pid);
                 RPTINF("add pmt pid: 0x%04X", (unsigned int)(new_pid.PID));
 
                 /* add PCR pid */
+                memset(&new_pid, 0, sizeof(struct ts_pid));
                 new_pid.PID = prog->PCR_PID;
                 new_pid.type = ((0x1FFF != new_pid.PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
                 new_pid.prog = prog;
-                new_pid.elem = NULL;
-                new_pid.cnt = 0;
-                new_pid.lcnt = 0;
-                new_pid.cnt_es = 0;
-                new_pid.lcnt_es = 0;
-                new_pid.is_CC_sync = 0;
                 (void)update_pid_list(obj, &new_pid);
                 RPTINF("add pcr pid: 0x%04X", (unsigned int)(new_pid.PID));
 
@@ -408,15 +393,11 @@ static void tidy(struct ts_obj *obj)
                         elem->is_pes_align = 0;
 
                         /* add elem pid */
+                        memset(&new_pid, 0, sizeof(struct ts_pid));
                         new_pid.PID = elem->PID;
                         new_pid.type = elem->type;
                         new_pid.prog = prog;
                         new_pid.elem = elem;
-                        new_pid.cnt = 0;
-                        new_pid.lcnt = 0;
-                        new_pid.cnt_es = 0;
-                        new_pid.lcnt_es = 0;
-                        new_pid.is_CC_sync = 0;
                         (void)update_pid_list(obj, &new_pid);
                         RPTINF("add elem pid: 0x%04X", (unsigned int)(new_pid.PID));
                 }
@@ -641,21 +622,14 @@ int ts_parse_tsh(struct ts_obj *obj)
                 struct ts_pid ts_pid, *new_pid = &ts_pid;
 
                 /* meet new PID, add it in pid_list */
+                memset(new_pid, 0, sizeof(struct ts_pid));
                 new_pid->PID = obj->PID;
                 new_pid->type = pid_type(new_pid->PID);
                 if((obj->prog0) &&
                    (new_pid->PID < 0x0020 || new_pid->PID == 0x1FFF)) {
                         new_pid->prog = obj->prog0;
                 }
-                else {
-                        new_pid->prog = NULL;
-                }
-                new_pid->elem = NULL;
                 new_pid->cnt = 1;
-                new_pid->lcnt = 0;
-                new_pid->cnt_es = 0;
-                new_pid->lcnt_es = 0;
-                new_pid->is_CC_sync = 0;
 
                 obj->pid = update_pid_list(obj, new_pid);
                 if(!(obj->pid)) {
@@ -1790,6 +1764,8 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         obj->has_got_transport_stream_id = 1;
 
         while(cur < crc) {
+                memset(new_pid, 0, sizeof(struct ts_pid));
+
                 /* add program */
                 prog = (struct ts_prog *)buddy_malloc(obj->mp, sizeof(struct ts_prog));
                 if(!prog) {
@@ -1884,14 +1860,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
                         }
                 }
 
-                new_pid->cnt = 0;
-                new_pid->lcnt = 0;
-                new_pid->cnt_es = 0;
-                new_pid->lcnt_es = 0;
                 new_pid->prog = prog;
-                new_pid->elem = NULL;
-                new_pid->CC = 0;
-                new_pid->is_CC_sync = 0;
                 (void)update_pid_list(obj, new_pid); /* NIT or PMT PID */
         }
 
@@ -1938,16 +1907,9 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
                         CA_PID <<= 8;
                         CA_PID |= dat;
 
+                        memset(new_pid, 0, sizeof(struct ts_pid));
                         new_pid->PID = CA_PID;
-                        new_pid->cnt = 0;
-                        new_pid->lcnt = 0;
-                        new_pid->cnt_es = 0;
-                        new_pid->lcnt_es = 0;
-                        new_pid->prog = NULL;
-                        new_pid->elem = NULL;
                         new_pid->type = TS_TYPE_EMM;
-                        new_pid->CC = 0;
-                        new_pid->is_CC_sync = 0;
                         RPTINF("add EMM_PID(0x%04X)", (unsigned int)CA_PID);
                         (void)update_pid_list(obj, new_pid);
 
@@ -2074,16 +2036,10 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                         CA_PID |= dat;
 
                         /* ECM PID */
+                        memset(new_pid, 0, sizeof(struct ts_pid));
                         new_pid->PID = CA_PID;
-                        new_pid->cnt = 0;
-                        new_pid->lcnt = 0;
-                        new_pid->cnt_es = 0;
-                        new_pid->lcnt_es = 0;
                         new_pid->prog = prog;
-                        new_pid->elem = NULL;
                         new_pid->type = TS_TYPE_ECM;
-                        new_pid->CC = 0;
-                        new_pid->is_CC_sync = 0;
                         RPTINF("add ECM_PID(0x%04X)", (unsigned int)(CA_PID));
                         (void)update_pid_list(obj, new_pid);
 
@@ -2106,15 +2062,10 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         }
 
         /* add PCR PID */
+        memset(new_pid, 0, sizeof(struct ts_pid));
         new_pid->PID = prog->PCR_PID;
-        new_pid->cnt = 0;
-        new_pid->lcnt = 0;
-        new_pid->cnt_es = 0;
-        new_pid->lcnt_es = 0;
         new_pid->prog = prog;
-        new_pid->elem = NULL;
         new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
-        new_pid->CC = 0;
         new_pid->is_CC_sync = 1;
         (void)update_pid_list(obj, new_pid); /* PCR_PID */
 
@@ -2177,16 +2128,11 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                 zlst_push((zhead_t *)&(prog->elem0), elem);
 
                 /* add elementary PID */
+                memset(new_pid, 0, sizeof(struct ts_pid));
                 new_pid->PID = elem->PID;
-                new_pid->cnt = 0;
-                new_pid->lcnt = 0;
-                new_pid->cnt_es = 0;
-                new_pid->lcnt_es = 0;
                 new_pid->prog = prog;
                 new_pid->elem = elem;
                 new_pid->type = elem->type;
-                new_pid->CC = 0;
-                new_pid->is_CC_sync = 0;
                 (void)update_pid_list(obj, new_pid); /* elementary_PID */
 
                 next = cur + elem->es_info_len;
@@ -2222,16 +2168,11 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                                 CA_PID |= dat;
 
                                 /* ECM PID */
+                                memset(new_pid, 0, sizeof(struct ts_pid));
                                 new_pid->PID = CA_PID;
-                                new_pid->cnt = 0;
-                                new_pid->lcnt = 0;
-                                new_pid->cnt_es = 0;
-                                new_pid->lcnt_es = 0;
                                 new_pid->prog = prog;
                                 new_pid->elem = elem;
                                 new_pid->type = TS_TYPE_ECM;
-                                new_pid->CC = 0;
-                                new_pid->is_CC_sync = 0;
                                 RPTINF("add ECM_PID(0x%04X)", (unsigned int)(CA_PID));
                                 (void)update_pid_list(obj, new_pid);
 
