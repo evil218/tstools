@@ -167,6 +167,7 @@ struct aim {
         int pesh;
         int pes;
         int es;
+        int ess; /* ES size of last PES packet */
         int sec;
         int si;
         int rate;
@@ -276,6 +277,7 @@ static void show_af(struct tsana_obj *obj);
 static void show_pesh(struct tsana_obj *obj);
 static void show_pes(struct tsana_obj *obj);
 static void show_es(struct tsana_obj *obj);
+static void show_ess(struct tsana_obj *obj);
 static void show_sec(struct tsana_obj *obj);
 static void show_si(struct tsana_obj *obj);
 static void show_rate(struct tsana_obj *obj);
@@ -411,6 +413,7 @@ static int state_parse_each(struct tsana_obj *obj)
            obj->aim.pesh        ||
            obj->aim.pes         ||
            obj->aim.es          ||
+           obj->aim.ess         ||
            obj->aim.err) {
                 /* filter: PID */
                 if(ANY_PID != obj->aim_pid &&
@@ -472,6 +475,9 @@ static int state_parse_each(struct tsana_obj *obj)
         if(obj->aim.es && ts->ES_len) {
                 has_report = 1;
         }
+        if(obj->aim.ess && ts->has_ess) {
+                has_report = 1;
+        }
         if(obj->aim.sec && ts->sect) {
                 has_report = 1;
         }
@@ -530,6 +536,9 @@ static int state_parse_each(struct tsana_obj *obj)
         }
         if(obj->aim.es && ts->ES_len) {
                 show_es(obj);
+        }
+        if(obj->aim.ess && ts->has_ess) {
+                show_ess(obj);
         }
         if(obj->aim.sec && ts->sect) {
                 show_sec(obj);
@@ -689,6 +698,10 @@ static struct tsana_obj *create(int argc, char *argv[])
                         }
                         else if(0 == strcmp(argv[i], "-es")) {
                                 obj->aim.es = 1;
+                                obj->mode = MODE_ALL;
+                        }
+                        else if(0 == strcmp(argv[i], "-ess")) {
+                                obj->aim.ess = 1;
                                 obj->mode = MODE_ALL;
                         }
                         else if(0 == strcmp(argv[i], "-sec")) {
@@ -1008,8 +1021,9 @@ static void show_help()
                 " -ts              \"*ts, 47, ..., xx, \"\n"
                 " -af              \"*af, xx, ..., xx, \"\n"
                 " -pesh            \"*pesh, xx, ..., xx, \"\n"
-                " -pes             \"*pes, xx, ..., xx, \"\n"
-                " -es              \"*es, xx, ..., xx, \"\n"
+                " -pes             \"*pes, xx, ..., xx, \", PES fragment in this TS packet\n"
+                " -es              \"*es, xx, ..., xx, \", ES fragment in this TS packet\n"
+                " -ess             \"*ess, xxx, \", ES size of last PES packet\n"
                 " -sec             \"*sec, interval(ms), head, body, \"\n"
                 " -si              \"*si, interval(ms), head, information of body, \"\n"
                 " -rate            \"*rate, interval(ms), PID, rate, [es_rate, ]..., PID, rate, [es_rate, ]\"\n"
@@ -1602,6 +1616,17 @@ static void show_es(struct tsana_obj *obj)
                 obj->color_green, obj->color_off);
         b2t(str, ts->ES, ts->ES_len);
         fprintf(stdout, "%s", str);
+        return;
+}
+
+static void show_ess(struct tsana_obj *obj)
+{
+        struct ts_obj *ts = obj->ts;
+        struct ts_pid *pid = ts->pid;
+
+        fprintf(stdout, "%s*ess%s, %u, ",
+                obj->color_green, obj->color_off,
+                pid->cnt_es_of_last_pes);
         return;
 }
 

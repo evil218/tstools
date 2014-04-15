@@ -393,6 +393,8 @@ struct ts_pid {
         uint32_t lcnt; /* packet received from PCRa to PCRb */
         uint32_t cnt_es; /* es byte received from last PCR */
         uint32_t lcnt_es; /* es byte received from PCRa to PCRb */
+        uint32_t cnt_es_from_pesh; /* es byte received from last PES head */
+        uint32_t cnt_es_of_last_pes; /* es byte received of last PES */
 
         /* only for PID with PSI/SI */
         /*@temp@*/
@@ -537,6 +539,8 @@ struct ts_obj {
         int64_t last_sys_cnt; /* system packet count from PCRa to PCRb */
         int64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
         int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
+
+        int has_ess; /* es size of last PES packet ready */
 
         /* for CAT_error */
         int has_scrambling; /* meet PID with scrambling */

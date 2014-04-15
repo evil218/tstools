@@ -576,6 +576,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         obj->is_psi_si = 0; /* not PSI/SI */
         obj->sect = NULL; /* not an end of a section */
         obj->has_rate = 0; /* not a new rate calculate peroid */
+        obj->has_ess = 0; /* not a new PES head */
 
         /* begin */
         dat = *(obj->cur)++;
@@ -739,6 +740,14 @@ int ts_parse_tsh(struct ts_obj *obj)
                 if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
                         obj->psi_cnt++;
                         obj->is_psi_si = 1;
+                }
+        }
+        if(tsh->payload_unit_start_indicator) {
+                pid->cnt_es_of_last_pes = pid->cnt_es_from_pesh;
+                pid->cnt_es_from_pesh = 0;
+
+                if(0 != pid->cnt_es_of_last_pes) {
+                        obj->has_ess = 1;
                 }
         }
 
@@ -2462,6 +2471,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                         obj->ES_len = obj->tail - obj->cur;
                         obj->ES = obj->cur;
                         pid->cnt_es += obj->ES_len;
+                        pid->cnt_es_from_pesh += obj->ES_len;
                 }
                 else {
                         /* ignore these ES data */
@@ -2471,6 +2481,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 obj->ES_len = obj->tail - obj->cur;
                 obj->ES = obj->cur;
                 pid->cnt_es += obj->ES_len;
+                pid->cnt_es_from_pesh += obj->ES_len;
         }
 
         return 0;
