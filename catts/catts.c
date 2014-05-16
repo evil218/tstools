@@ -142,7 +142,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                         RPTERR("no parameter for 'start'!\n");
                                         return -1;
                                 }
-                                sscanf(argv[i], "%ji" , &dat);
+                                sscanf(argv[i], "%"SCNiMAX, &dat);
                                 if(0 < dat) {
                                         aim_start = (intmax_t)dat;
                                 }
@@ -157,7 +157,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                         RPTERR("no parameter for 'stop'!\n");
                                         return -1;
                                 }
-                                sscanf(argv[i], "%ji" , &dat);
+                                sscanf(argv[i], "%"SCNiMAX, &dat);
                                 if(0 < dat) {
                                         aim_stop = (intmax_t)dat;
                                 }
@@ -172,7 +172,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                         RPTERR("no parameter for 'width'!\n");
                                         return -1;
                                 }
-                                sscanf(argv[i], "%ji" , &dat);
+                                sscanf(argv[i], "%"SCNiMAX, &dat);
                                 if(0 < dat && dat < (LINE_LENGTH_MAX / 3)) {
                                         npline = (int)dat;
                                 }

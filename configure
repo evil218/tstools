@@ -229,7 +229,7 @@ SRCPATH="$(cd $(dirname $0); pwd)"
 [ -n "$(echo $SRCPATH | grep ' ')" ] && die "Out of tree builds are impossible with whitespace in source path."
 [ -e "$SRCPATH/config.h" -o -e "$SRCPATH/tstool_config.h" ] && die "Out of tree builds are impossible with config.h/tstool_config.h in source dir."
 
-prefix='/usr/local'
+# prefix='/usr/local'
 exec_prefix='${prefix}'
 bindir='${exec_prefix}/bin'
 libdir='${exec_prefix}/lib'
@@ -430,6 +430,7 @@ case $host_os in
         EXE=".exe"
         DEVNULL="NUL"
         [ $compiler = ICL ] && RC="${RC-rc}" || RC="${RC-${cross_prefix}windres}"
+        prefix='/mingw'
         ;;
     sunos*|solaris*)
         SYS="SunOS"

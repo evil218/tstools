@@ -33,6 +33,7 @@
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 /* for SUPPORT_LONG_DOUBLE */
+#if 0
 #ifdef DBL_DIG
 #ifdef LDBL_DIG
 #if DBL_DIG != LDBL_DIG /* in system like VxWorks5.5, "double" is equal to "long double" */
@@ -51,6 +52,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #endif
 #else
 #pragma message("no DBL_DIG, param_xml will NOT support long double")
+#endif
 #endif
 
 #if 1

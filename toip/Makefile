@@ -21,5 +21,8 @@ CFLAGS += $(INCDIRS)
 
 LDFLAGS += -L../libzutil -lzutil
 LDFLAGS += -L../libzts -lzts
+ifeq ($(SYS),WINDOWS)
+LDFLAGS += -lws2_32
+endif
 
 include ../common.mak

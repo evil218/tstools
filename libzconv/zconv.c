@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdint.h> /* for uint?_t, etc */
+#include <sys/types.h> /* for ssize_t, etc */
 
 #include "zconv.h"
 
