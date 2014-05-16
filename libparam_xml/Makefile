@@ -19,6 +19,7 @@ INCDIRS := -I. -I..
 INCDIRS += -I../libzlst
 INCDIRS += -I/usr/include/libxml2
 CFLAGS += $(INCDIRS)
+CFLAGS += -D_PARAM_XML_EXPORT
 
 LDFLAGS += -L../libzlst -lzlst
 

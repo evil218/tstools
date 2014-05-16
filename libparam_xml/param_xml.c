@@ -33,7 +33,6 @@
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
 /* for SUPPORT_LONG_DOUBLE */
-#if 0
 #ifdef DBL_DIG
 #ifdef LDBL_DIG
 #if DBL_DIG != LDBL_DIG /* in system like VxWorks5.5, "double" is equal to "long double" */
@@ -52,7 +51,6 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 #endif
 #else
 #pragma message("no DBL_DIG, param_xml will NOT support long double")
-#endif
 #endif
 
 #if 1
@@ -178,7 +176,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
 static int node2stru(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int *idx);
 
 /* module interface */
-int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
+DLL_SPEC int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
         struct pdesc *cur_pdesc;
 
@@ -198,7 +196,7 @@ int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
         return 0;
 }
 
-int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
+DLL_SPEC int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
         xmlNode *sub_xnode;
         struct pdesc *cur_pdesc;
