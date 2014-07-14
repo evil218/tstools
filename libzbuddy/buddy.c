@@ -182,7 +182,7 @@ void *buddy_malloc(void *id, size_t size)
         return (p->pool + offset);
 }
 
-void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test */
+void *buddy_xalloc(void *id, void *ptr, size_t size)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
         size_t old_offset;
@@ -194,43 +194,54 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         uint8_t *rslt;
 
         if(NULL == p) {
-                RPTERR("realloc: bad id");
-                return NULL;
-        }
-        if(NULL == ptr) {
-                RPTERR("realloc: bad ptr");
+                RPTERR("xalloc: bad id");
                 return NULL;
         }
         if(0 == size) {
-                RPTERR("realloc: bad size: 0");
+                RPTERR("xalloc: bad size: 0");
                 return NULL;
+        }
+        if(NULL == ptr) {
+                /* determine aim order in tree */
+                new_order = MAX(smallest_order(size), p->mino);
+                if((size_t)(p->tree[0]) < new_order) {
+                        RPTERR("malloc: not enough space in pool");
+                        return NULL;
+                }
+
+                ni = order2index(p, new_order, &new_offset);
+                allocate_node(p, ni); /* modify parent node */
+                RPTDBG("malloc:  @ 0x%zX, space: 0x%zX, size: 0x%zX",
+                       new_offset, (size_t)1 << new_order, size);
+
+                return (p->pool + new_offset);
         }
 
         /* determine old_offset */
         if((uint8_t *)ptr < p->pool) {
-                RPTERR("realloc: bad ptr: %p(%p + %zu), before pool", ptr, p->pool, p->pool_size);
+                RPTERR("xalloc: bad ptr: %p(%p + %zu), before pool", ptr, p->pool, p->pool_size);
                 return NULL;
         }
         old_offset = (size_t)((uint8_t *)ptr - p->pool); /* FIXME: Assignment of int to size_t */
         if(old_offset >= p->pool_size) {
-                RPTERR("realloc: bad ptr: %p(%p + %zu), after pool", ptr, p->pool, p->pool_size);
+                RPTERR("xalloc: bad ptr: %p(%p + %zu), after pool", ptr, p->pool, p->pool_size);
                 return NULL;
         }
 
         oi = offset2index(p, old_offset, &old_order);
         if(oi == p->tree_size) {
-                RPTERR("realloc: bad ptr: %p, illegal node or module bug", ptr);
+                RPTERR("xalloc: bad ptr: %p, illegal node or module bug", ptr);
                 return NULL;
         }
 
         /* determine new_order in tree */
         new_order = MAX(smallest_order(size), p->mino);
         if((size_t)(p->tree[0]) < new_order) {
-                RPTERR("realloc: not enough space in pool");
+                RPTERR("xalloc: not enough space in pool");
                 return NULL;
         }
 
-        /* maybe do not need to realloc */
+        /* maybe do not need to xalloc */
         if(new_order <= old_order) {
                 return ptr;
         }
@@ -240,7 +251,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
 
         ni = order2index(p, new_order, &new_offset);
         allocate_node(p, ni); /* modify parent node */
-        RPTDBG("realloc: @ 0x%zX, space: 0x%zX -> @ 0x%zX, space: 0x%zX, size: 0x%zX",
+        RPTDBG("xalloc: @ 0x%zX, space: 0x%zX -> @ 0x%zX, space: 0x%zX, size: 0x%zX",
                old_offset, (size_t)1 << old_order,
                new_offset, (size_t)1 << new_order, size);
 
@@ -249,6 +260,15 @@ void *buddy_realloc(void *id, void *ptr, size_t size) /* FIXME: need to be test 
         memmove(rslt, ptr, (size_t)1 << old_order); /* FIXME: splint prohibit using memcpy here */
 
         return rslt;
+}
+
+void *buddy_realloc(void *id, void *ptr, size_t size)
+{
+        if(NULL == ptr) {
+                RPTERR("realloc: bad ptr");
+                return NULL;
+        }
+        return buddy_xalloc(id, ptr, size);
 }
 
 void buddy_free(void *id, void *ptr)

@@ -36,7 +36,8 @@ int buddy_init(/*@null@*/ void *id); /* buddy_create() call buddy_init() interna
 int buddy_report(/*@null@*/ void *id, int level, const char *hint); /* for debug */
 
 /*@null@*/ /*@dependent@*/ void *buddy_malloc(/*@null@*/ void *id, size_t size);
-/*@null@*/ /*@dependent@*/ void *buddy_realloc(/*@null@*/ void *id, void *ptr, size_t size); /* FIXME: need to be test */
+/*@null@*/ /*@dependent@*/ void *buddy_xalloc(/*@null@*/ void *id, void *ptr, size_t size);
+/*@null@*/ /*@dependent@*/ void *buddy_realloc(/*@null@*/ void *id, void *ptr, size_t size);
 void buddy_free(/*@null@*/ void *id, /*@null@*/ /*@dependent@*/ void *ptr);
 
 #ifdef __cplusplus
