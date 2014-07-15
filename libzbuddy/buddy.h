@@ -32,7 +32,7 @@ extern "C" {
 
 /*@null@*/ /*@only@*/ void *buddy_create(int order_max, int order_min);
 int buddy_destroy(/*@null@*/ /*@only@*/ void *id);
-int buddy_init(/*@null@*/ void *id); /* buddy_create() call buddy_init() internally */
+int buddy_init(/*@null@*/ void *id); /* buddy_create() has buddy_init() function */
 int buddy_report(/*@null@*/ void *id, int level, const char *hint); /* for debug */
 
 /*@null@*/ /*@dependent@*/ void *buddy_malloc(/*@null@*/ void *id, size_t size);
