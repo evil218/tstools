@@ -20,6 +20,8 @@ INCDIRS += -I../libzlst
 CFLAGS += $(INCDIRS)
 
 LDFLAGS += -L../libzutil -lzutil
+LDFLAGS += -L../libzbuddy -lzbuddy
+LDFLAGS += -L../libzlst -lzlst
 LDFLAGS += -L../libzts -lzts
 ifeq ($(SYS),WINDOWS)
 LDFLAGS += -lws2_32

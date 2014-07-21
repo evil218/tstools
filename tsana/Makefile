@@ -23,11 +23,11 @@ INCDIRS += -I../libparam_xml
 INCDIRS += -I/usr/include/libxml2
 CFLAGS += $(INCDIRS)
 
-LDFLAGS += -L../libzconv -lzconv
 LDFLAGS += -L../libzutil -lzutil
 LDFLAGS += -L../libzbuddy -lzbuddy
 LDFLAGS += -L../libzlst -lzlst
 LDFLAGS += -L../libzts -lzts
+LDFLAGS += -L../libzconv -lzconv
 LDFLAGS += -L../libparam_xml -lparam_xml
 
 ifeq ($(ARCH),X86_64)
