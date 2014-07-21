@@ -18,6 +18,8 @@ HEADERS = buddy.h
 INCDIRS := -I. -I..
 CFLAGS += $(INCDIRS)
 
+LDFLAGS += -lpthread
+
 LINTFLAGS := -formatcode
 
 include ../common.mak

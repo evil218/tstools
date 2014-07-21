@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for memcpy */
-//#include <pthread.h>
+#include <pthread.h>
 #include <stdint.h> /* for uintN_t, etc */
 
 #include "buddy.h"
@@ -38,7 +38,7 @@ static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 /* note: if buddy_obj is OK, we trust tree and pool pointer below, and do not check them */
 struct buddy_obj
 {
-        //pthread_mutex_t mux;
+        pthread_mutex_t mux;
         uint8_t maxo; /* maximum order */
         uint8_t mino; /* minimum order */
         size_t tree_size; /* tree size */
@@ -53,16 +53,18 @@ struct buddy_obj
         size_t x;
 };
 
-struct inf {
+struct node {
         uint8_t order; /* value of binary tree node */
-        size_t index; /* index of binary tree array */
+        size_t size; /* POW2(order) */
         size_t offset; /* pointer offset from p->pool */
+        uint8_t *ptr; /* p->pool + offset, NULL means bad node */
+        size_t index; /* index of binary tree array */
 };
 
 static void report(struct buddy_obj *p, size_t i, uint8_t order, size_t *acc);
 static void init_tree(struct buddy_obj *p);
-static int size2inf(struct buddy_obj *p, size_t size, struct inf *inf);
-static int ptr2inf(struct buddy_obj *p, uint8_t *ptr, struct inf *inf);
+static int siz2nod(struct buddy_obj *p, size_t size, struct node *nod);
+static int ptr2nod(struct buddy_obj *p, uint8_t *ptr, struct node *nod);
 static void allocate_node(struct buddy_obj *p, size_t i);
 static void free_node(struct buddy_obj *p, size_t i, uint8_t order);
 
@@ -104,8 +106,10 @@ void *buddy_create(int maxo, int mino)
         RPTDBG("create: pool: 0x%zX-byte @ %p, min space: 0x%zX",
                p->pool_size, p->pool, POW2(p->mino));
 
-        //(void)pthread_mutex_init(&p->mux, NULL);
+        (void)pthread_mutex_init(&p->mux, NULL);
+        (void)pthread_mutex_lock(&p->mux);
         init_tree(p); /* FIXME: tree and pool is OK now, why splint warning me here? */
+        (void)pthread_mutex_unlock(&p->mux);
         return p;
 }
 
@@ -118,10 +122,10 @@ int buddy_destroy(void *id)
                 return -1;
         }
 
-        //(void)pthread_mutex_lock(&p->mux);
+        (void)pthread_mutex_lock(&p->mux);
         free(p->tree);
         free(p->pool);
-        //(void)pthread_mutex_destroy(&p->mux);
+        (void)pthread_mutex_destroy(&p->mux);
         free(p);
         return 0;
 }
@@ -135,9 +139,9 @@ int buddy_init(void *id)
                 return -1;
         }
 
-        //(void)pthread_mutex_lock(&p->mux);
+        (void)pthread_mutex_lock(&p->mux);
         init_tree(p);
-        //(void)pthread_mutex_unlock(&p->mux);
+        (void)pthread_mutex_unlock(&p->mux);
         return 0;
 }
 
@@ -155,16 +159,15 @@ int buddy_report(void *id, int level, const char *hint)
                 return -1;
         }
 
-        //(void)pthread_mutex_lock(&p->mux);
+        (void)pthread_mutex_lock(&p->mux);
         p->level = level;
-
         acc = 0;
         report(p, 0, p->maxo, &acc);
+        (void)pthread_mutex_unlock(&p->mux);
 
         fprintf(stderr, "%s", (BUDDY_REPORT_TOTAL == level && 0 != acc) ? "\n" : "");
         fprintf(stderr, "buddy: (%zu / %zu) used: %s\n",
-                acc, POW2(p->maxo), ((NULL == hint) ? "" : hint));
-        //(void)pthread_mutex_unlock(&p->mux);
+                acc, p->pool_size, ((NULL == hint) ? "" : hint));
         return 0;
 }
 
@@ -175,7 +178,7 @@ int buddy_report(void *id, int level, const char *hint)
 void *buddy_malloc(void *id, size_t size)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
-        struct inf new;
+        struct node new;
 
         if(NULL == p) {
                 RPTERR("malloc: bad id");
@@ -187,15 +190,20 @@ void *buddy_malloc(void *id, size_t size)
                 return NULL;
         }
 
-        //(void)pthread_mutex_lock(&p->mux);
-        if(0 != size2inf(p, size, &new)) {
+        (void)pthread_mutex_lock(&p->mux);
+        siz2nod(p, size, &new);
+        if(new.ptr) {
+                allocate_node(p, new.index); /* modify parent node */
+        }
+        (void)pthread_mutex_unlock(&p->mux);
+
+        if(!new.ptr) {
                 return NULL;
         }
-        allocate_node(p, new.index); /* modify parent node */
-        //(void)pthread_mutex_unlock(&p->mux);
+
         RPTDBG("malloc:  @ 0x%zX, space: 0x%zX, size: 0x%zX",
                new.offset, POW2(new.order), size);
-        return (p->pool + new.offset);
+        return new.ptr;
 }
 
 /* The calloc() function allocates memory for an array of nmemb elements of size bytes each and
@@ -206,8 +214,7 @@ void *buddy_malloc(void *id, size_t size)
 void *buddy_calloc(void *id, size_t nmemb, size_t size)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
-        struct inf new;
-        uint8_t *ptr_n;
+        struct node new;
         size_t total_size;
 
         if(NULL == p) {
@@ -215,23 +222,27 @@ void *buddy_calloc(void *id, size_t nmemb, size_t size)
                 return NULL;
         }
 
-        if(0 == nmemb || 0 == size) {
+        total_size = nmemb * size;
+        if(0 == total_size) {
                 RPTWRN("calloc: nmemb or size is 0");
                 return NULL;
         }
 
-        total_size = nmemb * size;
-        //(void)pthread_mutex_lock(&p->mux);
-        if(0 != size2inf(p, total_size, &new)) {
+        (void)pthread_mutex_lock(&p->mux);
+        siz2nod(p, total_size, &new);
+        if(new.ptr) {
+                allocate_node(p, new.index); /* modify parent node */
+                memset(new.ptr, 0, total_size); /* set to zero */
+        }
+        (void)pthread_mutex_unlock(&p->mux);
+
+        if(!new.ptr) {
                 return NULL;
         }
-        allocate_node(p, new.index); /* modify parent node */
-        ptr_n = p->pool + new.offset;
-        memset(ptr_n, 0, total_size);
-        //(void)pthread_mutex_unlock(&p->mux);
+
         RPTDBG("calloc:  @ 0x%zX, space: 0x%zX, size: 0x%zX * 0x%zX",
                new.offset, POW2(new.order), nmemb, size);
-        return ptr_n;
+        return new.ptr;
 }
 
 /* The realloc() function changes the size of the memory block pointed to by ptr to size bytes.
@@ -245,16 +256,14 @@ void *buddy_calloc(void *id, size_t nmemb, size_t size)
 void *buddy_realloc(void *id, void *ptr, size_t size)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
-        struct inf old;
-        struct inf new;
-        uint8_t *ptr_n;
+        struct node old;
+        struct node new;
 
         if(NULL == p) {
                 RPTERR("realloc: bad id");
                 return NULL;
         }
 
-        //(void)pthread_mutex_lock(&p->mux);
         if(NULL == ptr) {
                 if(0 == size) {
                         RPTERR("realloc: ptr is NULL, size is 0");
@@ -262,52 +271,69 @@ void *buddy_realloc(void *id, void *ptr, size_t size)
                 }
 
                 /* malloc */
-                if(0 != size2inf(p, size, &new)) {
+                (void)pthread_mutex_lock(&p->mux);
+                siz2nod(p, size, &new);
+                if(new.ptr) {
+                        allocate_node(p, new.index); /* modify parent node */
+                }
+                (void)pthread_mutex_unlock(&p->mux);
+
+                if(!new.ptr) {
                         return NULL;
                 }
-                allocate_node(p, new.index); /* modify parent node */
+
                 RPTDBG("malloc:  @ 0x%zX, space: 0x%zX, size: 0x%zX",
                        new.offset, POW2(new.order), size);
-                return (p->pool + new.offset);
+                return new.ptr;
         }
 
         if(0 == size) {
                 /* free */
-                if(0 != ptr2inf(p, (uint8_t *)ptr, &old)) {
+                (void)pthread_mutex_lock(&p->mux);
+                ptr2nod(p, (uint8_t *)ptr, &old);
+                if(old.ptr) {
+                        free_node(p, old.index, old.order); /* modify parent node */
+                }
+                (void)pthread_mutex_unlock(&p->mux);
+
+                if(!old.ptr) {
                         return NULL;
                 }
-                free_node(p, old.index, old.order); /* modify parent node */
+
                 RPTDBG("free:    @ 0x%zX, space: 0x%zX",
                        old.offset, POW2(old.order));
                 return NULL;
         }
 
         /* realloc */
-        if(0 != ptr2inf(p, (uint8_t *)ptr, &old)) {
-                return NULL;
-        }
-        if(0 != size2inf(p, size, &new)) {
-                return NULL;
-        }
+        (void)pthread_mutex_lock(&p->mux);
+        ptr2nod(p, (uint8_t *)ptr, &old);
+        siz2nod(p, size, &new);
+        if(old.ptr &&
+           new.ptr &&
+           new.order != old.order) {
+                /* modify parent node */
+                allocate_node(p, new.index);
+                free_node(p, old.index, old.order);
 
+                /* copy data */
+                memcpy(new.ptr, ptr, POW2(MIN(old.order, new.order))); /* FIXME: memcpy() better than memmove() here */
+        }
+        (void)pthread_mutex_unlock(&p->mux);
+
+        if(!old.ptr ||
+           !new.ptr) {
+                return NULL;
+        }
         if(new.order == old.order) {
                 /* do not need to realloc */
                 return ptr;
         }
 
-        /* modify parent node */
-        allocate_node(p, new.index);
-        free_node(p, old.index, old.order);
-
-        /* copy data */
-        ptr_n = p->pool + new.offset;
-        memcpy(ptr_n, ptr, POW2(MIN(old.order, new.order))); /* FIXME: memcpy() better than memmove() here */
-
-        //(void)pthread_mutex_unlock(&p->mux);
         RPTDBG("realloc: @ 0x%zX, space: 0x%zX -> @ 0x%zX, space: 0x%zX, size: 0x%zX",
                old.offset, POW2(old.order),
                new.offset, POW2(new.order), size);
-        return ptr_n;
+        return new.ptr;
 }
 
 /* The free() function frees the memory space pointed to by ptr,
@@ -318,7 +344,7 @@ void *buddy_realloc(void *id, void *ptr, size_t size)
 void buddy_free(void *id, void *ptr)
 {
         struct buddy_obj *p = (struct buddy_obj *)id;
-        struct inf old;
+        struct node old;
 
         if(NULL == p) {
                 RPTERR("free: bad id");
@@ -329,12 +355,17 @@ void buddy_free(void *id, void *ptr)
                 return;
         }
 
-        //(void)pthread_mutex_lock(&p->mux);
-        if(0 != ptr2inf(p, (uint8_t *)ptr, &old)) {
+        (void)pthread_mutex_lock(&p->mux);
+        ptr2nod(p, (uint8_t *)ptr, &old);
+        if(old.ptr) {
+                free_node(p, old.index, old.order); /* modify parent node */
+        }
+        (void)pthread_mutex_unlock(&p->mux);
+
+        if(!old.ptr) {
                 return;
         }
-        free_node(p, old.index, old.order); /* modify parent node */
-        //(void)pthread_mutex_unlock(&p->mux);
+
         RPTDBG("free:    @ 0x%zX, space: 0x%zX", old.offset, POW2(old.order));
         return;
 }
@@ -406,35 +437,38 @@ static void init_tree(struct buddy_obj *p)
 /*
  * size -> order -> index -> offset
  */
-static int size2inf(struct buddy_obj *p, size_t size, struct inf *inf)
+static int siz2nod(struct buddy_obj *p, size_t size, struct node *nod)
 {
-        size_t mask;
         uint8_t order; /* temp order */
 
+        nod->ptr = NULL;
+
         /* the smallest order to cover the size */
-        inf->order = 0;
-        for(mask = (size_t)1; mask < size; mask <<= 1) {
-                inf->order++;
+        nod->order = p->mino;
+        nod->size = POW2(nod->order);
+        while(nod->size < size) {
+                nod->order++;
+                nod->size <<= 1;
         }
-        inf->order = MAX(inf->order, p->mino);
-        if(inf->order > p->tree[0]) {
-                RPTERR("not enough space in pool");
+        if(nod->order > p->tree[0]) {
+                RPTERR("not enough space in pool for 0x%zX-byte", size);
                 return -1;
         }
 
         /* order to index */
-        inf->index = 0; /* from root */
-        for(order = p->maxo; order > inf->order; order--) {
-                if(p->tree[FBTL(inf->index)] >= inf->order) {
-                        inf->index = FBTL(inf->index);
+        nod->index = 0; /* from root */
+        for(order = p->maxo; order > nod->order; order--) {
+                if(p->tree[FBTL(nod->index)] >= nod->order) {
+                        nod->index = FBTL(nod->index);
                 }
                 else {
-                        inf->index = FBTR(inf->index);
+                        nod->index = FBTR(nod->index);
                 }
         }
 
         /* index to offset */
-        inf->offset = ((inf->index + 1) << inf->order) - p->pool_size;
+        nod->offset = ((nod->index + 1) << nod->order) - p->pool_size;
+        nod->ptr = p->pool + nod->offset;
         return 0;
 }
 
@@ -442,15 +476,17 @@ static int size2inf(struct buddy_obj *p, size_t size, struct inf *inf)
  * ptr -> offset -+-> index
  *                +-> order
  */
-static int ptr2inf(struct buddy_obj *p, uint8_t *ptr, struct inf *inf)
+static int ptr2nod(struct buddy_obj *p, uint8_t *ptr, struct node *nod)
 {
+        nod->ptr = NULL;
+
         /* determine offset */
         if(ptr < p->pool) {
                 RPTERR("bad ptr: %p, before pool(%p + %zu)", ptr, p->pool, p->pool_size);
                 return -1;
         }
-        inf->offset = (size_t)(ptr - p->pool);
-        if(inf->offset >= p->pool_size) {
+        nod->offset = (size_t)(ptr - p->pool);
+        if(nod->offset >= p->pool_size) {
                 RPTERR("bad ptr: %p, after pool(%p + %zu)", ptr, p->pool, p->pool_size);
                 return -1;
         }
@@ -461,15 +497,17 @@ static int ptr2inf(struct buddy_obj *p, uint8_t *ptr, struct inf *inf)
          *      7   7   7   7
          *      6 6 6 6 6 6 6 6
          */
-        inf->order = p->mino;
-        while(inf->offset == ((inf->offset >> inf->order) << inf->order)) { /* possible order */
-                inf->index = ((p->pool_size + inf->offset) >> inf->order) - 1;
-                if(0 == p->tree[inf->index]) {
+        nod->order = p->mino;
+        while(nod->offset == ((nod->offset >> nod->order) << nod->order)) { /* possible order */
+                nod->index = ((p->pool_size + nod->offset) >> nod->order) - 1;
+                if(0 == p->tree[nod->index]) {
+                        nod->size = POW2(nod->order);
+                        nod->ptr = ptr;
                         return 0; /* fine the node and the order */
                 }
-                inf->order++; /* maybe bigger space */
+                nod->order++; /* maybe bigger space */
         }
-        RPTERR("bad ptr: %p, illegal node", ptr);
+        RPTERR("bad ptr: %p, illegal node in pool", ptr);
         return -1;
 }
 
