@@ -6,16 +6,16 @@ ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
+obj-y := catts.o
+
 VMAJOR = 1
 VMINOR = 0
 VRELEA = 0
-
-obj-y := catts.o
-
 NAME = catts
 TYPE = exe
-
-CFLAGS += -I../libzutil
+INCDIRS := -I. -I..
+INCDIRS += -I../libzutil
+CFLAGS += $(INCDIRS)
 
 LDFLAGS += -L../libzutil -lzutil
 

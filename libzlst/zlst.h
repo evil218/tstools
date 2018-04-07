@@ -25,36 +25,41 @@
  * 2011-09-18, ZHOU Cheng, Modified for param_xml module
  */
 
-#ifndef _ZLST_H
-#define _ZLST_H
+#ifndef ZLST_H
+#define ZLST_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct znode { /* list node */
-        struct znode *next;
-        struct znode *prev;
-        struct znode *tail; /* only head->tail is valid! */
-        int key; /* for sort list: use zlst_set_key() before zlst_insert()! */
-        const char *name; /* for variable type list: use zlst_set_name() before zlst_push()! */
+/*@abstract@*/ struct znode {
+        /*@null@*/ /*@owned@*/ struct znode *next;
+        /*@null@*/ /*@dependent@*/ struct znode *prev;
+        /*@null@*/ /*@dependent@*/ struct znode *tail; /* only head->tail is valid! */
+        /*@null@*/ /*@dependent@*/ const char *name; /* for variable type list: use zlst_set_name() to assign */
+        int key; /* for sort list: use zlst_insert()! */
 };
 
-/* note: PHEAD will be convert to (struct znode **) type! */
-/* note: ZNODE will be convert to (struct znode  *) type! */
-void zlst_push(void *PHEAD, void *ZNODE);
-void zlst_unshift(void *PHEAD, void *ZNODE);
-void *zlst_pop(void *PHEAD); /* It's up to the caller to free the node! */
-void *zlst_shift(void *PHEAD); /* It's up to the caller to free the node! */
-int zlst_insert(void *PHEAD, void *ZNODE); /* small key first; if not return 0, it's up to the caller to free the uninserted node! */
-void *zlst_delete(void *PHEAD, void *ZNODE); /* It's up to the caller to free the node! */
+typedef /*@null@*/ /*@owned@*/ struct znode *zhead_t; /* point to the head of a list */
 
-void *zlst_search(void *PHEAD, int key);
-void zlst_set_key(void *ZNODE, int key);
-void zlst_set_name(void *ZNODE, const char *name);
+/* note:
+ *      PHEAD will be convert to (struct znode **) type
+ *      ZNODE will be convert to (struct znode  *) type
+ *      It's up to the caller to free the valid return node(zlst do NOT known your free function)
+ */
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_push(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_unshift(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE);
+/*@null@*/ /*@owned@*/ void *zlst_pop(/*@null@*/ zhead_t *PHEAD);
+/*@null@*/ /*@owned@*/ void *zlst_shift(/*@null@*/ zhead_t *PHEAD);
+/*@null@*/ /*@owned@*/ /*@observer@*/ void *zlst_insert(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@owned@*/ void *ZNODE, int key); /* small key first */
+/*@null@*/ /*@owned@*/ void *zlst_delete(/*@null@*/ zhead_t *PHEAD, /*@null@*/ /*@dependent@*/ void *ZNODE);
+
+/*@null@*/ /*@dependent@*/ void *zlst_search(/*@null@*/ zhead_t *PHEAD, int key);
+void zlst_set_key(/*@null@*/ void *ZNODE, int key);
+void zlst_set_name(/*@null@*/ void *ZNODE, const /*@null@*/ /*@dependent@*/ char *name);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _ZLST_H */
+#endif /* ZLST_H */

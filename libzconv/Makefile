@@ -1,21 +1,28 @@
 #
-# Makefile for libzlst
+# Makefile
 #
 
 ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
-obj-y := zlst.o
+obj-y := zconv.o
 
 VMAJOR = 1
 VMINOR = 1
 VPATCH = 0
-NAME = zlst
+NAME = zconv
 TYPE = lib
-DESC = common bidirection list
-HEADERS = zlst.h
+DESC = DVB charsets convert
+HEADERS = zconv.h
 INCDIRS := -I. -I..
+
 CFLAGS += $(INCDIRS)
+
+ifeq ($(SYS),WINDOWS)
+LDFLAGS += -lws2_32
+endif
+
+LINTFLAGS := +posixlib
 
 include ../common.mak

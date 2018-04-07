@@ -14,6 +14,6 @@ Licensing
 Building
 ========
 
-	$ ./configure
-	$ make
-    $ make install
+$ ./configure
+$ make
+$ make install

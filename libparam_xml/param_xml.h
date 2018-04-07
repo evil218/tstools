@@ -161,9 +161,21 @@ struct pdesc {
         intptr_t aux; /* data or pointer to auxiliary description */
 };
 
+#include "config.h" /* for defines like SYS_WINDOWS, etc */
+
+#ifdef SYS_WINDOWS
+# ifdef _PARAM_XML_EXPORT
+#  define DLL_SPEC __declspec(dllexport)
+# else
+#  define DLL_SPEC __declspec(dllimport)
+# endif
+#else
+# define DLL_SPEC
+#endif
+
 /* module interface, reentrant */
-int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
-int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
+DLL_SPEC int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
+DLL_SPEC int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc);
 
 #ifdef __cplusplus
 }

@@ -176,7 +176,7 @@ static int node2flot(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, 
 static int node2stru(void *mem, xmlNode *xnode, struct pdesc *pdesc, int count, int *idx);
 
 /* module interface */
-int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
+DLL_SPEC int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
         struct pdesc *cur_pdesc;
 
@@ -196,7 +196,7 @@ int param2xml(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
         return 0;
 }
 
-int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
+DLL_SPEC int xml2param(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
 {
         xmlNode *sub_xnode;
         struct pdesc *cur_pdesc;
@@ -1089,7 +1089,7 @@ static int xml2list(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                         continue;
                 }
                 memset(list, 0, pdesc->size);
-                zlst_push(mem, list);
+                zlst_push((zhead_t *)mem, list);
                 xml2param(list, sub_xnode, pdesc->pdesc);
         }
 
@@ -1166,7 +1166,7 @@ static int xml2vlst(void *mem_base, xmlNode *xnode, struct pdesc *pdesc)
                 }
                 memset(list, 0, adesc->size);
                 zlst_set_name(list, adesc->name);
-                zlst_push(mem, list);
+                zlst_push((zhead_t *)mem, list);
                 xml2param(list, sub_xnode, adesc->pdesc);
         }
 

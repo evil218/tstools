@@ -1,17 +1,17 @@
 #
-# Makefile for libzlst
+# Makefile
 #
 
 ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
-obj-y := tobin.o
+obj-y := dtsdi.o
 
 VMAJOR = 1
 VMINOR = 0
 VRELEA = 0
-NAME = tobin
+NAME = dtsdi
 TYPE = exe
 INCDIRS := -I. -I..
 INCDIRS += -I../libzutil

@@ -6,19 +6,20 @@ ifneq ($(wildcard ../config.mak),)
 include ../config.mak
 endif
 
-VMAJOR = 1
-VMINOR = 0
-VRELEA = 0
-
 obj-y := param_xml.o
 
+VMAJOR = 1
+VMINOR = 1
+VPATCH = 0
 NAME = param_xml
 TYPE = lib
 DESC = parameter xml convertor
 HEADERS = param_xml.h
-
-CFLAGS += -I../libzlst
-CFLAGS += -I/usr/include/libxml2
+INCDIRS := -I. -I..
+INCDIRS += -I../libzlst
+INCDIRS += -I/usr/include/libxml2
+CFLAGS += $(INCDIRS)
+CFLAGS += -D_PARAM_XML_EXPORT
 
 LDFLAGS += -L../libzlst -lzlst
 

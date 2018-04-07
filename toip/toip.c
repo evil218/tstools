@@ -33,7 +33,7 @@
 #include "url.h"
 #include "ts.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 static struct url *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
         struct timeval tv_cur; /* current time */
 
         long long int data;
-        int64_t lMTS = 0LL; /* last MTS */
-        int64_t MTS = 0LL; /* current MTS */
-        int64_t dMTS = 0LL; /* delta MTS */
-        int64_t *mts = NULL; /* NULL means without MTS data */
+        int64_t lATS = 0LL; /* last ATS */
+        int64_t ATS = 0LL; /* current ATS */
+        int64_t dATS = 0LL; /* delta ATS */
+        int64_t *ats = NULL; /* NULL means without ATS data */
 
         if(0 != deal_with_parameter(argc, argv)) {
                 return -1;
@@ -66,32 +66,32 @@ int main(int argc, char *argv[])
 
         fd_o = url_open(file_o, "wb");
         if(NULL == fd_o) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_o);
+                RPTERR("open \"%s\" failed", file_o);
                 return -1;
         }
 
-        /* init time, then wait until delta MTS OK */
+        /* init time, then wait until delta ATS OK */
         gettimeofday(&tv_pkt, NULL);
         gettimeofday(&tv_cur, NULL);
         while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
                 pt = tbuf;
-                mts = NULL;
+                ats = NULL;
                 while(0 == next_tag(&tag, &pt)) {
-                        if(0 == strcmp(tag, "*mts")) {
+                        if(0 == strcmp(tag, "*ats")) {
                                 next_nuint_hex(&data, &pt, 1);
-                                MTS = (int64_t)data;
-                                mts = &MTS;
-                                dMTS = ts_timestamp_diff(MTS, lMTS, MTS_OVF);
-                                lMTS = MTS;
+                                ATS = (int64_t)data;
+                                ats = &ATS;
+                                dATS = ts_timestamp_diff(ATS, lATS, ATS_OVF);
+                                lATS = ATS;
                         }
                 }
-                if(!mts) {
-                        RPT(RPT_ERR, "TS packet without MTS");
+                if(!ats) {
+                        RPTERR("TS packet without ATS");
                         url_close(fd_o);
                         return -1;
                 }
-                if(0 < dMTS && dMTS < 100 * MTS_MS) {
-                        /* delta MTS is OK now */
+                if(0 < dATS && dATS < 100 * ATS_MS) {
+                        /* delta ATS is OK now */
                         break;
                 }
         }
@@ -99,38 +99,38 @@ int main(int argc, char *argv[])
         /* run */
         while(NULL != fgets(tbuf, LINE_LENGTH_MAX, stdin)) {
                 pt = tbuf;
-                mts = NULL;
+                ats = NULL;
                 while(0 == next_tag(&tag, &pt)) {
                         if(0 == strcmp(tag, "*ts")) {
                                 cnt = next_nbyte_hex(pb, &pt, LINE_LENGTH_MAX / 3);
                                 pb += cnt;
                         }
-                        if(0 == strcmp(tag, "*mts")) {
+                        if(0 == strcmp(tag, "*ats")) {
                                 struct timeval dtv;
                                 struct timeval tv_new;
 
                                 next_nuint_hex(&data, &pt, 1);
-                                MTS = (int64_t)data;
-                                mts = &MTS;
-                                dMTS = ts_timestamp_diff(MTS, lMTS, MTS_OVF);
-                                if(0 < dMTS && dMTS < 100 * MTS_MS) {
-                                        dtv.tv_sec = dMTS / MTS_1S;
-                                        dMTS %= MTS_1S;
-                                        dtv.tv_usec = dMTS / MTS_US;
-                                        dMTS %= MTS_US;
+                                ATS = (int64_t)data;
+                                ats = &ATS;
+                                dATS = ts_timestamp_diff(ATS, lATS, ATS_OVF);
+                                if(0 < dATS && dATS < 100 * ATS_MS) {
+                                        dtv.tv_sec = dATS / ATS_1S;
+                                        dATS %= ATS_1S;
+                                        dtv.tv_usec = dATS / ATS_US;
+                                        dATS %= ATS_US;
                                         timeradd(&tv_pkt, &dtv, &tv_new);
                                         tv_pkt = tv_new;
-                                        lMTS = ts_timestamp_add(MTS, -dMTS, MTS_OVF);
+                                        lATS = ts_timestamp_add(ATS, -dATS, ATS_OVF);
                                 }
                                 else {
-                                        RPT(RPT_WRN, "!(0 < dMTS < 100ms): %" PRId64, dMTS);
+                                        RPTWRN("!(0 < dATS < 100ms): %" PRId64, dATS);
                                         gettimeofday(&tv_pkt, NULL);
-                                        lMTS = MTS;
+                                        lATS = ATS;
                                 }
                         }
                 }
-                if(!mts) {
-                        RPT(RPT_ERR, "TS packet without MTS");
+                if(!ats) {
+                        RPTERR("TS packet without ATS");
                         url_close(fd_o);
                         return -1;
                 }
@@ -176,7 +176,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
+                                RPTERR("wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }
@@ -190,39 +190,38 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'toip' read from stdin, convert to UDP, send to IP according to MTS.");
-        puts("");
-        puts("Usage: toip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]");
-        puts("");
-        puts("Options:");
-        puts("");
-        puts(" -h, --help       print this information only");
-        puts(" -v, --version    print my version only");
-        puts("");
-        puts("Examples:");
-        puts("  catts *.mts | toip udp://@:1234");
-        puts("  catts *.mts | toip udp://@224.165.54.210:1234");
-        puts("  catts *.ts | tsana -ts -mts | toip udp://@:1234");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        fprintf(stdout,
+                "'toip' read from stdin, convert to UDP, send to IP according to ATS.\n"
+                "\n"
+                "Usage: toip [OPTION] udp://@xxx.xxx.xxx.xxx:xxxx [OPTION]\n"
+                "\n"
+                "Options:\n"
+                "\n"
+                " -h, --help       print this information only\n"
+                " -v, --version    print my version only\n"
+                "\n"
+                "Examples:\n"
+                "  catts *.mts | toip udp://@:1234\n\n"
+                "  catts *.mts | toip udp://@224.165.54.210:1234\n\n"
+                "  catts *.ts | tsana -ts -ats | toip udp://@:1234\n\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return;
 }
 
 static void show_version()
 {
-        char str[100];
-
-        sprintf(str, "toip of tstools v%s (%s)", VERSION_STR, REVISION);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "toip of tstools v%s (%s)\n"
+                "Build time: %s %s\n"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.\n",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return;
 }

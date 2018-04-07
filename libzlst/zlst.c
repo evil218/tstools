@@ -4,306 +4,331 @@
 
 #include "zlst.h"
 
-/* report level */
+/* report level and macro */
 #define RPT_ERR (1) /* error, system error */
 #define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
 #define RPT_INF (3) /* important information */
 #define RPT_DBG (4) /* debug information */
 
-/* report micro */
-#define RPT(lvl, ...) do \
-{ \
-        if(lvl <= rpt_lvl) \
-        { \
-                switch(lvl) \
-                { \
-                        case RPT_ERR: fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); break; \
-                        case RPT_WRN: fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); break; \
-                        case RPT_INF: fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); break; \
-                        case RPT_DBG: fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); break; \
-                        default:      fprintf(stderr, "%s: %d: ???: ", __FILE__, __LINE__); break; \
-                } \
-                fprintf(stderr, __VA_ARGS__); \
-                fprintf(stderr, "\n"); \
-        } \
-} while (0)
+#ifdef S_SPLINT_S /* FIXME */
+#define RPTERR(fmt...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTWRN(fmt...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTINF(fmt...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTDBG(fmt...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#else
+#define RPTERR(fmt, ...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTWRN(fmt, ...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTINF(fmt, ...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTDBG(fmt, ...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#endif
 
 static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
 
-/* to tail */
-void zlst_push(void *PHEAD, void *ZNODE)
+void *zlst_push(zhead_t *PHEAD, void *ZNODE)
 {
         struct znode *head;
+        struct znode *tail; /* old tail */
         struct znode *znode;
 
-        if(!ZNODE) {
-                RPT(RPT_ERR, "push: bad node");
-                return;
+        if(NULL == ZNODE) {
+                RPTERR("push: bad node");
+                return ZNODE;
         }
         znode = (struct znode *)ZNODE;
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "push: NOT a list");
-                return;
+        if(NULL == PHEAD) {
+                RPTERR("push: NOT a list");
+                return ZNODE;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_INF, "push: into empty list");
+        if(NULL == head) {
+                RPTINF("push: into empty list");
                 znode->tail = znode;
                 znode->next = NULL;
                 znode->prev = NULL;
-                *(struct znode **)PHEAD = znode;
-                return;
+                *PHEAD = znode;
+                return NULL;
         }
 
-        RPT(RPT_INF, "push: ok");
+        tail = head->tail;
+        if(NULL == tail || NULL != tail->next) {
+                RPTERR("push: bad head->tail");
+                return ZNODE;
+        }
+
+        RPTINF("push: to tail");
         znode->next = NULL;
-        znode->prev = head->tail;
-        head->tail->next = znode; /* head->tail is ok! */
+        znode->prev = tail;
         head->tail = znode;
-        return;
+        tail->next = znode;
+        return NULL;
 }
 
-/* to head */
-void zlst_unshift(void *PHEAD, void *ZNODE)
+void *zlst_unshift(zhead_t *PHEAD, void *ZNODE)
 {
-        struct znode *head;
+        struct znode *head; /* old head */
         struct znode *znode;
 
-        if(!ZNODE) {
-                RPT(RPT_ERR, "unshift: bad node");
-                return;
+        if(NULL == ZNODE) {
+                RPTERR("unshift: bad node");
+                return ZNODE;
         }
         znode = (struct znode *)ZNODE;
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "unshift: NOT a list");
-                return;
+        if(NULL == PHEAD) {
+                RPTERR("unshift: NOT a list");
+                return ZNODE;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_INF, "unshift: into empty list");
+        if(NULL == head) {
+                RPTINF("unshift: into empty list");
                 znode->tail = znode;
                 znode->next = NULL;
                 znode->prev = NULL;
-                *(struct znode **)PHEAD = znode;
-                return;
+                *PHEAD = znode;
+                return NULL;
         }
 
-        RPT(RPT_INF, "unshift: ok");
+        RPTINF("unshift: to head");
+        *PHEAD = znode;
         znode->tail = head->tail;
         znode->next = head;
         znode->prev = NULL;
         head->prev = znode;
-        *(struct znode **)PHEAD = znode;
-        return;
+        return NULL;
 }
 
-/* from tail */
-/* it's up to the caller to free the node! */
-void *zlst_pop(void *PHEAD)
+void *zlst_pop(zhead_t *PHEAD)
 {
         struct znode *head;
-        struct znode *tail;
+        struct znode *tail; /* old tail */
+        struct znode *rslt; /* old tail */
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "pop: NOT a list");
+        if(NULL == PHEAD) {
+                RPTERR("pop: NOT a list");
                 return NULL;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_INF, "pop: from empty list");
+        if(NULL == head) {
+                RPTINF("pop: empty list");
                 return NULL;
         }
-        tail = head->tail;
 
-        if(!(head->next)) {
-                RPT(RPT_INF, "pop: from one node list");
-                *(struct znode **)PHEAD = NULL;
+        if(NULL == head->next) {
+                RPTINF("pop: last node");
+                *PHEAD = NULL;
                 return head;
         }
 
-        if(!(tail->prev)) {
-                RPT(RPT_ERR, "pop: bad list");
+        tail = head->tail;
+        if(NULL == tail || NULL == tail->prev) {
+                RPTERR("pop: bad tail");
                 return NULL;
         }
 
-        RPT(RPT_INF, "pop: ok");
+        RPTINF("pop: from tail");
+        rslt = tail->prev->next; /* rslt becomes owned */
         tail->prev->next = NULL;
         head->tail = tail->prev;
-        return tail;
+        return rslt;
 }
 
-/* from head */
-/* it's up to the caller to free the node! */
-void *zlst_shift(void *PHEAD)
+void *zlst_shift(zhead_t *PHEAD)
 {
         struct znode *head;
+        struct znode *scnd; /* second node */
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "shift: NOT a list");
+        if(NULL == PHEAD) {
+                RPTERR("shift: NOT a list");
                 return NULL;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_INF, "shift: from empty list");
+        if(NULL == head) {
+                RPTINF("shift: empty list");
                 return NULL;
         }
 
-        if(!(head->next)) {
-                RPT(RPT_INF, "shift: from one node list");
-                *(struct znode **)PHEAD = NULL;
+        scnd = head->next;
+        if(NULL == scnd) {
+                RPTINF("shift: last node");
+                *PHEAD = NULL;
                 return head;
         }
 
-        RPT(RPT_INF, "shift: ok");
-        head->next->prev = NULL;
-        head->next->tail = head->tail;
-        *(struct znode **)PHEAD = head->next;
+        RPTINF("shift: from head");
+        scnd->prev = NULL;
+        scnd->tail = head->tail;
+        *PHEAD = scnd;
         return head;
 }
 
 /* sort with key, small key first */
-/* if not return 0, it's up to the caller to free the uninserted node! */
-int zlst_insert(void *PHEAD, void *ZNODE)
+void *zlst_insert(zhead_t *PHEAD, void *ZNODE, int key)
 {
         struct znode *head;
         struct znode *znode;
+        struct znode *prev;
+        struct znode *x;
+        struct znode *tail;
 
-        if(!ZNODE) {
-                RPT(RPT_ERR, "insert: bad node");
-                return -1;
+        if(NULL == ZNODE) {
+                RPTERR("insert: bad node");
+                return ZNODE;
         }
         znode = (struct znode *)ZNODE;
+        znode->key = key;
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "insert: NOT a list");
-                return -1;
+        if(NULL == PHEAD) {
+                RPTERR("insert: NOT a list");
+                return ZNODE;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_INF, "insert: into empty list");
+        if(NULL == head) {
+                RPTINF("insert: empty list");
                 znode->tail = znode;
                 znode->next = NULL;
                 znode->prev = NULL;
-                *(struct znode **)PHEAD = znode;
-                return 0;
+                *PHEAD = znode;
+                return NULL;
         }
 
         if(head->key > znode->key) {
-                RPT(RPT_INF, "insert: %d as head before %d", znode->key, head->key);
+                RPTINF("insert: %d before %d as head", znode->key, head->key);
+                *PHEAD = znode;
                 znode->tail = head->tail;
                 znode->next = head;
                 znode->prev = NULL;
                 head->prev = znode;
-                *(struct znode **)PHEAD = znode;
-                return 0;
+                return NULL;
         }
 
-        for(struct znode *x = head; x; x = x->next) {
+        for(x = head->next; NULL != x; x = x->next) {
                 if(x->key == znode->key) {
-                        RPT(RPT_INF, "insert: %d in list already", znode->key);
-                        return -1;
+                        RPTINF("insert: %d in list already", znode->key);
+                        return ZNODE;
                 }
 
                 if(x->key > znode->key) {
-                        RPT(RPT_INF, "insert: %d before %d", znode->key, x->key);
+                        prev = x->prev;
+                        if(NULL == prev) {
+                                RPTERR("insert: bad x node");
+                                return ZNODE;
+                        }
+
+                        RPTINF("insert: %d before %d", znode->key, x->key);
                         znode->next = x;
-                        znode->prev = x->prev;
-                        x->prev->next = znode;
+                        znode->prev = prev;
+                        prev->next = znode;
                         x->prev = znode;
-                        return 0;
+                        return NULL;
                 }
         }
 
-        RPT(RPT_INF, "insert: %d as tail after %d", znode->key, head->tail->key);
+        tail = head->tail;
+        if(NULL == tail) {
+                RPTERR("insert: bad head");
+                return ZNODE;
+        }
+
+        RPTINF("insert: %d after %d as tail", znode->key, tail->key);
         znode->next = NULL;
-        znode->prev = head->tail;
-        head->tail->next = znode;
+        znode->prev = tail;
+        tail->next = znode;
         head->tail = znode;
-        return 0;
+        return NULL;
 }
 
-/* it's up to the caller to free the node! */
-void *zlst_delete(void *PHEAD, void *ZNODE)
+void *zlst_delete(zhead_t *PHEAD, void *ZNODE)
 {
         struct znode *head;
         struct znode *znode;
 
-        if(!ZNODE) {
-                RPT(RPT_ERR, "delete: bad node");
+        if(NULL == ZNODE) {
+                RPTERR("delete: bad node");
                 return NULL;
         }
         znode = (struct znode *)ZNODE;
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "delete: NOT a list");
+        if(NULL == PHEAD) {
+                RPTERR("delete: NOT a list");
                 return NULL;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_ERR, "delete: from an empty list");
-                return znode; /* free the node please */
+        if(NULL == head) {
+                RPTERR("delete: empty list");
+                return NULL;
         }
 
-        if(!(znode->prev) && !(znode->next)) {
-                RPT(RPT_INF, "delete: from one node list");
-                *(struct znode **)PHEAD = NULL;
-                return znode;
+        if(NULL == znode->prev) {
+                if(head != znode) {
+                        RPTERR("delete: bad arg");
+                        return NULL;
+                }
+                if(NULL == znode->next) {
+                        RPTINF("delete: last node");
+                        *PHEAD = NULL;
+                        return head;
+                }
+                else {
+                        RPTINF("delete: head node");
+                        znode->next->tail = znode->tail;
+                        znode->next->prev = NULL;
+                        *PHEAD = znode->next;
+                        return head;
+                }
         }
+        else { /* (NULL != znode->prev) */
+                struct znode *rslt = znode->prev->next; /* node to be free */
 
-        if(!(znode->prev) && (znode->next)) {
-                RPT(RPT_INF, "delete: head node");
-                znode->next->tail = znode->tail;
-                znode->next->prev = NULL;
-                *(struct znode **)PHEAD = znode->next;
-                return znode;
+                if(NULL == znode->next) {
+                        if(head->tail != znode) {
+                                RPTERR("delete: bad arg");
+                                return NULL;
+                        }
+                        RPTINF("delete: tail node");
+                        head->tail = znode->prev;
+                        znode->prev->next = NULL;
+                        return rslt;
+                }
+                else {
+                        RPTINF("delete: middle node");
+                        znode->prev->next = znode->next;
+                        znode->next->prev = znode->prev;
+                        return rslt;
+                }
         }
-
-        if((znode->prev) && !(znode->next)) {
-                RPT(RPT_INF, "delete: tail node");
-                head->tail = znode->prev;
-                znode->prev->next = NULL;
-                return znode;
-        }
-
-        /* (znode->prev) && (znode->next) */
-        RPT(RPT_INF, "delete: ok");
-        znode->prev->next = znode->next;
-        znode->next->prev = znode->prev;
-        return znode;
 }
 
-void *zlst_search(void *PHEAD, int key)
+void *zlst_search(zhead_t *PHEAD, int key)
 {
         struct znode *head;
         struct znode *znode;
 
-        if(!PHEAD) {
-                RPT(RPT_ERR, "search: NOT a list");
+        if(NULL == PHEAD) {
+                RPTERR("search: NOT a list");
                 return NULL;
         }
-        head = *(struct znode **)PHEAD;
+        head = *PHEAD;
 
-        if(!head) {
-                RPT(RPT_INF, "search: in an empty list");
+        if(NULL == head) {
+                RPTINF("search: empty list");
                 return NULL;
         }
 
-        for(znode = head; znode; znode = znode->next) {
+        for(znode = head; NULL != znode; znode = znode->next) {
                 if(znode->key == key) {
-                        RPT(RPT_INF, "search: got %d", key);
+                        RPTINF("search: got %d", key);
                         return znode;
                 }
         }
 
-        RPT(RPT_INF, "search: no %d", key);
+        RPTINF("search: no %d", key);
         return NULL;
 }
 
@@ -311,13 +336,13 @@ void zlst_set_key(void *ZNODE, int key)
 {
         struct znode *znode;
 
-        if(!ZNODE) {
-                RPT(RPT_ERR, "set key: bad node");
+        if(NULL == ZNODE) {
+                RPTERR("set key: bad node");
                 return;
         }
         znode = (struct znode *)ZNODE;
 
-        RPT(RPT_INF, "set key: %d", key);
+        RPTINF("set key: %d", key);
         znode->key = key;
         return;
 }
@@ -326,13 +351,18 @@ void zlst_set_name(void *ZNODE, const char *name)
 {
         struct znode *znode;
 
-        if(!ZNODE) {
-                RPT(RPT_ERR, "set name: bad node");
+        if(NULL == ZNODE) {
+                RPTERR("set name: bad node");
                 return;
         }
         znode = (struct znode *)ZNODE;
 
-        RPT(RPT_INF, "set name: %s", name);
+        if(NULL == name) {
+                RPTWRN("set name: null name");
+        }
+        else {
+                RPTINF("set name: %s", name);
+        }
         znode->name = name; /* the string should be const */
         return;
 }

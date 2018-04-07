@@ -37,29 +37,16 @@ extern "C" {
 #define CLRSCR                          "\033[2J" /* clear screan */
 #define CLRLIN                          "\033[K" /* clear to line end */
 
-/* report level */
-#define RPT_ERR (1) /* error, system error */
-#define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
-#define RPT_INF (3) /* important information */
-#define RPT_DBG (4) /* debug information */
+/* report level and macro */
+#define ERR_LVL (1) /* error, system error */
+#define WRN_LVL (2) /* warning, maybe wrong, maybe OK */
+#define INF_LVL (3) /* important information */
+#define DBG_LVL (4) /* debug information */
 
-/* report micro */
-#define RPT(lvl, ...) do \
-{ \
-    if(lvl <= rpt_lvl) \
-    { \
-        switch(lvl) \
-        { \
-            case RPT_ERR: fprintf(stderr, "\"%s\" line %d [err]: ", __FILE__, __LINE__); break; \
-            case RPT_WRN: fprintf(stderr, "\"%s\" line %d [wrn]: ", __FILE__, __LINE__); break; \
-            case RPT_INF: fprintf(stderr, "\"%s\" line %d [inf]: ", __FILE__, __LINE__); break; \
-            case RPT_DBG: fprintf(stderr, "\"%s\" line %d [dbg]: ", __FILE__, __LINE__); break; \
-            default:      fprintf(stderr, "\"%s\" line %d [???]: ", __FILE__, __LINE__); break; \
-        } \
-        fprintf(stderr, __VA_ARGS__); \
-        fprintf(stderr, "\n"); \
-    } \
-} while (0)
+#define RPTERR(fmt...) do {if(ERR_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
+#define RPTWRN(fmt...) do {if(WRN_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
+#define RPTINF(fmt...) do {if(INF_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
+#define RPTDBG(fmt...) do {if(DBG_LVL <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0)
 
 #ifdef __cplusplus
 }

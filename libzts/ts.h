@@ -21,16 +21,18 @@
  *       +-  prog (PMT)  ->  prog (PMT)  -> .. ->  prog (PMT)
  *            |     |         |     |               |     |
  *           elem  sect      elem  sect            elem  sect
- *            |     |         |     |               |     |
- *           elem  sect      elem  sect            elem  sect
- *            ..    ..        ..    ..              ..    ..
- *           elem  sect      elem  sect            elem  sect
+ *            |               |                     |
+ *           elem            elem                  elem
+ *            ..              ..                    ..
+ *           elem            elem                  elem
  *
  * pid  list: sorted by PID
  * tabl list: sorted by table_id
  * sect list: sorted by section_number
  * prog list: sorted by program_number
  * elem list: unsorted, just use the order in PMT
+ *
+ * 2009-04-01, ZHOU Cheng, Init for tstools
  */
 
 #ifndef _TS_H
@@ -44,17 +46,17 @@ extern "C" {
 
 #define STC_BASE_MS  (90)        /* 90 clk == 1(ms) */
 #define STC_BASE_1S  (90 * 1000) /* do NOT use 1e3 */
-#define STC_BASE_OVF (1LL << 33) /* 0x0200000000 */
+#define STC_BASE_OVF (((int64_t)1) << 33) /* 0x0200000000 */
 
 #define STC_US  (27)                 /* 27 clk == 1(us) */
 #define STC_MS  (27 * 1000)          /* do NOT use 1e3  */
 #define STC_1S  (27 * 1000 * 1000)   /* do NOT use 1e3  */
 #define STC_OVF (STC_BASE_OVF * 300) /* 2576980377600 */
 
-#define MTS_US  (27)               /* 27 clk == 1(us) */
-#define MTS_MS  (27 * 1000)        /* do NOT use 1e3  */
-#define MTS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
-#define MTS_OVF (1<<30)            /* 0x40000000 */
+#define ATS_US  (27)               /* 27 clk == 1(us) */
+#define ATS_MS  (27 * 1000)        /* do NOT use 1e3  */
+#define ATS_1S  (27 * 1000 * 1000) /* do NOT use 1e3  */
+#define ATS_OVF (1<<30)            /* 0x40000000 */
 
 #define TS_PKT_SIZE (188)
 #define INFO_LEN_MAX (1<<10) /* uint10_t, max length of es_info or program_info */
@@ -64,6 +66,7 @@ extern "C" {
 #define TS_TMSK_BASE    (0x00FF) /* BIT[7:0]: base type mask */
 #define TS_TMSK_PCR     (0x0100) /* BIT[8:8]: 0(without PCR), 1(with PCR) */
 
+#define TS_TYPE_ANY     (0x0000)
 #define TS_TYPE_UNO     (0x0000)
 #define TS_TYPE_NUL     (0x0001)
 #define TS_TYPE_RSV     (0x0002)
@@ -98,23 +101,28 @@ extern "C" {
 #define TS_TYPE_AUDP    (TS_TYPE_AUD | TS_TMSK_PCR)
 #define TS_TYPE_NULP    (TS_TYPE_NUL | TS_TMSK_PCR)
 
-#define WITH_PCR(x)     (x & TS_TMSK_PCR)
-#define IS_TYPE(t, x)   (t == (x & TS_TMSK_BASE))
+#define WITH_PCR(x)     (((x) & TS_TMSK_PCR ) == TS_TMSK_PCR)
+#define IS_TYPE(t, x)   (((x) & TS_TMSK_BASE) == (t))
 
-/* TR 101 290 V1.2.1 2001-05 */
+/* TR 101 290 V1.2.1 2001-05 and other stream errors */
 struct ts_err {
+        int has_level1_error; /* check veriables of "First priority" for detail information */
+        int has_level2_error; /* check veriables of "Second priority" for detail information */
+        int has_level3_error; /* check veriables of "Third priority" for detail information */
+        int has_other_error; /* other stream errors */
+
         /* First priority: necessary for de-codability (basic monitoring) */
         int TS_sync_loss; /* 1.1 */
         int Sync_byte_error; /* 1.2 */
-#define ERR_1_3_0 (1<<0)
-#define ERR_1_3_1 (1<<1)
-#define ERR_1_3_2 (1<<2)
+#define ERR_1_3_0 (1<<0) /* PAT occur more than 500ms */
+#define ERR_1_3_1 (1<<1) /* table_id error in PID 0x0000 */
+#define ERR_1_3_2 (1<<2) /* PAT Scrambling_control_field is not 00 */
         int PAT_error; /* 1.3 ---- 1.3a of TR 101 290 V1.2.1 2001-05 */
         int Continuity_count_error; /* 1.4 */
 #define ERR_1_5_0 (1<<0)
 #define ERR_1_5_1 (1<<1)
         int PMT_error; /* 1.5 ---- 1.5a of TR 101 290 V1.2.1 2001-05 */
-        int PID_error; /* 1.6 */
+        int PID_error; /* 1.6 FIXME: not supported */
 
         /* Second priority: recommended for continuous or periodic monitoring */
         int Transport_error; /* 2.1 */
@@ -123,7 +131,9 @@ struct ts_err {
         int PCR_repetition_error; /* 2.3a */
         int PCR_discontinuity_indicator_error; /* 2.3b */
         int PCR_accuracy_error; /* 2.4 */
-        int PTS_error; /* 2.5 */
+        int PTS_error; /* 2.5 ---- repetition_error */
+#define ERR_2_6_0 (1<<0) /* scrambling program without CAT */
+#define ERR_2_6_1 (1<<1) /* table_id error in PID 0x0001 */
         int CAT_error; /* 2.6 */
 
         /* Third priority: application dependant monitoring */
@@ -145,6 +155,32 @@ struct ts_err {
         int TDT_error; /* 3.8 */
         int Empty_buffer_error; /* 3.9 */
         int Data_delay_error; /* 3.10 */
+
+        /* other errors */
+        int adaption_field_control_error; /* 00 */
+        int wild_pcr_packet; /* no program use this pcr packet */
+        int normal_section_length_error; /* bad normal section length */
+        int private_section_length_error; /* bad private section length */
+        int pat_pid_error; /* pat table not in 0x0000 */
+        int cat_pid_error; /* cat table not in 0x0001 */
+        int pmt_pid_error; /* pmt table not in pmt pid of pat */
+        int nit_pid_error; /* nit table not in 0x0010 */
+        int sdt_pid_error; /* sdt table not in 0x0011 */
+        int descriptor_error; /* wrong descriptor */
+        int program_info_length_error; /* program_info_length too big */
+        int es_info_length_error; /* es_info_length too big */
+        int table_id_extension_error; /* table_id_extension != transport_stream_id */
+        int pes_pid_error; /* pid of pes is psi/si */
+        int pes_elem_error; /* pid of pes is not es in pmt */
+        int pes_start_code_error; /* pes start code not 0x000001 */
+        int pes_packet_length_error; /* pes_packet_length is too large */
+        int pes_header_length_error; /* pes_header_length is too large */
+        int pts_dts_flags_error; /* pts_dts_flags is 01 */
+        int pmt_section_number_error; /* pmt section_number|last_section_number not 0x00 */
+#define ERR_4_0_0 (1<<0) /* PAT changed */
+#define ERR_4_0_1 (1<<1) /* CAT changed */
+#define ERR_4_0_2 (1<<2) /* PMT changed */
+        int section_crc32_error; /* sect->CRC_32 changed */
 };
 
 /* TS head */
@@ -226,11 +262,20 @@ struct ts_pesh {
         uint8_t PES_extension_field_length; /* 7-bit */
 };
 
+/* node of CA descriptor list */
+struct ts_ca {
+        struct znode cvfl; /* common variable for list */
+
+        uint16_t CA_system_ID;
+        uint16_t CA_PID;
+};
+
 /* node of section list */
 struct ts_sect {
         struct znode cvfl; /* common variable for list */
 
         /* section data */
+        /*@temp@*/
         uint8_t *section; /* point to the section buffer: 3 + section_length */
 
         /* section info */
@@ -245,6 +290,7 @@ struct ts_sect {
         uint8_t current_next_indicator; /* 1-bit */
         uint8_t section_number;
         uint8_t last_section_number;
+        uint32_t CRC_32; /* for check section modification */
 
         int check_CRC; /* bool, some table do not need to check CRC_32 */
         int type; /* TS_TYPE_xxx */
@@ -254,6 +300,7 @@ struct ts_sect {
 struct ts_tabl {
         struct znode cvfl; /* common variable for list */
 
+        /*@temp@*/
         struct ts_sect *sect0; /* section list of this table */
         uint8_t table_id; /* 0x00~0xFF */
         uint8_t version_number;
@@ -269,11 +316,14 @@ struct ts_elem {
         int type; /* TS_TYPE_xxx */
         uint8_t stream_type;
         int es_info_len;
+        /*@temp@*/
         uint8_t *es_info; /* point to NULL if len is 0 */
+        struct ts_ca *ca0; /* CA descriptor list */
 
         /* for PTS/DTS mark */
         int64_t PTS; /* last PTS, for obj->PTS_interval */
         int64_t DTS; /* last DTS, for obj->DTS_interval */
+        int64_t STC; /* STC of last PTS, for err->PTS_error */
 
         int is_pes_align; /* met first PES head */
 };
@@ -286,14 +336,19 @@ struct ts_prog {
         uint16_t PCR_PID; /* 13-bit */
         uint16_t program_number;
         int program_info_len;
+        /*@temp@*/
         uint8_t *program_info; /* point to NULL if len is 0 */
+        struct ts_ca *ca0; /* CA descriptor list */
         int service_name_len;
+        /*@temp@*/
         uint8_t *service_name; /* point to NULL if len is 0 */
         int service_provider_len;
+        /*@temp@*/
         uint8_t *service_provider; /* point to NULL if len is 0 */
 
         /* elementary stream list */
-        struct ts_elem *elem0;
+        /*@temp@*/
+        struct ts_elem *elem0; /* PMT: elem list of this prog */
 
         /* PMT table */
         int is_parsed;
@@ -323,7 +378,10 @@ struct ts_pid {
         uint16_t PID; /* 13-bit */
         int type; /* TS_TYPE_xxx */
 
+        /* pay attention: PCR PID maybe belongs to many prog!!! */
+        /*@temp@*/
         struct ts_prog *prog; /* should be prog0 if does not belong to any program */
+        /*@temp@*/
         struct ts_elem *elem; /* should be NULL if not video or audio packet */
 
         /* for continuity_counter check */
@@ -333,9 +391,14 @@ struct ts_pid {
         /* for statistic */
         uint32_t cnt; /* packet received from last PCR */
         uint32_t lcnt; /* packet received from PCRa to PCRb */
+        uint32_t cnt_es; /* es byte received from last PCR */
+        uint32_t lcnt_es; /* es byte received from PCRa to PCRb */
+        uint32_t cnt_es_from_pesh; /* es byte received from last PES head */
+        uint32_t cnt_es_of_last_pes; /* es byte received of last PES */
 
         /* only for PID with PSI/SI */
-        struct ts_pkt *pkt0;
+        /*@temp@*/
+        struct ts_pkt *pkt0; /* packets of a section */
         int payload_total; /* accumulate size_of_payload packet by packet */
         int has_new_sech; /* true, if second section head in pkt list */
         int sech3_idx; /* 0~3, 3 means sech3 is OK */
@@ -349,14 +412,14 @@ struct ts_ipt {
         uint8_t TS[TS_PKT_SIZE]; /* TS data */
         uint8_t RS[16]; /* RS data */
         int64_t ADDR; /* address of sync-byte(unit: byte) */
-        int64_t MTS; /* MTS Time Stamp */
-        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
+        int64_t ATS; /* arrive timestamp, SONY style */
+        int64_t CTS; /* receive timestamp */
 
         /* 0 means corresponding data can not be used */
         int has_ts; /* data in TS[] is OK */
         int has_rs; /* data in RS[] is OK */
         int has_addr; /* data of ADDR is OK */
-        int has_mts; /* data of MTS is OK */
+        int has_ats; /* data of ATS is OK */
         int has_cts; /* data of CTS is OK */
 };
 
@@ -378,14 +441,14 @@ struct ts_obj {
         struct ts_cfg cfg; /* config */
 
         /* CTS */
-        int64_t CTS; /* according to clock of real time, MUX or appointed PCR */
+        int64_t CTS; /* according to clock of real time, MUX or prog0->PCR */
         int64_t CTS_base;
         int64_t CTS_ext;
-        int64_t lCTS; /* for calc dCTS in MTS mode */
+        int64_t lATS; /* last ATS: for calc dCTS(for CTS) in ATS mode */
         int64_t CTS0; /* start time of each statistic interval */
 
         /* STC */
-        int64_t STC; /* timestamp according to its PCR or the PCR of prog0 */
+        int64_t STC; /* timestamp according to prog->PCR(or prog0->PCR if pkt has no prog) */
         int64_t STC_base;
         int16_t STC_ext;
 
@@ -395,7 +458,8 @@ struct ts_obj {
         int CC_lost; /* lost != 0 means CC wrong */
 
         /* AF */
-        uint8_t *AF; /* point to adaptation_fields */
+        /*@temp@*/
+        uint8_t *AF; /* point to adaptation_fields in ipt.TS[] */
         int AF_len; /* 0 means no AF */
 
         /* PCR */
@@ -403,33 +467,37 @@ struct ts_obj {
         int64_t PCR;
         int64_t PCR_base;
         int16_t PCR_ext;
-        int64_t PCR_interval; /* PCR packet arrive time interval */
+        int64_t PCR_repetition; /* PCR packet arrive time interval */
         int64_t PCR_continuity; /* PCR value interval */
         int64_t PCR_jitter; /* PCR - STC */
 
         /* PES */
-        uint8_t *PES; /* point to PES fragment */
+        /*@temp@*/
+        uint8_t *PES; /* point to PES fragment in ipt.TS[] */
         int PES_len; /* 0 means no PES */
 
         /* PTS */
         int has_pts;
         int64_t PTS;
-        int64_t PTS_interval;
+        int64_t PTS_repetition; /* PTS packet arrive time interval */
+        int64_t PTS_continuity; /* PTS value interval */
         int64_t PTS_minus_STC;
 
         /* DTS */
         int has_dts;
         int64_t DTS;
-        int64_t DTS_interval;
+        int64_t DTS_continuity;
         int64_t DTS_minus_STC;
 
         /* ES */
-        uint8_t *ES; /* point to ES fragment */
+        /*@temp@*/
+        uint8_t *ES; /* point to ES fragment in ipt.TS[] */
         int ES_len; /* 0 means no ES */
 
         uint16_t concerned_pid; /* used for PSI parsing */
         uint16_t PID;
 
+        /*@temp@*/
         struct ts_pid *pid; /* point to the node in pid_list */
 
         /* TS information */
@@ -439,11 +507,13 @@ struct ts_obj {
         struct ts_tsh tsh; /* info about ts head of this packet */
         struct ts_af af; /* info about af of this packet */
         struct ts_pesh pesh; /* info about pesh of this packet */
+        /*@temp@*/
         struct ts_pid *pid0; /* pid list of this stream */
 
         /* PSI/SI table */
         uint16_t transport_stream_id;
         int has_got_transport_stream_id;
+        /*@temp@*/
         struct ts_sect *sect; /* point to the node in sect_list */
         int64_t sect_interval;
         uint32_t CRC_32;
@@ -451,8 +521,11 @@ struct ts_obj {
         int is_pat_pmt_parsed;
         int is_psi_si_parsed;
         int is_psi_si;
-        struct ts_prog *prog0; /* program list of this stream */
+        /*@temp@*/
+        struct ts_prog *prog0; /* PAT: program list of this stream */
+        /*@temp@*/
         struct ts_tabl *tabl0; /* PSI/SI table except PMT */
+        struct ts_ca *ca0; /* CAT: CA descriptor list of this stream */
 
         /* for bit-rate statistic */
         int64_t aim_interval; /* appointed interval */
@@ -467,26 +540,38 @@ struct ts_obj {
         int64_t last_psi_cnt; /* psi-si packet count from PCRa to PCRb */
         int64_t last_nul_cnt; /* empty packet count from PCRa to PCRb */
 
+        int has_ess; /* es size of last PES packet ready */
+
+        /* for CAT_error */
+        int has_scrambling; /* meet PID with scrambling */
+        int has_CAT; /* meet CAT */
+
         /* error */
+        int has_err; /* check err struct for detail information */
         struct ts_err err;
 
         /* special variables for ts object */
         int state;
-        intptr_t mp; /* id of buddy memory pool, for list malloc and free */
+        /*@temp@*/
+        void *mp; /* id of buddy memory pool, for list malloc and free */
 
         /* special variables for packet analyse */
+        /*@temp@*/
         uint8_t *cur; /* point to the current data in TS[] */
+        /*@temp@*/
         uint8_t *tail; /* point to the next data after TS[] */
 };
 
-struct ts_obj *ts_create(intptr_t mp);
-int ts_destroy(struct ts_obj *obj);
+/*@only@*/
+/*@null@*/
+struct ts_obj *ts_create(/*@null@*/ void *mp);
+int ts_destroy(/*@only@*/ /*@null@*/ struct ts_obj *obj);
 
 /* cmd */
 #define TS_INIT         (0) /* init object for new application */
 #define TS_SCFG         (1) /* set ts_cfg to object */
 #define TS_TIDY         (2) /* tidy wild pointer in object */
-int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg);
+int ts_ioctl(struct ts_obj *obj, int cmd, void *arg);
 
 int ts_parse_tsh(struct ts_obj *obj);
 int ts_parse_tsb(struct ts_obj *obj);

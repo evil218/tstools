@@ -118,8 +118,8 @@ image:pic_recorder.jpg[录流]
 ==== 灵活的数据交换 ====
 在接口模块与分析模块间用管道传输数据时，仅仅传输TS包的内容是不够的。
 
-- 对于TS文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
-- 对于MTS文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
+- 对于ts文件、IP接收等输入形式，包到达时间的信息已经丢失，包的数据位置信息恰恰是恢复到达时间的重要基础；
+- 对于mts/m2ts文件、ASI接收等输入形式，包到达时间的信息和包的数据位置信息都可以直接得到，不需要在分析模块中推算到达时间；
 - 对于IP输出形式，包的发送（到达）时间非常重要，直接关系到输出码流的指标好坏。
 
 为此本项目在接口模块与分析模块间设计了一种动态的数据格式，允许选择性地携带上述信息。
@@ -139,13 +139,12 @@ image:pic_recorder.jpg[录流]
 |  es   |ES数据        |字节序列   |          |
 |  rs   |RS校验数据    |字节序列   |          |16-byte
 | addr  |地址          |无符号整数 |byte      |包头距第1包头的字节数
-| mts   |MTS时间戳     |无符号整数 |(1/27M)秒 |发送时间戳，满0x40000000溢出回0
+| ats   |ATS计数值     |无符号整数 |(1/27M)秒 |到达时间戳，满0x40000000溢出回0(BlurayDisc)
 | cts   |CTS计数值     |无符号整数 |(1/27M)秒 |捕捉时间戳，满2576980377600溢出回0
 | stc   |STC计数值     |无符号整数 |(1/27M)秒 |节目时间戳，满2576980377600溢出回0
 | pcr   |PCR信息       |逗号分隔   |          |PCR,BASE,EXT,间隔,抖动
 | pts   |PTS/DTS信息   |逗号分隔   |          |PTS,间隔,PTS-PCR,DTS,间隔,DTS-PCR
 | sec   |section数据   |字节序列   |          |段间隔,段头,段体
-|  bg   |背景信息      |逗号分隔   |          |时间,地址,STC,PID
 | rate  |码率统计      |逗号分隔   |          |PID,码率,PID,码率......
 | rats  |系统码率      |逗号分隔   |          |sys,码率,psi-si,码率,0x1FFF,码率
 | ratp  |PSI/SI码率    |逗号分隔   |          |psi-si,码率,PID,码率,PID,码率......
@@ -169,10 +168,10 @@ image:pic_recorder.jpg[录流]
 对于网络等实时流，地址反映了已分析的数据总量。
 在传输pes、es片段的场合可以没有地址信息。
 
-时间戳（mts, stc）反映了包的到达（或发送）时间。
-对于MTS文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
+时间戳（ats, stc）反映了包的到达（或发送）时间。
+对于mts/m2ts文件或硬件实时捕捉的包，时间戳可以用来精确计算PCR抖动等指标；
 对于其它没有时间戳的源，分析模块内部会基于码率恒定的假设计算出每个包的STC。
-mts时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
+ats时间戳的溢出值是0x40000000；stc时间戳的溢出值是2576980377600（300*(2\^33)）。
 接收模块内部根据PCR信息和这个时间戳恢复出STC，所有与时间相关的计算都是基于STC进行的。
 
 == 使用TStools ==
@@ -191,7 +190,7 @@ link:tsana.html[从stdin接收TXT格式的TS包，按照参数要求分析，并
 tobin::
 link:tobin.html[从stdin接收TXT格式的数据，转换成二进制写入指定文件]
 toip::
-link:toip.html[从stdin接收TXT格式的数据(需要MTS信息)，转换成二进制，打成UDP包，按照正确的码率发送出去]
+link:toip.html[从stdin接收TXT格式的数据(需要ATS信息)，转换成二进制，打成UDP包，按照正确的码率发送出去]
 
 === 组合用法 ===
 
@@ -201,20 +200,20 @@ link:toip.html[从stdin接收TXT格式的数据(需要MTS信息)，转换成二�
 语法：
     catts xxx.ts | tsana [-lst] [-iv 5000]
 例子：
-    $ catts c111_sd_1min.ts | tsana
-      PID , abbr, detail
-    0x0000,  PAT, program association section
-    0x0050,  PMT, program map section
-    0x0051,  PCR, program counter reference
-    0x0052,  VID, video packet
-    0x0053,  AUD, audio packet
-    0x1FFF, NULL, empty packet
+    $ catts ~/Videos/stream/1.ts | tsana -c
+    0x0000, PAT , program association section
+    0x0010, NIT , network information section
+    0x0011, SDT , service description section
+    0x0030, PMT , program map section
+    0x0031, PCR , program counter reference
+    0x0032, VID , video packet
+    0x0033, AUD , audio packet
+    0x0034, AUD , audio packet
+    0x1FFF, NUL , empty packet
 ----
 
 参数“-lst”并不是必须的，因为这是tsana的缺省操作。
-输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）：
-- “abbr”：该PID类型简介；
-- “detail”：该PID的详细解释。
+输出列表根据PID从小到大排序(视频或音频PID所在的行以彩色方式显示）。
 
 image:pic_PID_list.jpg[PID表]
 
@@ -244,24 +243,24 @@ tsana有一个“-iv”参数可以设定interval（间隔时间），
     catts xxx.ts | tsana -psi [-iv 5000]
 
 例子：
-    $ catts /cygdrive/d/c111_sd_1min.ts | tsana -psi
-    transport_stream: 1(0x0001)
-        program 3(0x0003), PMT_PID = 0x0050, PCR_PID = 0x0051
-            service_provider: DVT( 44 56 54 )
-            service_name    : ENC3( 45 4E 43 33 )
-            program_info:
-            track 0x0052, stream_type = 0x1B
-                type: H.264, ITU-T Rec.H.264|ISO/IEC 14496-10 Video
-                ES_info:
-            track 0x0053, stream_type = 0x03
-                type: MPEG-1, ISO/IEC 11172-3 Audio
-                ES_info:
+    $ catts ~/Videos/stream/1.ts | tsana -c -psi
+    transport_stream_id,     1(0x0001)
+    program_number,     1(0x0001), PMT_PID, 0x0030, PCR_PID, 0x0031, service_provider, "DVT"(44 56 54), service_name, "ENC1"(45 4E 43 31),
+    elementary_PID, 0x0032, stream_type, 0x1B, type, H.264, detail, ITU-T Rec.H.264|ISO/IEC 14496-10 Video,
+    elementary_PID, 0x0033, stream_type, 0x03, type, MPEG-1, detail, ISO/IEC 11172-3 Audio,
+    elementary_PID, 0x0034, stream_type, 0x03, type, MPEG-1, detail, ISO/IEC 11172-3 Audio,
 ----
 
-参数“-psi”告诉tsana在完成PSI/SI分析后，把所有节目信息以树的形式打印出来。
-节目树按照节目号从小到大的顺序依次打印每个节目的信息：
-节目号、PMT_PID、PCR_PID、service info、program_info和该节目的多个track。
-每个track包含stream_type，PID和ES_info。
+参数“-psi”告诉tsana在完成PSI/SI分析后，把所有节目信息打印出来：
+
+- 码流层信息在第1行，只有一个id；
+- 后面每个节目层信息占1行；
+- 节目层信息下面每个基本流的信息占1行。
+
+这种每层信息仅占1行的方式有力与用户通过grep筛选自己需要的信息。
+
+- 如果只关心节目级信息，可以用“ | grep "prog"”；
+- 如果只关心基本流信息，可以用“ | grep "elem"”；
 
 image:pic_PSI_tree.jpg[PSI树]
 
@@ -296,27 +295,16 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
 ==== 码率分析 ====
 
 ----
-语法：catts xxx.ts | tsana -sys-rate
-语法：catts xxx.ts | tsana -psi-rate
-语法：catts xxx.ts | tsana -prog-rate [-prog 27]
+语法：catts xxx.ts | tsana -rats
+语法：catts xxx.ts | tsana -ratp
+语法：catts xxx.ts | tsana -rate [-type vid]
 ----
 
-==== 导出PES数据 ====
+==== 导出PES、ES数据 ====
 
 ----
 语法：catts xxx.ts | tsana -pes [-pid 0x0032] | tobin 32.pes
-----
-
-==== 导出ES数据 ====
-
-----
 语法：catts xxx.ts | tsana -es [-pid 0x0032] | tobin 32.es
-----
-
-==== 导出ES数据到对应的二进制文件 ====
-
-----
-语法：catts xxx.ts | tsana -alles
 ----
 
 ==== 实时流录制 ====
@@ -329,6 +317,7 @@ TStools支持这种因为超长需要多个TS包承载的PSI/SI。
 == 深入了解TStools ==
 
 === TS同步 ===
+
 catts读入的ts文件有可能不是TS同步的——前面有不完整的包数据，
 有可能不是188字节包长的——204字节包长。
 对于这些情况，让用户猜测后以参数的方式输入固然可以，但是用起来会很不方便。
@@ -349,25 +338,51 @@ image:pic_TS_sync.jpg[码流同步]
 知道文件格式的同时就知道了开头处应该忽略的字节数，调整文件指针到第一个同步字节处，即可开展后继处理。
 
 === 时钟恢复 ===
-在分析码流的PCR指标时，需要精确的知道码流的到达时间。
-对于TS over IP，因为多个TS包被打成1个UDP包发送，每个包的到达时间已经无法准确获取了；
-而ts文件中只有每个TS包的数据，也没有到达时间的信息。
 
-由于系统码率稳定，可以认为每个包是等间隔到达的。
-只要知道所在节目前面2个PCR值，就能根据间隔包数计算当前包的到达时间。
-本项目的核心模块正是基于这样的原理计算第3个PCR包前每个包的到达时间：
+码流的各种时钟：
+
+- STC：节目时钟：TS的每个节目的视音频所参考的时钟（可能多个节目共享同一个STC）。
+- MTC：复用时钟：TS的所有包发收复用时所参考的时钟（与所有STC速度成正比，可能与某个STC一致）。
+
+码流的各种时间戳：
+
+- PCR：节目时间戳（参考STC）：TS的每个节目供接收端恢复STC的数据（解析可获得，可能有抖动偏差）。
+- DTS：解码时间戳（参考STC）：理想解码器对视音频帧的解码时刻（与PTS相等时仅传输PTS）。
+- PTS：回放时间戳（参考STC）：理想解码器对视音频帧的回放时刻（解析可获得，无偏差，可能不合理）。
+- ITS：理想时间戳（参考MTC）：没有任何误差的理想复用时间戳（鄙人的定义和命名）。
+- STS：发送时间戳（参考MTC）：理想复用器的STS可作为ITS使用（码流中不含此信息）。
+- ATS：到达时间戳（参考MTC）：这是BD标准中为每个包定义的的时间戳，可作为ITS使用。
+- CTS：捕捉时间戳（参考MTC）：如果信道指标完美，CTS与STS速度成正比（注意收发时钟速度有偏差）。
+
+在分析码流的PCR指标（或进行复用/解复用）时，每个包的时间戳信息情况：
+
+- ts文件没有与MTC相关的时间戳；
+- mts/m2ts文件在每个TS包前用4个字节标识ATS，可作为ITS使用；
+- ASI/RF传输时，信道延迟恒定，接收端可以得到每个包的CTS，可作为ITS使用；
+- TSoverIP把多个TS包打成1个UDP包，且信道延迟不定，因此每个包的CTS非常不准确；
+- MTSoverIP在每个包前携带ATS，可作为ITS使用；
 
 image:pic_STC.jpg[STC恢复]
 
-- 假设ADDa包和ADDb包的PCR抖动为0，其到达时间就是各自的PCR值，根据包间距离可以线性推导后面ADDx包的到达时间STCx。
-- 当携带第3个PCR的ADDc包出现时，根据推导出的到达时间STCc和该包的PCR值可以计算该包的PCR抖动。
-- 丢弃ADDa的信息，假设ADDc的PCR抖动为0，ADDc后面的包根据ADDb和ADDc计算。
-- 对于多节目流，不同节目的TS包的到达时间是基于它们各自的PCR计算的。
-- 由于除PMT之外的PSI/SI包和空包不属于任何节目，其到达时间基于PAT中的第1个节目的PCR计算。
+如上图，只要知道x包所在节目前面的2个PCR包（a和b），就能根据ITS比例计算x包的STC时刻。
+这里，ITS的具体数值不重要，重要的是ITS比例。
 
+对于ts文件和TSoverIP：
+如果系统码率稳定，可以认为拉匀后每个包是恒定间隔到达的，则每个包的ADD（地址）比例等于ITS比例；
+如果系统码率变化，就没有好办法获得ITS比例了。
 
-注意，这里先假设PCRa和PCRb准确而计算PCRc的抖动，然后假设PCRb和PCRc准确去计算PCRd的抖动。
-这是因为无法判断哪个PCR不准确，总是假设前2个PCR准确去计算当前PCR的抖动可以将误差限定在局部范围。
+对于mts/m2ts文件和MTSoverIP：ATS比例等于ITS比例。
+
+对于ASI/RF：CTS比例等于ITS比例。
+
+本项目的核心模块正是基于这样的原理计算b包与c包间每个包的STC：
+
+- 假设a包和b包的PCR抖动为0，根据ITS比例可以推导x包的STCx。
+- 若增加a包与b包的距离（跨过n个PCR包），可利用平均作用减弱a包与b包的实际PCR抖动引起的误差。
+- 当携带第3个PCR的c包出现时，根据推导出的STCc和该包的PCR值可以计算该包的PCR抖动。
+- 丢弃a包的信息，假设c包的PCR抖动为0，c包后面的包根据b包和c包计算。
+- 对于多节目流，不同节目的TS包的STC是基于它们各自的PCR计算的。
+- 由于除PMT之外的PSI/SI包和空包不属于任何节目，其STC基于某个节目的PCR计算（缺省为PAT中第1个节目）。
 
 先写这些吧！
 朋友们要是发现了BUG，或者有什么好的意见和建议，可以通过mailto:zhoucheng@tsinghua.org.cn[周骋]联系我。

@@ -11,7 +11,7 @@
 #include "common.h"
 #include "if.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 static FILE *fd_o = NULL;
 static char file_o[FILENAME_MAX] = "";
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
         fd_o = fopen(file_o, "wb");
         if(NULL == fd_o) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_o);
+                RPTERR("open \"%s\" failed", file_o);
                 return -1;
         }
 
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
                            0 == strcmp(tag, "*pes") ||
                            0 == strcmp(tag, "*es")) {
                                 cnt = next_nbyte_hex(bbuf, &pt, LINE_LENGTH_MAX / 3);
-                                fwrite(bbuf, cnt, 1, fd_o);
+                                (void)fwrite(bbuf, (size_t)cnt, 1, fd_o);
                         }
                 }
         }
@@ -81,7 +81,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
+                                RPTERR("wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }
@@ -95,37 +95,36 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'tobin' read from stdin, translate 'XY ' to 0xXY, send to file.");
-        puts("");
-        puts("Usage: tobin [OPTION] file [OPTION]");
-        puts("");
-        puts("Options:");
-        puts("");
-        puts(" -h, --help       print this information only");
-        puts(" -v, --version    print my version only");
-        puts("");
-        puts("Examples:");
-        puts("  tobin xxx.ts");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        fprintf(stdout,
+                "'tobin' read from stdin, translate 'XY ' to 0xXY, send to file.\n"
+                "\n"
+                "Usage: tobin [OPTION] file [OPTION]\n"
+                "\n"
+                "Options:\n"
+                "\n"
+                " -h, --help       print this information only\n"
+                " -v, --version    print my version only\n"
+                "\n"
+                "Examples:\n"
+                "  tobin xxx.ts\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return;
 }
 
 static void show_version()
 {
-        char str[100];
-
-        sprintf(str, "tobin of tstools v%s (%s)", VERSION_STR, REVISION);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "tobin of tstools v%s (%s)\n"
+                "Build time: %s %s\n"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012,2013,2014 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.\n",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return;
 }

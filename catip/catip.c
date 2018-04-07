@@ -6,18 +6,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcmp, etc */
+#include <inttypes.h> /* for uint?_t, PRIX64, etc */
 
 #include "tstool_config.h"
 #include "common.h"
 #include "if.h"
 #include "url.h"
 
-static int rpt_lvl = RPT_WRN; /* report level: ERR, WRN, INF, DBG */
+static int rpt_lvl = WRN_LVL; /* report level: ERR, WRN, INF, DBG */
 
 static struct url *fd_i = NULL;
 static char file_i[FILENAME_MAX] = "";
 static int npline = 188; /* data number per line */
-static long long int pkt_addr = 0;
+static int64_t pkt_addr = 0;
 
 static int deal_with_parameter(int argc, char *argv[]);
 static void show_help();
@@ -34,17 +35,17 @@ int main(int argc, char *argv[])
 
         fd_i = url_open(file_i, "rb");
         if(NULL == fd_i) {
-                RPT(RPT_ERR, "open \"%s\" failed", file_i);
+                RPTERR("open \"%s\" failed", file_i);
                 return -1;
         }
 
         pkt_addr = 0;
-        while(1 == url_read(bbuf, npline, 1, fd_i)) {
+        while(1 == url_read(bbuf, (size_t)npline, 1, fd_i)) {
                 fprintf(stdout, "*ts, ");
                 b2t(tbuf, bbuf, 188);
                 fprintf(stdout, "%s", tbuf);
 
-                fprintf(stdout, "*addr, %llX, \n", pkt_addr);
+                fprintf(stdout, "*addr, %"PRIX64", \n", pkt_addr);
 
                 pkt_addr += npline;
         }
@@ -78,7 +79,7 @@ static int deal_with_parameter(int argc, char *argv[])
                                 return -1;
                         }
                         else {
-                                RPT(RPT_ERR, "wrong parameter: %s", argv[i]);
+                                RPTERR("wrong parameter: %s", argv[i]);
                                 return -1;
                         }
                 }
@@ -92,39 +93,38 @@ static int deal_with_parameter(int argc, char *argv[])
 
 static void show_help()
 {
-        puts("'catip' read TS over IP, translate 0xXY to 'XY ' format, then send to stdout.");
-        puts("");
-        puts("Usage: catip [OPTION] udp://*@*:* [OPTION]");
-        puts("");
-        puts("Options:");
-        puts("");
-        puts(" -h, --help       print this information only");
-        puts(" -v, --version    print my version only");
-        puts("");
-        puts("Examples:");
-        puts("  catip udp://:1234");
-        puts("  catip udp://224.165.54.31:1234");
-        puts("  catip udp://192.165.54.36@224.165.54.31:1234");
-        puts("");
-        puts("Report bugs to <zhoucheng@tsinghua.org.cn>.");
+        fprintf(stdout,
+                "'catip' read TS over IP, translate 0xXY to 'XY ' format, then send to stdout.\n"
+                "\n"
+                "Usage: catip [OPTION] udp://*@*:* [OPTION]\n"
+                "\n"
+                "Options:\n"
+                "\n"
+                " -h, --help       print this information only\n"
+                " -v, --version    print my version only\n"
+                "\n"
+                "Examples:\n"
+                "  catip udp://:1234\n\n"
+                "  catip udp://224.165.54.31:1234\n\n"
+                "  catip udp://192.165.54.36@224.165.54.31:1234\n\n"
+                "\n"
+                "Report bugs to <zhoucheng@tsinghua.org.cn>.\n");
         return;
 }
 
 static void show_version()
 {
-        char str[100];
-
-        sprintf(str, "catip of tstools v%s (%s)", VERSION_STR, REVISION);
-        puts(str);
-        sprintf(str, "Build time: %s %s", __DATE__, __TIME__);
-        puts(str);
-        puts("");
-        puts("Copyright (C) 2009,2010,2011,2012 ZHOU Cheng.");
-        puts("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
-        puts("This is free software; contact author for additional information.");
-        puts("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR");
-        puts("A PARTICULAR PURPOSE.");
-        puts("");
-        puts("Written by ZHOU Cheng.");
+        fprintf(stdout,
+                "catip of tstools v%s (%s)\n"
+                "Build time: %s %s\n"
+                "\n"
+                "Copyright (C) 2009,2010,2011,2012,2013,2014 ZHOU Cheng.\n"
+                "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+                "This is free software; contact author for additional information.\n"
+                "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR\n"
+                "A PARTICULAR PURPOSE.\n"
+                "\n"
+                "Written by ZHOU Cheng.\n",
+                VERSION_STR, REVISION, __DATE__, __TIME__);
         return;
 }

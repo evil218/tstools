@@ -1,0 +1,937 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.3" />
+<title>伙伴内存分配模块</title>
+<style type="text/css">
+/* Sans-serif font. */
+h1, h2, h3, h4, h5, h6,
+div.title, caption.title,
+thead, p.table.header,
+div#toctitle,
+span#author, span#revnumber, span#revdate, span#revremark,
+div#footer {
+  font-family: Arial,Helvetica,sans-serif;
+}
+
+/* Serif font. */
+div.sectionbody {
+  font-family: Georgia,"Times New Roman",Times,serif;
+}
+
+/* Monospace font. */
+tt {
+  font-size: inherit;
+}
+
+body {
+  margin: 1em 5% 1em 5%;
+}
+
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
+
+em {
+  font-style: italic;
+  color: navy;
+}
+
+strong {
+  font-weight: bold;
+  color: #083194;
+}
+
+tt {
+  font-size: inherit;
+  color: navy;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1, h2, h3 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  padding-top: 0.5em;
+}
+h3 {
+  float: left;
+}
+h3 + * {
+  clear: left;
+}
+
+div.sectionbody {
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+ul, ol, li > p {
+  margin-top: 0;
+}
+ul > li     { color: #aaa; }
+ul > li > * { color: black; }
+
+pre {
+  padding: 0;
+  margin: 0;
+}
+
+span#author {
+  color: #527bbd;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+span#email {
+}
+span#revnumber, span#revdate, span#revremark {
+}
+
+div#footer {
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+div#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+div#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+div#preamble {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.0em;
+  margin-bottom: 2.0em;
+  margin-right: 10%;
+  color: #606060;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  color: #527bbd;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid #dddddd;
+  border-left: 4px solid #f0f0f0;
+  padding: 0.5em;
+}
+
+div.listingblock > div.content {
+  border: 1px solid #dddddd;
+  border-left: 5px solid #f0f0f0;
+  background: #f8f8f8;
+  padding: 0.5em;
+}
+
+div.quoteblock, div.verseblock {
+  padding-left: 1.0em;
+  margin-left: 1.0em;
+  margin-right: 10%;
+  border-left: 5px solid #f0f0f0;
+  color: #777777;
+}
+
+div.quoteblock > div.attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock > pre.content {
+  font-family: inherit;
+  font-size: inherit;
+}
+div.verseblock > div.attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+/* DEPRECATED: Pre version 8.2.7 verse style literal block. */
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 3px solid #dddddd;
+}
+
+div.exampleblock > div.content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+div.imageblock div.content { padding-left: 0; }
+span.image img { border-style: none; }
+a.image:visited { color: white; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: normal;
+  color: navy;
+}
+dd > *:first-child {
+  margin-top: 0.1em;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+ol.arabic {
+  list-style-type: decimal;
+}
+ol.loweralpha {
+  list-style-type: lower-alpha;
+}
+ol.upperalpha {
+  list-style-type: upper-alpha;
+}
+ol.lowerroman {
+  list-style-type: lower-roman;
+}
+ol.upperroman {
+  list-style-type: upper-roman;
+}
+
+div.compact ul, div.compact ol,
+div.compact p, div.compact p,
+div.compact div, div.compact div {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead, p.table.header {
+  font-weight: bold;
+  color: #527bbd;
+}
+tfoot {
+  font-weight: bold;
+}
+td > div.verse {
+  white-space: pre;
+}
+p.table {
+  margin-top: 0;
+}
+/* Because the table frame attribute is overriden by CSS in most browsers. */
+div.tableblock > table[frame="void"] {
+  border-style: none;
+}
+div.tableblock > table[frame="hsides"] {
+  border-left-style: none;
+  border-right-style: none;
+}
+div.tableblock > table[frame="vsides"] {
+  border-top-style: none;
+  border-bottom-style: none;
+}
+
+
+div.hdlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+div.hdlist tr {
+  padding-bottom: 15px;
+}
+dt.hdlist1.strong, td.hdlist1.strong {
+  font-weight: bold;
+}
+td.hdlist1 {
+  vertical-align: top;
+  font-style: normal;
+  padding-right: 0.8em;
+  color: navy;
+}
+td.hdlist2 {
+  vertical-align: top;
+}
+div.hdlist.compact tr {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.comment {
+  background: yellow;
+}
+
+.footnote, .footnoteref {
+  font-size: 0.8em;
+}
+
+span.footnote, span.footnoteref {
+  vertical-align: super;
+}
+
+#footnotes {
+  margin: 20px 0 20px 0;
+  padding: 7px 0 0 0;
+}
+
+#footnotes div.footnote {
+  margin: 0 0 5px 0;
+}
+
+#footnotes hr {
+  border: none;
+  border-top: 1px solid silver;
+  height: 1px;
+  text-align: left;
+  margin-left: 0;
+  width: 20%;
+  min-width: 100px;
+}
+
+div.colist td {
+  padding-right: 0.5em;
+  padding-bottom: 0.3em;
+  vertical-align: top;
+}
+div.colist td img {
+  margin-top: 0.3em;
+}
+
+@media print {
+  div#footer-badges { display: none; }
+}
+
+div#toc {
+  margin-bottom: 2.5em;
+}
+
+div#toctitle {
+  color: #527bbd;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 1.0em;
+  margin-bottom: 0.1em;
+}
+
+div.toclevel1, div.toclevel2, div.toclevel3, div.toclevel4 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+div.toclevel2 {
+  margin-left: 2em;
+  font-size: 0.9em;
+}
+div.toclevel3 {
+  margin-left: 4em;
+  font-size: 0.9em;
+}
+div.toclevel4 {
+  margin-left: 6em;
+  font-size: 0.9em;
+}
+
+</style>
+<script type="text/javascript">
+/*<![CDATA[*/
+window.onload = function(){asciidoc.footnotes(); asciidoc.toc(2);}
+var asciidoc = {  // Namespace.
+
+/////////////////////////////////////////////////////////////////////
+// Table Of Contents generator
+/////////////////////////////////////////////////////////////////////
+
+/* Author: Mihai Bazon, September 2002
+ * http://students.infoiasi.ro/~mishoo
+ *
+ * Table Of Content generator
+ * Version: 0.4
+ *
+ * Feel free to use this script under the terms of the GNU General Public
+ * License, as long as you do not remove or alter this notice.
+ */
+
+ /* modified by Troy D. Hanson, September 2006. License: GPL */
+ /* modified by Stuart Rackham, 2006, 2009. License: GPL */
+
+// toclevels = 1..4.
+toc: function (toclevels) {
+
+  function getText(el) {
+    var text = "";
+    for (var i = el.firstChild; i != null; i = i.nextSibling) {
+      if (i.nodeType == 3 /* Node.TEXT_NODE */) // IE doesn't speak constants.
+        text += i.data;
+      else if (i.firstChild != null)
+        text += getText(i);
+    }
+    return text;
+  }
+
+  function TocEntry(el, text, toclevel) {
+    this.element = el;
+    this.text = text;
+    this.toclevel = toclevel;
+  }
+
+  function tocEntries(el, toclevels) {
+    var result = new Array;
+    var re = new RegExp('[hH]([2-'+(toclevels+1)+'])');
+    // Function that scans the DOM tree for header elements (the DOM2
+    // nodeIterator API would be a better technique but not supported by all
+    // browsers).
+    var iterate = function (el) {
+      for (var i = el.firstChild; i != null; i = i.nextSibling) {
+        if (i.nodeType == 1 /* Node.ELEMENT_NODE */) {
+          var mo = re.exec(i.tagName);
+          if (mo && (i.getAttribute("class") || i.getAttribute("className")) != "float") {
+            result[result.length] = new TocEntry(i, getText(i), mo[1]-1);
+          }
+          iterate(i);
+        }
+      }
+    }
+    iterate(el);
+    return result;
+  }
+
+  var toc = document.getElementById("toc");
+  var entries = tocEntries(document.getElementById("content"), toclevels);
+  for (var i = 0; i < entries.length; ++i) {
+    var entry = entries[i];
+    if (entry.element.id == "")
+      entry.element.id = "_toc_" + i;
+    var a = document.createElement("a");
+    a.href = "#" + entry.element.id;
+    a.appendChild(document.createTextNode(entry.text));
+    var div = document.createElement("div");
+    div.appendChild(a);
+    div.className = "toclevel" + entry.toclevel;
+    toc.appendChild(div);
+  }
+  if (entries.length == 0)
+    toc.parentNode.removeChild(toc);
+},
+
+
+/////////////////////////////////////////////////////////////////////
+// Footnotes generator
+/////////////////////////////////////////////////////////////////////
+
+/* Based on footnote generation code from:
+ * http://www.brandspankingnew.net/archive/2005/07/format_footnote.html
+ */
+
+footnotes: function () {
+  var cont = document.getElementById("content");
+  var noteholder = document.getElementById("footnotes");
+  var spans = cont.getElementsByTagName("span");
+  var refs = {};
+  var n = 0;
+  for (i=0; i<spans.length; i++) {
+    if (spans[i].className == "footnote") {
+      n++;
+      // Use [\s\S] in place of . so multi-line matches work.
+      // Because JavaScript has no s (dotall) regex flag.
+      note = spans[i].innerHTML.match(/\s*\[([\s\S]*)]\s*/)[1];
+      noteholder.innerHTML +=
+        "<div class='footnote' id='_footnote_" + n + "'>" +
+        "<a href='#_footnoteref_" + n + "' title='Return to text'>" +
+        n + "</a>. " + note + "</div>";
+      spans[i].innerHTML =
+        "[<a id='_footnoteref_" + n + "' href='#_footnote_" + n +
+        "' title='View footnote' class='footnote'>" + n + "</a>]";
+      var id =spans[i].getAttribute("id");
+      if (id != null) refs["#"+id] = n;
+    }
+  }
+  if (n == 0)
+    noteholder.parentNode.removeChild(noteholder);
+  else {
+    // Process footnoterefs.
+    for (i=0; i<spans.length; i++) {
+      if (spans[i].className == "footnoteref") {
+        var href = spans[i].getElementsByTagName("a")[0].getAttribute("href");
+        href = href.match(/#.*/)[0];  // Because IE return full URL.
+        n = refs[href];
+        spans[i].innerHTML =
+          "[<a href='#_footnote_" + n +
+          "' title='View footnote' class='footnote'>" + n + "</a>]";
+      }
+    }
+  }
+}
+
+}
+/*]]>*/
+</script>
+</head>
+<body class="book">
+<div id="header">
+<h1>伙伴内存分配模块</h1>
+<span id="author">周骋</span><br />
+<span id="email"><tt>&lt;<a href="mailto:zhoucheng@tsinghua.org.cn">zhoucheng@tsinghua.org.cn</a>&gt;</tt></span><br />
+<span id="revnumber">version 1.0,</span>
+<span id="revdate">2013年11月21日</span>
+<div id="toc">
+  <div id="toctitle">Table of Contents</div>
+  <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
+</div>
+</div>
+<div id="content">
+<div class="sect1">
+<h2 id="_">1. 致谢</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>感谢<a href="http://blog.codingnow.com/2011/12/buddy_memory_allocation.html">云风</a>，
+他的分享启发了wuwenbin。</p></div>
+<div class="paragraph"><p>感谢<a href="https://github.com/wuwenbin/buddy2">wuwenbin</a>，他在github上的代码启发了Bean_lee。</p></div>
+<div class="paragraph"><p>感谢<a href="http://blog.chinaunix.net/uid-24774106-id-3395431.html">Bean_lee</a>，
+他分享了自己的代码，并仔细阐述了代码思路。</p></div>
+<div class="paragraph"><p>我做的这个模块基本上就是Bean_lee代码的复制品，有较多代码风格、调试等方面的改动。
+之所以有这些调整是因为项目整体风格的需要，为此向Bean_lee深表歉意！</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__2">2. 序言</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>内存分配机制是操作系统中的一个重要课题，
+系统设计者要在复杂度、时间开销、空间开销等方面寻找平衡点。</p></div>
+<div class="paragraph"><p>Linux物理内存页框的主要分配机制就是伙伴算法，这保证了系统层面的可靠性。
+但是伙伴算法总是给用户分配大小为2的幂次的内存块，在最糟糕的情况下，这会导致近50%的空间浪费。
+因此在伙伴算法分配的较大内存块的基础上，Linux采用slab分配器切出更小的单元给用户。
+另外为了满足内核频繁地创建和撤销一定类型的对象，Linux还使用了对象缓存机制。
+kmalloc在伙伴算法之下基于slab分配器和对象缓存机制，在内核地址空间分配连续的内存区域。
+vmalloc在伙伴算法之下基于页表拼接内存从而满足那些仅需要虚拟地址空间连续的请求。
+通过这些不同层面的内存分配算法，Linux达到了一种可靠性和性能的平衡。</p></div>
+<div class="paragraph"><p>操作系统提供的内存分配机制并不一定能满足应用程序在速度和可靠性方面的需求。
+VxWorks中系统内存池的动态分配采用最先匹配（First-Fit）算法，感觉是把实时性放在第1位而放弃了稳定性。
+VxWorks要求应用程序尽量避免动态分配和释放内存，以最大限度地保证系统的稳定性！！！
+从这里，我们可以窥见到把Linux改造成实时操作系统要面临的众多问题之一。</p></div>
+<div class="paragraph"><p>由于网上没有通行的伙伴内存管理库，我们只好再造一次轮子。
+好在云风、wuwenbin、Bean_lee等人在博客中对此进行了深入地探讨，并提供了源代码供参考。
+他们的工作为本文这个模块提供了非常理想的基础。</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__3">3. 伙伴算法的原理</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>伙伴算法管理2的幂次大小的一个内存池，它按照满二叉树来理解这个内存池。</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+分配时，深度优先搜索合适的空间，若没有则不断均分大的空闲空间，直到刚好大于等于需求。
+</p>
+</li>
+<li>
+<p>
+释放时，左右子树若同时空闲就可以合并成完整的大空闲空间，该过程向上递推进行。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_buddy_pool.jpg" alt="buddy_pool" />
+</span></p></div>
+<div class="paragraph"><p>上图演示了一个buddy系统的典型运作情况：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+a：空间为64的空闲内存池；
+</p>
+</li>
+<li>
+<p>
+b：分配了大小为7的空间后，内存池还剩32、16和8这三种大小的空闲空间；
+</p>
+</li>
+<li>
+<p>
+c：分配了大小为9的空间后，内存池还剩32、8这两种大小的空闲空间；
+</p>
+</li>
+<li>
+<p>
+d：大小为7的空间释放了，合并出1个大小为16的空闲空间；
+</p>
+</li>
+<li>
+<p>
+e：大小为9的空间释放了，递推合并出整个大小为64的空闲空间。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>通过上述方案，伙伴算法可以保证分配的空间按照幂次聚集，从而也能在释放时尽可能合并成大空闲空间。
+这个算法可以连续运行，不会因为内存碎片的累积而慢慢走向崩溃。</p></div>
+<div class="paragraph"><p>想要直观地观察伙伴系统的运行情况，可以执行本文附带的伙伴系统演示工具：buddy.exe。
+这是鄙人读书时用VC6写的一个图形化演示程序，有自动和手动两种模式展现伙伴系统运行时的情况。</p></div>
+<div class="paragraph"><p>伙伴算法的优点：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+复杂度低：相当于采用二分法遍历空闲池，分配和释放动作都很快；
+</p>
+</li>
+<li>
+<p>
+非侵入式：所分配的内存附近没有用来描述空间状态的cookie；
+</p>
+</li>
+<li>
+<p>
+可持续性：不存在内存碎片积累问题，可以长期可靠运行；
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>伙伴算法的缺点：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+它用来描述内存池状态的二叉树会占用一定比列的内存空间；
+</p>
+</li>
+<li>
+<p>
+它在内存池使用过半时，对大空间分配需求的支持不是最好的；
+</p>
+</li>
+<li>
+<p>
+它分配给应用层的实际空间总是2的幂次大小，这常常导致空间浪费；
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__4">4. 本模块实现方案</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="__5">4.1. 当前方案</h3>
+<div class="paragraph"><p>伙伴算法需要维护一棵满二叉树，用来记录内存池的分配情况。
+有些伙伴算法代码用链表来实现这颗二叉树，这带来了遍历时的低效，并导致高昂的内存开销。
+鄙人2001年写的buddy.exe就是这样做的，当时维护链表二叉树很费力。
+实际上由于伙伴算法的二叉树上各节点只需要记录对应内存池的容量，它可以非常简单。
+在Bean_lee的代码中，每个节点仅用一个字节表示，这些节点聚在一起以数组方式访问。
+节点中使用幂次描述对应空间的大小，0表示已被分配（因此最小分配单位不能是1-byte，这不算遗憾）。
+至于二叉树的遍历，根本不需要左子树、右子树这种指针。</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>#define FBTL(idx) (((idx) &lt;&lt; 1) + 1)        /* full binary tree left subnode index */
+#define FBTR(idx) (((idx) &lt;&lt; 1) + 2)        /* full binary tree right subnode index */
+#define FBTP(idx) ((((idx) + 1) &gt;&gt; 1) - 1)  /* full binary tree parent node index */</tt></pre>
+</div></div>
+<div class="paragraph"><p>通过上面这3个宏，可以高效地计算索引，从而在二叉树中移动。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_buddy_tree.jpg" alt="buddy_tree" />
+</span></p></div>
+<div class="paragraph"><p>在图示二叉树中，每个节点仅用一个byte来描述pool中对应区域的情况。
+0表示该区域被分配出去了——其子节点不用置零；其它数字表示该区域最大还能分配的空间幂次。</p></div>
+<div class="paragraph"><p>a、b、c、d、e依次演示了上一节的buddy系统运作时二叉树的变化情况：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+a：空间为64的空闲内存池：二叉树各节点记录对应的幂次，表明对应空闲块的大小；
+</p>
+</li>
+<li>
+<p>
+b：自树根向下，左优先为空间7寻找幂次为3的空闲块，其幂次清0表示被分配，递推调整父节点；
+</p>
+</li>
+<li>
+<p>
+c：自树根向下，左优先为空间9寻找幂次为4的空闲块，其幂次清0表示被分配，递推调整父节点；
+</p>
+</li>
+<li>
+<p>
+d：定位被释放空间对应的二叉树节点，恢复其幂次后，递推调整父节点；
+</p>
+</li>
+<li>
+<p>
+e：定位被释放空间对应的二叉树节点，恢复其幂次后，递推调整父节点，二叉树恰好复原成a状态。
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="__6">4.2. 失败的改进尝试</h3>
+<div class="paragraph"><p>如果上面的满二叉树坍塌成只有叶节点就退化成位图，对内存池的描述将可以节省一半空间。</p></div>
+<div class="paragraph"><p><span class="image">
+<img src="pic_buddy_bitmap.jpg" alt="buddy_bitmap" />
+</span></p></div>
+<div class="paragraph"><p>在这个位图中，每个节点仅用一个byte来描述pool中对应区域的情况，描述方法需要稍作调整：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+0表示该区域被合并成更大的空间了；
+</p>
+</li>
+<li>
+<p>
+负数表示其绝对值幂次的空间被分配；
+</p>
+</li>
+<li>
+<p>
+正数表示该幂次的空间闲置。
+</p>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>/* FBTL: full binary tree left subnode index
+ * FBTR: full binary tree right subnode index
+ * FBTP: full binary tree parent node index
+ *
+ *  idx: index of bitmap array
+ * ocur: current order
+ * omin: minimum order of this buddy object
+ */
+#define FBTL(idx)               (idx)
+#define FBTR(idx, ocur, omin)   ((idx) |  ((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))
+#define FBTP(idx, ocur, omin)   ((idx) &amp; ~((size_t)1 &lt;&lt; ((ocur) - (omin) - 1)))</tt></pre>
+</div></div>
+<div class="paragraph"><p>在这个压扁了的二叉树中，遍历所需的索引计算也发生了变化。
+节点的左子树的索引与自身相同，右子树的索引仅需把1个bit置1。
+节点的父节点的索引就是左树的节点，无论当前是左树还是右树仅需把1个bit置0即可。</p></div>
+<div class="paragraph"><p>我尝试基于这个思路调整代码，结果发现释放节点很容易，但分配节点则不可能高效实现。
+由于位图直接记录了每个偏移位置的容量和分配状态，初始化位图和释放空间的效率比现有代码高。
+由于位图描述缺少父节点的高级信息，分配时不能用二分法迅速找到目标节点。
+如果采用从左向右扫描的方式，不仅执行效率低，而且放弃了伙伴算法的精华，将来无法正常合并空间。
+综合考虑，这种改进思路不可取！</p></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="__7">5. 使用本模块</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>本模块仅由buddy.h和buddy.c两个文件组成。
+其中buddy.h是模块的接口，提供了1个宏和7个接口函数：</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+BUDDY_ORDER_MAX：系统允许的理论最大内存池的幂次（主要针对32位与64位系统的差异，实际达不到）；
+</p>
+</li>
+<li>
+<p>
+buddy_create()：创建1个buddy对象，用来管理一个独立的伙伴内存池，应用层可以创建多个对象；
+</p>
+</li>
+<li>
+<p>
+buddy_destroy()：销毁指定buddy对象，该内存池还给操作系统；
+</p>
+</li>
+<li>
+<p>
+buddy_report()：通过打印报告指定buddy对象内存池的具体使用情况（仅用于调试）；
+</p>
+</li>
+<li>
+<p>
+buddy_malloc()：在指定buddy对象内存池中分配一块空间，类似系统的malloc()；
+</p>
+</li>
+<li>
+<p>
+buddy_realloc()：在指定buddy对象内存池中调整一块空间（未经测试），类似系统的realloc()；
+</p>
+</li>
+<li>
+<p>
+buddy_free()：在指定buddy对象内存池中释放一块空间，类似系统的free()。
+</p>
+</li>
+</ul></div>
+<div class="sect2">
+<h3 id="_buddy_create">5.1. buddy_create</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>void *buddy_create(int order_max, int order_min);</tt></pre>
+</div></div>
+<div class="paragraph"><p>buddy_create有2个参数，分别指明内存池的总大小和最小分配大小。
+它们仅指明幂次，具体以byte为单位的size是推算出来的。
+显然，要求“0 &lt; order_min &lt; order_max &#8656; BUDDY_ORDER_MAX”，否则buddy_create会失败退出。</p></div>
+<div class="paragraph"><p>buddy_create首先申请一小片空间作为buddy对象，
+然后申请(1 &lt;&lt; order_max)-byte空间作为待分配的内存池，
+最后申请( (1 &lt;&lt; (order_max - order_min + 1)) - 1 )-byte空间作为二叉树描述内存池状态。</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+当order_min为0时，用于描述内存池的二叉树几乎是内存池空间的2倍，还没使用空间效率就剩33%了。
+</p>
+</li>
+<li>
+<p>
+当order_min为1时，用于描述内存池的二叉树只比内存池少1-byte，还没使用空间效率就剩50%了。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>由于0用来表示空间被分配，order_min为0在本模块中是不允许的。
+建议根据应用程序动态申请空间的大小特点，适当调高order_min的值，以满足最主要的中大型内存需求。
+对于码流分析系统，设置order_min为6比较合适，此时二叉树仅为内存池大小的3%（1/32）。</p></div>
+<div class="paragraph"><p>二叉树需要初始化才能正常使用，buddy_create()内部会调用init_tree()。
+应用层也可以通过buddy_init()接口随时初始化该对象，其内部也是靠init_tree()实现的。</p></div>
+<div class="paragraph"><p>buddy_create的返回值其实是这个buddy对象的指针，为了隐藏对象的细节，采用void *类型。
+如果返回NULL，说明出现了错误。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_buddy_destroy">5.2. buddy_destroy</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>int buddy_destroy(void *id);</tt></pre>
+</div></div>
+<div class="paragraph"><p>buddy_destroy依次把二叉树、内存池和buddy对象自身释放回OS。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_buddy_init">5.3. buddy_init</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>int buddy_init(void *id);</tt></pre>
+</div></div>
+<div class="paragraph"><p>buddy_init可以快速初始化描述内存池的二叉树。
+无论内存池处于任何状态，它都以同样的速度使内存池进入未分配状态。
+当然应用层不可以再使用早先分配过的空间了，否则会与后面的分配情况出现冲突。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_buddy_report">5.4. buddy_report</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>int buddy_report(void *id, int level, const char *hint); /* for debug */</tt></pre>
+</div></div>
+<div class="paragraph"><p>这个接口仅仅用于调试目的，它可以在开发阶段增加内存池使用情况的透明度。
+buddy_report()调用递归函数report()，以前序遍历（先根遍历）方式扫描二叉树。
+与常规前序遍历二叉树不同的是，report()遇到已分配节点时，不再处理其子节点。
+buddy_report()通过stderr报告每个已分配内存块的幂次（甚至按字节打印具体数据），
+最后会报告整个内存池的使用比例。</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+level为BUDDY_REPORT_NONE时，这个接口直接返回0；
+</p>
+</li>
+<li>
+<p>
+level为BUDDY_REPORT_TOTAL时，遍历时只打印已分配空间的幂次；
+</p>
+</li>
+<li>
+<p>
+level为BUDDY_REPORT_DETAIL时，遍历时不仅打印已分配空间的幂次，还包括其地址及具体数据。
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>如果hint非NULL，会在行尾打印这个字符串，以提示应用层运行的上下文。</p></div>
+<div class="paragraph"><p>本模块这种特殊的单字节二叉树无法通过递推形式遍历，因此选择了递归算法（靠系统栈记录遍历状态）。
+递归时，不处理无用子树的思路可以提高遍历速度——对分配大空间的情况可以避免很多无效遍历。
+但是递归对系统栈的大小提出了要求，访问叶节点时需要函数递归深度为order_max - order_min，约数十次。
+在系统受限的嵌入式系统中调用本接口要小心系统崩溃，因此建议仅在调试时使用这个接口。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_buddy_malloc">5.5. buddy_malloc</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>void *buddy_malloc(void *id, size_t size);</tt></pre>
+</div></div>
+<div class="paragraph"><p>这个接口尽量仿照了Linux的malloc，唯一的不同是参数中多了一个id来确定具体的buddy对象。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_buddy_realloc">5.6. buddy_realloc</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>void *buddy_realloc(void *id, void *ptr, size_t size); /* FIXME: need to be test */</tt></pre>
+</div></div>
+<div class="paragraph"><p>这个接口尽量仿照了Linux的realloc，唯一的不同是参数中多了一个id来确定具体的buddy对象。
+后面那个FIXME注释想说：由于这个接口从未用过，其正确性有待验证。</p></div>
+<div class="paragraph"><p>关于本模块实现realloc接口的渊源：
+param_xml模块是基于libxml2实现的，libxml2则频繁进行超小内存块的分配与释放操作。
+libxml2的文档中提到其内存操作可能会影响嵌入式操作系统的稳定性，因此它提供了接口供用户替换自己的内存管理算法。
+libxml2中用来替换内存分配算法的接口需要realloc接口，因此我实现了它，但是我发现libxml2自己也没用过这个接口。</p></div>
+</div>
+<div class="sect2">
+<h3 id="_buddy_free">5.7. buddy_free</h3>
+<div class="listingblock">
+<div class="content">
+<pre><tt>void buddy_free(void *id, void *ptr);</tt></pre>
+</div></div>
+<div class="paragraph"><p>这个接口尽量仿照了Linux的free，唯一的不同是参数中多了一个id来确定具体的buddy对象。</p></div>
+<div class="paragraph"><p>先写这些吧！
+小伙伴们要是发现了BUG，或者有好的意见和建议，可以通过<a href="mailto:zhoucheng@tsinghua.org.cn">周骋</a>联系我。</p></div>
+</div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+<div id="footer">
+<div id="footer-text">
+Version 1.0<br />
+Last updated 2013-12-15 16:45:53 CST
+</div>
+</div>
+</body>
+</html>

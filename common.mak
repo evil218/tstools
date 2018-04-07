@@ -5,11 +5,11 @@
 SRCS := $(obj-y:%.o=%.c)
 
 ifeq ($(SYS),LINUX)
-LIB_SHARED = lib$(NAME).so.$(VMAJOR).$(VMINOR).$(VRELEA)
+LIB_SHARED = lib$(NAME).so.$(VMAJOR).$(VMINOR).$(VPATCH)
 SONAME = lib$(NAME).so.$(VMAJOR)
-LIB_STATIC = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VRELEA).a
+LIB_STATIC = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VPATCH).a
 else # CYGWIN or WINDOWS
-LIB_SHARED = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VRELEA).dll
+LIB_SHARED = lib$(NAME)-$(VMAJOR).$(VMINOR).$(VPATCH).dll
 IMPLIBNAME = lib$(NAME).dll.a
 LIB_STATIC = lib$(NAME).a
 endif
@@ -34,9 +34,15 @@ $(LIB_STATIC): .depend $(obj-y)
 
 $(LIB_SHARED): .depend $(obj-y)
 	$(LD)$@ $(obj-y) $(SOFLAGS) $(LDFLAGS)
+ifneq ($(SONAME),)
+	ln -fs $(LIB_SHARED) lib$(NAME).so
+endif
 
 $(NAME)$(EXE): .depend $(obj-y)
 	$(LD)$@ $(obj-y) $(LDFLAGS)
+
+test_$(NAME)$(EXE): test_$(NAME).c $(LIB_SHARED)
+	gcc -o $@ $< -L. -l$(NAME)
 
 .depend:
 	@rm -f .depend
@@ -63,6 +69,22 @@ lib$(NAME).pc: ../config.mak
 	@echo Libs.private: >> lib$(NAME).pc
 	@echo Cflags: -I$(includedir) >> lib$(NAME).pc
 
+lint: $(SRCS)
+	@echo -----------------------------------------------------------
+	-splint $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
+lintw: $(SRCS)
+	@echo -----------------------------------------------------------
+	-splint -weak $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
+lintc: $(SRCS)
+	@echo -----------------------------------------------------------
+	-splint -checks $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
+lints: $(SRCS)
+	@echo -----------------------------------------------------------
+	-splint -strict $(LINTFLAGS) $(INCDIRS) $(SRCS)
+
 install-lib-dev:
 	-install -d $(includedir)
 	-install -d $(libdir)
@@ -71,16 +93,19 @@ install-lib-dev:
 	-install -m 644 lib$(NAME).pc $(libdir)/pkgconfig
 
 ifeq ($(TYPE),lib)
-clean:
-	-rm -f lib$(NAME)* $(obj-y) .depend
+test: test_$(NAME)$(EXE)
 
-install: $(aim) lib$(NAME).pc install-lib-dev
+clean:
+	-rm -f lib$(NAME)* $(obj-y) .depend test_$(NAME)$(EXE)
+
+#install: $(aim) lib$(NAME).pc install-lib-dev
+install: $(aim)
 ifneq ($(IMPLIBNAME),)
 	-install -m 755 $(aim) $(bindir)
 	-install -m 644 $(IMPLIBNAME) $(libdir)
 else ifneq ($(SONAME),)
 	-install -m 755 $(aim) $(libdir)
-	-ln -f -s $(libdir)/$(aim) $(libdir)/$(SONAME)
+	-ln -fs $(aim) $(libdir)/$(SONAME)
 	-ldconfig $(libdir)
 endif
 

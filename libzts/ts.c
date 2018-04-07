@@ -5,35 +5,42 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h> /* for uint?_t, etc */
 #include <string.h> /* for memset, memcpy, etc */
+#ifdef _MSC_VER
+        #ifdef _M_X64
+                #define __PRI64 "l"
+        #else
+                #define __PRI64 "ll"
+        #endif
+
+        #define PRId8  "d"
+        #define PRId16 "d"
+        #define PRId32 "d"
+        #define PRId64 __PRI64"d"
+#else /* unix-like */
+        #include <inttypes.h> /* for int?_t, PRId64, etc */
+#endif
 
 #include "buddy.h"
 #include "ts.h"
 
-/* report level */
+/* report level and macro */
 #define RPT_ERR (1) /* error, system error */
 #define RPT_WRN (2) /* warning, maybe wrong, maybe OK */
 #define RPT_INF (3) /* important information */
 #define RPT_DBG (4) /* debug information */
 
-/* report micro */
-#define RPT(lvl, ...) do \
-{ \
-        if(lvl <= rpt_lvl) \
-        { \
-                switch(lvl) \
-                { \
-                        case RPT_ERR: fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); break; \
-                        case RPT_WRN: fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); break; \
-                        case RPT_INF: fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); break; \
-                        case RPT_DBG: fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); break; \
-                        default:      fprintf(stderr, "%s: %d: ???: ", __FILE__, __LINE__); break; \
-                } \
-                fprintf(stderr, __VA_ARGS__); \
-                fprintf(stderr, "\n"); \
-        } \
-} while (0)
+#ifdef S_SPLINT_S /* FIXME */
+#define RPTERR(fmt...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTWRN(fmt...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTINF(fmt...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#define RPTDBG(fmt...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: ", __FILE__, __LINE__); fprintf(stderr, fmt); fprintf(stderr, "\n");}} while(0 == 1)
+#else
+#define RPTERR(fmt, ...) do {if(RPT_ERR <= rpt_lvl) {fprintf(stderr, "%s: %d: err: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTWRN(fmt, ...) do {if(RPT_WRN <= rpt_lvl) {fprintf(stderr, "%s: %d: wrn: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTINF(fmt, ...) do {if(RPT_INF <= rpt_lvl) {fprintf(stderr, "%s: %d: inf: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#define RPTDBG(fmt, ...) do {if(RPT_DBG <= rpt_lvl) {fprintf(stderr, "%s: %d: dbg: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);}} while(0 == 1)
+#endif
 
 #define BIT(n) (1<<(n))
 #define NORMAL_SECTION_LENGTH_MAX (1021)
@@ -100,7 +107,9 @@ static const struct table_id_table TABLE_ID_TABLE[] = {
         {0x74, 0x7D, 0, TS_TYPE_RSV},
         {0x7E, 0x7E, 0, TS_TYPE_DIT},
         {0x7F, 0x7F, 0, TS_TYPE_SIT},
-        {0x80, 0xFE, 0, TS_TYPE_USR},
+        {0x80, 0x81, 0, TS_TYPE_ECM},
+        {0x82, 0x8F, 0, TS_TYPE_EMM},
+        {0x90, 0xFE, 0, TS_TYPE_USR},
         {0xFF, 0xFF, 0, TS_TYPE_RSV} /* loop stop condition! */
 };
 
@@ -141,6 +150,7 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0x1C, TS_TYPE_AUD}, /* "MPEG-4", "ISO/IEC 14496-3 Audio, without using any additional transport syntax, such as DST, ALS and SLS" */
         {0x1D, TS_TYPE_USR}, /* "MPEG-4", "ISO/IEC 14496-17 Text" */
         {0x1E, TS_TYPE_VID}, /* "MPEG-4", "Auxiliary video stream as defined in ISO/IEC 23002-3" */
+        {0x24, TS_TYPE_VID}, /* "H.265", "HEVC(High Efficiency Video Coding)" */
         {0x42, TS_TYPE_VID}, /* "AVS", "Advanced Video Standard" */
         {0x7F, TS_TYPE_USR}, /* "IPMP", "IPMP stream" */
         {0x80, TS_TYPE_VID}, /* "SVAC|LPCM", "SVAC, LPCM of ATSC" */
@@ -160,6 +170,8 @@ static const struct stream_type_table STREAM_TYPE_TABLE[] = {
         {0xA2, TS_TYPE_AUD}, /* "DTSHD_2", "DTSHD_2" */
         {0xEA, TS_TYPE_VID}, /* "VC1", "VC1" */
         {0xEA, TS_TYPE_AUD}, /* "WMA", "WMA" */
+        {0xF0, TS_TYPE_EMM}, /* "EMM" */
+        {0xF1, TS_TYPE_ECM}, /* "ECM" */
         {0xFF, TS_TYPE_UNO}  /* "UNKNOWN", "Unknown stream" loop stop condition! */
 };
 
@@ -173,8 +185,8 @@ enum {
         STATE_NEXT_PKT  /* parse packet with current lists */
 };
 
-static int init(struct ts_obj *obj);
-static int tidy(struct ts_obj *obj);
+static void init(/*@out@*/ struct ts_obj *obj);
+static void tidy(struct ts_obj *obj);
 static int state_next_pat(struct ts_obj *obj);
 static int state_next_pmt(struct ts_obj *obj);
 static int state_next_pkt(struct ts_obj *obj);
@@ -191,41 +203,52 @@ static int ts_parse_pesh_switch(struct ts_obj *obj);
 static int ts_parse_pesh_detail(struct ts_obj *obj);
 
 static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid);
-static int free_pid(intptr_t mp, struct ts_pid *pid);
-static int free_sect(intptr_t mp, struct ts_sect *sect);
-static int free_tabl(intptr_t mp, struct ts_tabl *tabl);
-static int free_prog(intptr_t mp, struct ts_prog *prog);
+static void free_pid(void *mp, struct ts_pid *pid);
+static void free_sect(void *mp, struct ts_sect *sect);
+static void free_tabl(void *mp, struct ts_tabl *tabl);
+static void free_prog(void *mp, struct ts_prog *prog);
 static int is_all_prog_parsed(struct ts_obj *obj);
 static int pid_type(uint16_t pid);
 static const struct table_id_table *table_type(uint8_t id);
 static const struct stream_type_table *elem_type(uint8_t stream_type);
+#if 0
 static int dump(uint8_t *buf, int len);
+#endif
 
-struct ts_obj *ts_create(intptr_t mp)
+/*@only@*/
+/*@null@*/
+struct ts_obj *ts_create(/*@null@*/ void *mp)
 {
         struct ts_obj *obj;
 
+        if(!mp) {
+                RPTERR("bad memory pool");
+                return NULL;
+        }
+
         obj = (struct ts_obj *)malloc(sizeof(struct ts_obj));
         if(!obj) {
-                RPT(RPT_ERR, "malloc ts_obj failed");
+                RPTERR("malloc ts_obj failed");
                 return NULL;
         }
 
         obj->mp = mp;
+        memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
 
         /* prepare for ts_init() */
-        /* do NOT forgot to call ts_init() before use */
         obj->pid0 = NULL; /* no pid list now */
         obj->prog0 = NULL; /* no prog list now */
         obj->tabl0 = NULL; /* no tabl list now */
+        obj->ca0 = NULL; /* no ca list now */
+        init(obj);
 
         return obj;
 }
 
-int ts_destroy(struct ts_obj *obj)
+int ts_destroy(/*@only@*/ /*@null@*/ struct ts_obj *obj)
 {
         if(!obj) {
-                RPT(RPT_ERR, "bad obj");
+                RPTERR("bad obj");
                 return -1;
         }
 
@@ -234,10 +257,10 @@ int ts_destroy(struct ts_obj *obj)
         return 0;
 }
 
-int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
+int ts_ioctl(struct ts_obj *obj, int cmd, void *arg)
 {
         if(!obj) {
-                RPT(RPT_ERR, "bad obj");
+                RPTERR("bad obj");
                 return -1;
         }
 
@@ -251,41 +274,49 @@ int ts_ioctl(struct ts_obj *obj, int cmd, intptr_t arg)
                                 memcpy(&(obj->cfg), (struct ts_cfg *)arg, sizeof(struct ts_cfg));
                         }
                         else {
-                                RPT(RPT_ERR, "bad cfg");
+                                RPTERR("bad cfg");
                         }
                         break;
                 case TS_TIDY:
                         tidy(obj);
                         break;
                 default:
-                        RPT(RPT_ERR, "bad cmd");
+                        RPTERR("bad cmd");
                         break;
         }
         return 0;
 }
 
-static int init(struct ts_obj *obj)
+static void init(/*@out@*/ struct ts_obj *obj)
 {
-        /* clear the pid list */
         struct ts_pid *pid;
-        while(NULL != (pid = (struct ts_pid *)zlst_pop(&(obj->pid0)))) {
+        struct ts_prog *prog;
+        struct ts_tabl *tabl;
+        struct ts_ca *ca;
+
+        /* clear the pid list */
+        while(NULL != (pid = (struct ts_pid *)zlst_pop((zhead_t *)&(obj->pid0)))) {
                 free_pid(obj->mp, pid);
         }
         obj->pid0 = NULL;
 
         /* clear the prog list */
-        struct ts_prog *prog;
-        while(NULL != (prog = (struct ts_prog *)zlst_pop(&(obj->prog0)))) {
+        while(NULL != (prog = (struct ts_prog *)zlst_pop((zhead_t *)&(obj->prog0)))) {
                 free_prog(obj->mp, prog);
         }
         obj->prog0 = NULL;
 
         /* clear the table list */
-        struct ts_tabl *tabl;
-        while(NULL != (tabl = (struct ts_tabl *)zlst_pop(&(obj->tabl0)))) {
+        while(NULL != (tabl = (struct ts_tabl *)zlst_pop((zhead_t *)&(obj->tabl0)))) {
                 free_tabl(obj->mp, tabl);
         }
         obj->tabl0 = NULL;
+
+        /* clear the ca list */
+        while(NULL != (ca = (struct ts_ca *)zlst_pop((zhead_t *)&(obj->ca0)))) {
+                buddy_free(obj->mp, ca);
+        }
+        obj->ca0 = NULL;
 
         obj->state = STATE_NEXT_PAT;
         obj->ADDR = -TS_PKT_SIZE; /* count from 0 */
@@ -297,18 +328,18 @@ static int init(struct ts_obj *obj)
         obj->is_psi_si_parsed = 0;
         obj->concerned_pid = 0x0000; /* PAT_PID */
         obj->interval = 0;
-        obj->CTS = 0L;
-        obj->CTS0 = 0L;
-        obj->lCTS = 0L; /* for MTS file only, must init as 0L */
+        obj->CTS = STC_OVF;
+        obj->CTS0 = (int64_t)0;
+        obj->lATS = (int64_t)0; /* for ATS input only, must init as 0L */
         obj->STC = STC_OVF;
+        obj->has_scrambling = 0;
+        obj->has_CAT = 0;
 
         memset(&(obj->err), 0, sizeof(struct ts_err)); /* no error */
-        memset(&(obj->cfg), 0, sizeof(struct ts_cfg)); /* do nothing */
-
-        return 0;
+        return;
 }
 
-static int tidy(struct ts_obj *obj)
+static void tidy(struct ts_obj *obj)
 {
         struct ts_pid new_pid;
         struct ts_prog *prog;
@@ -318,20 +349,17 @@ static int tidy(struct ts_obj *obj)
 
         /* add PAT pid */
         if(obj->prog0) {
+                memset(&new_pid, 0, sizeof(struct ts_pid));
                 new_pid.PID = 0x0000;
                 new_pid.type = TS_TYPE_PAT;
                 new_pid.prog = obj->prog0;
-                new_pid.elem = NULL;
-                new_pid.cnt = 0;
-                new_pid.lcnt = 0;
-                new_pid.is_CC_sync = 0;
-                update_pid_list(obj, &new_pid);
-                RPT(RPT_INF, "add pat pid: 0x%04X", new_pid.PID);
+                (void)update_pid_list(obj, &new_pid);
+                RPTINF("add pat pid: 0x%04X", (unsigned int)(new_pid.PID));
         }
 
         /* prog list */
         for(prog = obj->prog0; prog; prog = (struct ts_prog *)(((struct znode *)prog)->next)) {
-                RPT(RPT_INF, "tidy prog: %d", prog->program_number);
+                RPTINF("tidy prog: %d", (int)(prog->program_number));
                 prog->is_parsed = 1;
                 prog->tabl.STC = STC_OVF;
                 prog->ADDa = 0;
@@ -341,56 +369,49 @@ static int tidy(struct ts_obj *obj)
                 prog->is_STC_sync = 0;
 
                 /* add PMT pid */
+                memset(&new_pid, 0, sizeof(struct ts_pid));
                 new_pid.PID = prog->PMT_PID;
                 new_pid.type = TS_TYPE_PMT;
                 new_pid.prog = prog;
-                new_pid.elem = NULL;
-                new_pid.cnt = 0;
-                new_pid.lcnt = 0;
-                new_pid.is_CC_sync = 0;
-                update_pid_list(obj, &new_pid);
-                RPT(RPT_INF, "add pmt pid: 0x%04X", new_pid.PID);
+                (void)update_pid_list(obj, &new_pid);
+                RPTINF("add pmt pid: 0x%04X", (unsigned int)(new_pid.PID));
 
                 /* add PCR pid */
+                memset(&new_pid, 0, sizeof(struct ts_pid));
                 new_pid.PID = prog->PCR_PID;
                 new_pid.type = ((0x1FFF != new_pid.PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
                 new_pid.prog = prog;
-                new_pid.elem = NULL;
-                new_pid.cnt = 0;
-                new_pid.lcnt = 0;
-                new_pid.is_CC_sync = 0;
-                update_pid_list(obj, &new_pid);
-                RPT(RPT_INF, "add pcr pid: 0x%04X", new_pid.PID);
+                (void)update_pid_list(obj, &new_pid);
+                RPTINF("add pcr pid: 0x%04X", (unsigned int)(new_pid.PID));
 
                 /* elem list */
                 for(elem = prog->elem0; elem; elem = (struct ts_elem *)(((struct znode *)elem)->next)) {
-                        RPT(RPT_INF, "tidy elem: 0x%04X", elem->PID);
+                        RPTINF("tidy elem: 0x%04X", (unsigned int)(elem->PID));
                         elem->PTS = STC_BASE_OVF;
                         elem->DTS = STC_BASE_OVF;
+                        elem->STC = STC_OVF;
                         elem->is_pes_align = 0;
 
                         /* add elem pid */
+                        memset(&new_pid, 0, sizeof(struct ts_pid));
                         new_pid.PID = elem->PID;
                         new_pid.type = elem->type;
                         new_pid.prog = prog;
                         new_pid.elem = elem;
-                        new_pid.cnt = 0;
-                        new_pid.lcnt = 0;
-                        new_pid.is_CC_sync = 0;
-                        update_pid_list(obj, &new_pid);
-                        RPT(RPT_INF, "add elem pid: 0x%04X", new_pid.PID);
+                        (void)update_pid_list(obj, &new_pid);
+                        RPTINF("add elem pid: 0x%04X", (unsigned int)(new_pid.PID));
                 }
         }
 
         /* tabl list */
         for(tabl = obj->tabl0; tabl; tabl = (struct ts_tabl *)(((struct znode *)tabl)->next)) {
-                RPT(RPT_INF, "tidy tabl: 0x%02X", tabl->table_id);
+                RPTINF("tidy tabl: 0x%02X", (unsigned int)(tabl->table_id));
                 tabl->STC = STC_OVF;
         }
 
         /* pid list */
         for(pid = obj->pid0; pid; pid = (struct ts_pid *)(((struct znode *)pid)->next)) {
-                RPT(RPT_INF, "tidy pid: 0x%02X", pid->PID);
+                RPTINF("tidy pid: 0x%02X", (unsigned int)(pid->PID));
                 if((obj->prog0) &&
                    (pid->PID < 0x0020 || pid->PID == 0x1FFF)) {
                         pid->prog = obj->prog0;
@@ -401,6 +422,8 @@ static int tidy(struct ts_obj *obj)
                 /* pid->elem is NULL(by xml2list) or set by front code */
                 pid->cnt = 0;
                 pid->lcnt = 0;
+                pid->cnt_es = 0;
+                pid->lcnt_es = 0;
                 pid->is_CC_sync = 0;
         }
 
@@ -409,67 +432,75 @@ static int tidy(struct ts_obj *obj)
         obj->has_got_transport_stream_id = 0;
         obj->is_pat_pmt_parsed = 1;
         obj->is_psi_si_parsed = 1;
-        return 0;
+        return;
 }
 
-static int free_pid(intptr_t mp, struct ts_pid *pid)
+static void free_pid(void *mp, struct ts_pid *pid)
 {
         struct ts_pkt *pkt;
 
         /* clear the pkt list */
-        while(NULL != (pkt = (struct ts_pkt *)zlst_pop(&(pid->pkt0)))) {
+        while(NULL != (pkt = (struct ts_pkt *)zlst_pop((zhead_t *)&(pid->pkt0)))) {
                 buddy_free(mp, pkt);
         }
 
         buddy_free(mp, pid);
-        return 0;
+        return;
 }
 
-static int free_sect(intptr_t mp, struct ts_sect *sect)
+static void free_sect(void *mp, struct ts_sect *sect)
 {
         if(sect->section) {
                 buddy_free(mp, sect->section);
         }
 
         buddy_free(mp, sect);
-        return 0;
+        return;
 }
 
-static int free_tabl(intptr_t mp, struct ts_tabl *tabl)
+static void free_tabl(void *mp, struct ts_tabl *tabl)
 {
         struct ts_sect *sect;
 
         /* clear the sect list */
-        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(tabl->sect0)))) {
+        while(NULL != (sect = (struct ts_sect *)zlst_pop((zhead_t *)&(tabl->sect0)))) {
                 free_sect(mp, sect);
         }
 
         buddy_free(mp, tabl);
-        return 0;
+        return;
 }
 
-static int free_prog(intptr_t mp, struct ts_prog *prog)
+static void free_prog(void *mp, struct ts_prog *prog)
 {
         struct ts_elem *elem;
         struct ts_sect *sect;
+        struct ts_ca *ca;
 
         /* clear the elem list */
-        while(NULL != (elem = (struct ts_elem *)zlst_pop(&(prog->elem0)))) {
+        while(NULL != (elem = (struct ts_elem *)zlst_pop((zhead_t *)&(prog->elem0)))) {
+
                 if(elem->es_info) {
                         buddy_free(mp, elem->es_info);
                         elem->es_info_len = 0;
+                }
+                while(NULL != (ca = (struct ts_ca *)zlst_pop((zhead_t *)&(elem->ca0)))) {
+                        buddy_free(mp, ca);
                 }
                 buddy_free(mp, elem);
         }
 
         /* clear the sect list */
-        while(NULL != (sect = (struct ts_sect *)zlst_pop(&(prog->tabl.sect0)))) {
+        while(NULL != (sect = (struct ts_sect *)zlst_pop((zhead_t *)&(prog->tabl.sect0)))) {
                 free_sect(mp, sect);
         }
 
         if(prog->program_info) {
                 buddy_free(mp, prog->program_info);
                 prog->program_info_len = 0;
+        }
+        while(NULL != (ca = (struct ts_ca *)zlst_pop((zhead_t *)&(prog->ca0)))) {
+                buddy_free(mp, ca);
         }
         if(prog->service_name) {
                 buddy_free(mp, prog->service_name);
@@ -480,22 +511,26 @@ static int free_prog(intptr_t mp, struct ts_prog *prog)
                 prog->service_provider_len = 0;
         }
         buddy_free(mp, prog);
-        return 0;
+        return;
 }
 
 int ts_parse_tsh(struct ts_obj *obj)
 {
         struct ts_ipt *ipt;
+        uint8_t dat;
+        struct ts_tsh *tsh;
+        struct ts_err *err;
+        struct ts_pid *pid; /* maybe NULL */
 
         if(!obj) {
-                RPT(RPT_ERR, "ts_parse_tsh: bad obj");
+                RPTERR("ts_parse_tsh: bad obj");
                 return -1;
         }
         ipt = &(obj->ipt);
 
         /* TS[] */
         if(!(ipt->has_ts)) {
-                RPT(RPT_ERR, "ts_parse_tsh: no ts packet");
+                RPTERR("ts_parse_tsh: no ts packet");
                 return -1;
         }
         obj->cur = ipt->TS;
@@ -505,13 +540,12 @@ int ts_parse_tsh(struct ts_obj *obj)
         obj->cnt++;
         obj->ADDR = (ipt->has_addr) ? (ipt->ADDR) : (obj->ADDR + TS_PKT_SIZE);
 #if 0
-        RPT(RPT_INF, "packet %lld @ %lld:", obj->cnt, obj->ADDR);
+        RPTINF("packet %lld @ %lld:", obj->cnt, obj->ADDR);
         dump(ipt->TS, TS_PKT_SIZE); /* debug only */
 #endif
 
-        uint8_t dat;
-        struct ts_tsh *tsh = &(obj->tsh);
-        struct ts_err *err = &(obj->err);
+        tsh = &(obj->tsh);
+        err = &(obj->err);
 
         /* init for a new ts packet */
         obj->AF_len = 0; /* no AF */
@@ -523,6 +557,7 @@ int ts_parse_tsh(struct ts_obj *obj)
         obj->is_psi_si = 0; /* not PSI/SI */
         obj->sect = NULL; /* not an end of a section */
         obj->has_rate = 0; /* not a new rate calculate peroid */
+        obj->has_ess = 0; /* not a new PES head */
 
         /* begin */
         dat = *(obj->cur)++;
@@ -532,8 +567,8 @@ int ts_parse_tsh(struct ts_obj *obj)
                 if(err->Sync_byte_error > 1) {
                         err->TS_sync_loss++;
                 }
-                RPT(RPT_ERR, "sync_byte(0x%02X) error!", tsh->sync_byte);
-                dump(ipt->TS, TS_PKT_SIZE);
+                err->has_level1_error++;
+                obj->has_err++;
         }
         else {
                 err->TS_sync_loss = 0;
@@ -545,7 +580,11 @@ int ts_parse_tsh(struct ts_obj *obj)
         tsh->payload_unit_start_indicator = (dat & BIT(6)) >> 6;
         tsh->transport_priority = (dat & BIT(5)) >> 5;
         tsh->PID = dat & 0x1F;
-        err->Transport_error = tsh->transport_error_indicator;
+        if(tsh->transport_error_indicator) {
+                err->Transport_error = 1;
+                err->has_level2_error++;
+                obj->has_err++;
+        }
 
         dat = *(obj->cur)++;
         tsh->PID <<= 8;
@@ -556,8 +595,14 @@ int ts_parse_tsh(struct ts_obj *obj)
         tsh->adaption_field_control = (dat & (BIT(5) | BIT(4))) >> 4;;
         tsh->continuity_counter = dat & 0x0F;
 
+        if(0 != tsh->transport_scrambling_control) {
+                obj->has_scrambling = 1;
+        }
+
         if(0x00 == tsh->adaption_field_control) {
-                RPT(RPT_ERR, "Bad adaption_field_control field(00)!");
+                err->adaption_field_control_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
         }
 
         if((BIT(1) & tsh->adaption_field_control) && obj->cfg.need_af) {
@@ -570,39 +615,44 @@ int ts_parse_tsh(struct ts_obj *obj)
 
         obj->PID = tsh->PID; /* record into obj struct */
 #if 0
-        RPT(RPT_DBG, "search 0x%04X in pid_list", obj->PID);
+        RPTDBG("search 0x%04X in pid_list", obj->PID);
 #endif
-        obj->pid = (struct ts_pid *)zlst_search(&(obj->pid0), obj->PID);
+        obj->pid = (struct ts_pid *)zlst_search((zhead_t *)&(obj->pid0), (int)(obj->PID));
         if(!(obj->pid)) {
                 struct ts_pid ts_pid, *new_pid = &ts_pid;
 
                 /* meet new PID, add it in pid_list */
+                memset(new_pid, 0, sizeof(struct ts_pid));
                 new_pid->PID = obj->PID;
                 new_pid->type = pid_type(new_pid->PID);
                 if((obj->prog0) &&
                    (new_pid->PID < 0x0020 || new_pid->PID == 0x1FFF)) {
                         new_pid->prog = obj->prog0;
                 }
-                else {
-                        new_pid->prog = NULL;
-                }
-                new_pid->elem = NULL;
                 new_pid->cnt = 1;
-                new_pid->lcnt = 0;
-                new_pid->is_CC_sync = 0;
 
                 obj->pid = update_pid_list(obj, new_pid);
                 if(!(obj->pid)) {
-                        RPT(RPT_ERR, "update_pid_list failed");
+                        RPTERR("update_pid_list failed");
                 }
         }
 
-        struct ts_pid *pid = obj->pid; /* maybe NULL */
+        pid = obj->pid; /* maybe NULL */
 
-        /* calc STC and CTS, should be as early as possible */
+        /* calc CTS and STC, should be as early as possible */
         if(obj->cfg.need_timestamp) {
-                if(ipt->has_mts) {
-                        int64_t dCTS = ts_timestamp_diff(ipt->MTS, obj->lCTS, MTS_OVF);
+                /* calc CTS */
+                if(ipt->has_ats) {
+                        int64_t dCTS;
+
+                        dCTS = ts_timestamp_diff(ipt->ATS, obj->lATS, (int64_t)ATS_OVF);
+
+                        if(STC_OVF != obj->CTS) {
+                                obj->CTS = ts_timestamp_add(obj->CTS, dCTS, STC_OVF);
+                        }
+                        else {
+                                obj->CTS = ts_timestamp_add(0L, dCTS, STC_OVF);
+                        }
 
                         if(STC_OVF != obj->STC) {
                                 obj->STC = ts_timestamp_add(obj->STC, dCTS, STC_OVF);
@@ -610,61 +660,50 @@ int ts_parse_tsh(struct ts_obj *obj)
                         else {
                                 obj->STC = ts_timestamp_add(0L, dCTS, STC_OVF);
                         }
-                        obj->lCTS = ipt->MTS; /* record last CTS */
 
-                        if(ipt->has_cts) {
-                                obj->CTS = ipt->CTS;
-                        }
-                        else {
-                                obj->CTS = obj->STC;
+                        obj->lATS = ipt->ATS; /* record as last ATS for calc next dCTS */
+                }
+                else if(ipt->has_cts) {
+                        obj->CTS = ipt->CTS;
+                }
+                else { /* according to obj->prog0 */
+                        struct ts_prog *prog = obj->prog0; /* may be NULL */
+
+                        if(prog && (prog->is_STC_sync) && (prog->PCRa != prog->PCRb)) {
+                                long double delta;
+
+                                /* CTSx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (obj->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                obj->CTS = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
                 }
-                else {
-                        struct ts_prog *prog; /* may be NULL */
+                obj->CTS_base = obj->CTS / 300;
+                obj->CTS_ext = obj->CTS % 300;
 
-                        /* STC: according to pid->prog */
-                        if(pid && pid->prog) {
-                                prog = pid->prog;
-                                if((prog->is_STC_sync) &&
-                                   (prog->PCRa != prog->PCRb)) {
-                                        long double delta;
+                /* calc STC */
+                if(ipt->has_ats) {
+                }
+                else if(pid) { /* according to pid->prog */
+                        struct ts_prog *prog = pid->prog; /* may be NULL */
 
-                                        /* STCx - PCRb   ADDx - ADDb */
-                                        /* ----------- = ----------- */
-                                        /* PCRb - PCRa   ADDb - ADDa */
-                                        delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                        delta *= (obj->ADDR - prog->ADDb);
-                                        delta /= (prog->ADDb - prog->ADDa);
-                                        obj->STC = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
-                                }
-                        }
+                        if(prog && (prog->is_STC_sync) && (prog->PCRa != prog->PCRb)) {
+                                long double delta;
 
-                        /* CTS: according to prog0 */
-                        if(ipt->has_cts) {
-                                obj->CTS = ipt->CTS;
-                        }
-                        else {
-                                if(obj->prog0) {
-                                        prog = obj->prog0;
-                                        if((prog->is_STC_sync) &&
-                                           (prog->PCRa != prog->PCRb)) {
-                                                long double delta;
-
-                                                /* CTSx - PCRb   ADDx - ADDb */
-                                                /* ----------- = ----------- */
-                                                /* PCRb - PCRa   ADDb - ADDa */
-                                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
-                                                delta *= (obj->ADDR - prog->ADDb);
-                                                delta /= (prog->ADDb - prog->ADDa);
-                                                obj->CTS = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
-                                        }
-                                }
+                                /* STCx - PCRb   ADDx - ADDb */
+                                /* ----------- = ----------- */
+                                /* PCRb - PCRa   ADDb - ADDa */
+                                delta = (long double)ts_timestamp_diff(prog->PCRb, prog->PCRa, STC_OVF);
+                                delta *= (obj->ADDR - prog->ADDb);
+                                delta /= (prog->ADDb - prog->ADDa);
+                                obj->STC = ts_timestamp_add(prog->PCRb, (int64_t)delta, STC_OVF);
                         }
                 }
                 obj->STC_base = obj->STC / 300;
                 obj->STC_ext = obj->STC % 300;
-                obj->CTS_base = obj->CTS / 300;
-                obj->CTS_ext = obj->CTS % 300;
         }
 
         /* statistic */
@@ -675,6 +714,14 @@ int ts_parse_tsh(struct ts_obj *obj)
                 if((tsh->PID < 0x0020) || IS_TYPE(TS_TYPE_PMT, pid->type)) {
                         obj->psi_cnt++;
                         obj->is_psi_si = 1;
+                }
+        }
+        if(tsh->payload_unit_start_indicator) {
+                pid->cnt_es_of_last_pes = pid->cnt_es_from_pesh;
+                pid->cnt_es_from_pesh = 0;
+
+                if(0 != pid->cnt_es_of_last_pes) {
+                        obj->has_ess = 1;
                 }
         }
 
@@ -691,7 +738,7 @@ int ts_parse_tsh(struct ts_obj *obj)
 int ts_parse_tsb(struct ts_obj *obj)
 {
         if(!obj) {
-                RPT(RPT_ERR, "bad obj");
+                RPTERR("bad obj");
                 return -1;
         }
 
@@ -722,8 +769,8 @@ static int state_next_pat(struct ts_obj *obj)
         }
 
         /* section parse has done in ts_parse_tsh()! */
-        RPT(RPT_DBG, "search 0x00 in table_list");
-        tabl = (struct ts_tabl *)zlst_search(&(obj->tabl0), 0x00);
+        RPTDBG("search 0x00 in table_list");
+        tabl = (struct ts_tabl *)zlst_search((zhead_t *)&(obj->tabl0), 0x00);
         if(!tabl) {
                 return -1;
         }
@@ -743,12 +790,12 @@ static int state_next_pat(struct ts_obj *obj)
                         section_number++;
                 }
 
-                RPT(RPT_INF, "all PAT section parsed");
+                RPTINF("all PAT section parsed");
                 obj->state = STATE_NEXT_PMT;
         }
 
         if(is_all_prog_parsed(obj)) {
-                RPT(RPT_INF, "no PMT section");
+                RPTINF("no PMT section");
                 obj->is_pat_pmt_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
@@ -761,15 +808,15 @@ static int state_next_pmt(struct ts_obj *obj)
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_pid *pid;
 
-        RPT(RPT_DBG, "search 0x%04X in pid_list", tsh->PID);
-        pid = (struct ts_pid *)zlst_search(&(obj->pid0), tsh->PID);
+        RPTDBG("search 0x%04X in pid_list", (unsigned int)(tsh->PID));
+        pid = (struct ts_pid *)zlst_search((zhead_t *)&(obj->pid0), (int)(tsh->PID));
         if((!pid) || !IS_TYPE(TS_TYPE_PMT, pid->type)) {
                 return -1; /* not PMT */
         }
 
         /* section parse has done in ts_parse_tsh()! */
         if(is_all_prog_parsed(obj)) {
-                RPT(RPT_INF, "all PMT section parsed");
+                RPTINF("all PMT section parsed");
                 obj->is_pat_pmt_parsed = 1;
                 obj->state = STATE_NEXT_PKT;
         }
@@ -783,7 +830,6 @@ static int state_next_pkt(struct ts_obj *obj)
         struct ts_af *af = &(obj->af);
         struct ts_pid *pid = obj->pid;
         struct ts_elem *elem = pid->elem; /* may be NULL */
-        struct ts_prog *prog = pid->prog; /* may be NULL */
         struct ts_err *err = &(obj->err);
 
         /* CC */
@@ -799,6 +845,10 @@ static int state_next_pkt(struct ts_obj *obj)
                         else { /* 00 or 10 */
                                 dCC = 0;
                         }
+                        if(0x1FFF == tsh->PID) {
+                                /* adaption_field_control is 01, but: */
+                                dCC = 0;
+                        }
 
                         pid->CC += dCC;
                         pid->CC &= 0x0F; /* 4-bit */
@@ -808,23 +858,30 @@ static int state_next_pkt(struct ts_obj *obj)
                                 lost += 16;
                         }
 
-                        obj->CC_wait = pid->CC;
-                        obj->CC_find = tsh->continuity_counter;
+                        obj->CC_wait = (int)(pid->CC);
+                        obj->CC_find = (int)(tsh->continuity_counter);
                         obj->CC_lost = lost;
                 }
                 else {
                         pid->is_CC_sync = 1;
 
-                        obj->CC_wait = pid->CC;
-                        obj->CC_find = tsh->continuity_counter;
+                        obj->CC_wait = (int)(pid->CC);
+                        obj->CC_find = (int)(tsh->continuity_counter);
                         obj->CC_lost = 0;
                 }
                 pid->CC = tsh->continuity_counter; /* update CC */
-                err->Continuity_count_error = (0x1FFF == tsh->PID) ? 0 : obj->CC_lost;
+                if(obj->CC_lost) {
+                        err->Continuity_count_error = 1;
+                        err->has_level1_error++;
+                        obj->has_err++;
+                }
         }
 
         /* PCR flush */
         if(obj->cfg.need_af && obj->has_pcr) {
+                struct znode *znode_prog;
+                struct ts_prog *prog;
+
                 obj->PCR_base = af->program_clock_reference_base;
                 obj->PCR_ext  = af->program_clock_reference_extension;
 
@@ -832,6 +889,7 @@ static int state_next_pkt(struct ts_obj *obj)
                 obj->PCR *= 300;
                 obj->PCR += obj->PCR_ext;
 
+                prog = pid->prog; /* maybe NULL */
                 if(prog) {
                         if(!prog->is_STC_sync) {
                                 /* use PCR as STC, suppose PCR_jitter is zero */
@@ -840,17 +898,19 @@ static int state_next_pkt(struct ts_obj *obj)
                                 obj->STC_ext = obj->STC % 300;
                         }
 
-                        /* PCR_interval (PCR packet arrive time interval) */
+                        /* PCR_repetition (PCR packet arrive time interval) */
                         if(STC_OVF != prog->PCRb) {
-                                obj->PCR_interval = ts_timestamp_diff(obj->STC, prog->PCRb, STC_OVF);
+                                obj->PCR_repetition = ts_timestamp_diff(obj->STC, prog->PCRb, STC_OVF);
                                 if((prog->is_STC_sync) &&
-                                   !(0 < obj->PCR_interval && obj->PCR_interval <= 40 * STC_MS)) {
+                                   !(0 < obj->PCR_repetition && obj->PCR_repetition <= 40 * STC_MS)) {
                                         /* !(0 < interval < +40ms) */
                                         err->PCR_repetition_error = 1;
+                                        err->has_level2_error++;
+                                        obj->has_err++;
                                 }
                         }
                         else {
-                                obj->PCR_interval = 0;
+                                obj->PCR_repetition = 0;
                         }
 
                         /* PCR_continuity (PCR value interval) */
@@ -860,6 +920,8 @@ static int state_next_pkt(struct ts_obj *obj)
                                    !(0 < obj->PCR_continuity && obj->PCR_continuity <= 100 * STC_MS)) {
                                         /* !(0 < continuity < +100ms) */
                                         err->PCR_discontinuity_indicator_error = 1;
+                                        err->has_level2_error++;
+                                        obj->has_err++;
                                 }
                         }
                         else {
@@ -872,6 +934,22 @@ static int state_next_pkt(struct ts_obj *obj)
                            !(-13 <= obj->PCR_jitter && obj->PCR_jitter <= +13)) {
                                 /* !(-500ns < jitter < +500ns) */
                                 err->PCR_accuracy_error = 1;
+                                err->has_level2_error++;
+                                obj->has_err++;
+                        }
+                }
+                else {
+                        err->wild_pcr_packet = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
+                }
+
+                /* traverse prog_list: maybe some of them use this PCR PID */
+                for(znode_prog = (struct znode *)(obj->prog0); znode_prog; znode_prog = znode_prog->next) {
+                        prog = (struct ts_prog *)znode_prog;
+
+                        if(prog->PCR_PID != obj->PID) {
+                                continue;
                         }
 
                         /* PCRa: the PCR packet before last PCR packet */
@@ -882,11 +960,19 @@ static int state_next_pkt(struct ts_obj *obj)
                         prog->PCRb = obj->PCR;
                         prog->ADDb = obj->ADDR;
 
+                        /* for bad PCR value */
+                        if(1 == af->discontinuity_indicator ||
+                           1 == err->PCR_discontinuity_indicator_error) {
+                                /* maybe stream repeated */
+                                prog->PCRa = STC_OVF;
+                                prog->is_STC_sync = 0;
+                        }
+
                         /* is_STC_sync */
                         if(!prog->is_STC_sync) {
                                 int is_first_count_clear = 0;
 
-                                if(obj->ipt.has_mts) {
+                                if(obj->ipt.has_ats) {
                                         /* clear count after 1st PCR */
                                         is_first_count_clear = 1;
 
@@ -906,15 +992,16 @@ static int state_next_pkt(struct ts_obj *obj)
                                 }
 
                                 /* first count clear */
-                                if(is_first_count_clear &&
-                                   prog->PCR_PID == obj->prog0->PCR_PID) {
-                                        struct znode *znode;
+                                if(is_first_count_clear && prog == obj->prog0) {
+                                        struct znode *znode_pid;
 
-                                        for(znode = (struct znode *)(obj->pid0); znode; znode = znode->next) {
-                                                struct ts_pid *pid_item = (struct ts_pid *)znode;
+                                        for(znode_pid = (struct znode *)(obj->pid0); znode_pid; znode_pid = znode_pid->next) {
+                                                struct ts_pid *pid_item = (struct ts_pid *)znode_pid;
                                                 if(pid_item->prog == prog) {
                                                         pid_item->lcnt = 0;
                                                         pid_item->cnt = 0;
+                                                        pid_item->lcnt_es = 0;
+                                                        pid_item->cnt_es = 0;
                                                 }
                                         }
 
@@ -929,13 +1016,11 @@ static int state_next_pkt(struct ts_obj *obj)
 
                                         obj->last_interval = 0;
                                         obj->interval = 0;
-                                        obj->CTS = obj->PCR;
+
+                                        obj->CTS = obj->STC;
                                         obj->CTS0 = obj->CTS;
                                 }
                         }
-                }
-                else {
-                        RPT(RPT_ERR, "No program use this PCR packet(0x%04X)!", tsh->PID);
                 }
         }
 
@@ -950,6 +1035,8 @@ static int state_next_pkt(struct ts_obj *obj)
                                 struct ts_pid *pid_item = (struct ts_pid *)znode;
                                 pid_item->lcnt = pid_item->cnt;
                                 pid_item->cnt = 0;
+                                pid_item->lcnt_es = pid_item->cnt_es;
+                                pid_item->cnt_es = 0;
                         }
 
                         obj->last_sys_cnt = obj->sys_cnt;
@@ -963,11 +1050,20 @@ static int state_next_pkt(struct ts_obj *obj)
 
                         obj->last_interval = obj->interval;
                         obj->interval = 0;
+
                         obj->CTS0 = obj->CTS;
 
                         obj->has_rate = 1;
 
                         obj->is_psi_si_parsed = 1;
+
+                        /* CAT_error */
+                        if((obj->has_scrambling) && !(obj->has_CAT)) {
+                                obj->has_scrambling = 0;
+                                err->CAT_error |= ERR_2_6_0;
+                                err->has_level2_error++;
+                                obj->has_err++;
+                        }
                 }
         }
 
@@ -979,11 +1075,17 @@ static int state_next_pkt(struct ts_obj *obj)
 
                 if(obj->has_pts) {
                         /* PTS */
-                        if(STC_BASE_OVF != elem->PTS) {
-                                obj->PTS_interval = ts_timestamp_diff(obj->PTS, elem->PTS, STC_BASE_OVF);
+                        if(STC_OVF != elem->STC) {
+                                obj->PTS_repetition = ts_timestamp_diff(obj->STC, elem->STC, STC_OVF);
                         }
                         else {
-                                obj->PTS_interval = 0;
+                                obj->PTS_repetition = 0;
+                        }
+                        if(STC_BASE_OVF != elem->PTS) {
+                                obj->PTS_continuity = ts_timestamp_diff(obj->PTS, elem->PTS, STC_BASE_OVF);
+                        }
+                        else {
+                                obj->PTS_continuity = 0;
                         }
                         if(STC_BASE_OVF != obj->STC_base) {
                                 obj->PTS_minus_STC = ts_timestamp_diff(obj->PTS, obj->STC_base, STC_BASE_OVF);
@@ -991,14 +1093,23 @@ static int state_next_pkt(struct ts_obj *obj)
                         else {
                                 obj->PTS_minus_STC = 0;
                         }
-                        elem->PTS = obj->PTS; /* record last PTS in elem */
+                        elem->PTS = obj->PTS;
+                        elem->STC = obj->STC;
+
+                        /* PTS_error */
+                        if(!(0 <= obj->PTS_repetition && obj->PTS_repetition <= 700 * STC_MS)) {
+                                /* !(0 < interval <= +700ms) */
+                                err->PTS_error = 1;
+                                err->has_level2_error++;
+                                obj->has_err++;
+                        }
 
                         /* DTS, if no DTS, DTS = PTS */
                         if(STC_BASE_OVF != elem->DTS) {
-                                obj->DTS_interval = ts_timestamp_diff(obj->DTS, elem->DTS, STC_BASE_OVF);
+                                obj->DTS_continuity = ts_timestamp_diff(obj->DTS, elem->DTS, STC_BASE_OVF);
                         }
                         else {
-                                obj->DTS_interval = 0;
+                                obj->DTS_continuity = 0;
                         }
                         if(STC_BASE_OVF != obj->STC_base) {
                                 obj->DTS_minus_STC = ts_timestamp_diff(obj->DTS, obj->STC_base, STC_BASE_OVF);
@@ -1018,16 +1129,17 @@ static int ts_parse_af(struct ts_obj *obj)
         int i;
         uint8_t dat;
         struct ts_af *af = &(obj->af);
+        uint8_t *tail;
 
         obj->AF = obj->cur;
         dat = *(obj->cur)++;
         af->adaption_field_length = dat;
-        obj->AF_len = af->adaption_field_length + 1; /* add length itself */
+        obj->AF_len = (int)(af->adaption_field_length) + 1; /* add length itself */
         if(0x00 == af->adaption_field_length) {
                 return 0;
         }
 
-        uint8_t *tail = obj->cur + af->adaption_field_length; /* point to the data after AF */
+        tail = obj->cur + af->adaption_field_length; /* point to the data after AF */
 
         dat = *(obj->cur)++;
         af->discontinuity_indicator = (dat & BIT(7)) >> 7;
@@ -1099,7 +1211,7 @@ static int ts_parse_af(struct ts_obj *obj)
                 dat = *(obj->cur)++;
                 af->transport_private_data_length = dat;
 
-                for(i = 0; i < af->transport_private_data_length; i++) {
+                for(i = 0; i < (int)(af->transport_private_data_length); i++) {
                         af->private_data_byte[i] = dat;
                 }
         }
@@ -1124,6 +1236,7 @@ static int ts_ts2sect(struct ts_obj *obj)
         struct ts_tsh *tsh = &(obj->tsh);
         struct ts_pid *pid = obj->pid;
         struct ts_pkt *pkt;
+        struct ts_err *err = &(obj->err);
 
         /* collect packet(make pkt list) */
         if(!(pid->pkt0)) {
@@ -1158,29 +1271,29 @@ static int ts_ts2sect(struct ts_obj *obj)
                                 pid->section_length  |= dat;
                         }
 
-                        if(pid->section_length > pid->payload_total) {
+                        if((int)(pid->section_length) > pid->payload_total) {
                                 /* multi-packets section, make pkt list */
                                 struct ts_pkt *new_pkt = (struct ts_pkt *)buddy_malloc(obj->mp, sizeof(struct ts_pkt));
                                 if(!new_pkt) {
-                                        RPT(RPT_ERR, "malloc for pkt node failed");
+                                        RPTERR("malloc for pkt node failed");
                                         return -1;
                                 }
                                 memcpy(new_pkt->pkt, obj->ipt.TS, TS_PKT_SIZE);
                                 new_pkt->payload_unit_start_indicator = 1;
                                 new_pkt->payload_size = (obj->tail - obj->cur);
-                                zlst_push(&(pid->pkt0), new_pkt);
+                                zlst_push((zhead_t *)&(pid->pkt0), new_pkt);
                         }
                         else {
                                 /* single packet section, for efficienc: directly make section without pkt list */
                                 struct ts_sect *new_sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
                                 if(!new_sect) {
-                                        RPT(RPT_ERR, "malloc section node failed");
+                                        RPTERR("malloc section node failed");
                                         goto ts2sect_free_pkt_list;
                                 }
 
                                 new_sect->section = (uint8_t *)buddy_malloc(obj->mp, 3 + pid->section_length);
                                 if(!new_sect->section) {
-                                        RPT(RPT_ERR, "malloc data buffer of section node failed");
+                                        RPTERR("malloc data buffer of section node failed");
                                         goto ts2sect_free_pkt_list;
                                 }
 
@@ -1196,7 +1309,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                         }
                 }
                 else { /* !(tsh->payload_unit_start_indicator) */
-                        RPT(RPT_DBG, "section async, ignore this packet");
+                        RPTDBG("section async, ignore this packet");
                         return -1;
                 }
         }
@@ -1204,7 +1317,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                 /* next packet of this section */
                 struct ts_pkt *new_pkt = (struct ts_pkt *)buddy_malloc(obj->mp, sizeof(struct ts_pkt));
                 if(!new_pkt) {
-                        RPT(RPT_ERR, "malloc for packet node failed");
+                        RPTERR("malloc for packet node failed");
                         goto ts2sect_free_pkt_list;
                 }
 
@@ -1219,7 +1332,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                 }
                 new_pkt->payload_size = (obj->tail - obj->cur);
                 pid->payload_total += new_pkt->payload_size;
-                zlst_push(&(pid->pkt0), new_pkt);
+                zlst_push((zhead_t *)&(pid->pkt0), new_pkt);
 
                 /* sect head 3-byte */
                 p = obj->cur;
@@ -1252,43 +1365,48 @@ static int ts_ts2sect(struct ts_obj *obj)
 
                         if(section_syntax_indicator) {
                                 if(pid->section_length > NORMAL_SECTION_LENGTH_MAX) {
-                                        RPT(RPT_ERR, "normal section_length(%d) > %d",
-                                            pid->section_length, NORMAL_SECTION_LENGTH_MAX);
+                                        err->normal_section_length_error = 1;
+                                        err->has_other_error++;
+                                        obj->has_err++;
                                         goto ts2sect_free_pkt_list;
                                 }
                         }
                         else { /* !(section_syntax_indicator) */
                                 if(pid->section_length > PRIVATE_SECTION_LENGTH_MAX) {
-                                        RPT(RPT_ERR, "private section_length(%d) > %d",
-                                            pid->section_length, PRIVATE_SECTION_LENGTH_MAX);
+                                        err->private_section_length_error = 1;
+                                        err->has_other_error++;
+                                        obj->has_err++;
                                         goto ts2sect_free_pkt_list;
                                 }
                         }
-                        RPT(RPT_INF, "table_id: 0x%02X, length: 3 + %d", pid->table_id, pid->section_length);
+                        RPTINF("table_id: 0x%02X, length: 3 + %d", (unsigned int)(pid->table_id), (int)(pid->section_length));
                 }
 
-                if(pid->payload_total >= (3 + pid->section_length) || pid->has_new_sech) {
+                if(pid->payload_total >= (int)(3 + pid->section_length) || pid->has_new_sech) {
                         /* has one section */
-                        struct ts_sect *new_sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
+                        struct ts_sect *new_sect;
+                        int left_length;
+
+                        new_sect = (struct ts_sect *)buddy_malloc(obj->mp, sizeof(struct ts_sect));
                         if(!new_sect) {
-                                RPT(RPT_ERR, "malloc section node failed");
+                                RPTERR("malloc section node failed");
                                 goto ts2sect_free_pkt_list;
                         }
 
                         new_sect->section = (uint8_t *)buddy_malloc(obj->mp, 3 + pid->section_length);
                         if(!new_sect->section) {
-                                RPT(RPT_ERR, "malloc data buffer of section node failed");
+                                RPTERR("malloc data buffer of section node failed");
                                 goto ts2sect_free_pkt_list;
                         }
 
                         p = new_sect->section;
-                        int left_length = 3 + pid->section_length;
+                        left_length = 3 + (int)(pid->section_length);
 
 #ifdef DEBUG_SECTION_FRAGMENT
                         fprintf(stderr, "(%02X %4d) 3+%d ", pid->table_id, pid->payload_total, pid->section_length);
 #endif
-                        RPT(RPT_INF, "pkt list -> ts_sect and parse, table: 0x%02X", pid->table_id);
-                        while(NULL != (pkt = (struct ts_pkt *)zlst_shift(&(pid->pkt0)))) {
+                        RPTINF("pkt list -> ts_sect and parse, table: 0x%02X", (unsigned int)(pid->table_id));
+                        while(NULL != (pkt = (struct ts_pkt *)zlst_shift((zhead_t *)&(pid->pkt0)))) {
                                 if(pkt->payload_unit_start_indicator && p != new_sect->section) {
                                         /* use start_indicator instead of section_length to determine section end */
                                         left_length = (int)(pkt->pkt[4]); /* pointer_field is just left length */
@@ -1296,7 +1414,7 @@ static int ts_ts2sect(struct ts_obj *obj)
 
                                 if(pkt->payload_size < left_length) {
                                         /* part of big section */
-                                        memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, pkt->payload_size);
+                                        memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, (size_t)(pkt->payload_size));
                                         p += pkt->payload_size;
                                         left_length -= pkt->payload_size;
                                         buddy_free(obj->mp, pkt);
@@ -1306,7 +1424,7 @@ static int ts_ts2sect(struct ts_obj *obj)
                                 }
                                 else { /* (pkt->payload_size >= left_length) */
                                         /* last packet of the section */
-                                        memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, left_length);
+                                        memcpy(p, pkt->pkt + TS_PKT_SIZE - pkt->payload_size, (size_t)(left_length));
                                         pkt->payload_size -= left_length; /* maybe head of next section */
 #ifdef DEBUG_SECTION_FRAGMENT
                                         fprintf(stderr, "- %3d ", left_length);
@@ -1320,11 +1438,11 @@ static int ts_ts2sect(struct ts_obj *obj)
                                                 obj->cur = obj->tail - pkt->payload_size;
 #ifdef DEBUG_SECTION_FRAGMENT
                                                 fprintf(stderr, "(%d-byte new section head)\n", pkt->payload_size);
-                                                dump(obj->cur, pkt->payload_size);
+                                                //dump(obj->cur, pkt->payload_size);
 #endif
                                                 pid->payload_total = pkt->payload_size;
                                                 pid->has_new_sech = 0;
-                                                zlst_push(&(pid->pkt0), pkt);
+                                                zlst_push((zhead_t *)&(pid->pkt0), pkt);
                                                 pid->section_length = PRIVATE_SECTION_LENGTH_MAX; /* suppose maximum length */
 
                                                 /* sect head 3-byte */
@@ -1353,7 +1471,7 @@ static int ts_ts2sect(struct ts_obj *obj)
         return 0;
 
 ts2sect_free_pkt_list:
-        while(NULL != (pkt = (struct ts_pkt *)zlst_pop(&(pid->pkt0)))) {
+        while(NULL != (pkt = (struct ts_pkt *)zlst_pop((zhead_t *)&(pid->pkt0)))) {
                 buddy_free(obj->mp, pkt);
         }
         return -1;
@@ -1365,9 +1483,7 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         struct ts_tabl *tabl;
         struct ts_pid *pid = obj->pid;
         struct ts_err *err = &(obj->err);
-#if 0
-        int is_new_version = 0;
-#endif
+        struct znode **psect0;
 
         /* get section head info */
         p = new_sect->section;
@@ -1378,6 +1494,8 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         new_sect->section_length <<= 8;
         new_sect->section_length  |= *p++;
         if(1 == new_sect->section_syntax_indicator) {
+                const struct table_id_table *table_id_table;
+
                 /* normal section syntax */
                 new_sect->table_id_extension   = *p++;
                 new_sect->table_id_extension <<= 8;
@@ -1386,8 +1504,6 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 new_sect->current_next_indicator = *p++ & BIT(0);
                 new_sect->section_number = *p++;
                 new_sect->last_section_number = *p++;
-
-                const struct table_id_table *table_id_table;
 
                 table_id_table = table_type(new_sect->table_id);
                 new_sect->check_CRC = table_id_table->check_CRC;
@@ -1405,13 +1521,51 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 new_sect->type = TS_TYPE_USR;
         }
 
-        RPT(RPT_INF, "table: 0x%02X; len: %4d; sect: %d/%d",
-            new_sect->table_id,
-            new_sect->section_length,
-            new_sect->section_number,
-            new_sect->last_section_number);
+        RPTINF("table: 0x%02X; len: %4d; sect: %d/%d",
+            (unsigned int)(new_sect->table_id),
+            (int)(new_sect->section_length),
+            (int)(new_sect->section_number),
+            (int)(new_sect->last_section_number));
 
-        /* CRC check */
+        /* check errors */
+        if(0x0000 == pid->PID && 0x00 != new_sect->table_id) {
+                err->PAT_error |= ERR_1_3_1; /* PAT_error(table_id error) */
+                err->has_level1_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x0001 == pid->PID && 0x01 != new_sect->table_id) {
+                err->CAT_error |= ERR_2_6_1; /* CAT_error(table_id error) */
+                err->has_level2_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x00 == new_sect->table_id && 0x0000 != pid->PID) {
+                err->pat_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x01 == new_sect->table_id && 0x0001 != pid->PID) {
+                err->cat_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x02 == new_sect->table_id && !IS_TYPE(TS_TYPE_PMT, pid->type)) {
+                err->pmt_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+        if(0x42 == new_sect->table_id && 0x0011 != pid->PID) {
+                err->sdt_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
+                goto release_sect;
+        }
+
+        /* check CRC */
         if(new_sect->check_CRC) {
                 p = new_sect->section + 3 + new_sect->section_length - 4;
                 obj->CRC_32   = *p++;
@@ -1425,33 +1579,44 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                 obj->CRC_32_calc = ts_crc(new_sect->section, 3 + new_sect->section_length - 4, 32);
                 if(obj->CRC_32_calc != obj->CRC_32) {
                         err->CRC_error = 1;
-#if 0
-                        RPT(RPT_ERR, "CRC error(0x%08X! 0x%08X?)",
-                            obj->CRC_32_calc, obj->CRC_32);
-                        dump(obj->ipt.TS, TS_PKT_SIZE);
-                        dump(new_sect->section, 3 + new_sect->section_length);
-#endif
+                        err->has_level2_error++;
+                        obj->has_err++;
                         goto release_sect;
                 }
+                new_sect->CRC_32 = obj->CRC_32;
         }
 
-        /* get "tabl" */
+        /* locate "tabl" and "psect0" */
         if(0x02 == new_sect->table_id) {
                 /* is PMT section */
                 if(!(pid->prog)) {
-                        RPT(RPT_WRN, "PMT without corresponding program, ignore");
+                        RPTWRN("PMT without corresponding program, ignore");
+                        goto release_sect;
+                }
+                if(0x00 != new_sect->section_number ||
+                   0x00 != new_sect->last_section_number) {
+                        err->pmt_section_number_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
                         goto release_sect;
                 }
                 tabl = &(pid->prog->tabl);
+
+                if(0xFF == tabl->version_number) {
+                        /* first PMT of this prog */
+                        tabl->version_number = new_sect->version_number;
+                        tabl->last_section_number = new_sect->last_section_number;
+                }
         }
         else {
                 /* not PMT section */
-                RPT(RPT_DBG, "search 0x%02X in table_list", new_sect->table_id);
-                tabl = (struct ts_tabl *)zlst_search(&(obj->tabl0), new_sect->table_id);
+                RPTDBG("search 0x%02X in table_list", (unsigned int)(new_sect->table_id));
+                tabl = (struct ts_tabl *)zlst_search((zhead_t *)&(obj->tabl0),
+                                                     (int)(new_sect->table_id));
                 if(!tabl) {
                         tabl = (struct ts_tabl *)buddy_malloc(obj->mp, sizeof(struct ts_tabl));
                         if(!tabl) {
-                                RPT(RPT_ERR, "malloc ts_tabl node failed");
+                                RPTERR("malloc ts_tabl node failed");
                                 goto release_sect;
                         }
 
@@ -1461,58 +1626,15 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
                         tabl->last_section_number = new_sect->last_section_number;
                         tabl->STC = STC_OVF;
 
-                        RPT(RPT_DBG, "insert 0x%02X in table_list", tabl->table_id);
-                        zlst_set_key(tabl, tabl->table_id);
-                        if(0 != zlst_insert(&(obj->tabl0), tabl)) {
+                        RPTDBG("insert 0x%02X in table_list", (unsigned int)(tabl->table_id));
+                        if(0 != zlst_insert((zhead_t *)&(obj->tabl0), tabl,
+                                            (int)(tabl->table_id))) {
                                 free_tabl(obj->mp, tabl);
                                 goto release_sect;
                         }
                 }
         }
-
-        /* get "psect0" */
-        struct znode **psect0 = (struct znode **)&(tabl->sect0);
-
-        /* new table version? */
-        if(tabl->version_number != new_sect->version_number) {
-                struct ts_sect *sect_node;
-
-                /* clear psect0 and update table parameter */
-                RPT(RPT_DBG, "version_number(%d -> %d), free old sections",
-                    tabl->version_number,
-                    new_sect->version_number);
-                tabl->version_number = new_sect->version_number;
-                tabl->last_section_number = new_sect->last_section_number;
-                while(NULL != (sect_node = (struct ts_sect *)zlst_pop(psect0))) {
-                        free_sect(obj->mp, sect_node);
-                };
-#if 0
-                is_new_version = 1;
-#endif
-        }
-
-        struct ts_sect *sect;
-
-        /* get "section" pointer */
-        RPT(RPT_DBG, "search %d/%d in sect_list", new_sect->section_number, new_sect->last_section_number);
-        sect = (struct ts_sect *)zlst_search(psect0, new_sect->section_number);
-        if(!sect) {
-                sect = new_sect;
-                RPT(RPT_DBG, "insert %d/%d in sect_list", sect->section_number, sect->last_section_number);
-                zlst_set_key(sect, sect->section_number);
-                if(0 != zlst_insert(psect0, sect)) {
-                        goto release_sect;
-                }
-        }
-        else {
-                RPT(RPT_INF, "has section %02X/%02X(table %02X) already",
-                    sect->section_number,
-                    sect->last_section_number,
-                    sect->table_id);
-                free_sect(obj->mp, new_sect);
-                //return -1; FIXME: got SDT before PMT will lost service info, so parse again and again now
-        }
-        obj->sect = sect; /* has section */
+        psect0 = (struct znode **)&(tabl->sect0);
 
         /* sect_interval */
         if(STC_OVF != tabl->STC &&
@@ -1524,46 +1646,82 @@ static int ts_parse_sect(struct ts_obj *obj, struct ts_sect *new_sect)
         }
         tabl->STC = obj->STC;
 
-        /* PAT_error(table_id error) */
-        if(0x0000 == pid->PID && 0x00 != sect->table_id) {
-                err->PAT_error = ERR_1_3_1;
-                dump(obj->ipt.TS, TS_PKT_SIZE);
-                dump(sect->section, 8);
+#if 0
+        /* FIXME:
+         *      PAT or PMT version changed is dangerous!
+         *      use section_crc32_error to inform application than be INITed now.
+         */
+        /* new table version? */
+        if(new_sect->version_number != tabl->version_number) {
+                struct ts_sect *sect_node;
+
+                /* clear psect0 and update table parameter */
+                RPTDBG("version_number(%d -> %d), free old sections",
+                    (int)(tabl->version_number), (int)(new_sect->version_number));
+                tabl->version_number = new_sect->version_number;
+                tabl->last_section_number = new_sect->last_section_number;
+                while(NULL != (sect_node = (struct ts_sect *)zlst_pop((zhead_t *)psect0))) {
+                        free_sect(obj->mp, sect_node);
+                };
+        }
+#endif
+
+        /* locate sect pointer */
+        RPTDBG("search %d/%d in sect_list",
+               (int)(new_sect->section_number), (int)(new_sect->last_section_number));
+        obj->sect = (struct ts_sect *)zlst_search((zhead_t *)psect0,
+                                                  (int)(new_sect->section_number));
+        if(NULL == obj->sect) {
+                if(0x42 == new_sect->table_id && !(obj->is_pat_pmt_parsed)) {
+                        /* got SDT before PMT will lost service info, so ignore this SDT */
+                        goto release_sect;
+                }
+                RPTDBG("insert %d/%d in sect_list",
+                       (int)(new_sect->section_number), (int)(new_sect->last_section_number));
+                if(0 != zlst_insert((zhead_t *)psect0, new_sect,
+                                    (int)(new_sect->section_number))) {
+                        goto release_sect;
+                }
+                obj->sect = new_sect; /* has section */
+        }
+        else {
+                RPTINF("has section %02X/%02X(table %02X) already",
+                    (unsigned int)(obj->sect->section_number),
+                    (unsigned int)(obj->sect->last_section_number),
+                    (unsigned int)(obj->sect->table_id));
+                if(obj->sect->CRC_32 != new_sect->CRC_32) {
+                        int mask;
+
+                        switch(new_sect->table_id) {
+                                case 0x00: mask = ERR_4_0_0; break;
+                                case 0x01: mask = ERR_4_0_1; break;
+                                case 0x02: mask = ERR_4_0_2; break;
+                                default:   mask = 0; break;
+                        }
+                        err->section_crc32_error |= mask;
+                        err->has_other_error += ((mask) ? 1 : 0);
+                        obj->has_err += ((mask) ? 1 : 0);
+                }
                 goto release_sect;
         }
+        /* new_sect is in list now, do not free new_sect from here to "return 0"! */
 
         /* parse */
-        switch(sect->table_id) {
+        switch(new_sect->table_id) {
                 case 0x00:
-                        if(0x0000 != pid->PID) {
-                                RPT(RPT_ERR, "PAT: PID is not 0x0000 but 0x%04X, ignore!", pid->PID);
-                                goto release_sect;
-                        }
                         ts_parse_secb_pat(obj);
                         break;
                 case 0x01:
-                        if(0x0001 != pid->PID) {
-                                RPT(RPT_ERR, "CAT: PID is not 0x0001 but 0x%04X, ignore!", pid->PID);
-                                goto release_sect;
-                        }
                         ts_parse_secb_cat(obj);
                         break;
                 case 0x02:
-                        if(!IS_TYPE(TS_TYPE_PMT, pid->type)) {
-                                RPT(RPT_ERR, "PMT: PID is NOT PMT_PID but 0x%04X, ignore!", pid->PID);
-                                goto release_sect;
-                        }
                         ts_parse_secb_pmt(obj);
                         break;
                 case 0x42:
-                        if(0x0011 != pid->PID) {
-                                RPT(RPT_ERR, "SDT: PID is not 0x0011 but 0x%04X, ignore!", pid->PID);
-                                goto release_sect;
-                        }
                         ts_parse_secb_sdt(obj);
                         break;
                 default:
-                        RPT(RPT_DBG, "meet table(0x%02X), ignore", sect->table_id);
+                        RPTDBG("meet table(0x%02X), ignore", (unsigned int)(new_sect->table_id));
                         break;
         }
         return 0;
@@ -1585,11 +1743,15 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
 
         /* PAT_error */
-        if(obj->sect_interval > 500 * STC_MS) {
-                err->PAT_error = ERR_1_3_0;
+        if(!(0 <= obj->sect_interval && obj->sect_interval <= 500 * STC_MS)) {
+                err->PAT_error |= ERR_1_3_0;
+                err->has_level1_error++;
+                obj->has_err++;
         }
         if(0x00 != tsh->transport_scrambling_control) {
-                err->PAT_error = ERR_1_3_2;
+                err->PAT_error |= ERR_1_3_2;
+                err->has_level1_error++;
+                obj->has_err++;
         }
 
         /* to avoid stack overflow, FIXME */
@@ -1602,16 +1764,19 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
         obj->has_got_transport_stream_id = 1;
 
         while(cur < crc) {
+                memset(new_pid, 0, sizeof(struct ts_pid));
+
                 /* add program */
                 prog = (struct ts_prog *)buddy_malloc(obj->mp, sizeof(struct ts_prog));
                 if(!prog) {
-                        RPT(RPT_ERR, "malloc prog node failed");
+                        RPTERR("malloc prog node failed");
                         return -1;
                 }
                 prog->elem0 = NULL;
                 prog->tabl.sect0 = NULL;
                 prog->program_info_len = 0;
                 prog->program_info = NULL;
+                prog->ca0 = NULL;
                 prog->service_name_len = 0;
                 prog->service_name = NULL;
                 prog->service_provider_len = 0;
@@ -1637,9 +1802,9 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
                         new_pid->type = TS_TYPE_NIT;
 
                         if(0x0010 != new_pid->PID) {
-#if 1
-                                RPT(RPT_ERR, "NIT_PID(0x%04X) is NOT 0x0010!", new_pid->PID);
-#endif
+                                err->nit_pid_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                         }
                         free_prog(obj->mp, prog);
                 }
@@ -1661,6 +1826,7 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
                         /* program info */
                         prog->program_info_len = 0;
                         prog->program_info = NULL;
+                        prog->ca0 = NULL;
 
                         /* SDT info */
                         prog->service_name_len = 0;
@@ -1673,10 +1839,10 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
 
                         /* PMT table */
                         prog->is_parsed = 0;
+                        prog->tabl.sect0 = NULL;
                         prog->tabl.table_id = 0x02;
                         prog->tabl.version_number = 0xFF; /* never reached version */
                         prog->tabl.last_section_number = 0; /* no use */
-                        prog->tabl.sect0 = NULL;
                         prog->tabl.STC = STC_OVF;
 
                         /* for STC calc */
@@ -1686,21 +1852,16 @@ static int ts_parse_secb_pat(struct ts_obj *obj)
                         prog->PCRb = STC_OVF;
                         prog->is_STC_sync = 0;
 
-                        RPT(RPT_DBG, "insert 0x%04X in prog_list", prog->program_number);
-                        zlst_set_key(prog, prog->program_number);
-                        if(0 != zlst_insert(&(obj->prog0), prog)) {
+                        RPTDBG("insert 0x%04X in prog_list", (unsigned int)(prog->program_number));
+                        if(0 != zlst_insert((zhead_t *)&(obj->prog0), prog,
+                                            (int)(prog->program_number))) {
                                 free_prog(obj->mp, prog);
                                 return -1;
                         }
                 }
 
-                new_pid->cnt = 0;
-                new_pid->lcnt = 0;
                 new_pid->prog = prog;
-                new_pid->elem = NULL;
-                new_pid->CC = 0;
-                new_pid->is_CC_sync = 0;
-                update_pid_list(obj, new_pid); /* NIT or PMT PID */
+                (void)update_pid_list(obj, new_pid); /* NIT or PMT PID */
         }
 
         return 0;
@@ -1713,6 +1874,8 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
         uint8_t *cur = sect->section + 8;
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
+        struct ts_err *err = &(obj->err);
+        struct ts_ca *ca;
 
         while(cur < crc) {
                 uint8_t tag;
@@ -1723,7 +1886,9 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
                 len = *cur++;
                 pt = cur;
                 if((0xFF == tag) || (0 == len)) {
-                        RPT(RPT_ERR, "wrong descriptor(tag: %d, len: %d)", tag, len);
+                        err->descriptor_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
                         return -1;
                 }
                 if(0x09 == tag) { /* CA_descriptor in CAT */
@@ -1732,28 +1897,39 @@ static int ts_parse_secb_cat(struct ts_obj *obj)
 
                         dat = *pt++;
                         CA_system_ID = dat;
-
                         dat = *pt++;
                         CA_system_ID <<= 8;
                         CA_system_ID |= dat;
 
                         dat = *pt++;
                         CA_PID = dat & 0x1F;
-
                         dat = *pt++;
                         CA_PID <<= 8;
                         CA_PID |= dat;
 
+                        memset(new_pid, 0, sizeof(struct ts_pid));
                         new_pid->PID = CA_PID;
-                        new_pid->cnt = 0;
-                        new_pid->lcnt = 0;
-                        new_pid->prog = NULL;
-                        new_pid->elem = NULL;
                         new_pid->type = TS_TYPE_EMM;
-                        new_pid->CC = 0;
-                        new_pid->is_CC_sync = 0;
-                        RPT(RPT_INF, "add EMM_PID(0x%04X)", CA_PID);
-                        update_pid_list(obj, new_pid);
+                        RPTINF("add EMM_PID(0x%04X)", (unsigned int)CA_PID);
+                        (void)update_pid_list(obj, new_pid);
+
+                        /* ca node */
+                        ca = (struct ts_ca *)buddy_malloc(obj->mp, sizeof(struct ts_ca));
+                        if(!ca) {
+                                RPTERR("malloc ca node failed");
+                                return -1;
+                        }
+
+                        /* init ca here */
+                        ca->CA_system_ID = CA_system_ID;
+                        ca->CA_PID = CA_PID;
+
+                        /* push ca */
+                        RPTINF("push 0x%04X in ca_list", (unsigned int)(ca->CA_PID));
+                        zlst_push((zhead_t *)&(obj->ca0), ca);
+
+                        /* for CAT error(ERR_2_6_0) */
+                        obj->has_CAT = 1;
                 }
                 cur += len;
         }
@@ -1771,115 +1947,193 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         struct ts_prog *prog;
         struct ts_pid ts_new_pid, *new_pid = &ts_new_pid;
+        uint8_t *next; /* point to the data after descriptors */
 
         /* PMT_error */
-        if(obj->sect_interval > 500 * STC_MS) {
-                err->PMT_error = ERR_1_5_0;
+        if(!(0 <= obj->sect_interval && obj->sect_interval <= 500 * STC_MS)) {
+                err->PMT_error |= ERR_1_5_0;
+                err->has_level1_error++;
+                obj->has_err++;
         }
         if(0x00 != tsh->transport_scrambling_control) {
-                err->PMT_error = ERR_1_5_1;
+                err->PMT_error |= ERR_1_5_1;
+                err->has_level1_error++;
+                obj->has_err++;
         }
 
-        /* in PMT, table_id_extension is program_number */
-        RPT(RPT_DBG, "search 0x%04X in prog_list", sect->table_id_extension);
-        prog = (struct ts_prog *)zlst_search(&(obj->prog0), sect->table_id_extension);
+        /* search prog(table_id_extension in pmt is program_number) */
+        RPTDBG("search 0x%04X in prog_list", (unsigned int)(sect->table_id_extension));
+        prog = (struct ts_prog *)zlst_search((zhead_t *)&(obj->prog0), (int)(sect->table_id_extension));
         if((!prog) || (prog->is_parsed)) {
                 return -1; /* parsed program, ignore */
         }
 
-        obj->is_psi_si = 1;
+        /* init prog here */
         prog->is_parsed = 1;
+        obj->is_psi_si = 1;
 
+        /* parse each parameter about prog */
         dat = *cur++;
         prog->PCR_PID = dat & 0x1F;
-
         dat = *cur++;
         prog->PCR_PID <<= 8;
         prog->PCR_PID |= dat;
 
-        /* add PCR PID */
-        new_pid->PID = prog->PCR_PID;
-        new_pid->cnt = 0;
-        new_pid->lcnt = 0;
-        new_pid->prog = prog;
-        new_pid->elem = NULL;
-        new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
-        new_pid->CC = 0;
-        new_pid->is_CC_sync = 1;
-        update_pid_list(obj, new_pid); /* PCR_PID */
-
-        /* program_info_length */
         dat = *cur++;
-        prog->program_info_len = dat & 0x0F;
-
+        prog->program_info_len = (int)(dat & 0x0F);
         dat = *cur++;
         prog->program_info_len <<= 8;
         prog->program_info_len |= dat;
 
-        /* record program_info */
         if(0 != prog->program_info_len && !(prog->program_info)) {
                 if(prog->program_info_len > INFO_LEN_MAX) {
-                        RPT(RPT_ERR, "PID(0x%04X): program_info_length(%d) too big!",
-                            tsh->PID, prog->program_info_len);
+                        err->program_info_length_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
                         return -1;
                 }
                 else {
-                        prog->program_info = (uint8_t *)buddy_malloc(obj->mp, prog->program_info_len);
+                        prog->program_info = (uint8_t *)buddy_malloc(obj->mp, (size_t)(prog->program_info_len));
                         if(!(prog->program_info)) {
-                                RPT(RPT_ERR, "malloc for prog_info buffer failed");
+                                RPTERR("malloc for prog_info buffer failed");
                                 return -1;
                         }
-                        memcpy(prog->program_info, cur, prog->program_info_len);
+                        memcpy(prog->program_info, cur, (size_t)(prog->program_info_len));
+                        /* do not move cur here, program_info will be parsed */
                 }
         }
-        cur += prog->program_info_len;
+
+        next = cur + prog->program_info_len;
+        while(cur < next) {
+                uint8_t tag;
+                uint8_t len;
+                uint8_t *pt;
+
+                tag = *cur++;
+                len = *cur++;
+                pt = cur;
+                if((0xFF == tag) || (0 == len)) {
+                        err->descriptor_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
+                        return -1;
+                }
+                if(0x09 == tag) { /* CA_descriptor in program_info */
+                        uint16_t CA_system_ID;
+                        uint16_t CA_PID;
+                        struct ts_ca *ca;
+
+                        dat = *pt++;
+                        CA_system_ID = dat;
+                        dat = *pt++;
+                        CA_system_ID <<= 8;
+                        CA_system_ID |= dat;
+
+                        dat = *pt++;
+                        CA_PID = dat & 0x1F;
+                        dat = *pt++;
+                        CA_PID <<= 8;
+                        CA_PID |= dat;
+
+                        /* ECM PID */
+                        memset(new_pid, 0, sizeof(struct ts_pid));
+                        new_pid->PID = CA_PID;
+                        new_pid->prog = prog;
+                        new_pid->type = TS_TYPE_ECM;
+                        RPTINF("add ECM_PID(0x%04X)", (unsigned int)(CA_PID));
+                        (void)update_pid_list(obj, new_pid);
+
+                        /* ca node */
+                        ca = (struct ts_ca *)buddy_malloc(obj->mp, sizeof(struct ts_ca));
+                        if(!ca) {
+                                RPTERR("malloc ca node failed");
+                                return -1;
+                        }
+
+                        /* init ca here */
+                        ca->CA_system_ID = CA_system_ID;
+                        ca->CA_PID = CA_PID;
+
+                        /* push ca */
+                        RPTINF("push 0x%04X in ca_list", (unsigned int)(ca->CA_PID));
+                        zlst_push((zhead_t *)&(prog->ca0), ca);
+                }
+                cur += len;
+        }
+
+        /* add PCR PID */
+        memset(new_pid, 0, sizeof(struct ts_pid));
+        new_pid->PID = prog->PCR_PID;
+        new_pid->prog = prog;
+        new_pid->type = ((0x1FFF != new_pid->PID) ? TS_TYPE_PCR : TS_TYPE_NULP);
+        new_pid->is_CC_sync = 1;
+        (void)update_pid_list(obj, new_pid); /* PCR_PID */
 
         while(cur < crc) {
                 struct ts_elem *elem;
-                uint8_t *next; /* point to the data after descriptors */
 
-                /* add elementary stream */
                 elem = (struct ts_elem *)buddy_malloc(obj->mp, sizeof(struct ts_elem));
                 if(!elem) {
-                        RPT(RPT_ERR, "malloc elem node failed");
+                        RPTERR("malloc elem node failed");
                         return -1;
                 }
-                elem->es_info = NULL;
 
+                /* init elem here */
+                elem->es_info = NULL;
+                elem->es_info_len = 0;
+                elem->ca0 = NULL;
+                elem->PTS = STC_BASE_OVF;
+                elem->DTS = STC_BASE_OVF;
+                elem->STC = STC_OVF;
+                elem->is_pes_align = 0;
+
+                /* parse each parameter */
                 dat = *cur++;
                 elem->stream_type = dat;
+                elem->type = elem_type(dat)->type;
 
                 dat = *cur++;
                 elem->PID = dat & 0x1F;
-
                 dat = *cur++;
                 elem->PID <<= 8;
                 elem->PID |= dat;
+                elem->type |= ((elem->PID == prog->PCR_PID) ? TS_TMSK_PCR : 0);
 
-                /* ES_info_length */
                 dat = *cur++;
-                elem->es_info_len = dat & 0x0F;
-
+                elem->es_info_len = (int)(dat & 0x0F);
                 dat = *cur++;
                 elem->es_info_len <<= 8;
                 elem->es_info_len |= dat;
 
-                /* ES_info */
-                if(0 != elem->es_info_len && !(elem->es_info)) {
+                if(0 != elem->es_info_len) {
                         if(elem->es_info_len >= INFO_LEN_MAX) {
-                                RPT(RPT_ERR, "PID(0x%04X): ES_info_length(%d) too big!",
-                                    elem->PID, elem->es_info_len);
+                                err->es_info_length_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
                         else {
-                                elem->es_info = (uint8_t *)buddy_malloc(obj->mp, elem->es_info_len);
+                                elem->es_info = (uint8_t *)buddy_malloc(obj->mp, (size_t)(elem->es_info_len));
                                 if(!(elem->es_info)) {
-                                        RPT(RPT_ERR, "malloc for es_info buffer failed");
+                                        RPTERR("malloc for es_info buffer failed");
                                         return -1;
                                 }
-                                memcpy(elem->es_info, cur, elem->es_info_len);
+                                memcpy(elem->es_info, cur, (size_t)(elem->es_info_len));
+                                /* do not move cur here, es_info will be parsed */
                         }
                 }
+
+                /* push elem */
+                RPTDBG("push 0x%04X in elem_list", (unsigned int)(elem->PID));
+                zlst_push((zhead_t *)&(prog->elem0), elem);
+
+                /* add elementary PID */
+                memset(new_pid, 0, sizeof(struct ts_pid));
+                new_pid->PID = elem->PID;
+                new_pid->prog = prog;
+                new_pid->elem = elem;
+                new_pid->type = elem->type;
+                (void)update_pid_list(obj, new_pid); /* elementary_PID */
 
                 next = cur + elem->es_info_len;
                 while(cur < next) {
@@ -1891,63 +2145,54 @@ static int ts_parse_secb_pmt(struct ts_obj *obj)
                         len = *cur++;
                         pt = cur;
                         if((0xFF == tag) || (0 == len)) {
-                                RPT(RPT_ERR, "wrong descriptor(tag: %d, len: %d)", tag, len);
+                                err->descriptor_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
-                        if(0x09 == tag) { /* CA_descriptor in PMT */
+                        if(0x09 == tag) { /* CA_descriptor in es_info */
                                 uint16_t CA_system_ID;
                                 uint16_t CA_PID;
+                                struct ts_ca *ca;
 
                                 dat = *pt++;
                                 CA_system_ID = dat;
-
                                 dat = *pt++;
                                 CA_system_ID <<= 8;
                                 CA_system_ID |= dat;
 
                                 dat = *pt++;
                                 CA_PID = dat & 0x1F;
-
                                 dat = *pt++;
                                 CA_PID <<= 8;
                                 CA_PID |= dat;
 
+                                /* ECM PID */
+                                memset(new_pid, 0, sizeof(struct ts_pid));
                                 new_pid->PID = CA_PID;
-                                new_pid->cnt = 0;
-                                new_pid->lcnt = 0;
                                 new_pid->prog = prog;
                                 new_pid->elem = elem;
                                 new_pid->type = TS_TYPE_ECM;
-                                new_pid->CC = 0;
-                                new_pid->is_CC_sync = 0;
-                                RPT(RPT_INF, "add ECM_PID(0x%04X)", CA_PID);
-                                update_pid_list(obj, new_pid);
+                                RPTINF("add ECM_PID(0x%04X)", (unsigned int)(CA_PID));
+                                (void)update_pid_list(obj, new_pid);
+
+                                /* ca node */
+                                ca = (struct ts_ca *)buddy_malloc(obj->mp, sizeof(struct ts_ca));
+                                if(!ca) {
+                                        RPTERR("malloc ca node failed");
+                                        return -1;
+                                }
+
+                                /* init ca here */
+                                ca->CA_system_ID = CA_system_ID;
+                                ca->CA_PID = CA_PID;
+
+                                /* push ca */
+                                RPTINF("push 0x%04X in ca_list", (unsigned int)(ca->CA_PID));
+                                zlst_push((zhead_t *)&(elem->ca0), ca);
                         }
                         cur += len;
                 }
-
-                elem->type = elem_type(elem->stream_type)->type;
-                if(elem->PID == prog->PCR_PID) {
-                        elem->type |= TS_TMSK_PCR;
-                }
-                elem->PTS = STC_BASE_OVF;
-                elem->DTS = STC_BASE_OVF;
-
-                elem->is_pes_align = 0;
-
-                RPT(RPT_DBG, "push 0x%04X in elem_list", elem->PID);
-                zlst_push(&(prog->elem0), elem);
-
-                /* add elementary PID */
-                new_pid->PID = elem->PID;
-                new_pid->cnt = 0;
-                new_pid->lcnt = 0;
-                new_pid->prog = prog;
-                new_pid->elem = elem;
-                new_pid->type = elem->type;
-                new_pid->CC = 0;
-                new_pid->is_CC_sync = 0;
-                update_pid_list(obj, new_pid); /* elementary_PID */
         }
 
         return 0;
@@ -1960,14 +2205,15 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
         uint8_t *cur = sect->section + 8;
         uint8_t *crc = sect->section + 3 + sect->section_length - 4;
         uint16_t original_network_id;
+        struct ts_err *err = &(obj->err);
 
         /* in SDT, table_id_extension is transport_stream_id */
         if(obj->has_got_transport_stream_id &&
+           0x42 == sect->table_id && /* actual transport stream */
            sect->table_id_extension != obj->transport_stream_id) {
-                RPT(RPT_ERR, "table_id(0x%02X): table_id_extension(%d) != transport_stream_id(%d)",
-                    sect->table_id,
-                    sect->table_id_extension,
-                    obj->transport_stream_id);
+                err->table_id_extension_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1; /* bad SDT table, ignore */
         }
 
@@ -1977,16 +2223,6 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
         dat = *cur++;
         original_network_id <<= 8;
         original_network_id |= dat;
-        if(obj->has_got_transport_stream_id &&
-           original_network_id != obj->transport_stream_id) {
-#if 0
-                RPT(RPT_ERR, "table_id(0x%02X): original_network_id(%d) != transport_stream_id(%d)",
-                    sect->table_id,
-                    original_network_id,
-                    obj->transport_stream_id);
-                return -1; /* bad SDT table, ignore */
-#endif
-        }
 
         dat = *cur++; /* reserved_future_use */
 
@@ -2009,8 +2245,8 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
                 dat = *cur++;
                 service_id <<= 8;
                 service_id |= dat;
-                RPT(RPT_DBG, "search service_id(0x%04X) in prog_list", service_id);
-                prog = (struct ts_prog *)zlst_search(&(obj->prog0), service_id);
+                RPTDBG("search service_id(0x%04X) in prog_list", (unsigned int)service_id);
+                prog = (struct ts_prog *)zlst_search((zhead_t *)&(obj->prog0), (int)service_id);
 
                 dat = *cur++;
 #if 0
@@ -2039,41 +2275,43 @@ static int ts_parse_secb_sdt(struct ts_obj *obj)
                         len = *cur++;
                         pt = cur;
                         if((0xFF == tag) || (0 == len)) {
-                                RPT(RPT_ERR, "wrong descriptor(tag: %d, len: %d)", tag, len);
+                                err->descriptor_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
                         if(0x48 == tag && prog) {
                                 /* service_descriptor */
                                 pt++; /* ignore type */
 
-                                prog->service_provider_len = *pt++;
+                                prog->service_provider_len = (int)(*pt++);
                                 if(0 != prog->service_provider_len) {
                                         if(prog->service_provider) {
                                                 buddy_free(obj->mp, prog->service_provider);
                                         }
-                                        prog->service_provider = (uint8_t *)buddy_malloc(obj->mp, (uint16_t)1 + prog->service_provider_len);
+                                        prog->service_provider = (uint8_t *)buddy_malloc(obj->mp, (size_t)(1 + prog->service_provider_len));
                                         if(!(prog->service_provider)) {
-                                                RPT(RPT_ERR, "malloc for service_provider buffer failed");
+                                                RPTERR("malloc for service_provider buffer failed");
                                                 return -1;
                                         }
-                                        memcpy(prog->service_provider, pt, prog->service_provider_len);
-                                        prog->service_provider[prog->service_provider_len] = '\0';
+                                        memcpy(prog->service_provider, pt, (size_t)(prog->service_provider_len));
+                                        prog->service_provider[prog->service_provider_len] = (uint8_t)'\0';
                                 }
 
                                 pt += prog->service_provider_len; /* pass provider */
 
-                                prog->service_name_len = *pt++;
+                                prog->service_name_len = (int)(*pt++);
                                 if(0 != prog->service_name_len) {
                                         if(prog->service_name) {
                                                 buddy_free(obj->mp, prog->service_name);
                                         }
-                                        prog->service_name = (uint8_t *)buddy_malloc(obj->mp, (uint16_t)1 + prog->service_name_len);
+                                        prog->service_name = (uint8_t *)buddy_malloc(obj->mp, (size_t)(1 + prog->service_name_len));
                                         if(!(prog->service_name)) {
-                                                RPT(RPT_ERR, "malloc for service_name buffer failed");
+                                                RPTERR("malloc for service_name buffer failed");
                                                 return -1;
                                         }
-                                        memcpy(prog->service_name, pt, prog->service_name_len);
-                                        prog->service_name[prog->service_name_len] = '\0';
+                                        memcpy(prog->service_name, pt, (size_t)(prog->service_name_len));
+                                        prog->service_name[prog->service_name_len] = (uint8_t)'\0';
                                 }
                         }
                         cur += len;
@@ -2089,15 +2327,20 @@ static int ts_parse_pesh(struct ts_obj *obj)
         struct ts_pesh *pesh = &(obj->pesh);
         struct ts_pid *pid = obj->pid;
         struct ts_elem *elem = pid->elem; /* may be NULL */
+        struct ts_err *err = &(obj->err);
         uint8_t dat;
 
         /* for some bad stream */
         if(tsh->PID < 0x0020) {
-                RPT(RPT_ERR, "PES: bad PID(0x%04X)!", tsh->PID);
+                err->pes_pid_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
         if(!elem) {
-                RPT(RPT_ERR, "PES: not elem PID(0x%04X)!", tsh->PID);
+                err->pes_elem_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
 
@@ -2137,9 +2380,9 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 pesh->packet_start_code_prefix |= dat;
 
                 if(0x000001 != pesh->packet_start_code_prefix) {
-                        RPT(RPT_ERR, "PES packet start code prefix(0x%06X) NOT 0x000001!",
-                            pesh->packet_start_code_prefix);
-                        dump(obj->ipt.TS, TS_PKT_SIZE);
+                        err->pes_start_code_error = 1;
+                        err->has_other_error++;
+                        obj->has_err++;
 #if 0
                         return -1;
 #endif
@@ -2155,7 +2398,7 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 pesh->PES_packet_length <<= 8;
                 pesh->PES_packet_length |= dat; /* 0x0000 for many video pes */
 #if 0
-                RPT(RPT_ERR, "PES_packet_length = %d(0x%X)",
+                RPTERR("PES_packet_length = %d(0x%X)",
                     pesh->PES_packet_length,
                     pesh->PES_packet_length);
 #endif
@@ -2168,6 +2411,8 @@ static int ts_parse_pesh(struct ts_obj *obj)
                 if(elem->is_pes_align) {
                         obj->ES_len = obj->tail - obj->cur;
                         obj->ES = obj->cur;
+                        pid->cnt_es += obj->ES_len;
+                        pid->cnt_es_from_pesh += obj->ES_len;
                 }
                 else {
                         /* ignore these ES data */
@@ -2176,6 +2421,8 @@ static int ts_parse_pesh(struct ts_obj *obj)
         else {
                 obj->ES_len = obj->tail - obj->cur;
                 obj->ES = obj->cur;
+                pid->cnt_es += obj->ES_len;
+                pid->cnt_es_from_pesh += obj->ES_len;
         }
 
         return 0;
@@ -2184,15 +2431,17 @@ static int ts_parse_pesh(struct ts_obj *obj)
 static int ts_parse_pesh_switch(struct ts_obj *obj)
 {
         struct ts_pesh *pesh = &(obj->pesh);
+        struct ts_err *err = &(obj->err);
 
         switch(pesh->stream_id) {
                 case 0xBE: /* padding_stream */
-                        /* subsequent pesh->PES_packet_length data is padding_byte, pass */
-                        if(pesh->PES_packet_length > (obj->tail - obj->cur)) {
-                                RPT(RPT_ERR, "PES_packet_length(%d) for padding_stream is too large!",
-                                    pesh->PES_packet_length);
+                        if((int)(pesh->PES_packet_length) > (obj->tail - obj->cur)) {
+                                err->pes_packet_length_error = 1;
+                                err->has_other_error++;
+                                obj->has_err++;
                                 return -1;
                         }
+                        /* subsequent pesh->PES_packet_length data is padding_byte, pass */
                         obj->cur += pesh->PES_packet_length;
                         break;
                 case 0xBC: /* program_stream_map */
@@ -2216,6 +2465,7 @@ static int ts_parse_pesh_switch(struct ts_obj *obj)
 static int ts_parse_pesh_detail(struct ts_obj *obj)
 {
         struct ts_pesh *pesh = &(obj->pesh);
+        struct ts_err *err = &(obj->err);
         uint8_t dat;
         uint8_t *es;
 
@@ -2237,9 +2487,10 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
 
         dat = *(obj->cur)++;
         pesh->PES_header_data_length = dat;
-        if(pesh->PES_header_data_length > (obj->tail - obj->cur)) {
-                RPT(RPT_ERR, "PES_header_data_length(%d) is too long!",
-                    pesh->PES_header_data_length);
+        if((int)(pesh->PES_header_data_length) > (obj->tail - obj->cur)) {
+                err->pes_header_length_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
         es = obj->cur + pesh->PES_header_data_length;
@@ -2326,8 +2577,9 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
                 obj->DTS = pesh->DTS;
         }
         else if(0x01 == pesh->PTS_DTS_flags) { /* '01' */
-                RPT(RPT_ERR, "PTS_DTS_flags error!");
-                dump(obj->ipt.TS, TS_PKT_SIZE);
+                err->pts_dts_flags_error = 1;
+                err->has_other_error++;
+                obj->has_err++;
                 return -1;
         }
         else {
@@ -2430,7 +2682,9 @@ static int ts_parse_pesh_detail(struct ts_obj *obj)
                 pesh->PES_extension_flag_2 = (dat & (BIT(0))) >> 0;
 
                 if(pesh->PES_private_data_flag) {
-                        for(int i = 0; i < 16; i++) {
+                        int i;
+
+                        for(i = 0; i < 16; i++) {
                                 pesh->PES_private_data[i] = *(obj->cur)++;
                         }
                 }
@@ -2482,7 +2736,7 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
 {
         struct ts_pid *pid;
 
-        pid = (struct ts_pid *)zlst_search(&(obj->pid0), new_pid->PID);
+        pid = (struct ts_pid *)zlst_search((zhead_t *)&(obj->pid0), (int)(new_pid->PID));
         if(pid) {
                 /* is in pid_list already, just update information */
                 pid->PID = new_pid->PID;
@@ -2491,13 +2745,15 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->type = new_pid->type;
                 pid->cnt = new_pid->cnt;
                 pid->lcnt = new_pid->lcnt;
+                pid->cnt_es = new_pid->cnt_es;
+                pid->lcnt_es = new_pid->lcnt_es;
                 pid->CC = new_pid->CC;
                 pid->is_CC_sync = new_pid->is_CC_sync;
         }
         else {
                 pid = (struct ts_pid *)buddy_malloc(obj->mp, sizeof(struct ts_pid));
                 if(!pid) {
-                        RPT(RPT_ERR, "malloc pid node failed");
+                        RPTERR("malloc pid node failed");
                         return NULL;
                 }
                 pid->pkt0 = NULL; /* wait to sync with section head */
@@ -2510,10 +2766,12 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
                 pid->CC = new_pid->CC;
                 pid->cnt = new_pid->cnt;
                 pid->lcnt = new_pid->lcnt;
+                pid->cnt_es = new_pid->cnt_es;
+                pid->lcnt_es = new_pid->lcnt_es;
 
-                RPT(RPT_DBG, "insert 0x%04X in pid_list", pid->PID);
-                zlst_set_key(pid, pid->PID);
-                if(0 != zlst_insert(&(obj->pid0), pid)) {
+                RPTDBG("insert 0x%04X in pid_list", (unsigned int)(pid->PID));
+                if(0 != zlst_insert((zhead_t *)&(obj->pid0), pid,
+                                    (int)(pid->PID))) {
                         free_pid(obj->mp, pid);
                         return NULL;
                 }
@@ -2523,30 +2781,22 @@ static struct ts_pid *update_pid_list(struct ts_obj *obj, struct ts_pid *new_pid
 
 static int is_all_prog_parsed(struct ts_obj *obj)
 {
-        uint8_t section_number;
         struct znode *znode_p; /* znode of program list */
 
         for(znode_p = (struct znode *)(obj->prog0); znode_p; znode_p = znode_p->next) {
                 struct ts_prog *prog = (struct ts_prog *)znode_p;
                 struct ts_tabl *tabl = &(prog->tabl);
-                struct znode *znode_s; /* znode of section list */
 
                 if(0xFF == tabl->version_number) {
+                        /* did not parse this PMT, wait it */
                         return 0;
                 }
 
-                section_number = 0;
-                for(znode_s = (struct znode *)(tabl->sect0); znode_s; znode_s = znode_s->next) {
-                        struct ts_sect *sect = (struct ts_sect *)znode_s;
-
-                        if(section_number > tabl->last_section_number) {
-                                return 0;
-                        }
-                        if(section_number != sect->section_number) {
-                                return 0;
-                        }
-                        section_number++;
-                }
+                /* note:
+                 *      each PMT PID has only one section,
+                 *      (0xFF != version_number) means we parsed the only section,
+                 *      so we do not need 'for' loop here.
+                 */
         }
         return 1;
 }
@@ -2589,98 +2839,89 @@ static const struct stream_type_table *elem_type(uint8_t stream_type)
         return p;
 }
 
+#if 0
 static int dump(uint8_t *buf, int len)
 {
         uint8_t *p = buf;
         int i;
 
         for(i = 0; i < len; i++) {
-                fprintf(stderr, "%02X ", *p++);
+                fprintf(stderr, "%02X ", (unsigned int)(*p++));
         }
         fprintf(stderr, "\n");
 
         return 0;
 }
+#endif
+
+static uint32_t dvbpsi_crc32_table[256] =
+{
+        0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
+        0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61, 0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd,
+        0x4c11db70, 0x48d0c6c7, 0x4593e01e, 0x4152fda9, 0x5f15adac, 0x5bd4b01b, 0x569796c2, 0x52568b75,
+        0x6a1936c8, 0x6ed82b7f, 0x639b0da6, 0x675a1011, 0x791d4014, 0x7ddc5da3, 0x709f7b7a, 0x745e66cd,
+        0x9823b6e0, 0x9ce2ab57, 0x91a18d8e, 0x95609039, 0x8b27c03c, 0x8fe6dd8b, 0x82a5fb52, 0x8664e6e5,
+        0xbe2b5b58, 0xbaea46ef, 0xb7a96036, 0xb3687d81, 0xad2f2d84, 0xa9ee3033, 0xa4ad16ea, 0xa06c0b5d,
+        0xd4326d90, 0xd0f37027, 0xddb056fe, 0xd9714b49, 0xc7361b4c, 0xc3f706fb, 0xceb42022, 0xca753d95,
+        0xf23a8028, 0xf6fb9d9f, 0xfbb8bb46, 0xff79a6f1, 0xe13ef6f4, 0xe5ffeb43, 0xe8bccd9a, 0xec7dd02d,
+        0x34867077, 0x30476dc0, 0x3d044b19, 0x39c556ae, 0x278206ab, 0x23431b1c, 0x2e003dc5, 0x2ac12072,
+        0x128e9dcf, 0x164f8078, 0x1b0ca6a1, 0x1fcdbb16, 0x018aeb13, 0x054bf6a4, 0x0808d07d, 0x0cc9cdca,
+        0x7897ab07, 0x7c56b6b0, 0x71159069, 0x75d48dde, 0x6b93dddb, 0x6f52c06c, 0x6211e6b5, 0x66d0fb02,
+        0x5e9f46bf, 0x5a5e5b08, 0x571d7dd1, 0x53dc6066, 0x4d9b3063, 0x495a2dd4, 0x44190b0d, 0x40d816ba,
+        0xaca5c697, 0xa864db20, 0xa527fdf9, 0xa1e6e04e, 0xbfa1b04b, 0xbb60adfc, 0xb6238b25, 0xb2e29692,
+        0x8aad2b2f, 0x8e6c3698, 0x832f1041, 0x87ee0df6, 0x99a95df3, 0x9d684044, 0x902b669d, 0x94ea7b2a,
+        0xe0b41de7, 0xe4750050, 0xe9362689, 0xedf73b3e, 0xf3b06b3b, 0xf771768c, 0xfa325055, 0xfef34de2,
+        0xc6bcf05f, 0xc27dede8, 0xcf3ecb31, 0xcbffd686, 0xd5b88683, 0xd1799b34, 0xdc3abded, 0xd8fba05a,
+        0x690ce0ee, 0x6dcdfd59, 0x608edb80, 0x644fc637, 0x7a089632, 0x7ec98b85, 0x738aad5c, 0x774bb0eb,
+        0x4f040d56, 0x4bc510e1, 0x46863638, 0x42472b8f, 0x5c007b8a, 0x58c1663d, 0x558240e4, 0x51435d53,
+        0x251d3b9e, 0x21dc2629, 0x2c9f00f0, 0x285e1d47, 0x36194d42, 0x32d850f5, 0x3f9b762c, 0x3b5a6b9b,
+        0x0315d626, 0x07d4cb91, 0x0a97ed48, 0x0e56f0ff, 0x1011a0fa, 0x14d0bd4d, 0x19939b94, 0x1d528623,
+        0xf12f560e, 0xf5ee4bb9, 0xf8ad6d60, 0xfc6c70d7, 0xe22b20d2, 0xe6ea3d65, 0xeba91bbc, 0xef68060b,
+        0xd727bbb6, 0xd3e6a601, 0xdea580d8, 0xda649d6f, 0xc423cd6a, 0xc0e2d0dd, 0xcda1f604, 0xc960ebb3,
+        0xbd3e8d7e, 0xb9ff90c9, 0xb4bcb610, 0xb07daba7, 0xae3afba2, 0xaafbe615, 0xa7b8c0cc, 0xa379dd7b,
+        0x9b3660c6, 0x9ff77d71, 0x92b45ba8, 0x9675461f, 0x8832161a, 0x8cf30bad, 0x81b02d74, 0x857130c3,
+        0x5d8a9099, 0x594b8d2e, 0x5408abf7, 0x50c9b640, 0x4e8ee645, 0x4a4ffbf2, 0x470cdd2b, 0x43cdc09c,
+        0x7b827d21, 0x7f436096, 0x7200464f, 0x76c15bf8, 0x68860bfd, 0x6c47164a, 0x61043093, 0x65c52d24,
+        0x119b4be9, 0x155a565e, 0x18197087, 0x1cd86d30, 0x029f3d35, 0x065e2082, 0x0b1d065b, 0x0fdc1bec,
+        0x3793a651, 0x3352bbe6, 0x3e119d3f, 0x3ad08088, 0x2497d08d, 0x2056cd3a, 0x2d15ebe3, 0x29d4f654,
+        0xc5a92679, 0xc1683bce, 0xcc2b1d17, 0xc8ea00a0, 0xd6ad50a5, 0xd26c4d12, 0xdf2f6bcb, 0xdbee767c,
+        0xe3a1cbc1, 0xe760d676, 0xea23f0af, 0xeee2ed18, 0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
+        0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662, 0x933eb0bb, 0x97ffad0c,
+        0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668, 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
+};
 
 uint32_t ts_crc(void *buf, size_t size, int mode)
 {
-        int bitcount = 0;
-        int bitinbyte = 0;
-        unsigned short databit;
-        unsigned short shiftreg[32];
-        /*                      0 1 2 3 4 5 6 7 8 */
-        unsigned short g08[] = {1,1,1,0,0,0,0,0,1};
-        /*                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 */
-        unsigned short g16[] = {1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1};
-        /*                      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 */
-        unsigned short g32[] = {1,1,1,0,1,1,0,1,1,0,1,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,1};
+        uint8_t *p = (uint8_t *)buf;
+        uint8_t *tail = p + size;
+        uint32_t crc = 0xFFFFFFFF;
 
-        unsigned short *g;
-        int i,nrbits;
-        char *data;
-        int cnt;
-        uint32_t crc;
-
-        switch(mode) {
-                case  8: g = g08; cnt =  8; break;
-                case 16: g = g16; cnt = 16; break;
-                default: g = g32; cnt = 32; break;
-        }
-
-        /* Initialize shift register's to '1' */
-        for(i = 0; i < cnt; i++) {
-                shiftreg[i] = 1;
-        }
-
-        /* Calculate nr of data bits */
-        nrbits = ((int) size) * 8;
-        data = buf;
-
-        while(bitcount < nrbits) {
-                /* Fetch bit from bitstream */
-                databit = (short int) (*data  & (0x80 >> bitinbyte));
-                databit = databit >> (7 - bitinbyte);
-                bitinbyte++;
-                bitcount++;
-                if(bitinbyte == 8) {
-                        bitinbyte = 0;
-                        data++;
+        if(32 == mode) {
+                while(p < tail) {
+                        crc = (crc << 8) ^ dvbpsi_crc32_table[(crc >> 24) ^ *p++];
                 }
-
-                /* Perform the shift and modula 2 addition */
-                databit ^= shiftreg[cnt - 1];
-                i = cnt - 1;
-                while (i != 0) {
-                        if (g[i]) {
-                                shiftreg[i] = shiftreg[i-1] ^ databit;
-                        }
-                        else {
-                                shiftreg[i] = shiftreg[i-1];
-                        }
-                        i--;
-                }
-                shiftreg[0] = databit;
         }
-
-        /* make CRC an UIMSBF */
-        crc = 0;
-        for(i = 0; i < cnt; i++) {
-                crc = (crc << 1) | ((unsigned int) shiftreg[cnt - 1 - i]);
-        }
-
         return crc;
 }
 
-#define timestamp_assert(expr, ...) \
-        do { \
-                if(!(expr)) { \
-                        fprintf(stderr, "\"%s\", line %d: assert (%s) failed: ", \
-                                __FILE__, __LINE__, #expr); \
-                        fprintf(stderr, __VA_ARGS__); \
-                        fprintf(stderr, "\n"); \
-                        return -1; \
-                } \
-        }while(0)
+#ifdef S_SPLINT_S /* FIXME */
+#define timestamp_assert(expr, fmt...) do { \
+        if(!(expr)) { \
+                fprintf(stderr, "%s: %d: !(%s): ", __FILE__, __LINE__, #expr); \
+                fprintf(stderr, fmt); \
+                fprintf(stderr, "\n"); \
+                return -1; \
+        } \
+} while(0)
+#else
+#define timestamp_assert(expr, fmt, ...) do { \
+        if(!(expr)) { \
+                fprintf(stderr, "%s: %d: !(%s): " fmt "\n", \
+                        __FILE__, __LINE__, #expr, ##__VA_ARGS__); \
+                return -1; \
+        } \
+} while(0)
+#endif
 
 int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 {
@@ -2688,11 +2929,10 @@ int64_t ts_timestamp_add(int64_t t0, int64_t td, int64_t ovf)
 #if 1
         int64_t hovf = ovf >> 1; /* half overflow */
 
-        timestamp_assert(0 < ovf, "0 < %lld", (long long int)ovf);
-        timestamp_assert((hovf << 1) == ovf, "%lld is not even", (long long int)ovf);
-        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", (long long int)t0, (long long int)ovf);
-        timestamp_assert(-hovf <= td && td < +hovf, "%lld <= %lld < %lld",
-                         (long long int)-hovf, (long long int)td, (long long int)+hovf);
+        timestamp_assert(0 < ovf, "0 < %" PRId64, ovf);
+        timestamp_assert((hovf << 1) == ovf, "%" PRId64 " is not even", ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %" PRId64 " < %" PRId64, t0, ovf);
+        timestamp_assert(-hovf <= td && td < +hovf, "%" PRId64 " <= %" PRId64 " < %" PRId64, -hovf, td, +hovf);
 #endif
 
         t1 = t0 + td; /* add */
@@ -2708,10 +2948,10 @@ int64_t ts_timestamp_diff(int64_t t1, int64_t t0, int64_t ovf)
         int64_t hovf = ovf >> 1; /* half overflow */
 
 #if 1
-        timestamp_assert(0 < ovf, "0 < %lld", (long long int)ovf);
-        timestamp_assert((hovf << 1) == ovf, "%lld is not even", (long long int)ovf);
-        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %lld < %lld", (long long int)t0, (long long int)ovf);
-        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %lld < %lld", (long long int)t1, (long long int)ovf);
+        timestamp_assert(0 < ovf, "0 < %" PRId64, ovf);
+        timestamp_assert((hovf << 1) == ovf, "%" PRId64 " is not even", ovf);
+        timestamp_assert(0 <= t0 && t0 < ovf, "0 <= %" PRId64 " < %" PRId64, t0, ovf);
+        timestamp_assert(0 <= t1 && t1 < ovf, "0 <= %" PRId64 " < %" PRId64, t1, ovf);
 #endif
 
         td = t1 - t0; /* minus */
